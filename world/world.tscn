@@ -1,0 +1,58 @@
+[gd_scene load_steps=8 format=3 uid="uid://c1663b2pp8it8"]
+
+[ext_resource type="PackedScene" uid="uid://d313xkgw4dosp" path="res://player/player.tscn" id="1_wlbsl"]
+[ext_resource type="Script" path="res://player/player_controls.gd" id="2_06t3i"]
+[ext_resource type="PackedScene" uid="uid://bmwumfw78mkuw" path="res://enemies/blobbert/blobbert.tscn" id="3_0pl54"]
+[ext_resource type="PackedScene" uid="uid://c8iriw732wf8i" path="res://scenery/well/well.tscn" id="4_xh45j"]
+[ext_resource type="PackedScene" uid="uid://dpmfhpwtjfpl3" path="res://collectables/sheep/sheep.tscn" id="5_nxk23"]
+[ext_resource type="PackedScene" uid="uid://bw210n8f5j5i8" path="res://scenery/tower/tower.tscn" id="6_cu4j2"]
+
+[sub_resource type="Resource" id="Resource_lli0t"]
+resource_local_to_scene = true
+script = ExtResource("2_06t3i")
+down = "move_down"
+left = "move_left"
+up = "move_up"
+right = "move_right"
+shield = "shield"
+smash = "smash"
+dash = "dash"
+
+[node name="World" type="Node2D"]
+
+[node name="Player" parent="." instance=ExtResource("1_wlbsl")]
+position = Vector2(204, -277)
+controls = SubResource("Resource_lli0t")
+
+[node name="Blobbert" parent="." instance=ExtResource("3_0pl54")]
+position = Vector2(175, -61)
+
+[node name="Well" parent="." instance=ExtResource("4_xh45j")]
+position = Vector2(0, 27)
+
+[node name="Sheep" parent="." instance=ExtResource("5_nxk23")]
+position = Vector2(-194, -36)
+
+[node name="Tower" parent="." instance=ExtResource("6_cu4j2")]
+position = Vector2(2.08165e-12, -800)
+
+[node name="Tower2" parent="." instance=ExtResource("6_cu4j2")]
+position = Vector2(2.08165e-12, 800)
+
+[node name="Tower3" parent="." instance=ExtResource("6_cu4j2")]
+position = Vector2(800, 2.08165e-12)
+
+[node name="Tower4" parent="." instance=ExtResource("6_cu4j2")]
+position = Vector2(-800, 2.08165e-12)
+
+[node name="Tower5" parent="." instance=ExtResource("6_cu4j2")]
+position = Vector2(565.685, 565.685)
+
+[node name="Tower6" parent="." instance=ExtResource("6_cu4j2")]
+position = Vector2(-565.685, 565.685)
+
+[node name="Tower7" parent="." instance=ExtResource("6_cu4j2")]
+position = Vector2(-565.685, -565.685)
+
+[node name="Tower8" parent="." instance=ExtResource("6_cu4j2")]
+position = Vector2(565.685, -565.685)

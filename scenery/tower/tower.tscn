@@ -1,0 +1,19 @@
+[gd_scene load_steps=3 format=3 uid="uid://bw210n8f5j5i8"]
+
+[ext_resource type="Texture2D" uid="uid://d287ptic2v2yw" path="res://scenery/tower/tower.png" id="1_o6sw1"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_20r6v"]
+size = Vector2(44, 20)
+
+[node name="Tower" type="StaticBody2D"]
+scale = Vector2(8, 8)
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture_filter = 1
+texture = ExtResource("1_o6sw1")
+hframes = 4
+vframes = 3
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+position = Vector2(0, 23)
+shape = SubResource("RectangleShape2D_20r6v")

@@ -1,0 +1,50 @@
+[gd_scene load_steps=6 format=3 uid="uid://dpmfhpwtjfpl3"]
+
+[ext_resource type="Texture2D" uid="uid://denfsgpj5l3en" path="res://collectables/sheep/sheep.png" id="1_7p4y3"]
+[ext_resource type="Script" path="res://collectables/sheep/sheep.gd" id="1_cbprq"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_g46lx"]
+size = Vector2(8, 3)
+
+[sub_resource type="Animation" id="Animation_tdivk"]
+resource_name = "idle"
+length = 9.0
+loop_mode = 1
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Sprite2D:frame")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 1, 2, 3, 4, 5, 6, 7, 8),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1),
+"update": 1,
+"values": [0, 1, 2, 3, 4, 5, 6, 7, 8]
+}
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_uuepi"]
+_data = {
+"idle": SubResource("Animation_tdivk")
+}
+
+[node name="Sheep" type="CharacterBody2D"]
+scale = Vector2(6, 6)
+script = ExtResource("1_cbprq")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture_filter = 1
+texture = ExtResource("1_7p4y3")
+hframes = 3
+vframes = 3
+frame = 8
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+position = Vector2(0, 3.5)
+shape = SubResource("RectangleShape2D_g46lx")
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="."]
+libraries = {
+"": SubResource("AnimationLibrary_uuepi")
+}
+speed_scale = 10.0
