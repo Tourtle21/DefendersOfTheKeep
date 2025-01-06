@@ -1,0 +1,17 @@
+[gd_scene load_steps=3 format=3 uid="uid://cju6xq1340lvt"]
+
+[ext_resource type="Texture2D" uid="uid://cp44676vo2pwo" path="res://collectables/crystal/crystal.png" id="1_o0cpc"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_lc2e0"]
+radius = 5.09902
+
+[node name="Crystal" type="StaticBody2D"]
+scale = Vector2(5, 5)
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture_filter = 1
+texture = ExtResource("1_o0cpc")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+position = Vector2(0, 38)
+shape = SubResource("CircleShape2D_lc2e0")
