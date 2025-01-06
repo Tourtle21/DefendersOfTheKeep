@@ -1,4 +1,4 @@
-[gd_scene load_steps=9 format=3 uid="uid://c1663b2pp8it8"]
+[gd_scene load_steps=10 format=3 uid="uid://c1663b2pp8it8"]
 
 [ext_resource type="PackedScene" uid="uid://d313xkgw4dosp" path="res://player/player.tscn" id="1_wlbsl"]
 [ext_resource type="Script" path="res://player/player_controls.gd" id="2_06t3i"]
@@ -6,7 +6,8 @@
 [ext_resource type="PackedScene" uid="uid://c8iriw732wf8i" path="res://scenery/well/well.tscn" id="4_xh45j"]
 [ext_resource type="PackedScene" uid="uid://dpmfhpwtjfpl3" path="res://collectables/sheep/sheep.tscn" id="5_nxk23"]
 [ext_resource type="PackedScene" uid="uid://bw210n8f5j5i8" path="res://scenery/tower/tower.tscn" id="6_cu4j2"]
-[ext_resource type="PackedScene" uid="uid://djx67wv2ffm8s" path="res://tilemaps/grass_tilemap.tscn" id="7_nf388"]
+[ext_resource type="PackedScene" uid="uid://djx67wv2ffm8s" path="res://tilemaps/grass_tilemap.tscn" id="7_56t1p"]
+[ext_resource type="PackedScene" uid="uid://cju6xq1340lvt" path="res://collectables/crystal/crystal.tscn" id="8_s8vwy"]
 
 [sub_resource type="Resource" id="Resource_lli0t"]
 resource_local_to_scene = true
@@ -21,7 +22,7 @@ dash = "dash"
 
 [node name="World" type="Node2D"]
 
-[node name="GrassTilemap" parent="." instance=ExtResource("7_nf388")]
+[node name="GrassTilemap" parent="." instance=ExtResource("7_56t1p")]
 texture_filter = 1
 scale = Vector2(4, 4)
 layer_0/tile_data = PackedInt32Array(-262140, 0, 6, -196603, 0, 3, -196602, 65536, 3, -196601, 131072, 3, -131065, 131072, 4, -65530, 65536, 5, -65529, 131072, 5, -131066, 65536, 4, -131067, 0, 4, -65531, 0, 5)
@@ -57,5 +58,5 @@ position = Vector2(-692.82, -400)
 [node name="Tower8" parent="." instance=ExtResource("6_cu4j2")]
 position = Vector2(692.82, -400)
 
-[node name="Crystal" parent="." instance=ExtResource("7_56t1p")]
-position = Vector2(0, -182)
+[node name="Crystal" parent="." instance=ExtResource("8_s8vwy")]
+position = Vector2(0, -187)
