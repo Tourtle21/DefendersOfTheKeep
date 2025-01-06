@@ -9,6 +9,7 @@ size = Vector2(15, 13)
 
 [node name="Player" type="CharacterBody2D"]
 scale = Vector2(4, 4)
+collision_mask = 14
 script = ExtResource("1_rvxyq")
 controls = ExtResource("2_x0m2d")
 
