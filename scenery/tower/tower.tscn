@@ -1,9 +1,51 @@
-[gd_scene load_steps=3 format=3 uid="uid://bw210n8f5j5i8"]
+[gd_scene load_steps=8 format=3 uid="uid://bw210n8f5j5i8"]
 
 [ext_resource type="Texture2D" uid="uid://d287ptic2v2yw" path="res://scenery/tower/tower.png" id="1_o6sw1"]
+[ext_resource type="Script" path="res://scenery/tower/EnterArea.gd" id="2_ow4a4"]
+
+[sub_resource type="Animation" id="Animation_0kgjs"]
+length = 0.001
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Sprite2D:frame")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [0]
+}
+
+[sub_resource type="Animation" id="Animation_21olg"]
+resource_name = "open_door"
+length = 0.5
+step = 0.05
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Sprite2D:frame")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1),
+"update": 1,
+"values": [0, 1, 2, 3, 4, 5, 6, 7, 8]
+}
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_xkgu8"]
+_data = {
+"RESET": SubResource("Animation_0kgjs"),
+"open_door": SubResource("Animation_21olg")
+}
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_20r6v"]
 size = Vector2(44, 20)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_aaktt"]
+size = Vector2(52.125, 26.8333)
 
 [node name="Tower" type="StaticBody2D"]
 scale = Vector2(6, 6)
@@ -16,6 +58,21 @@ texture = ExtResource("1_o6sw1")
 hframes = 4
 vframes = 3
 
+[node name="AnimationPlayer" type="AnimationPlayer" parent="."]
+libraries = {
+"": SubResource("AnimationLibrary_xkgu8")
+}
+
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 position = Vector2(0, 23)
 shape = SubResource("RectangleShape2D_20r6v")
+
+[node name="EnterArea" type="Area2D" parent="."]
+script = ExtResource("2_ow4a4")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="EnterArea"]
+position = Vector2(0, 23)
+shape = SubResource("RectangleShape2D_aaktt")
+
+[connection signal="body_entered" from="EnterArea" to="EnterArea" method="_on_body_entered"]
+[connection signal="body_exited" from="EnterArea" to="EnterArea" method="_on_body_exited"]

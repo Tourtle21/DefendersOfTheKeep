@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://q13do6tvqfcn"
-path="res://.godot/imported/well.png-39d0823819aeabce1ca5b4a4676066c8.ctex"
+uid="uid://7fhbs47upw7k"
+path="res://.godot/imported/pressure_plate.png-6adb52e939a562b124ef1472c36324ca.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://scenery/well/well.png"
-dest_files=["res://.godot/imported/well.png-39d0823819aeabce1ca5b4a4676066c8.ctex"]
+source_file="res://scenery/pressure_plate/pressure_plate.png"
+dest_files=["res://.godot/imported/pressure_plate.png-6adb52e939a562b124ef1472c36324ca.ctex"]
 
 [params]
 

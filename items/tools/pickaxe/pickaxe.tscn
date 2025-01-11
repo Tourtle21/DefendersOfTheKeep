@@ -1,0 +1,22 @@
+[gd_scene load_steps=4 format=3 uid="uid://ba1aj2feaa8p2"]
+
+[ext_resource type="Script" path="res://items/tools/pickaxe/pickaxe.gd" id="1_8tqo8"]
+[ext_resource type="Texture2D" uid="uid://raansfrul53l" path="res://items/tools/pickaxe/wood_pickaxe.png" id="1_byvne"]
+
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_fh3rr"]
+radius = 11.3081
+
+[node name="Pickaxe" type="Area2D"]
+scale = Vector2(0.7, 0.7)
+script = ExtResource("1_8tqo8")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture_filter = 1
+texture = ExtResource("1_byvne")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+rotation = 0.753982
+shape = SubResource("CapsuleShape2D_fh3rr")
+
+[connection signal="body_entered" from="." to="." method="_on_body_entered"]
+[connection signal="body_exited" from="." to="." method="_on_body_exited"]
