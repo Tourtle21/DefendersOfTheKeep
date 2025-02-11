@@ -1,33 +1,94 @@
-[gd_scene load_steps=6 format=3 uid="uid://d313xkgw4dosp"]
+[gd_scene load_steps=10 format=3 uid="uid://d313xkgw4dosp"]
 
 [ext_resource type="Script" path="res://player/player.gd" id="1_rvxyq"]
-[ext_resource type="Texture2D" uid="uid://c5clmhiqvtxh8" path="res://player/knight.png" id="1_w1x26"]
 [ext_resource type="Resource" uid="uid://ltb180k6osa" path="res://player/player_controls.tres" id="2_x0m2d"]
-[ext_resource type="PackedScene" uid="uid://ba1aj2feaa8p2" path="res://items/tools/pickaxe/pickaxe.tscn" id="4_0lr5r"]
+[ext_resource type="Texture2D" uid="uid://7dlmuixra5cm" path="res://player/MainCharacter.png" id="3_8urnn"]
+[ext_resource type="Script" path="res://player/right_hand.gd" id="4_774d4"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_2j7ic"]
-size = Vector2(15, 13)
+size = Vector2(11, 6.75)
+
+[sub_resource type="Animation" id="Animation_j7q2v"]
+length = 0.001
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Sprite2D:frame")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [0]
+}
+
+[sub_resource type="Animation" id="Animation_tfsfh"]
+resource_name = "idle"
+loop_mode = 1
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Sprite2D:frame")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.5),
+"transitions": PackedFloat32Array(1, 1),
+"update": 1,
+"values": [0, 1]
+}
+
+[sub_resource type="Animation" id="Animation_xs2i4"]
+resource_name = "walking"
+loop_mode = 1
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Sprite2D:frame")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.2, 0.4, 0.6, 0.8),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1),
+"update": 1,
+"values": [2, 3, 4, 5, 6]
+}
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_gwg4w"]
+_data = {
+"RESET": SubResource("Animation_j7q2v"),
+"idle": SubResource("Animation_tfsfh"),
+"walking": SubResource("Animation_xs2i4")
+}
 
 [node name="Player" type="CharacterBody2D" groups=["player"]]
-scale = Vector2(4, 4)
 collision_mask = 14
 script = ExtResource("1_rvxyq")
 controls = ExtResource("2_x0m2d")
 
+[node name="RightHand" type="Node2D" parent="."]
+position = Vector2(0.5, -8)
+script = ExtResource("4_774d4")
+
 [node name="Sprite2D" type="Sprite2D" parent="."]
 texture_filter = 1
-texture = ExtResource("1_w1x26")
+position = Vector2(0.5, -8)
+texture = ExtResource("3_8urnn")
+hframes = 3
+vframes = 3
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
-position = Vector2(0.5, 1.5)
 shape = SubResource("RectangleShape2D_2j7ic")
 
 [node name="Camera2D" type="Camera2D" parent="."]
-zoom = Vector2(1.5, 1.5)
+position = Vector2(0.5, -8)
+zoom = Vector2(5, 5)
 
-[node name="Pickaxe" parent="." instance=ExtResource("4_0lr5r")]
-visible = false
-show_behind_parent = true
-z_as_relative = false
-position = Vector2(0.75, -1)
-dropped = false
+[node name="AnimationPlayer" type="AnimationPlayer" parent="."]
+libraries = {
+"": SubResource("AnimationLibrary_gwg4w")
+}
+
+[node name="DamageTimer" type="Timer" parent="."]
+wait_time = 0.5

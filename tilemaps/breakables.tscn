@@ -1,0 +1,19 @@
+[gd_scene load_steps=7 format=3 uid="uid://c7kvqv4nliv7t"]
+
+[ext_resource type="PackedScene" uid="uid://c7ocqnev6c7bb" path="res://collectables/rock/big_rock.tscn" id="1_1jjbv"]
+[ext_resource type="PackedScene" uid="uid://cw8668sqydr1w" path="res://collectables/rock/medium_rock.tscn" id="2_8x2tv"]
+[ext_resource type="PackedScene" uid="uid://cjmgfmh5icjui" path="res://collectables/rock/small_rocks.tscn" id="3_2fxlp"]
+[ext_resource type="PackedScene" uid="uid://bdb8kv72oovcr" path="res://collectables/tree/tree.tscn" id="4_uh4aq"]
+
+[sub_resource type="TileSetScenesCollectionSource" id="TileSetScenesCollectionSource_vw6s0"]
+scenes/1/scene = ExtResource("1_1jjbv")
+scenes/2/scene = ExtResource("2_8x2tv")
+scenes/3/scene = ExtResource("3_2fxlp")
+scenes/4/scene = ExtResource("4_uh4aq")
+
+[sub_resource type="TileSet" id="TileSet_ox33f"]
+sources/0 = SubResource("TileSetScenesCollectionSource_vw6s0")
+
+[node name="Layer0" type="TileMapLayer"]
+use_parent_material = true
+tile_set = SubResource("TileSet_ox33f")

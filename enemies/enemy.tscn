@@ -1,8 +1,8 @@
-[gd_scene load_steps=9 format=3 uid="uid://bmwumfw78mkuw"]
+[gd_scene load_steps=9 format=3 uid="uid://cco4qv7jnki0q"]
 
-[ext_resource type="Texture2D" uid="uid://wcjnv5ehjf1j" path="res://enemies/blobbert/running_blob.png" id="1_65yv6"]
-[ext_resource type="Script" path="res://enemies/enemy.gd" id="1_ebrrg"]
-[ext_resource type="PackedScene" uid="uid://ct3ybaw6glffy" path="res://hitboxes/hitbox.tscn" id="3_a6ht3"]
+[ext_resource type="Script" path="res://enemies/blobbert/blobbert.gd" id="1_c3q43"]
+[ext_resource type="Texture2D" uid="uid://wcjnv5ehjf1j" path="res://enemies/blobbert/running_blob.png" id="2_i54kf"]
+[ext_resource type="PackedScene" uid="uid://ct3ybaw6glffy" path="res://hitboxes/hitbox.tscn" id="3_772w7"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_xoqb3"]
 size = Vector2(10.2, 6)
@@ -50,7 +50,7 @@ size = Vector2(12, 8)
 [node name="Blobbert" type="CharacterBody2D" groups=["enemy"]]
 collision_layer = 2
 collision_mask = 31
-script = ExtResource("1_ebrrg")
+script = ExtResource("1_c3q43")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 position = Vector2(-0.9, 2.8)
@@ -59,7 +59,7 @@ shape = SubResource("RectangleShape2D_xoqb3")
 [node name="Sprite2D" type="Sprite2D" parent="."]
 y_sort_enabled = true
 texture_filter = 1
-texture = ExtResource("1_65yv6")
+texture = ExtResource("2_i54kf")
 hframes = 2
 vframes = 2
 frame = 3
@@ -73,7 +73,7 @@ libraries = {
 [node name="DamageTimer" type="Timer" parent="."]
 wait_time = 0.5
 
-[node name="Hitbox" parent="." instance=ExtResource("3_a6ht3")]
+[node name="Hitbox" parent="." instance=ExtResource("3_772w7")]
 collision_mask = 1
 
 [node name="CollisionShape2D2" type="CollisionShape2D" parent="Hitbox"]

@@ -1,0 +1,20 @@
+[gd_scene load_steps=3 format=3 uid="uid://cw8668sqydr1w"]
+
+[ext_resource type="Texture2D" uid="uid://cjyomqgsyjcl" path="res://collectables/rock/medium_rock.png" id="1_i8ybo"]
+
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_y5c4u"]
+radius = 6.0
+height = 14.0
+
+[node name="MediumRock" type="StaticBody2D"]
+collision_layer = 8
+collision_mask = 3
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture_filter = 1
+texture = ExtResource("1_i8ybo")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+position = Vector2(0, 1)
+rotation = 1.5708
+shape = SubResource("CapsuleShape2D_y5c4u")

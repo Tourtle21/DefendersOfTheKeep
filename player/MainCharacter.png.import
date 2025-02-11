@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://raansfrul53l"
-path="res://.godot/imported/wood_pickaxe.png-c91c33bfa083c6836038f101ff1d798f.ctex"
+uid="uid://7dlmuixra5cm"
+path="res://.godot/imported/MainCharacter.png-8da83b080c1a5e9a8b08e9dee5fd7ab6.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://items/tools/pickaxe/wood_pickaxe.png"
-dest_files=["res://.godot/imported/wood_pickaxe.png-c91c33bfa083c6836038f101ff1d798f.ctex"]
+source_file="res://player/MainCharacter.png"
+dest_files=["res://.godot/imported/MainCharacter.png-8da83b080c1a5e9a8b08e9dee5fd7ab6.ctex"]
 
 [params]
 

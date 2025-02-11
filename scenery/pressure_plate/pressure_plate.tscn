@@ -4,7 +4,7 @@
 [ext_resource type="Script" path="res://scenery/pressure_plate/pressure_plate.gd" id="1_ckew3"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_vlidv"]
-size = Vector2(102, 84)
+size = Vector2(38, 32)
 
 [sub_resource type="Animation" id="Animation_j50if"]
 length = 0.001
@@ -48,7 +48,6 @@ script = ExtResource("1_ckew3")
 
 [node name="Sprite2D" type="Sprite2D" parent="."]
 texture_filter = 1
-scale = Vector2(3, 3)
 texture = ExtResource("1_c8fbg")
 vframes = 2
 

@@ -1,22 +1,117 @@
-[gd_scene load_steps=4 format=3 uid="uid://ba1aj2feaa8p2"]
+[gd_scene load_steps=8 format=3 uid="uid://ba1aj2feaa8p2"]
 
-[ext_resource type="Script" path="res://items/tools/pickaxe/pickaxe.gd" id="1_8tqo8"]
-[ext_resource type="Texture2D" uid="uid://raansfrul53l" path="res://items/tools/pickaxe/wood_pickaxe.png" id="1_byvne"]
+[ext_resource type="Script" path="res://items/item.gd" id="1_iiku3"]
+[ext_resource type="Texture2D" uid="uid://dd8x7uuuau75u" path="res://items/tools/pickaxe/pickaxe.png" id="2_rmoyj"]
+[ext_resource type="PackedScene" uid="uid://dkqp16m8fnwyo" path="res://collectables/collectable.tscn" id="3_pk2vj"]
+
+[sub_resource type="Animation" id="Animation_s0h3y"]
+length = 0.001
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath(".:rotation")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [-0.785398]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("Sprite2D:frame")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [0]
+}
+tracks/2/type = "value"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath(".:scale")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Vector2(1, 1)]
+}
+
+[sub_resource type="Animation" id="Animation_asgqb"]
+resource_name = "use_item"
+length = 0.4
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath(".:rotation")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [0.785398]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("Sprite2D:frame")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0, 0.1, 0.3, 0.4),
+"transitions": PackedFloat32Array(1, 1, 1, 1),
+"update": 1,
+"values": [1, 2, 3, 3]
+}
+tracks/2/type = "value"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath(".:scale")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Vector2(1, 1)]
+}
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_demb1"]
+_data = {
+"RESET": SubResource("Animation_s0h3y"),
+"use_item": SubResource("Animation_asgqb")
+}
 
 [sub_resource type="CapsuleShape2D" id="CapsuleShape2D_fh3rr"]
 radius = 11.3081
 
-[node name="Pickaxe" type="Area2D"]
-scale = Vector2(0.7, 0.7)
-script = ExtResource("1_8tqo8")
+[node name="Pickaxe" type="Node2D"]
+rotation = -0.785398
+script = ExtResource("1_iiku3")
 
 [node name="Sprite2D" type="Sprite2D" parent="."]
 texture_filter = 1
-texture = ExtResource("1_byvne")
+position = Vector2(5, -13)
+texture = ExtResource("2_rmoyj")
+hframes = 2
+vframes = 2
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+[node name="AnimationPlayer" type="AnimationPlayer" parent="."]
+libraries = {
+"": SubResource("AnimationLibrary_demb1")
+}
+
+[node name="Collectable" parent="." instance=ExtResource("3_pk2vj")]
+position = Vector2(7.85714, -8.71429)
+texture = ExtResource("2_rmoyj")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Collectable"]
 rotation = 0.753982
 shape = SubResource("CapsuleShape2D_fh3rr")
-
-[connection signal="body_entered" from="." to="." method="_on_body_entered"]
-[connection signal="body_exited" from="." to="." method="_on_body_exited"]
