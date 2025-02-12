@@ -31,6 +31,52 @@ dash = "dash"
 y_sort_enabled = true
 script = ExtResource("1_icuqe")
 
+[node name="ColorRect" type="ColorRect" parent="."]
+z_index = 500
+offset_left = -3.0
+offset_top = -1.5
+offset_right = 4.0
+offset_bottom = 1498.5
+rotation = 0.523599
+
+[node name="ColorRect2" type="ColorRect" parent="."]
+z_index = 500
+offset_left = -3.0
+offset_top = 1.5
+offset_right = 4.0
+offset_bottom = 1501.5
+rotation = -0.523599
+
+[node name="ColorRect3" type="ColorRect" parent="."]
+z_index = 500
+offset_top = 3.25
+offset_right = 7.0
+offset_bottom = 1503.25
+rotation = -1.5708
+
+[node name="ColorRect4" type="ColorRect" parent="."]
+z_index = 500
+offset_top = -4.0
+offset_right = 7.0
+offset_bottom = 1496.0
+rotation = 1.5708
+
+[node name="ColorRect5" type="ColorRect" parent="."]
+z_index = 500
+offset_left = 3.0
+offset_top = -1.5
+offset_right = 10.0
+offset_bottom = 1498.5
+rotation = 2.61799
+
+[node name="ColorRect6" type="ColorRect" parent="."]
+z_index = 500
+offset_left = 3.0
+offset_top = 1.5
+offset_right = 10.0
+offset_bottom = 1501.5
+rotation = 3.66519
+
 [node name="Breakables" parent="." instance=ExtResource("3_8x3m3")]
 y_sort_enabled = true
 tile_map_data = PackedByteArray("AAACAAUAAAAAAAAABAAEAAUAAAAAAAAABAADAAIAAAAAAAAABAABAP3/AAAAAAAABAD///z/AAAAAAAABAD9//z/AAAAAAAABAA=")
