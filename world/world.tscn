@@ -31,6 +31,62 @@ dash = "dash"
 y_sort_enabled = true
 script = ExtResource("1_icuqe")
 
+[node name="ColorRect" type="ColorRect" parent="."]
+z_index = 500
+offset_left = -6.0
+offset_top = -4.0
+offset_right = 8.0
+offset_bottom = 1496.0
+rotation = 0.523599
+
+[node name="ColorRect2" type="ColorRect" parent="."]
+z_index = 500
+offset_left = -6.0
+offset_top = 3.5
+offset_right = 8.0
+offset_bottom = 1503.5
+rotation = -0.523599
+
+[node name="ColorRect3" type="ColorRect" parent="."]
+z_index = 500
+offset_left = -3.0
+offset_top = -7.0
+offset_right = 11.0
+offset_bottom = 1493.0
+rotation = 1.5708
+
+[node name="ColorRect4" type="ColorRect" parent="."]
+z_index = 500
+offset_left = 3.0
+offset_top = 7.0
+offset_right = 17.0
+offset_bottom = 1507.0
+rotation = -1.5708
+
+[node name="ColorRect5" type="ColorRect" parent="."]
+z_index = 500
+offset_left = 3.0
+offset_top = 7.0
+offset_right = 17.0
+offset_bottom = 1507.0
+rotation = -1.5708
+
+[node name="ColorRect6" type="ColorRect" parent="."]
+z_index = 500
+offset_left = 6.25
+offset_top = 3.25
+offset_right = 20.25
+offset_bottom = 1503.25
+rotation = -2.61799
+
+[node name="ColorRect7" type="ColorRect" parent="."]
+z_index = 500
+offset_left = 5.75
+offset_top = -4.0
+offset_right = 19.75
+offset_bottom = 1496.0
+rotation = -3.66519
+
 [node name="Breakables" parent="." instance=ExtResource("3_8x3m3")]
 y_sort_enabled = true
 tile_map_data = PackedByteArray("AAACAAUAAAAAAAAABAAEAAUAAAAAAAAABAADAAIAAAAAAAAABAABAP3/AAAAAAAABAD///z/AAAAAAAABAD9//z/AAAAAAAABAA=")
@@ -56,7 +112,7 @@ position = Vector2(54, -105)
 
 [node name="Well" parent="." instance=ExtResource("4_xh45j")]
 z_index = 50
-position = Vector2(2, 4)
+position = Vector2(2, 3)
 scale = Vector2(1, 1)
 
 [node name="Crystal" parent="." instance=ExtResource("8_s8vwy")]
