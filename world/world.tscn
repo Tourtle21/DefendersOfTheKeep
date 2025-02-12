@@ -1,4 +1,4 @@
-[gd_scene load_steps=16 format=4 uid="uid://c1663b2pp8it8"]
+[gd_scene load_steps=17 format=4 uid="uid://c1663b2pp8it8"]
 
 [ext_resource type="Script" path="res://world/world.gd" id="1_icuqe"]
 [ext_resource type="PackedScene" uid="uid://d313xkgw4dosp" path="res://player/player.tscn" id="1_wlbsl"]
@@ -14,6 +14,7 @@
 [ext_resource type="PackedScene" uid="uid://dvuuev2rbscjc" path="res://ui/hud/hud.tscn" id="10_jocpm"]
 [ext_resource type="PackedScene" uid="uid://ba1aj2feaa8p2" path="res://items/tools/pickaxe/pickaxe.tscn" id="11_ps8fj"]
 [ext_resource type="PackedScene" uid="uid://dg08cldkornsq" path="res://items/tools/sword/sword.tscn" id="13_f6fbe"]
+[ext_resource type="AudioStream" uid="uid://cy0b5s16gdyqv" path="res://world/game.wav" id="15_2orpm"]
 
 [sub_resource type="Resource" id="Resource_lli0t"]
 resource_local_to_scene = true
@@ -95,3 +96,8 @@ position = Vector2(91, 65)
 
 [node name="SpawnTimer" type="Timer" parent="."]
 wait_time = 10.0
+
+[node name="GameMusic" type="AudioStreamPlayer" parent="."]
+stream = ExtResource("15_2orpm")
+volume_db = -10.0
+autoplay = true

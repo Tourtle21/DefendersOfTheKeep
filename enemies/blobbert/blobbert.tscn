@@ -1,8 +1,9 @@
-[gd_scene load_steps=9 format=3 uid="uid://bmwumfw78mkuw"]
+[gd_scene load_steps=10 format=3 uid="uid://bmwumfw78mkuw"]
 
 [ext_resource type="Texture2D" uid="uid://wcjnv5ehjf1j" path="res://enemies/blobbert/running_blob.png" id="1_65yv6"]
 [ext_resource type="Script" path="res://enemies/enemy.gd" id="1_ebrrg"]
 [ext_resource type="PackedScene" uid="uid://ct3ybaw6glffy" path="res://hitboxes/hitbox.tscn" id="3_a6ht3"]
+[ext_resource type="AudioStream" uid="uid://dm6drq54bje88" path="res://enemies/blobbert/take_damage.ogg" id="4_sejs2"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_xoqb3"]
 size = Vector2(10.2, 6)
@@ -94,3 +95,8 @@ offset_top = 1.0
 offset_right = 21.0
 offset_bottom = 4.0
 color = Color(1, 0, 0, 1)
+
+[node name="TakeDamage" type="AudioStreamPlayer" parent="."]
+stream = ExtResource("4_sejs2")
+volume_db = -15.0
+pitch_scale = 3.0

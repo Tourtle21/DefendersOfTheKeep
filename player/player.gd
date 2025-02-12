@@ -17,9 +17,12 @@ var pickaxe_initial_rotation = 0
 var pickaxe_starting_position = 0
 var pickaxe_starting_rotation = 0
 
+var walking_playback_position = 0.0
+
 @onready var item: Node2D = null
 @onready var item_animation_player: AnimationPlayer = null
 @onready var right_hand: Node2D = $RightHand
+@onready var audio_take_damage = $TakeDamage
 
 func _ready():
 	$AnimationPlayer.play("idle")
@@ -46,8 +49,13 @@ func process_movement():
 	var input_direction = Input.get_vector(controls.left, controls.right, controls.up, controls.down)
 	if (input_direction.x != 0 or input_direction.y != 0):
 		$AnimationPlayer.play("walking")
+		if $Walking.playing == false:
+			$Walking.play(walking_playback_position)
 	else:
 		$AnimationPlayer.play("idle")
+		if $Walking.playing == true:
+			walking_playback_position = $Walking.get_playback_position()
+			$Walking.stop()
 	velocity = input_direction * speed
 	move_and_slide()
 
@@ -69,6 +77,7 @@ func take_damage(damage_origin: Vector2):
 		apply_knockback(direction * knockback_strength)
 		var x_size = get_parent().get_node("Hud").get_node("Control2").get_node("ColorRect").get_node("Health").size.x
 		get_parent().get_node("Hud").get_node("Control2").get_node("ColorRect").get_node("Health").size.x = x_size - 30
+		audio_take_damage.play()
 		if x_size <= 18:
 			get_tree().quit()
 		$DamageTimer.start()

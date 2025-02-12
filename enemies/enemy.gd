@@ -9,6 +9,8 @@ var health = max_health
 var detection_distance = 200
 var is_taking_damage = false
 
+@onready var audio_take_damage = $TakeDamage
+
 func _ready():
 	$AnimationPlayer.play("walking")
 	health = max_health
@@ -36,13 +38,12 @@ func take_damage(damage_origin: Vector2):
 		modulate = Color(1, 0, 0)
 		var direction = (position - damage_origin).normalized()
 		apply_knockback(direction * knockback_strength)
+		audio_take_damage.play()
 		health -= 1
 		if health == 0:
 			queue_free()
 		var maxSize = $ColorRect.size.x - 2
 		var ratio = health / max_health
-		print(max_health, health)
-		print(ratio)
 		$ColorRect/Health.size.x = maxSize * ratio
 		$DamageTimer.start()
 		await $DamageTimer.timeout

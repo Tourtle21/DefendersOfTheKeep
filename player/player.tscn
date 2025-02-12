@@ -1,9 +1,11 @@
-[gd_scene load_steps=10 format=3 uid="uid://d313xkgw4dosp"]
+[gd_scene load_steps=12 format=3 uid="uid://d313xkgw4dosp"]
 
 [ext_resource type="Script" path="res://player/player.gd" id="1_rvxyq"]
 [ext_resource type="Resource" uid="uid://ltb180k6osa" path="res://player/player_controls.tres" id="2_x0m2d"]
 [ext_resource type="Texture2D" uid="uid://7dlmuixra5cm" path="res://player/MainCharacter.png" id="3_8urnn"]
 [ext_resource type="Script" path="res://player/right_hand.gd" id="4_774d4"]
+[ext_resource type="AudioStream" uid="uid://ck34fow58c3mo" path="res://player/take_damage.ogg" id="5_p82ew"]
+[ext_resource type="AudioStream" uid="uid://c3qfnelvjasnq" path="res://player/walking.wav" id="6_coewc"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_2j7ic"]
 size = Vector2(11, 6.75)
@@ -92,3 +94,12 @@ libraries = {
 
 [node name="DamageTimer" type="Timer" parent="."]
 wait_time = 0.5
+
+[node name="TakeDamage" type="AudioStreamPlayer" parent="."]
+stream = ExtResource("5_p82ew")
+volume_db = -10.0
+
+[node name="Walking" type="AudioStreamPlayer" parent="."]
+stream = ExtResource("6_coewc")
+volume_db = -5.0
+pitch_scale = 0.71

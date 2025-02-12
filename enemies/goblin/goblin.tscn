@@ -1,8 +1,9 @@
-[gd_scene load_steps=10 format=3 uid="uid://o8fi34hba0yn"]
+[gd_scene load_steps=11 format=3 uid="uid://o8fi34hba0yn"]
 
 [ext_resource type="Script" path="res://enemies/goblin/goblin.gd" id="1_mu5q7"]
 [ext_resource type="Texture2D" uid="uid://dd85psp3ymkm0" path="res://enemies/goblin/goblin.png" id="2_bbwjf"]
 [ext_resource type="PackedScene" uid="uid://ct3ybaw6glffy" path="res://hitboxes/hitbox.tscn" id="3_tkb6o"]
+[ext_resource type="AudioStream" uid="uid://dm6drq54bje88" path="res://enemies/blobbert/take_damage.ogg" id="4_isfd2"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_xoqb3"]
 size = Vector2(10.2, 6)
@@ -110,5 +111,10 @@ offset_top = 1.0
 offset_right = 21.0
 offset_bottom = 4.0
 color = Color(1, 0, 0, 1)
+
+[node name="TakeDamage" type="AudioStreamPlayer" parent="."]
+stream = ExtResource("4_isfd2")
+volume_db = -15.0
+pitch_scale = 3.0
 
 [connection signal="animation_finished" from="AnimationPlayer" to="." method="_on_animation_player_animation_finished"]
