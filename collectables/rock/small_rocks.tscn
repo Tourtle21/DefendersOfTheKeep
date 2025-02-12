@@ -1,0 +1,18 @@
+[gd_scene load_steps=3 format=3 uid="uid://cjmgfmh5icjui"]
+
+[ext_resource type="Texture2D" uid="uid://fwvfberhi3vi" path="res://collectables/rock/small_rocks.png" id="1_r8grj"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_ysw63"]
+size = Vector2(11, 11)
+
+[node name="SmallRocks" type="StaticBody2D"]
+collision_layer = 8
+collision_mask = 3
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture_filter = 1
+texture = ExtResource("1_r8grj")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+position = Vector2(0.5, 0.5)
+shape = SubResource("RectangleShape2D_ysw63")
