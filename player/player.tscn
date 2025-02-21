@@ -1,4 +1,4 @@
-[gd_scene load_steps=12 format=3 uid="uid://d313xkgw4dosp"]
+[gd_scene load_steps=14 format=3 uid="uid://d313xkgw4dosp"]
 
 [ext_resource type="Script" path="res://player/player.gd" id="1_rvxyq"]
 [ext_resource type="Resource" uid="uid://ltb180k6osa" path="res://player/player_controls.tres" id="2_x0m2d"]
@@ -64,6 +64,18 @@ _data = {
 "walking": SubResource("Animation_xs2i4")
 }
 
+[sub_resource type="Gradient" id="Gradient_5p4g1"]
+offsets = PackedFloat32Array(0, 0.00138504, 0.801939)
+colors = PackedColorArray(0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 1)
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_lodw2"]
+gradient = SubResource("Gradient_5p4g1")
+width = 128
+height = 128
+fill = 1
+fill_from = Vector2(0.5, 0.5)
+fill_to = Vector2(0.0555556, 0.0598291)
+
 [node name="Player" type="CharacterBody2D" groups=["player"]]
 collision_mask = 14
 script = ExtResource("1_rvxyq")
@@ -103,3 +115,6 @@ volume_db = -10.0
 stream = ExtResource("6_coewc")
 volume_db = -5.0
 pitch_scale = 0.71
+
+[node name="PointLight2D" type="PointLight2D" parent="."]
+texture = SubResource("GradientTexture2D_lodw2")

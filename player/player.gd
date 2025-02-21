@@ -19,6 +19,9 @@ var pickaxe_starting_rotation = 0
 
 var walking_playback_position = 0.0
 
+const MAX_RADIUS = 120
+const CENTER = Vector2(0, 0)
+
 @onready var item: Node2D = null
 @onready var item_animation_player: AnimationPlayer = null
 @onready var right_hand: Node2D = $RightHand
@@ -28,7 +31,7 @@ func _ready():
 	$AnimationPlayer.play("idle")
 	initial_position = position
 
-func _physics_process(_delta):
+func _physics_process(delta):
 	var mouse_position = get_local_mouse_position()
 	if mouse_position.x > 0:
 		scale.x = 1
@@ -38,14 +41,14 @@ func _physics_process(_delta):
 	if is_using_item and item_animation_player != null:
 		item_animation_player.play("use_item")
 		
-	process_movement()
+	process_movement(delta)
 	
 func _input(event):
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed and item != null:
 		item.use_item()
 		is_using_item = true
 	
-func process_movement():
+func process_movement(delta):
 	var input_direction = Input.get_vector(controls.left, controls.right, controls.up, controls.down)
 	if (input_direction.x != 0 or input_direction.y != 0):
 		$AnimationPlayer.play("walking")
@@ -56,7 +59,27 @@ func process_movement():
 		if $Walking.playing == true:
 			walking_playback_position = $Walking.get_playback_position()
 			$Walking.stop()
+			
 	velocity = input_direction * speed
+	var new_position = position + velocity * delta
+	var min_angle = (2 * PI) / 3
+	var max_angle = PI / 3
+	# Check if the new position would go beyond the max radius
+	if CENTER.distance_to(new_position) > MAX_RADIUS:
+		var direction_to_center = (new_position - CENTER).normalized()
+		if (direction_to_center.angle() > min_angle or direction_to_center.angle() < max_angle):
+			if CENTER.distance_to(new_position) > MAX_RADIUS + 10:
+				var angle = direction_to_center.angle()
+				if angle < min_angle:
+					angle = max_angle
+				elif angle > max_angle:
+					angle = min_angle
+				var clamped_position = CENTER + Vector2(cos(angle), sin(angle)) * CENTER.distance_to(new_position)
+				velocity = (clamped_position - position) / delta  # Adjust velocity
+			else: 
+				var clamped_position = CENTER + direction_to_center * MAX_RADIUS
+				velocity = (clamped_position - position) / delta  # Adjust velocity
+
 	move_and_slide()
 
 func equip_item(new_item) -> void:
