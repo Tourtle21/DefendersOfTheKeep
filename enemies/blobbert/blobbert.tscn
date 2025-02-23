@@ -5,8 +5,9 @@
 [ext_resource type="PackedScene" uid="uid://ct3ybaw6glffy" path="res://hitboxes/hitbox.tscn" id="3_a6ht3"]
 [ext_resource type="AudioStream" uid="uid://dm6drq54bje88" path="res://enemies/blobbert/take_damage.ogg" id="4_sejs2"]
 
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_xoqb3"]
-size = Vector2(10.2, 6)
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_tssu1"]
+radius = 3.0
+height = 10.0
 
 [sub_resource type="Animation" id="Animation_3xy38"]
 length = 0.001
@@ -56,8 +57,8 @@ wall_min_slide_angle = 0.0
 script = ExtResource("1_ebrrg")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
-position = Vector2(0.1, -0.2)
-shape = SubResource("RectangleShape2D_xoqb3")
+rotation = 1.5708
+shape = SubResource("CapsuleShape2D_tssu1")
 
 [node name="Sprite2D" type="Sprite2D" parent="."]
 y_sort_enabled = true
