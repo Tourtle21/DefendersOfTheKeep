@@ -77,7 +77,7 @@ fill_from = Vector2(0.5, 0.5)
 fill_to = Vector2(0.0555556, 0.0598291)
 
 [node name="Player" type="CharacterBody2D" groups=["player"]]
-collision_mask = 14
+collision_mask = 142
 script = ExtResource("1_rvxyq")
 controls = ExtResource("2_x0m2d")
 
