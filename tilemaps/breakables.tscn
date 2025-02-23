@@ -17,3 +17,4 @@ sources/0 = SubResource("TileSetScenesCollectionSource_vw6s0")
 [node name="Layer0" type="TileMapLayer"]
 use_parent_material = true
 tile_set = SubResource("TileSet_ox33f")
+navigation_visibility_mode = 1

@@ -1,6 +1,6 @@
 extends CharacterBody2D
 
-@export var speed = 0.5
+@export var speed = 10
 @export var knockback_strength: float = 300.0
 var detection_distance = 200
 var is_taking_damage = false

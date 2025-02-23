@@ -1,7 +1,7 @@
 extends CharacterBody2D
 class_name Enemy
 
-@export var speed = 0.5
+@export var speed = 20
 @export var knockback_strength: float = 300.0
 @export var max_health = 5.0
 
@@ -10,23 +10,17 @@ var detection_distance = 200
 var is_taking_damage = false
 
 @onready var audio_take_damage = $TakeDamage
+@onready var nav_agent = $NavigationAgent2D as NavigationAgent2D
 
 func _ready():
 	$AnimationPlayer.play("walking")
 	health = max_health
 
 func _physics_process(delta):
-	var target_velocity = Vector2.ZERO
-	var player_position = get_parent().get_node("Player").position
-
-	if player_position.distance_to(position) < detection_distance:
-		target_velocity = (player_position - position).normalized() * speed
-
-	# Move using the velocity while respecting collisions
-	velocity = target_velocity
-	move_and_collide(velocity)
-
-	# Flip sprite based on movement direction
+	var dir = to_local(nav_agent.get_next_path_position()).normalized()
+	velocity = dir * speed
+	move_and_slide()
+	
 	if velocity.x < 0 and $Sprite2D.scale.x > 0:
 		$Sprite2D.scale.x = -1
 	elif velocity.x > 0 and $Sprite2D.scale.x < 0:
@@ -55,10 +49,15 @@ func attack():
 
 func apply_knockback(knockback_velocity: Vector2):
 	velocity = knockback_velocity
-	# Apply knockback while respecting collisions
 	move_and_slide()
 
 
 func _on_animation_player_animation_finished(anim_name: StringName) -> void:
 	if (anim_name == "attacking"):
 		$AnimationPlayer.play("walking")
+
+func make_path() -> void:
+	nav_agent.set_target_position(get_parent().get_node("Player").global_position)
+	
+func _on_navigation_timer_timeout() -> void:
+	make_path()
