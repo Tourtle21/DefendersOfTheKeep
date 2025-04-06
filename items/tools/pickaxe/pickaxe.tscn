@@ -1,8 +1,7 @@
-[gd_scene load_steps=12 format=3 uid="uid://ba1aj2feaa8p2"]
+[gd_scene load_steps=10 format=3 uid="uid://ba1aj2feaa8p2"]
 
-[ext_resource type="Script" path="res://items/item.gd" id="1_iiku3"]
+[ext_resource type="Script" uid="uid://debt46bscvysc" path="res://items/item.gd" id="1_iiku3"]
 [ext_resource type="Texture2D" uid="uid://dd8x7uuuau75u" path="res://items/tools/pickaxe/pickaxe.png" id="2_rmoyj"]
-[ext_resource type="PackedScene" uid="uid://dkqp16m8fnwyo" path="res://collectables/collectable.tscn" id="3_pk2vj"]
 [ext_resource type="PackedScene" uid="uid://ct3ybaw6glffy" path="res://hitboxes/hitbox.tscn" id="4_aygdn"]
 
 [sub_resource type="Animation" id="Animation_s0h3y"]
@@ -158,13 +157,9 @@ tracks/5/keys = {
 
 [sub_resource type="AnimationLibrary" id="AnimationLibrary_demb1"]
 _data = {
-"RESET": SubResource("Animation_s0h3y"),
-"use_item": SubResource("Animation_asgqb")
+&"RESET": SubResource("Animation_s0h3y"),
+&"use_item": SubResource("Animation_asgqb")
 }
-
-[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_fh3rr"]
-radius = 7.61121
-height = 23.3992
 
 [sub_resource type="CapsuleShape2D" id="CapsuleShape2D_h4r1v"]
 radius = 3.0
@@ -192,17 +187,8 @@ vframes = 2
 
 [node name="AnimationPlayer" type="AnimationPlayer" parent="."]
 libraries = {
-"": SubResource("AnimationLibrary_demb1")
+&"": SubResource("AnimationLibrary_demb1")
 }
-
-[node name="Collectable" parent="." instance=ExtResource("3_pk2vj")]
-position = Vector2(7.09978, -5.8412)
-texture = ExtResource("2_rmoyj")
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="Collectable"]
-position = Vector2(-0.786074, -1.18521)
-rotation = 0.753982
-shape = SubResource("CapsuleShape2D_fh3rr")
 
 [node name="Hitbox2" parent="." instance=ExtResource("4_aygdn")]
 collision_mask = 128

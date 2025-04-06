@@ -1,11 +1,27 @@
-[gd_scene load_steps=7 format=3 uid="uid://bdb8kv72oovcr"]
+[gd_scene load_steps=8 format=3 uid="uid://bdb8kv72oovcr"]
 
 [ext_resource type="Texture2D" uid="uid://dx4bqm58kjyjp" path="res://collectables/tree/tree.png" id="1_qk3ct"]
-[ext_resource type="Script" path="res://collectables/tree/tree.gd" id="1_ybxg2"]
+[ext_resource type="Script" uid="uid://cwh3urbbq4j7m" path="res://collectables/breakable.gd" id="1_urik2"]
+[ext_resource type="AudioStream" uid="uid://dfcf8gho2t5ji" path="res://collectables/tree/tree.mp3" id="3_mlo6a"]
 
 [sub_resource type="CapsuleShape2D" id="CapsuleShape2D_ipa04"]
 radius = 1.5
 height = 6.0
+
+[sub_resource type="Animation" id="Animation_xwxpq"]
+length = 0.001
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Sprite2D:offset")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Vector2(0, 0)]
+}
 
 [sub_resource type="Animation" id="Animation_q55jd"]
 resource_name = "shake"
@@ -23,31 +39,19 @@ tracks/0/keys = {
 "values": [Vector2(-2, 0), Vector2(2, 0), Vector2(-2, 0), Vector2(2, 0), Vector2(-2, 0), Vector2(2, 0)]
 }
 
-[sub_resource type="Animation" id="Animation_xwxpq"]
-length = 0.001
-tracks/0/type = "value"
-tracks/0/imported = false
-tracks/0/enabled = true
-tracks/0/path = NodePath("Sprite2D:offset")
-tracks/0/interp = 1
-tracks/0/loop_wrap = true
-tracks/0/keys = {
-"times": PackedFloat32Array(0),
-"transitions": PackedFloat32Array(1),
-"update": 0,
-"values": [Vector2(0, 0)]
-}
-
 [sub_resource type="AnimationLibrary" id="AnimationLibrary_h555c"]
 _data = {
-"RESET": SubResource("Animation_xwxpq"),
-"shake": SubResource("Animation_q55jd")
+&"RESET": SubResource("Animation_xwxpq"),
+&"shake": SubResource("Animation_q55jd")
 }
 
 [node name="Tree" type="StaticBody2D"]
 collision_layer = 128
 collision_mask = 19
-script = ExtResource("1_ybxg2")
+script = ExtResource("1_urik2")
+health = 3
+min_drops = 1
+drop_type = "stick"
 
 [node name="Sprite2D" type="Sprite2D" parent="."]
 texture_filter = 1
@@ -60,7 +64,10 @@ shape = SubResource("CapsuleShape2D_ipa04")
 
 [node name="AnimationPlayer" type="AnimationPlayer" parent="."]
 libraries = {
-"": SubResource("AnimationLibrary_h555c")
+&"": SubResource("AnimationLibrary_h555c")
 }
+
+[node name="AudioStreamPlayer2D" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("3_mlo6a")
 
 [connection signal="animation_finished" from="AnimationPlayer" to="." method="_on_animation_player_animation_finished"]

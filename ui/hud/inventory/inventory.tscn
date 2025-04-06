@@ -1,0 +1,23 @@
+[gd_scene load_steps=5 format=3 uid="uid://dom0p7c8nisd2"]
+
+[ext_resource type="Texture2D" uid="uid://cnphfv4ftj6y1" path="res://ui/hud/inventory.png" id="1_h2b6o"]
+[ext_resource type="Script" uid="uid://btyahahahopuo" path="res://ui/hud/inventory/inventory.gd" id="1_v4wh7"]
+[ext_resource type="Resource" uid="uid://dqj4kq07uabl" path="res://world/item_info.tres" id="2_3py3y"]
+
+[sub_resource type="CompressedTexture2D" id="CompressedTexture2D_v4wh7"]
+
+[node name="Inventory" type="Node2D"]
+script = ExtResource("1_v4wh7")
+item_info = ExtResource("2_3py3y")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture_filter = 1
+position = Vector2(77, -35)
+scale = Vector2(4, 4)
+texture = ExtResource("1_h2b6o")
+
+[node name="LeftHand" type="Sprite2D" parent="."]
+texture_filter = 1
+position = Vector2(76, -37)
+scale = Vector2(5, 5)
+texture = SubResource("CompressedTexture2D_v4wh7")

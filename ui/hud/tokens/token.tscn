@@ -1,0 +1,295 @@
+[gd_scene load_steps=9 format=3 uid="uid://uum7kppgop7y"]
+
+[ext_resource type="Script" uid="uid://wqrtfgygbg7h" path="res://ui/hud/tokens/token.gd" id="1_ngob2"]
+[ext_resource type="Texture2D" uid="uid://7scy3atqdsfp" path="res://ui/hud/tokens/back_token.png" id="2_3bycx"]
+[ext_resource type="Texture2D" uid="uid://cgtpd67c7uo5s" path="res://ui/hud/tokens/blobbert_token.png" id="2_3wpse"]
+[ext_resource type="Script" uid="uid://vgmjpy0rp0" path="res://ui/hud/tokens/upgrade.gd" id="4_3wpse"]
+
+[sub_resource type="Animation" id="Animation_ngob2"]
+resource_name = "flip"
+length = 0.6
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Sprite2D2:scale")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.0333333, 0.0666667, 0.1, 0.133333, 0.166667, 0.2, 0.233333, 0.266667, 0.3, 0.333333, 0.366667, 0.4, 0.433333, 0.466667, 0.5, 0.533333, 0.566667, 0.6),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+"update": 0,
+"values": [Vector2(1, 0.9), Vector2(1, 0.7), Vector2(1, 0.4), Vector2(1, 0.1), Vector2(1, 0), Vector2(1, -0.1), Vector2(1, -0.4), Vector2(1, -0.7), Vector2(1, -0.9), Vector2(1, -1), Vector2(1, -0.9), Vector2(1, -0.7), Vector2(1, -0.4), Vector2(1, -0.1), Vector2(1, 0), Vector2(1, 0.1), Vector2(1, 0.4), Vector2(1, 0.9), Vector2(1, 1)]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("Sprite2D2:visible")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0.133333, 0.466667),
+"transitions": PackedFloat32Array(1, 1),
+"update": 1,
+"values": [false, true]
+}
+tracks/2/type = "value"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("Sprite2D:visible")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(0.133333, 0.466667),
+"transitions": PackedFloat32Array(1, 1),
+"update": 1,
+"values": [true, false]
+}
+tracks/3/type = "value"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath("Sprite2D:scale")
+tracks/3/interp = 1
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"times": PackedFloat32Array(0, 0.0333333, 0.0666667, 0.1, 0.133333, 0.166667, 0.2, 0.233333, 0.266667, 0.3, 0.333333, 0.366667, 0.4, 0.433333, 0.466667, 0.5, 0.533333, 0.566667, 0.6),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+"update": 0,
+"values": [Vector2(1, 0.9), Vector2(1, 0.7), Vector2(1, 0.4), Vector2(1, 0.1), Vector2(1, 0), Vector2(1, -0.1), Vector2(1, -0.4), Vector2(1, -0.7), Vector2(1, -0.9), Vector2(1, -1), Vector2(1, -0.9), Vector2(1, -0.7), Vector2(1, -0.4), Vector2(1, -0.1), Vector2(1, 0), Vector2(1, 0.1), Vector2(1, 0.4), Vector2(1, 0.9), Vector2(1, 1)]
+}
+
+[sub_resource type="Animation" id="Animation_3bycx"]
+length = 0.001
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Sprite2D2:scale")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Vector2(1, 1)]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("Sprite2D2:visible")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [true]
+}
+tracks/2/type = "value"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("Sprite2D:visible")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [false]
+}
+tracks/3/type = "value"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath("Sprite2D:scale")
+tracks/3/interp = 1
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Vector2(1, -0.0396092)]
+}
+tracks/4/type = "value"
+tracks/4/imported = false
+tracks/4/enabled = true
+tracks/4/path = NodePath("Sprite2D:rotation")
+tracks/4/interp = 1
+tracks/4/loop_wrap = true
+tracks/4/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [0.0]
+}
+tracks/5/type = "value"
+tracks/5/imported = false
+tracks/5/enabled = true
+tracks/5/path = NodePath("Sprite2D2:rotation")
+tracks/5/interp = 1
+tracks/5/loop_wrap = true
+tracks/5/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [0.0]
+}
+
+[sub_resource type="Animation" id="Animation_3wpse"]
+resource_name = "half_flip"
+length = 0.3
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Sprite2D2:scale")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.0333333, 0.0666667, 0.1, 0.133333, 0.166667, 0.2, 0.233333, 0.266667, 0.3),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+"update": 0,
+"values": [Vector2(1, 0.9), Vector2(1, 0.7), Vector2(1, 0.4), Vector2(1, 0.1), Vector2(1, 0), Vector2(1, -0.1), Vector2(1, -0.4), Vector2(1, -0.7), Vector2(1, -0.9), Vector2(1, -1)]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("Sprite2D2:visible")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0.133333),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [false]
+}
+tracks/2/type = "value"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("Sprite2D:scale")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(0, 0.0333333, 0.0666667, 0.1, 0.133333, 0.166667, 0.2, 0.233333, 0.266667, 0.3),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+"update": 0,
+"values": [Vector2(1, 0.9), Vector2(1, 0.7), Vector2(1, 0.4), Vector2(1, 0.1), Vector2(1, 0), Vector2(1, -0.1), Vector2(1, -0.4), Vector2(1, -0.7), Vector2(1, -0.9), Vector2(1, -1)]
+}
+tracks/3/type = "value"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath("Sprite2D:visible")
+tracks/3/interp = 1
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"times": PackedFloat32Array(0.133333),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [true]
+}
+tracks/4/type = "value"
+tracks/4/imported = false
+tracks/4/enabled = true
+tracks/4/path = NodePath("Sprite2D:rotation")
+tracks/4/interp = 1
+tracks/4/loop_wrap = true
+tracks/4/keys = {
+"times": PackedFloat32Array(0, 0.0333333, 0.0666667, 0.1, 0.133333, 0.166667, 0.2, 0.233333, 0.266667, 0.3),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+"update": 0,
+"values": [0.314159, 0.628319, 0.942478, 1.25664, 1.5708, 1.88496, 2.19911, 2.51327, 2.82743, 3.14159]
+}
+tracks/5/type = "value"
+tracks/5/imported = false
+tracks/5/enabled = true
+tracks/5/path = NodePath("Sprite2D2:rotation")
+tracks/5/interp = 1
+tracks/5/loop_wrap = true
+tracks/5/keys = {
+"times": PackedFloat32Array(0, 0.0333333, 0.0666667, 0.1, 0.133333, 0.166667, 0.2, 0.233333, 0.266667, 0.3),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+"update": 0,
+"values": [0.314159, 0.628319, 0.942478, 1.25664, 1.5708, 1.88496, 2.19911, 2.51327, 2.82743, 3.14159]
+}
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_3wpse"]
+_data = {
+&"RESET": SubResource("Animation_3bycx"),
+&"flip": SubResource("Animation_ngob2"),
+&"half_flip": SubResource("Animation_3wpse")
+}
+
+[node name="Tokens" type="Control"]
+process_mode = 3
+layout_mode = 3
+offset_right = 63.0
+offset_bottom = 46.0
+scale = Vector2(5, 5)
+mouse_filter = 1
+script = ExtResource("1_ngob2")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+visible = false
+texture_filter = 1
+position = Vector2(31.25, 22.75)
+scale = Vector2(1, -0.0396092)
+texture = ExtResource("2_3wpse")
+
+[node name="Sprite2D2" type="Sprite2D" parent="."]
+texture_filter = 1
+position = Vector2(31.25, 22.75)
+texture = ExtResource("2_3bycx")
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="."]
+libraries = {
+&"": SubResource("AnimationLibrary_3wpse")
+}
+
+[node name="Level" type="Label" parent="."]
+visible = false
+layout_mode = 0
+offset_top = -1.0
+offset_right = 27.0
+offset_bottom = 23.0
+scale = Vector2(0.5, 0.5)
+tooltip_text = "Enemy Level"
+mouse_filter = 1
+text = "1"
+horizontal_alignment = 1
+script = ExtResource("4_3wpse")
+
+[node name="Amount" type="Label" parent="."]
+visible = false
+layout_mode = 0
+offset_left = 49.2
+offset_top = -1.0
+offset_right = 76.2
+offset_bottom = 23.0
+scale = Vector2(0.5, 0.5)
+tooltip_text = "Enemy Size (Amount of Enemies)"
+mouse_filter = 1
+text = "1"
+horizontal_alignment = 1
+script = ExtResource("4_3wpse")
+type = "amount"
+
+[node name="Quadrent" type="Label" parent="."]
+visible = false
+layout_mode = 0
+offset_left = 24.0
+offset_top = 36.0
+offset_right = 51.0
+offset_bottom = 60.0
+scale = Vector2(0.5, 0.5)
+tooltip_text = "Quadrent Enemies will spawn in
+"
+mouse_filter = 1
+text = "1"
+horizontal_alignment = 1
+
+[connection signal="gui_input" from="." to="." method="_on_gui_input"]
+[connection signal="mouse_entered" from="." to="." method="_on_mouse_entered"]
+[connection signal="mouse_exited" from="." to="." method="_on_mouse_exited"]
+[connection signal="animation_finished" from="AnimationPlayer" to="." method="_on_animation_player_animation_finished"]
+[connection signal="gui_input" from="Level" to="Level" method="_on_gui_input"]
+[connection signal="mouse_entered" from="Level" to="Level" method="_on_mouse_entered"]
+[connection signal="mouse_exited" from="Level" to="Level" method="_on_mouse_exited"]
+[connection signal="gui_input" from="Amount" to="Amount" method="_on_gui_input"]
+[connection signal="mouse_entered" from="Amount" to="Amount" method="_on_mouse_entered"]
+[connection signal="mouse_exited" from="Amount" to="Amount" method="_on_mouse_exited"]

@@ -1,7 +1,9 @@
-[gd_scene load_steps=4 format=3 uid="uid://c8iriw732wf8i"]
+[gd_scene load_steps=6 format=3 uid="uid://c8iriw732wf8i"]
 
 [ext_resource type="Texture2D" uid="uid://2uogxh1wyugm" path="res://scenery/well/well_top.png" id="1_71h03"]
+[ext_resource type="Script" uid="uid://cqj14ehw88iv4" path="res://scenery/well/well.gd" id="1_en0ti"]
 [ext_resource type="Texture2D" uid="uid://dod56q0rdfrbe" path="res://scenery/well/well_bottom.png" id="2_an3ph"]
+[ext_resource type="PackedScene" uid="uid://cju6xq1340lvt" path="res://collectables/crystal/crystal.tscn" id="2_dvqyg"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_nj6ts"]
 size = Vector2(46, 38)
@@ -10,14 +12,17 @@ size = Vector2(46, 38)
 scale = Vector2(4, 4)
 collision_layer = 4
 collision_mask = 11
+script = ExtResource("1_en0ti")
 
 [node name="Sprite2D" type="Sprite2D" parent="."]
 texture_filter = 1
 position = Vector2(0, -11.5)
 texture = ExtResource("1_71h03")
 
+[node name="Crystal" parent="." instance=ExtResource("2_dvqyg")]
+position = Vector2(0, 16)
+
 [node name="Sprite2D2" type="Sprite2D" parent="."]
-z_index = 1
 texture_filter = 1
 position = Vector2(0, 14.5)
 texture = ExtResource("2_an3ph")

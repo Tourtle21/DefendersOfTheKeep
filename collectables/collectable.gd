@@ -1,20 +1,31 @@
 extends Area2D
 
-var item: Node2D
-var dropped = true
+var player: Node2D
+var hovering = false
 
-@export var texture: Texture
+@export var item_type: String
+@export var item_info: Resource
 
 func _ready() -> void:
-	item = get_parent()
+	$Sprite2D.texture = load(item_info.items[item_type]["texture"])
+	$Sprite2D.region_enabled = true
+	$Sprite2D.region_rect = Rect2(Vector2.ZERO, Vector2(32, 32))
+	$Sprite2D.visible = true
 
+func _input(event: InputEvent) -> void:
+	if hovering and event.is_action_pressed("interact"):
+		if player.get_parent().get_node("Hud").equip_item(item_info.items[item_type]):
+			if (item_info.items[item_type]["type"] == "item" and player.get_parent() != null):
+				player.equip_item(item_info.items[item_type])
+			queue_free()
+		else:
+			$AnimationPlayer.play("invalid")
+			
 func _on_body_entered(body: Node2D) -> void:
-	if (dropped):
-		dropped = false
-		item.get_parent().remove_child(item)
-		if (body.get_parent() != null):
-			body.get_parent().get_node("Hud").get_node("Control").get_node("LeftHand").texture = texture
-			body.get_parent().get_node("Hud").get_node("Control").get_node("LeftHand").region_enabled = true
-			body.get_parent().get_node("Hud").get_node("Control").get_node("LeftHand").region_rect = Rect2(Vector2.ZERO, Vector2(32, 32))
-			body.get_parent().get_node("Hud").get_node("Control").get_node("LeftHand").visible = true
-			body.equip_item(item)
+	hovering = true
+	player = body
+	modulate = Color(1.5, 1.5, 0.5)
+
+func _on_body_exited(body: Node2D) -> void:
+	hovering = false
+	modulate = Color.WHITE

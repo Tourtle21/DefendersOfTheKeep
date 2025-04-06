@@ -1,10 +1,9 @@
-[gd_scene load_steps=14 format=3 uid="uid://dg08cldkornsq"]
+[gd_scene load_steps=12 format=3 uid="uid://dg08cldkornsq"]
 
-[ext_resource type="Script" path="res://items/item.gd" id="1_jfvm3"]
+[ext_resource type="Script" uid="uid://debt46bscvysc" path="res://items/item.gd" id="1_jfvm3"]
 [ext_resource type="Texture2D" uid="uid://wrlllpeeoa2d" path="res://items/tools/sword/excalibur_.png" id="2_5mvxx"]
 [ext_resource type="PackedScene" uid="uid://ct3ybaw6glffy" path="res://hitboxes/hitbox.tscn" id="3_fdkgu"]
 [ext_resource type="AudioStream" uid="uid://c7toae1i4vtjj" path="res://items/tools/sword/sword.wav" id="4_gvygl"]
-[ext_resource type="PackedScene" uid="uid://dkqp16m8fnwyo" path="res://collectables/collectable.tscn" id="5_2nduw"]
 
 [sub_resource type="Animation" id="Animation_7gpgb"]
 length = 0.001
@@ -368,9 +367,9 @@ tracks/14/keys = {
 
 [sub_resource type="AnimationLibrary" id="AnimationLibrary_5go5k"]
 _data = {
-"RESET": SubResource("Animation_7gpgb"),
-"idle": SubResource("Animation_8bh8m"),
-"use_item": SubResource("Animation_lhd0g")
+&"RESET": SubResource("Animation_7gpgb"),
+&"idle": SubResource("Animation_8bh8m"),
+&"use_item": SubResource("Animation_lhd0g")
 }
 
 [sub_resource type="CapsuleShape2D" id="CapsuleShape2D_yvp1a"]
@@ -384,9 +383,6 @@ height = 12.0951
 [sub_resource type="CapsuleShape2D" id="CapsuleShape2D_wnfrx"]
 radius = 5.0
 height = 20.0
-
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_6yf5a"]
-size = Vector2(8, 20)
 
 [node name="Sword" type="Node2D"]
 position = Vector2(-3, 5)
@@ -402,7 +398,7 @@ vframes = 4
 
 [node name="AnimationPlayer" type="AnimationPlayer" parent="."]
 libraries = {
-"": SubResource("AnimationLibrary_5go5k")
+&"": SubResource("AnimationLibrary_5go5k")
 }
 
 [node name="Hitbox2" parent="." instance=ExtResource("3_fdkgu")]
@@ -427,12 +423,5 @@ disabled = true
 [node name="AudioStreamPlayer" type="AudioStreamPlayer" parent="."]
 stream = ExtResource("4_gvygl")
 volume_db = -4.0
-
-[node name="Collectable" parent="." instance=ExtResource("5_2nduw")]
-texture = ExtResource("2_5mvxx")
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="Collectable"]
-position = Vector2(0, -5)
-shape = SubResource("RectangleShape2D_6yf5a")
 
 [connection signal="animation_finished" from="AnimationPlayer" to="." method="_on_animation_player_animation_finished"]

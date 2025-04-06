@@ -1,6 +1,6 @@
-[gd_scene load_steps=6 format=3 uid="uid://cju6xq1340lvt"]
+[gd_scene load_steps=7 format=3 uid="uid://cju6xq1340lvt"]
 
-[ext_resource type="Script" path="res://collectables/crystal/crystal.gd" id="1_106rt"]
+[ext_resource type="Script" uid="uid://jjcwyr22qqdj" path="res://collectables/crystal/crystal.gd" id="1_106rt"]
 [ext_resource type="Texture2D" uid="uid://cp44676vo2pwo" path="res://collectables/crystal/crystal.png" id="1_o0cpc"]
 
 [sub_resource type="Animation" id="Animation_aro8e"]
@@ -37,12 +37,16 @@ tracks/0/keys = {
 
 [sub_resource type="AnimationLibrary" id="AnimationLibrary_q4w2a"]
 _data = {
-"RESET": SubResource("Animation_aro8e"),
-"spin": SubResource("Animation_crx36")
+&"RESET": SubResource("Animation_aro8e"),
+&"spin": SubResource("Animation_crx36")
 }
 
-[node name="Crystal" type="Node2D"]
-scale = Vector2(5, 5)
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_2gl64"]
+size = Vector2(55, 107)
+
+[node name="Crystal" type="Area2D"]
+collision_layer = 8
+collision_mask = 2
 script = ExtResource("1_106rt")
 
 [node name="Sprite2D" type="Sprite2D" parent="."]
@@ -52,5 +56,10 @@ vframes = 2
 
 [node name="AnimationPlayer" type="AnimationPlayer" parent="."]
 libraries = {
-"": SubResource("AnimationLibrary_q4w2a")
+&"": SubResource("AnimationLibrary_q4w2a")
 }
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+position = Vector2(0, 21.5)
+scale = Vector2(1, 1)
+shape = SubResource("RectangleShape2D_2gl64")

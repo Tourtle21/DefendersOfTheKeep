@@ -1,6 +1,6 @@
 [gd_resource type="Resource" script_class="PlayerControls" load_steps=2 format=3 uid="uid://ltb180k6osa"]
 
-[ext_resource type="Script" path="res://player/player_controls.gd" id="1_dhwbh"]
+[ext_resource type="Script" uid="uid://lscmh1tjs4dd" path="res://player/player_controls.gd" id="1_dhwbh"]
 
 [resource]
 resource_local_to_scene = true

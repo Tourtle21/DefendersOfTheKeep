@@ -1,0 +1,26 @@
+[gd_resource type="Resource" script_class="ItemInfo" load_steps=2 format=3 uid="uid://dqj4kq07uabl"]
+
+[ext_resource type="Script" uid="uid://bpc3rei7dr16n" path="res://world/items.gd" id="1_6npt2"]
+
+[resource]
+script = ExtResource("1_6npt2")
+items = {
+"pickaxe": {
+"path": "res://items/tools/pickaxe/pickaxe.tscn",
+"texture": "res://items/tools/pickaxe/pickaxe.png",
+"type": "item"
+},
+"stick": {
+"texture": "res://collectables/tree/stick.png",
+"type": "resource"
+},
+"stone": {
+"texture": "res://collectables/rock/stone.png",
+"type": "resource"
+},
+"sword": {
+"path": "res://items/tools/sword/sword.tscn",
+"texture": "res://items/tools/sword/excalibur_.png",
+"type": "item"
+}
+}

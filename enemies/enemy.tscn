@@ -1,6 +1,6 @@
 [gd_scene load_steps=9 format=3 uid="uid://cco4qv7jnki0q"]
 
-[ext_resource type="Script" path="res://enemies/blobbert/blobbert.gd" id="1_c3q43"]
+[ext_resource type="Script" uid="uid://15tmcfpyw07e" path="res://enemies/blobbert/blobbert.gd" id="1_c3q43"]
 [ext_resource type="Texture2D" uid="uid://wcjnv5ehjf1j" path="res://enemies/blobbert/running_blob.png" id="2_i54kf"]
 [ext_resource type="PackedScene" uid="uid://ct3ybaw6glffy" path="res://hitboxes/hitbox.tscn" id="3_772w7"]
 
@@ -40,8 +40,8 @@ tracks/0/keys = {
 
 [sub_resource type="AnimationLibrary" id="AnimationLibrary_tprle"]
 _data = {
-"RESET": SubResource("Animation_3xy38"),
-"walking": SubResource("Animation_hd34m")
+&"RESET": SubResource("Animation_3xy38"),
+&"walking": SubResource("Animation_hd34m")
 }
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_021hn"]
@@ -67,7 +67,7 @@ frame = 3
 [node name="AnimationPlayer" type="AnimationPlayer" parent="."]
 root_node = NodePath("../Sprite2D")
 libraries = {
-"": SubResource("AnimationLibrary_tprle")
+&"": SubResource("AnimationLibrary_tprle")
 }
 
 [node name="DamageTimer" type="Timer" parent="."]

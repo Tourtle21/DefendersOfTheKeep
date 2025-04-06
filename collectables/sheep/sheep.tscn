@@ -1,7 +1,7 @@
 [gd_scene load_steps=6 format=3 uid="uid://dpmfhpwtjfpl3"]
 
 [ext_resource type="Texture2D" uid="uid://denfsgpj5l3en" path="res://collectables/sheep/sheep.png" id="1_7p4y3"]
-[ext_resource type="Script" path="res://collectables/sheep/sheep.gd" id="1_cbprq"]
+[ext_resource type="Script" uid="uid://b1fmhcio13ws5" path="res://collectables/sheep/sheep.gd" id="1_cbprq"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_g46lx"]
 size = Vector2(8, 3)
@@ -25,7 +25,7 @@ tracks/0/keys = {
 
 [sub_resource type="AnimationLibrary" id="AnimationLibrary_uuepi"]
 _data = {
-"idle": SubResource("Animation_tdivk")
+&"idle": SubResource("Animation_tdivk")
 }
 
 [node name="Sheep" type="CharacterBody2D"]
@@ -47,6 +47,6 @@ shape = SubResource("RectangleShape2D_g46lx")
 
 [node name="AnimationPlayer" type="AnimationPlayer" parent="."]
 libraries = {
-"": SubResource("AnimationLibrary_uuepi")
+&"": SubResource("AnimationLibrary_uuepi")
 }
 speed_scale = 10.0

@@ -1,7 +1,8 @@
-[gd_scene load_steps=8 format=3 uid="uid://bw210n8f5j5i8"]
+[gd_scene load_steps=10 format=3 uid="uid://bw210n8f5j5i8"]
 
 [ext_resource type="Texture2D" uid="uid://d287ptic2v2yw" path="res://scenery/tower/tower.png" id="1_o6sw1"]
-[ext_resource type="Script" path="res://scenery/tower/EnterArea.gd" id="2_ow4a4"]
+[ext_resource type="Texture2D" uid="uid://dq4idrtxkrdy5" path="res://scenery/tower/tower_top.png" id="2_4s38b"]
+[ext_resource type="Script" uid="uid://bfsdy8lqhlkk1" path="res://scenery/tower/EnterArea.gd" id="2_ow4a4"]
 
 [sub_resource type="Animation" id="Animation_0kgjs"]
 length = 0.001
@@ -37,12 +38,15 @@ tracks/0/keys = {
 
 [sub_resource type="AnimationLibrary" id="AnimationLibrary_xkgu8"]
 _data = {
-"RESET": SubResource("Animation_0kgjs"),
-"open_door": SubResource("Animation_21olg")
+&"RESET": SubResource("Animation_0kgjs"),
+&"open_door": SubResource("Animation_21olg")
 }
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_20r6v"]
 size = Vector2(44, 20)
+
+[sub_resource type="SegmentShape2D" id="SegmentShape2D_enrv6"]
+b = Vector2(0, 41)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_aaktt"]
 size = Vector2(52.125, 26.8333)
@@ -59,13 +63,41 @@ texture = ExtResource("1_o6sw1")
 hframes = 4
 vframes = 3
 
+[node name="Sprite2D2" type="Sprite2D" parent="."]
+z_index = 1
+texture_filter = 1
+position = Vector2(0, -32)
+texture = ExtResource("2_4s38b")
+
 [node name="AnimationPlayer" type="AnimationPlayer" parent="."]
 libraries = {
-"": SubResource("AnimationLibrary_xkgu8")
+&"": SubResource("AnimationLibrary_xkgu8")
 }
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 shape = SubResource("RectangleShape2D_20r6v")
+
+[node name="CollisionShape2D2" type="CollisionShape2D" parent="."]
+position = Vector2(-19, -52)
+shape = SubResource("SegmentShape2D_enrv6")
+disabled = true
+
+[node name="CollisionShape2D3" type="CollisionShape2D" parent="."]
+position = Vector2(19, -52)
+shape = SubResource("SegmentShape2D_enrv6")
+disabled = true
+
+[node name="CollisionShape2D4" type="CollisionShape2D" parent="."]
+position = Vector2(20, -50)
+rotation = 1.5708
+shape = SubResource("SegmentShape2D_enrv6")
+disabled = true
+
+[node name="CollisionShape2D5" type="CollisionShape2D" parent="."]
+position = Vector2(20, -28)
+rotation = 1.5708
+shape = SubResource("SegmentShape2D_enrv6")
+disabled = true
 
 [node name="EnterArea" type="Area2D" parent="."]
 position = Vector2(0, -23)

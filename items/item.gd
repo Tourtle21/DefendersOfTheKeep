@@ -1,7 +1,7 @@
 extends Node2D
 class_name Tool
 
-@export var starting_position: Vector2 = Vector2(3, 5)
+@export var starting_position: Vector2 = Vector2(5, 5)
 
 func _ready() -> void:
 	var animation_player = $AnimationPlayer

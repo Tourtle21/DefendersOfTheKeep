@@ -1,13 +1,56 @@
-[gd_scene load_steps=3 format=3 uid="uid://cjmgfmh5icjui"]
+[gd_scene load_steps=8 format=3 uid="uid://cjmgfmh5icjui"]
 
+[ext_resource type="Script" uid="uid://cwh3urbbq4j7m" path="res://collectables/breakable.gd" id="1_h0nlk"]
 [ext_resource type="Texture2D" uid="uid://fwvfberhi3vi" path="res://collectables/rock/small_rocks.png" id="1_r8grj"]
+[ext_resource type="AudioStream" uid="uid://bma05bfxtp4i4" path="res://collectables/rock/stone.mp3" id="3_6jvyv"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_ysw63"]
 size = Vector2(11, 11)
 
+[sub_resource type="Animation" id="Animation_xwxpq"]
+length = 0.001
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Sprite2D:offset")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Vector2(0, 0)]
+}
+
+[sub_resource type="Animation" id="Animation_q55jd"]
+resource_name = "shake"
+length = 0.5
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Sprite2D:offset")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.05, 0.133333, 0.166667, 0.3, 0.4),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1),
+"update": 0,
+"values": [Vector2(-2, 0), Vector2(2, 0), Vector2(-2, 0), Vector2(2, 0), Vector2(-2, 0), Vector2(2, 0)]
+}
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_h555c"]
+_data = {
+&"RESET": SubResource("Animation_xwxpq"),
+&"shake": SubResource("Animation_q55jd")
+}
+
 [node name="SmallRocks" type="StaticBody2D"]
 collision_layer = 128
 collision_mask = 19
+script = ExtResource("1_h0nlk")
+health = 4
+min_drops = 1
+drop_type = "stone"
 
 [node name="Sprite2D" type="Sprite2D" parent="."]
 texture_filter = 1
@@ -16,3 +59,13 @@ texture = ExtResource("1_r8grj")
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 position = Vector2(0.5, 0.5)
 shape = SubResource("RectangleShape2D_ysw63")
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="."]
+libraries = {
+&"": SubResource("AnimationLibrary_h555c")
+}
+
+[node name="AudioStreamPlayer2D" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("3_6jvyv")
+
+[connection signal="animation_finished" from="AnimationPlayer" to="." method="_on_animation_player_animation_finished"]

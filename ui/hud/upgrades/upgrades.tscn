@@ -1,0 +1,85 @@
+[gd_scene load_steps=3 format=3 uid="uid://dl6hmrd56mlcg"]
+
+[ext_resource type="Script" uid="uid://dbq1udaxtaehh" path="res://ui/hud/upgrades/upgrades.gd" id="1_qvox4"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_grlaj"]
+bg_color = Color(0.145098, 0.168627, 0.25098, 1)
+border_width_left = 5
+border_width_top = 5
+border_width_right = 5
+border_width_bottom = 5
+border_color = Color(0.0588235, 0.0862745, 0.176471, 1)
+corner_radius_top_left = 20
+corner_radius_top_right = 20
+corner_radius_bottom_right = 20
+corner_radius_bottom_left = 20
+shadow_color = Color(0.0430392, 0.0430392, 0.0430392, 1)
+shadow_size = 2
+shadow_offset = Vector2(2, 2)
+
+[node name="Upgrades" type="CanvasLayer"]
+script = ExtResource("1_qvox4")
+
+[node name="Control" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="ColorRect" type="ColorRect" parent="Control"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.172549, 0.2, 0.282353, 1)
+
+[node name="Panel" type="Panel" parent="Control"]
+layout_mode = 1
+anchors_preset = -1
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 50.0
+offset_top = 50.0
+offset_right = -50.0
+offset_bottom = -50.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_grlaj")
+
+[node name="Label" type="Label" parent="Control"]
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -28.0
+offset_top = 50.0
+offset_right = 28.0
+offset_bottom = 23.0
+grow_horizontal = 2
+theme_override_font_sizes/font_size = 100
+text = "Wave 1"
+
+[node name="Tokens" type="Node2D" parent="Control"]
+
+[node name="Button" type="Button" parent="Control"]
+visible = false
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -46.0
+offset_top = -31.0
+offset_right = 46.0
+offset_bottom = -65.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_override_font_sizes/font_size = 40
+text = "Start Wave"
+
+[connection signal="pressed" from="Control/Button" to="." method="_on_button_pressed"]

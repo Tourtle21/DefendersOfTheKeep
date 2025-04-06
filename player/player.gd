@@ -1,6 +1,7 @@
 extends CharacterBody2D
 
 @export var controls: Resource
+@export var item_info: Resource
 
 var speed = 100.0
 var knockback_strength = 600.0
@@ -11,6 +12,7 @@ var initial_position = position
 
 var is_using_item = false
 var is_taking_damage = false
+var is_in_tower = false
 
 var pickaxe_initial_rotation = 0
 
@@ -85,7 +87,8 @@ func process_movement(delta):
 func equip_item(new_item) -> void:
 	if (item != null):
 		item.queue_free()
-	item = new_item
+	var item_path = load(new_item.path)
+	item = item_path.instantiate()
 	item_animation_player = null
 	item.equip()
 	right_hand.add_child(item)	

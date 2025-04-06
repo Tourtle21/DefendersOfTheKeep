@@ -1,9 +1,62 @@
-[gd_scene load_steps=2 format=3 uid="uid://dkqp16m8fnwyo"]
+[gd_scene load_steps=7 format=3 uid="uid://dkqp16m8fnwyo"]
 
-[ext_resource type="Script" path="res://collectables/collectable.gd" id="1_8qawy"]
+[ext_resource type="Script" uid="uid://blu5i73ayy07i" path="res://collectables/collectable.gd" id="1_8qawy"]
+[ext_resource type="Resource" uid="uid://dqj4kq07uabl" path="res://world/item_info.tres" id="2_ckvre"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_ckvre"]
+
+[sub_resource type="Animation" id="Animation_mimh1"]
+length = 0.001
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Sprite2D:modulate")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Color(1, 1, 1, 1)]
+}
+
+[sub_resource type="Animation" id="Animation_ckvre"]
+resource_name = "invalid"
+length = 0.5
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Sprite2D:modulate")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.1, 0.2, 0.3, 0.4, 0.5),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1),
+"update": 0,
+"values": [Color(1, 0, 0, 1), Color(0.999994, 0.184566, 0.135899, 1), Color(1, 0.335514, 0.269596, 1), Color(1, 0.518123, 0.45217, 1), Color(1, 0.607017, 0.54818, 1), Color(1, 1, 1, 1)]
+}
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_8tutq"]
+_data = {
+&"RESET": SubResource("Animation_mimh1"),
+&"invalid": SubResource("Animation_ckvre")
+}
 
 [node name="Collectable" type="Area2D"]
 collision_layer = 8
 script = ExtResource("1_8qawy")
+item_info = ExtResource("2_ckvre")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture_filter = 1
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("RectangleShape2D_ckvre")
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="."]
+libraries = {
+&"": SubResource("AnimationLibrary_8tutq")
+}
 
 [connection signal="body_entered" from="." to="." method="_on_body_entered"]
+[connection signal="body_exited" from="." to="." method="_on_body_exited"]

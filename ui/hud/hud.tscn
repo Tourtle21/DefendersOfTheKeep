@@ -1,8 +1,12 @@
-[gd_scene load_steps=2 format=3 uid="uid://dvuuev2rbscjc"]
+[gd_scene load_steps=3 format=3 uid="uid://dvuuev2rbscjc"]
 
-[sub_resource type="CompressedTexture2D" id="CompressedTexture2D_ykyoa"]
+[ext_resource type="Script" uid="uid://c7ls1virsjown" path="res://ui/hud/hud.gd" id="1_4d6w6"]
+[ext_resource type="PackedScene" uid="uid://dom0p7c8nisd2" path="res://ui/hud/inventory/inventory.tscn" id="1_xmswo"]
 
-[node name="Node2D" type="CanvasLayer"]
+[node name="Node2D" type="CanvasLayer" node_paths=PackedStringArray("item_slots", "resource_slots")]
+script = ExtResource("1_4d6w6")
+item_slots = NodePath("Control")
+resource_slots = NodePath("Control3")
 
 [node name="Control" type="Control" parent="."]
 layout_mode = 3
@@ -13,20 +17,31 @@ offset_top = -40.0
 offset_right = 40.0
 grow_vertical = 0
 
-[node name="ColorRect" type="ColorRect" parent="Control"]
-layout_mode = 0
-offset_left = 13.0
-offset_top = -104.0
-offset_right = 150.0
-offset_bottom = 33.0
-color = Color(0.660534, 0.51622, 0.273049, 1)
+[node name="Inventory" parent="Control" instance=ExtResource("1_xmswo")]
 
-[node name="LeftHand" type="Sprite2D" parent="Control"]
-visible = false
-texture_filter = 1
-position = Vector2(83, -39)
-scale = Vector2(5, 5)
-texture = SubResource("CompressedTexture2D_ykyoa")
+[node name="Inventory2" parent="Control" instance=ExtResource("1_xmswo")]
+position = Vector2(0, -133)
+
+[node name="Inventory3" parent="Control" instance=ExtResource("1_xmswo")]
+position = Vector2(0, -266)
+
+[node name="Control3" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -40.0
+offset_top = -40.0
+grow_horizontal = 0
+grow_vertical = 0
+
+[node name="Inventory" parent="Control3" instance=ExtResource("1_xmswo")]
+position = Vector2(-114, 0)
+
+[node name="Inventory2" parent="Control3" instance=ExtResource("1_xmswo")]
+position = Vector2(-114, -135)
 
 [node name="Control2" type="Control" parent="."]
 layout_mode = 3

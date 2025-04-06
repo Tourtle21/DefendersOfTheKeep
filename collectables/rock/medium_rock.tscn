@@ -1,14 +1,57 @@
-[gd_scene load_steps=3 format=3 uid="uid://cw8668sqydr1w"]
+[gd_scene load_steps=8 format=3 uid="uid://cw8668sqydr1w"]
 
+[ext_resource type="Script" uid="uid://cwh3urbbq4j7m" path="res://collectables/breakable.gd" id="1_83206"]
 [ext_resource type="Texture2D" uid="uid://cjyomqgsyjcl" path="res://collectables/rock/medium_rock.png" id="1_i8ybo"]
+[ext_resource type="AudioStream" uid="uid://bma05bfxtp4i4" path="res://collectables/rock/stone.mp3" id="3_pnrpa"]
 
 [sub_resource type="CapsuleShape2D" id="CapsuleShape2D_y5c4u"]
 radius = 6.0
 height = 14.0
 
+[sub_resource type="Animation" id="Animation_xwxpq"]
+length = 0.001
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Sprite2D:offset")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Vector2(0, 0)]
+}
+
+[sub_resource type="Animation" id="Animation_q55jd"]
+resource_name = "shake"
+length = 0.5
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Sprite2D:offset")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.05, 0.133333, 0.166667, 0.3, 0.4),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1),
+"update": 0,
+"values": [Vector2(-2, 0), Vector2(2, 0), Vector2(-2, 0), Vector2(2, 0), Vector2(-2, 0), Vector2(2, 0)]
+}
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_h555c"]
+_data = {
+&"RESET": SubResource("Animation_xwxpq"),
+&"shake": SubResource("Animation_q55jd")
+}
+
 [node name="MediumRock" type="StaticBody2D"]
 collision_layer = 128
 collision_mask = 19
+script = ExtResource("1_83206")
+health = 16
+max_drops = 3
+drop_type = "stone"
 
 [node name="Sprite2D" type="Sprite2D" parent="."]
 texture_filter = 1
@@ -18,3 +61,13 @@ texture = ExtResource("1_i8ybo")
 position = Vector2(0, 1)
 rotation = 1.5708
 shape = SubResource("CapsuleShape2D_y5c4u")
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="."]
+libraries = {
+&"": SubResource("AnimationLibrary_h555c")
+}
+
+[node name="AudioStreamPlayer2D" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("3_pnrpa")
+
+[connection signal="animation_finished" from="AnimationPlayer" to="." method="_on_animation_player_animation_finished"]
