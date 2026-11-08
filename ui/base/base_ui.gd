@@ -12,7 +12,7 @@ var mana_label: Label
 var draw_bar: ProgressBar
 var hand_box: HBoxContainer
 var base_panel: Control      # everything that is base-only
-var upgrade_box: VBoxContainer
+var upgrade_box: HBoxContainer
 var reticle: Control
 var deck_label: Label
 var ability_label: Label
@@ -155,11 +155,12 @@ func _ready() -> void:
 	radar.offset_bottom = 370
 
 	# top-left under the resources: upgrades
-	upgrade_box = VBoxContainer.new()
+	upgrade_box = HBoxContainer.new()
+	upgrade_box.add_theme_constant_override("separation", 8)
 	upgrade_box.position = Vector2(12, 44)
 	base_panel.add_child(upgrade_box)
 	deck_label = Label.new()
-	deck_label.position = Vector2(12, 240)
+	deck_label.position = Vector2(12, 176)
 	deck_label.add_theme_font_size_override("font_size", 14)
 	base_panel.add_child(deck_label)
 
@@ -214,25 +215,40 @@ func _refresh_all() -> void:
 	_rebuild_upgrades()
 	_refresh_hand_enabled()
 
+const TierCard = preload("res://ui/cards/tier_card.gd")
+const COST_SHORT := {"stone": "stone", "stick": "stick", "gold": "gold"}
+
+func _cost_short(cost: Dictionary) -> String:
+	var parts := []
+	for t in cost:
+		parts.append("%d %s" % [cost[t], COST_SHORT.get(t, t)])
+	return "  ".join(parts)
+
+## Keep upgrades as small cards: green frame = you can buy it now. The gems are the level.
 func _rebuild_upgrades() -> void:
 	for c in upgrade_box.get_children():
 		c.queue_free()
-	var repair := Button.new()
-	repair.text = "Repair keep +30 (3 stone)   [click]"
-	repair.disabled = Game.keep_hp >= Game.keep_max() or !Game.can_afford({"stone": 3})
-	repair.pressed.connect(func(): Game.repair_keep())
-	upgrade_box.add_child(repair)
+	var rcost := {"stone": 3}
+	var can_repair: bool = Game.keep_hp < Game.keep_max() and Game.can_afford(rcost)
+	var rc := TierCard.new()
+	rc.setup({"size": Vector2(92, 128), "title": "Repair", "glyph": "+", "lines": ["+30 keep"], "footer": "3 stone",
+		"accent": Color(0.9, 0.5, 0.4), "locked": !can_repair, "tooltip": "Repair the keep +30 (3 stone)"})
+	rc.set_selected(can_repair)
+	rc.pressed.connect(func(_c): Game.repair_keep())
+	upgrade_box.add_child(rc)
+	var glyphs := {"max_mana": "M", "regen": "R", "draw": "D"}
 	for id in Game.UPGRADES:
 		var u: Dictionary = Game.UPGRADES[id]
 		var cost := Game.upgrade_cost(id)
-		var parts := []
-		for t in cost:
-			parts.append("%d %s" % [cost[t], t])
-		var b := Button.new()
-		b.text = "%s Lv%d: %s (%s)" % [u.name, Game.upgrade_levels.get(id, 0), u.desc, ", ".join(parts)]
-		b.disabled = !Game.can_afford(cost)
-		b.pressed.connect(func(): Game.buy_upgrade(id))
-		upgrade_box.add_child(b)
+		var lvl: int = Game.upgrade_levels.get(id, 0)
+		var can := Game.can_afford(cost)
+		var c := TierCard.new()
+		c.setup({"size": Vector2(92, 128), "title": u.name, "glyph": glyphs.get(id, "+"), "tier": mini(lvl, 6), "max_tier": 6,
+			"badge": "Lv %d" % lvl, "lines": [u.desc], "footer": _cost_short(cost), "accent": Color(0.5, 0.75, 1.0),
+			"locked": !can, "tooltip": "%s: %s" % [u.name, u.desc]})
+		c.set_selected(can)
+		c.pressed.connect(func(_c): Game.buy_upgrade(id))
+		upgrade_box.add_child(c)
 
 func _refresh_hand(flip_all := false) -> void:
 	var prev := hand_box.get_child_count()
