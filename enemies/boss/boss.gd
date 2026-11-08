@@ -144,12 +144,9 @@ func _physics_process(delta: float) -> void:
 			if n > 1:
 				max_health *= 1.0 + 0.6 * (n - 1)       # more players, tougher boss
 				health = max_health
-			_state = "intro"
-			_intro = 1.3
-			_timer = 1.0
-			_player.shake(4.0, 0.5)
-			Game.announce.emit("%s awakens!" % boss_name)
-			Sfx.play("boss_roar", 0.02)
+			_state = "chase"               # no wake-up scene: it simply starts walking toward you
+			_timer = 1.5
+			Game.announce.emit("%s is coming for the keep!" % boss_name)
 			Game.boss_fight.emit(true)
 		queue_redraw()
 		return
