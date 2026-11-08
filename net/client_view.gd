@@ -180,7 +180,7 @@ func smooth(delta: float) -> void:
 func _process(delta: float) -> void:
 	if _host_lost:
 		return
-	_daylight.energy = Game.night_level * 0.72          # same strength as the host's NIGHT_DARKNESS
+	_daylight.energy = Game.night_level * 1.0          # same strength as the host's NIGHT_DARKNESS
 	_ingest(Net.last_snapshot)
 	smooth(delta)
 	# gather input for the host

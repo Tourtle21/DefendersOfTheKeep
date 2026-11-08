@@ -72,7 +72,7 @@ func _ready() -> void:
 # ---- day, night and the waves ----
 # One cycle is 5 minutes: a long day, a slow dusk, a night, a dawn. There is one wave in the day and one in the
 # night, well apart, so there is time to set up. The clock only runs while the game is not paused.
-const NIGHT_DARKNESS := 0.92       # how much of the day the night takes away (1 = pitch black); lights add back the same amount
+const NIGHT_DARKNESS := 1.0        # how much of the day the night takes away (1 = pitch black); lights add back the same amount
 const WAVE_SIZE := 2.0             # waves come about three times less often than they used to, so each one is bigger
 const FIRST_BOSS_WAVE := 3          # King Blobbert shows up when this wave starts
 const CYCLE := 260.0
