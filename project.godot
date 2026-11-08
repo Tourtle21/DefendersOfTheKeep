@@ -26,6 +26,7 @@ Sfx="*res://core/sfx.gd"
 Music="*res://core/music.gd"
 Net="*res://core/net.gd"
 Rep="*res://core/replication.gd"
+Pad="*res://core/pad.gd"
 
 [display]
 

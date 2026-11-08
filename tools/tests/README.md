@@ -51,3 +51,6 @@ wave spawns), `token_flow.gd` (every order of flipping wave tokens ends with Sta
 
 Rewards: `legendary.gd` (reward counts, win reward, the six legendaries in play), `rewards_flip.gd` (window: the face-down reward
 screen and the flip sequence; pass `-- win` for a victory).
+
+Controller: `controller.gd` (injected pad events: left stick walks, right stick aims, RT/LT attack and ability, A/B/X/Y actions,
+mouse takes over again, pad off while a menu or the keep is up).

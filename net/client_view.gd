@@ -187,7 +187,7 @@ func _process(delta: float) -> void:
 	var move := Input.get_vector("move_left", "move_right", "move_up", "move_down")
 	if !scripted_input:
 		Net.local_input = {
-		"move": move, "aim": get_global_mouse_position(),
+		"move": move, "aim": Pad.world_mouse(self),
 		"attack": Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT),
 		"ability": Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT),
 		"dash": Input.is_action_pressed("dash"), "ultimate": Input.is_action_pressed("ultimate"),
@@ -362,7 +362,7 @@ func _update_loot_ui(snap: Dictionary) -> void:
 		_forge_sel = []
 
 func _unhandled_input(event: InputEvent) -> void:
-	if event is InputEventKey and event.pressed and !event.echo and event.keycode == KEY_Q:
+	if (event is InputEventKey and event.pressed and !event.echo and event.keycode == KEY_Q) or event.is_action_pressed("switch_items"):
 		Net.net_command.rpc_id(1, {"cmd": "switch"})
 	if event.is_action_pressed("interact"):
 		Net.net_command.rpc_id(1, {"cmd": "interact"})      # tower, chest or pickup: the host decides what is in reach
@@ -371,5 +371,5 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif _in_base and event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT and selected >= 0:
 		var hand: Array = Net.last_snapshot.get("hand", [])
 		if selected < hand.size():
-			Net.net_command.rpc_id(1, {"cmd": "cast", "card": hand[selected], "pos": get_global_mouse_position()})
+			Net.net_command.rpc_id(1, {"cmd": "cast", "card": hand[selected], "pos": Pad.world_mouse(self)})
 			selected = -1

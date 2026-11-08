@@ -305,7 +305,7 @@ func _draw_progress() -> void:
 	var fill: float = clampf((points - tier_points(tier)) / span, 0.0, 1.0)
 	draw_rect(Rect2(-w / 2.0, y, w, 3.0), Color(0, 0, 0, 0.7))
 	draw_rect(Rect2(-w / 2.0 + 0.5, y + 0.5, (w - 1.0) * fill, 2.0), Color(0.55, 1.0, 0.6))
-	var mouse := get_global_mouse_position()
+	var mouse := Pad.world_mouse(self)
 	if mouse.distance_to(global_position) <= radius + 14.0 or (Game.card_aim_active and mouse.distance_to(global_position) <= MERGE_RANGE + radius):
 		var n := needs()
 		var tw: String = (" | " + Game.TWISTS[twist][0]) if twist != "" and Game.TWISTS.has(twist) else ""

@@ -104,7 +104,7 @@ func reload() -> bool:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if Game.in_base and !Game.card_aim_active and event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		if get_global_mouse_position().distance_to(global_position + Vector2(0, -16)) < 24.0:
+		if Pad.world_mouse(self).distance_to(global_position + Vector2(0, -16)) < 24.0:
 			reload()
 
 func _draw() -> void:

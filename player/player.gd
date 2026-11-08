@@ -57,7 +57,7 @@ func _ready():
 func aim_point() -> Vector2:
 	if remote_controlled:
 		return remote_input.aim
-	return get_global_mouse_position()
+	return Pad.world_mouse(self)
 
 ## You fell: out of the fight for RESPAWN_TIME seconds while the keep carries on, then back at the keep with full health.
 func fall() -> void:

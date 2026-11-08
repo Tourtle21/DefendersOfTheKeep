@@ -185,7 +185,7 @@ func _process(_delta: float) -> void:
 		draw_bar.value = Game.draw_progress()
 		reticle.queue_redraw()
 		if ghost:
-			ghost.position = get_viewport().get_mouse_position() - CardView.SIZE * 0.275
+			ghost.position = Pad.screen_mouse(get_viewport()) - CardView.SIZE * 0.275
 
 func _on_base_mode(active: bool) -> void:
 	base_panel.visible = active
@@ -274,7 +274,7 @@ func select(i: int) -> void:
 	_refresh_hand_enabled()
 
 func _world_mouse() -> Vector2:
-	return get_viewport().get_canvas_transform().affine_inverse() * get_viewport().get_mouse_position()
+	return get_viewport().get_canvas_transform().affine_inverse() * Pad.screen_mouse(get_viewport())
 
 func cast_selected_at(world_pos: Vector2) -> void:
 	if selected < 0 or selected >= Game.hand.size():
@@ -301,7 +301,7 @@ func start_drag(i: int) -> void:
 	_refresh_hand_enabled()
 
 func _hand_slot_at_mouse() -> int:
-	var m := get_viewport().get_mouse_position()
+	var m := Pad.screen_mouse(get_viewport())
 	var kids := hand_box.get_children()
 	for i in kids.size():
 		if kids[i].get_global_rect().has_point(m):
@@ -309,7 +309,7 @@ func _hand_slot_at_mouse() -> int:
 	return -1
 
 func _over_hand() -> bool:
-	return hand_box.get_global_rect().grow(8).has_point(get_viewport().get_mouse_position())
+	return hand_box.get_global_rect().grow(8).has_point(Pad.screen_mouse(get_viewport()))
 
 ## Drop the dragged card: onto the map casts it (shot from the crystal), back
 ## onto the hand just selects it so you can still click-to-aim.
@@ -366,7 +366,7 @@ func _draw_reticle() -> void:
 	var id: String = Game.hand[idx]
 	var card: Dictionary = Game.stats_of(id)
 	var zoom: float = get_viewport().get_canvas_transform().get_scale().x
-	var mouse := get_viewport().get_mouse_position()
+	var mouse := Pad.screen_mouse(get_viewport())
 	var cancel := dragging >= 0 and _over_hand()
 	var col := Color(1, 0.35, 0.35, 0.8) if cancel else Color(1, 1, 0.4, 0.95)
 	# where it will land

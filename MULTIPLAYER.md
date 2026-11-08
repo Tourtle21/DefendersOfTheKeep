@@ -57,3 +57,8 @@ end to end (including a throw-away new content type, `tools/tests/fixtures/new_t
 
 Night: `Game.night_level` is synced like every Game variable; the client view draws the same dark overlay and a light on your own
 player. Lights (torch, flare, glowing buildings) replicate as normal gameplay nodes; the shroud and what defences see is host-side.
+
+## Controller
+`core/pad.gd` (autoload `Pad`) covers moving and fighting only: sticks, RT/LT as attack/ability, A/B/X/Y as interact/dash/switch/ultimate.
+Menus, the keep and cards stay on the mouse. Gameplay code asks `Pad.world_mouse(self)` instead of `get_global_mouse_position()`, so a
+co-op client sends the stick-aimed point like any other aim.
