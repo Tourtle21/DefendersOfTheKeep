@@ -18,6 +18,8 @@ var body_radius := 22.0
 var attacks: Array = ["slam", "charge", "summon"]
 var gold_drop := 12
 var wake_distance := 240.0
+var wake_wave := 3                 # stays asleep until this wave has started, so a run cannot be ended by wandering off
+var _warned := false
 var add_scene := "res://enemies/blobbert/blobbert.tscn"
 
 var hit_radius := 22.0          # read by WeaponUtil so big targets are easy to hit
@@ -81,6 +83,10 @@ func _path_dir(to_player: Vector2, delta: float) -> Vector2:
 # ---------- hit API shared with normal enemies ----------
 
 func take_damage(_origin: Vector2) -> void:      # legacy sword/pickaxe hitboxes
+	if is_taking_damage:
+		return
+	is_taking_damage = true              # the sword hitbox hits every frame it overlaps: one hit per swing window instead
+	get_tree().create_timer(0.45).timeout.connect(func(): is_taking_damage = false)
 	spell_damage(1.0)
 
 func spell_damage(amount: float, element := "", _aoe := false) -> void:
@@ -132,7 +138,7 @@ func _physics_process(delta: float) -> void:
 		return
 	var to_player: Vector2 = _player.global_position - global_position
 	if !awake:
-		if to_player.length() < wake_distance:
+		if true:                       # bosses do not sleep: it spawns with the run and comes for you
 			awake = true
 			var n: int = get_tree().get_nodes_in_group("player").size()
 			if n > 1:
