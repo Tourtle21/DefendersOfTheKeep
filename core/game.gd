@@ -329,7 +329,7 @@ func defence_sees(e: Node2D, from: Vector2) -> bool:
 const STARTER_WEAPONS := []             # no weapon is free except the sword and pickaxe; everything else costs Shards
 # every weapon must be unlocked once (reward draw or the codex) before it can appear in a run
 # same price rule as cards: 16 x realm^1.5 (see unlock_price), by WEAPON_LEVEL
-const WEAPON_UNLOCK_COSTS := {"torch": 16, "spear": 16, "hammer": 16, "bow": 16, "daggers": 16, "whip": 45, "shield": 45, "staff": 83, "scimitar": 45, "frostglaive": 83, "emberflail": 128, "bogstaff": 179, "crystalwand": 235}
+const WEAPON_UNLOCK_COSTS := {"torch": 16, "spear": 16, "hammer": 16, "bow": 45, "daggers": 45, "scimitar": 45, "whip": 83, "shield": 83, "frostglaive": 83, "staff": 128, "emberflail": 128, "bogstaff": 179, "crystalwand": 235}
 const FUSION_TIER_COSTS := {3: 60, 4: 140}      # tier 2 recipes are known from the start
 const STARTER_CARDS := ["fireball", "frost_ring", "barricade", "spike_trap", "torch"]       # the Torch is free: night comes in the first run
 var save_path := "user://save.json"
@@ -1266,7 +1266,8 @@ const LEGENDARY_WEAPONS := ["dawnbringer", "voidreaver"]
 const REWARD_COUNT := {1: 1, 2: 3, 3: 5, 4: 6, 5: 7, 6: 8}
 const WIN_REWARD_COUNT := 10
 const CARD_LEVEL_OVERRIDE := {"meteor_shower": 6, "stasis": 6, "sunspire": 6, "phoenix_shrine": 6, "aegis": 2, "guards": 2, "sentry": 2, "charm": 3, "mender": 1}
-const WEAPON_LEVEL := {"torch": 1, "spear": 1, "hammer": 1, "bow": 1, "daggers": 1, "whip": 2, "shield": 2, "staff": 3, "scimitar": 2, "frostglaive": 3, "emberflail": 4, "bogstaff": 5, "crystalwand": 6}
+# about three new weapons per level so you learn them a few at a time (the realm weapons keep their own realm)
+const WEAPON_LEVEL := {"torch": 1, "spear": 1, "hammer": 1, "bow": 2, "daggers": 2, "scimitar": 2, "whip": 3, "shield": 3, "frostglaive": 3, "staff": 4, "emberflail": 4, "bogstaff": 5, "crystalwand": 6}
 
 ## The realm level a card belongs to (1 grassland ... 6 crystal caverns). Combo
 ## buildings count as the deepest realm they need.
