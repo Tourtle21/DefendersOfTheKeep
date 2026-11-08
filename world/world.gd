@@ -37,6 +37,10 @@ func _ready() -> void:
 	add_child(preload("res://ui/hud/ability_hud.gd").new())
 	add_child(preload("res://ui/base/crystal_alert.gd").new())
 	add_child(preload("res://ui/hud/respawn_ui.gd").new())
+	_banner = preload("res://ui/hud/wave_banner.gd").new()
+	add_child(_banner)
+	if DisplayServer.get_name() != "headless":
+		Engine.time_scale = GAME_SPEED
 	add_child(preload("res://ui/base/base_ui.gd").new())
 	add_child(preload("res://ui/base/draft_ui.gd").new())
 	add_child(preload("res://ui/base/run_end_ui.gd").new())
@@ -44,6 +48,8 @@ func _ready() -> void:
 	add_child(preload("res://ui/base/pause_ui.gd").new())
 	add_child(preload("res://ui/base/hints.gd").new())
 	add_child(preload("res://ui/base/lobby_ui.gd").new())
+	if !Game._menu_done and !Net.active and Net.cmd_join == "" and !Net.wants_host() and DisplayServer.get_name() != "headless":
+		add_child(preload("res://ui/base/main_menu.gd").new())
 	for tower_name in ["Tower", "Tower2", "Tower5", "Tower6", "Tower7", "Tower8"]:
 		get_node(tower_name).add_child(preload("res://scenery/tower/turret.gd").new())
 	add_child(preload("res://world/sector_manager.gd").new())
@@ -59,14 +65,9 @@ func _ready() -> void:
 	$SpawnTimer.wait_time = FIRST_WAVE_AT          # setup time before the first (day) wave
 	$SpawnTimer.start()
 	await $SpawnTimer.timeout
-	Input.set_custom_mouse_cursor(pointer_path, 0, Vector2(0, 0))
 	if len($Enemies.get_children()) == 0:
 		$Well.return_crystal()
-	get_tree().paused = !Net.active          # in co-op the game keeps running (friends are playing)
-	$Upgrades.visible = true
-	$Upgrades.create_tokens()
-	if Net.active:
-		_coop_auto_pick()
+	_begin_wave()
 	
 # ---- day, night and the waves ----
 # One cycle is 5 minutes: a long day, a slow dusk, a night, a dawn. There is one wave in the day and one in the
@@ -80,6 +81,9 @@ const NIGHT_WAVE_AT := 175.0
 const DUSK_AT := 150.0             # darkness starts to rise (over 50 s), full night from 200
 const DAWN_AT := 260.0             # and fades again (over 40 s)
 var clock := 0.0
+var _banner
+const GAME_SPEED := 0.8           # the whole game runs a little slower than real time (not in headless tests)
+const CLEAR_PATIENCE := 90.0      # the next wave waits this long past its time for the last one to be beaten
 var night_wave := false            # the wave being set up now is a night wave
 var _last_cycle_t := 0.0
 
@@ -178,15 +182,31 @@ func wave_plan(picked: Array) -> Array:
 				plan.append({"name": biome_enemy[sec], "amount": int(ceil((1 + w / 4.0) * factor)), "level": 1})
 	return plan
 
-func spawn_enemies(enemies) -> void:
+## The wave draw plays itself (no card screen): the account of what happened is part of the wave banner.
+func _begin_wave() -> void:
+	var r: Dictionary = $Upgrades.auto_pick()
+	spawn_enemies(r.enemies, r.lines)
+
+func _wave_alive() -> int:
+	var n := 0
+	for e in $Enemies.get_children():
+		if is_instance_valid(e) and !e.is_queued_for_deletion() and !(e is Boss):
+			n += 1
+	return n
+
+func spawn_enemies(enemies, draw_lines := []) -> void:
 	Game.run_stats.waves += 1
 	var plan := wave_plan(enemies)
 	var total := 0
 	for e in plan:
 		total += e.amount
 	Game.night_wave_now = night_wave
-	Game.announce.emit("%s wave %d: %d enemies from %d direction(s)%s" % ["Night" if night_wave else "Day", Game.run_stats.waves, total, Game.sectors_unlocked.size(), " (shrouded until lit)" if night_wave else ""])
-	Input.set_custom_mouse_cursor(cursor_path, 0, Vector2(16, 16))
+	var head := "%s wave %d" % ["Night" if night_wave else "Day", Game.run_stats.waves]
+	var lines: Array = draw_lines.duplicate()
+	lines.append("%d enemies from %d direction(s)%s" % [total, Game.sectors_unlocked.size(), " (shrouded until lit)" if night_wave else ""])
+	_banner.show_wave(head.to_upper() + " STARTS", lines)
+	Game.announce.emit("%s starts: %d enemies. %s" % [head, total, " / ".join(draw_lines)])
+	Sfx.play("wave_horn")
 	for enemy in plan:
 		for i in enemy.amount:
 			var scene = load("res://enemies/" + enemy.name + "/" + enemy.name + ".tscn")
@@ -199,19 +219,18 @@ func spawn_enemies(enemies) -> void:
 	$SpawnTimer.wait_time = seconds_until(NIGHT_WAVE_AT if night_wave else DAY_WAVE_AT)
 	$SpawnTimer.start()
 	await $SpawnTimer.timeout
-	Input.set_custom_mouse_cursor(pointer_path, 0, Vector2(0, 0))
-	get_tree().paused = true
-	$Upgrades.visible = true
-	$Upgrades.create_tokens()
+	# never start the next wave on top of the last one: wait for it to be beaten (up to a limit)
+	var waited := 0.0
+	while is_inside_tree() and waited < CLEAR_PATIENCE and _wave_alive() > 0:
+		await get_tree().create_timer(1.0).timeout
+		waited += 1.0
+	if !is_inside_tree() or Game.run_over:
+		return
+	if waited >= CLEAR_PATIENCE:
+		Game.announce.emit("The last wave is dragging on: the next one is coming anyway!")
+	_begin_wave()
 	
 	
-
-## Co-op: the wave-choice screen does not freeze the game, and picks for you after a while.
-func _coop_auto_pick() -> void:
-	await get_tree().create_timer(12.0).timeout
-	if is_inside_tree() and $Upgrades.visible:
-		$Upgrades.pick_token(0)
-		$Upgrades._on_button_pressed()
 
 ## The sword lying at the start is replaced by the weapon chosen in the Shard shop.
 func _apply_start_weapon() -> void:

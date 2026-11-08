@@ -772,6 +772,8 @@ func buy_unlock(id: String) -> bool:
 	save_meta()
 	return true
 
+var _menu_done := false             # the start screen shows once per launch
+
 func restart_run() -> void:
 	get_tree().paused = false
 	get_tree().reload_current_scene()
