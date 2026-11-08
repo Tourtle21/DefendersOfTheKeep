@@ -252,7 +252,11 @@ func process_movement(delta):
 	if CENTER.distance_to(new_position) > MAX_RADIUS:
 		var direction_to_center = (new_position - CENTER).normalized()
 		if !Game.gate_open(direction_to_center.angle()):
-			var clamped_position = CENTER + direction_to_center * MAX_RADIUS
+			# never snap a player who is already outside back to the keep (that read as a teleport to spawn): hold their current radius
+			var hold_radius := maxf(float(MAX_RADIUS), minf(CENTER.distance_to(position), CENTER.distance_to(new_position)))
+			if CENTER.distance_to(position) > MAX_RADIUS + 2.0:
+				hold_radius = minf(CENTER.distance_to(position), CENTER.distance_to(new_position))
+			var clamped_position = CENTER + direction_to_center * hold_radius
 			velocity = (clamped_position - position) / delta  # Adjust velocity
 
 	move_and_slide()

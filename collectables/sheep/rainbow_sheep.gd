@@ -83,7 +83,7 @@ func _physics_process(delta: float) -> void:
 		_slow_t -= delta
 		if _slow_t <= 0.0:
 			slow_mult = 1.0
-	if life <= 0.0:
+	if life <= 0.0 or global_position.distance_to(Vector2(2, 4)) < 22.0:      # it hops into the well and is gone
 		_escape()
 		return
 	var p = _nearest_player()
@@ -185,6 +185,8 @@ func _die() -> void:
 
 func _escape() -> void:
 	dead = true
+	collision_layer = 0
+	remove_from_group("critter")
 	WeaponFx.spawn(Game.world, "burst", global_position, Color(1, 1, 1), {"radius": 12.0, "life": 0.3})
 	Game.announce.emit("The rainbow sheep got away...")
 	queue_free()

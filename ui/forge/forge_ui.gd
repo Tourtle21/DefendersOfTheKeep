@@ -107,7 +107,7 @@ func _refresh() -> void:
 		b.custom_minimum_size = Vector2(150, 150)
 		var tw: String = Game.entry_twist(entry)
 		b.text = "%s\nTier %d%s" % [Fusion.display_name(id), Game.weapon_tier_of(entry), ("\n* " + Game.TWISTS[tw][0]) if tw != "" and Game.TWISTS.has(tw) else ""]
-		b.icon = load(slots[i].current_item.texture)
+		b.icon = _icon_of(slots[i].current_item.texture)
 		b.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		b.vertical_icon_alignment = VERTICAL_ALIGNMENT_TOP
 		b.expand_icon = false
@@ -281,3 +281,17 @@ func fuse() -> void:
 		player.equip_item(new_info)
 	root_ctl.visible = false
 	selected = []
+
+
+## Tools like the sword and pickaxe use sprite sheets: show just the first frame.
+const SHEETS := {"res://items/tools/sword/excalibur_.png": Vector2i(4, 4), "res://items/tools/pickaxe/pickaxe.png": Vector2i(2, 2)}
+
+func _icon_of(path: String) -> Texture2D:
+	var tex: Texture2D = load(path)
+	if SHEETS.has(path):
+		var grid: Vector2i = SHEETS[path]
+		var at := AtlasTexture.new()
+		at.atlas = tex
+		at.region = Rect2(0, 0, tex.get_width() / grid.x, tex.get_height() / grid.y)
+		return at
+	return tex

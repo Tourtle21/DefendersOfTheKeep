@@ -123,7 +123,7 @@ const CARDS := {
 	},
 	"spike_trap": {
 		"name": "Spike Trap", "mana": 0, "res": {"stick": 3}, "kind": "build", "build": "spike_trap", "art": "spike_trap",
-		"radius": 22.0, "damage": 2.0, "uses": 10, "slow": 0.6, "duration": 0.0, "speed": 260.0,
+		"radius": 22.0, "damage": 0.5, "uses": 10, "slow": 1.0, "duration": 0.0, "speed": 260.0,
 		"desc": "Hurts and slows whoever walks over it.",
 	},
 	"torch": {
