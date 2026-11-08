@@ -4,11 +4,13 @@ class_name SkillTreeUi
 ## skill to what it needs. Hover a skill to read what it does (this level and the next,
 ## highlighted), click to buy a level.
 
-const NODE := Vector2(138, 70)
-const COL_W := 150.0
-const ROW_H := 112.0
-const BRANCH_W := 330.0
-const TOP := 44.0
+const UiKit = preload("res://ui/cards/ui_kit.gd")
+const TierCard = preload("res://ui/cards/tier_card.gd")
+const TOP := 40.0
+var NODE := Vector2(138, 70)       # recomputed to fit the screen
+var COL_W := 150.0
+var ROW_H := 112.0
+var BRANCH_W := 330.0
 
 signal closed
 
@@ -22,59 +24,43 @@ var _hover := ""
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	layer = 22
-	root_ctl = Control.new()
-	root_ctl.set_anchors_preset(Control.PRESET_FULL_RECT)
-	root_ctl.mouse_filter = Control.MOUSE_FILTER_STOP
-	root_ctl.visible = false
-	add_child(root_ctl)
-	var dim := ColorRect.new()
-	dim.color = Color(0.03, 0.03, 0.08, 0.97)
-	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
-	dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	root_ctl.add_child(dim)
-	var margin := MarginContainer.new()
-	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
-	for side in ["left", "right", "top", "bottom"]:
-		margin.add_theme_constant_override("margin_" + side, 20)
-	root_ctl.add_child(margin)
-	var outer := VBoxContainer.new()
-	outer.add_theme_constant_override("separation", 8)
-	margin.add_child(outer)
-	var top := HBoxContainer.new()
-	outer.add_child(top)
-	var title := Label.new()
-	title.text = "Skill Tree"
-	title.add_theme_font_size_override("font_size", 28)
-	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	top.add_child(title)
-	shards_label = Label.new()
-	shards_label.add_theme_font_size_override("font_size", 20)
-	shards_label.add_theme_color_override("font_color", Color("8fd8ff"))
-	top.add_child(shards_label)
-	var close := Button.new()
-	close.text = "Back"
-	close.custom_minimum_size = Vector2(110, 36)
-	close.pressed.connect(func():
+	var sc := UiKit.screen(self, "Skill Tree", func():
 		root_ctl.visible = false
-		closed.emit())
-	top.add_child(close)
-	var scroll := ScrollContainer.new()
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	outer.add_child(scroll)
+		closed.emit(), "Each card is a permanent upgrade bought with Shards. Click a card to buy its next level (gold border = you can afford it, grey = locked until the card above it is bought). The gems show levels owned. Point at a card to read what it does.")
+	root_ctl = sc.root
+	shards_label = sc.right
+	var area := UiKit.panel(UiKit.PANEL, UiKit.BORDER, 8.0)
+	area.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	sc.body.add_child(area)
 	tree = Control.new()
-	tree.custom_minimum_size = Vector2(Skills.BRANCHES.size() * BRANCH_W, TOP + 4 * ROW_H + 10)
+	tree.clip_contents = true
+	tree.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	tree.draw.connect(_draw_tree)
-	scroll.add_child(tree)
+	area.add_child(tree)
+	var dp := UiKit.panel(Color(0.08, 0.08, 0.14), UiKit.BORDER, 8.0)
+	sc.body.add_child(dp)
 	detail = RichTextLabel.new()
 	detail.bbcode_enabled = true
-	detail.custom_minimum_size = Vector2(0, 96)
+	detail.custom_minimum_size = Vector2(0, 76)
 	detail.add_theme_font_size_override("normal_font_size", 16)
 	detail.add_theme_font_size_override("bold_font_size", 18)
-	outer.add_child(detail)
+	dp.add_child(detail)
 
 func open() -> void:
 	root_ctl.visible = true
+	await get_tree().process_frame
+	_layout()
 	_refresh()
+
+## Fit the five branches to the window: no scrolling.
+func _layout() -> void:
+	var a: Vector2 = get_viewport().get_visible_rect().size - Vector2(32 + 16, 230)
+	BRANCH_W = a.x / Skills.BRANCHES.size()
+	COL_W = (BRANCH_W - 20.0) / 2.0
+	NODE = Vector2(COL_W - 8.0, 0)
+	ROW_H = (a.y - TOP) / 4.0
+	NODE.y = ROW_H - 10.0
+	NODE.x = minf(NODE.x, NODE.y * 0.95)
 
 func _node_pos(id: String) -> Vector2:
 	var sk: Dictionary = Skills.TREE[id]
@@ -102,34 +88,33 @@ func _refresh() -> void:
 	shards_label.text = "Shards: %d" % Game.meta.shards
 	for id in Skills.TREE:
 		var sk: Dictionary = Skills.TREE[id]
-		var b: Button = _buttons.get(id)
+		var b = _buttons.get(id)
+		var lvl := Game.skill_level(id)
+		var avail := Game.skill_available(id)
+		var col: Color = Skills.BRANCHES[sk.branch].color
+		var can: bool = avail and lvl < sk.max and Game.meta.shards >= Game.skill_cost(id)
+		var foot := "MAX" if lvl >= sk.max else ("Locked" if !avail else "%d shards" % Game.skill_cost(id))
+		var fcol := Color(1, 0.9, 0.4) if lvl >= sk.max else (Color(0.6, 0.6, 0.65) if !avail else (Color(0.5, 1, 0.55) if can else Color(1, 0.55, 0.45)))
 		if b == null:
-			b = Button.new()
-			b.size = NODE
-			b.position = _node_pos(id)
-			b.clip_text = true
+			b = TierCard.new()
 			b.mouse_entered.connect(func():
 				_hover = id
 				_show_detail(id))
-			b.pressed.connect(func():
+			b.pressed.connect(func(_c):
 				if Game.buy_skill(id):
 					Sfx.play("unlock", 0.0)
 					_refresh())
 			tree.add_child(b)
 			_buttons[id] = b
-		var lvl := Game.skill_level(id)
-		var avail := Game.skill_available(id)
-		var col: Color = Skills.BRANCHES[sk.branch].color
-		b.text = "%s\n%d / %d" % [sk.name, lvl, sk.max]
-		if lvl >= sk.max:
-			b.text += "  MAX"
-			b.modulate = Color(1.2, 1.1, 0.7)
-		elif !avail:
-			b.modulate = Color(0.45, 0.45, 0.5)
-		elif Game.meta.shards >= Game.skill_cost(id):
-			b.modulate = col.lightened(0.5)
-		else:
-			b.modulate = Color(0.8, 0.8, 0.85)
+		var lines := []
+		lines.append(Skills.effect_text(id, lvl) if lvl > 0 else "no bonus yet")
+		if lvl < sk.max:
+			lines.append("+ " + Skills.effect_text(id, lvl + 1))
+		b.setup({"size": NODE, "title": sk.name, "glyph": str(lvl), "tier": lvl, "max_tier": sk.max, "lines": lines,
+			"accent": col if avail else Color(0.4, 0.4, 0.46), "locked": false, "footer": foot, "footer_color": fcol})
+		b.modulate = Color(1, 1, 1) if avail else Color(0.6, 0.6, 0.65)
+		b.position = _node_pos(id)
+		b.set_selected(can)
 	tree.queue_redraw()
 	_show_detail(_hover if _hover != "" else Skills.TREE.keys()[0])
 

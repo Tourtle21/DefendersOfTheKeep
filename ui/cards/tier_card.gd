@@ -85,7 +85,7 @@ func _draw() -> void:
 		var dr := Vector2(ts.x * k, ts.y * k)
 		draw_texture_rect(tex, Rect2(art.position + (art.size - dr) / 2.0, dr), false, Color(1, 1, 1, dim))
 	elif data.has("glyph"):
-		draw_string(font, art.position + Vector2(0, art.size.y * 0.7), str(data.glyph), HORIZONTAL_ALIGNMENT_CENTER, art.size.x, int(art.size.y * 0.6), Color(accent, dim))
+		draw_string(font, art.position + Vector2(0, art.size.y * 0.7), str(data.glyph), HORIZONTAL_ALIGNMENT_CENTER, art.size.x, maxi(8, int(art.size.y * 0.6)), Color(accent, dim))
 	# corner badge (cost, mana, "NEW")
 	var badge: String = str(data.get("badge", ""))
 	if badge != "":
