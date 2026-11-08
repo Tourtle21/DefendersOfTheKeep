@@ -132,7 +132,7 @@ func use_dash() -> void:
 	Sfx.play("whoosh", 0.05, 1.5)
 	var player = get_parent().get_parent()
 	var o: Vector2 = player.global_position
-	var aim: Vector2 = (player.aim_point() - o).normalized()
+	var aim: Vector2 = player.dash_dir((player.aim_point() - o).normalized())      # the way you are moving, not the mouse
 	var world = player.get_parent()
 	match _id():
 		"sword":
@@ -165,6 +165,7 @@ func _ready() -> void:
 	dash_cooldown = (4.0 if _id() == "sword" else 5.0) * cd_mult * maxf(0.4, 1.0 - Game.bonus("dash_cd"))
 	ultimate_cooldown *= cd_mult * maxf(0.4, 1.0 - Game.bonus("ult_cd"))
 	WeaponUtil.element = ""
+	WeaponUtil.lit = false
 	WeaponUtil.twist = twist
 	WeaponUtil.power = (1.0 + 0.2 * bonus_tier) * (1.0 + Game.bonus("weapon_dmg"))
 	match _id():

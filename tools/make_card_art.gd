@@ -41,10 +41,35 @@ const ACCENTS := {
 	"healing_grove": Color("6dffaa"),
 	"guards": Color("8fb4ff"),
 	"charm": Color("ff8fd0"),
+	"torch": Color("ffb040"),
+	"flare": Color("fff0a0"),
+	"meteor_shower": Color("ffb030"),
+	"stasis": Color("bfe6ff"),
+	"sunspire": Color("ffe070"),
+	"phoenix_shrine": Color("ff8a3a"),
 }
 
 func _initialize() -> void:
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("res://ui/cards"))
+	if "only=legend" in OS.get_cmdline_user_args():
+		for kind in ["meteor_shower", "stasis", "sunspire", "phoenix_shrine"]:
+			save(make_frame(ACCENTS[kind], false), "frame_%s" % kind)
+		save(make_meteor(), "icon_meteor_shower")
+		save(make_stasis(), "icon_stasis")
+		save(make_turret(Color("ffe070")), "icon_sunspire")
+		save(make_totem(Color("ff8a3a")), "icon_phoenix_shrine")
+		print("legendary card art written")
+		quit()
+		return
+	if "only=night" in OS.get_cmdline_user_args():
+		# just the newest cards, so hand-painted art for the older ones is left alone
+		for kind in ["torch", "flare"]:
+			save(make_frame(ACCENTS[kind], false), "frame_%s" % kind)
+		save(make_torch(), "icon_torch")
+		save(make_flare(), "icon_flare")
+		print("night card art written")
+		quit()
+		return
 	for kind in ACCENTS:
 		save(make_frame(ACCENTS[kind], false), "frame_%s" % kind)
 	save(make_frame(Color("8a93b8"), true), "card_back")
@@ -79,6 +104,60 @@ func _initialize() -> void:
 
 func save(img: Image, name: String) -> void:
 	img.save_png(ProjectSettings.globalize_path("res://ui/cards/%s.png" % name))
+
+func make_torch() -> Image:
+	var img := new_img(32, 32)
+	for y in range(14, 29):
+		for x in range(14, 18):
+			img.set_pixel(x, y, Color("8a5a2b") if x > 14 else Color("b07a3d"))
+	for x in range(12, 20):
+		for y in range(12, 15):
+			img.set_pixel(x, y, Color("5a3a1c"))
+	disc(img, 16.0, 8.0, 6.5, Color("ff7a1a"))
+	disc(img, 16.0, 7.0, 4.6, Color("ffb52e"))
+	disc(img, 16.0, 6.0, 2.6, Color("fff0a0"))
+	outline(img)
+	return img
+
+func make_meteor() -> Image:
+	var img := new_img(32, 32)
+	for i in 9:                                        # a fiery tail up and to the right
+		disc(img, 24.0 - i * 2.2, 7.0 + i * 2.2, 3.6 - i * 0.3, Color("ff7a1a", 0.9 - i * 0.08))
+	disc(img, 10.0, 22.0, 6.0, Color("8a6a50"))
+	disc(img, 9.0, 21.0, 4.0, Color("c8a070"))
+	disc(img, 8.0, 20.0, 1.8, Color("ffe9a0"))
+	outline(img)
+	return img
+
+func make_stasis() -> Image:
+	var img := new_img(32, 32)
+	var c := Color("bfe6ff")
+	for x in range(8, 24):
+		img.set_pixel(x, 6, c)
+		img.set_pixel(x, 25, c)
+	for i in 8:                                        # an hourglass
+		for x in range(8 + i, 24 - i):
+			if x == 8 + i or x == 23 - i:
+				img.set_pixel(x, 7 + i, c)
+				img.set_pixel(x, 24 - i, c)
+	for y in range(19, 24):
+		for x in range(14 - (24 - y) / 2 + 3, 18 + (24 - y) / 2 - 2):
+			img.set_pixel(x, y, Color("ffe9a0"))
+	outline(img)
+	return img
+
+func make_flare() -> Image:
+	var img := new_img(32, 32)
+	disc(img, 16.0, 16.0, 11.0, Color("ffe9a0", 0.35))
+	disc(img, 16.0, 16.0, 7.0, Color("ffd45a"))
+	disc(img, 16.0, 16.0, 4.0, Color("fffbe0"))
+	for i in 8:
+		var a := i * TAU / 8.0
+		for r in range(9, 15):
+			var p := Vector2(16, 16) + Vector2.from_angle(a) * r
+			img.set_pixel(clampi(int(p.x), 0, 31), clampi(int(p.y), 0, 31), Color("ffe07a"))
+	outline(img)
+	return img
 
 # ---------- helpers ----------
 

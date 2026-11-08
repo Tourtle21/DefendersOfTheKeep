@@ -11,6 +11,17 @@ const GOLD := Color("e8c040")
 
 func _initialize() -> void:
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("res://items/weapons/icons"))
+	if "only=legend" in OS.get_cmdline_user_args():
+		save(dawnbringer(), "dawnbringer")
+		save(voidreaver(), "voidreaver")
+		print("legendary weapon icons written")
+		quit()
+		return
+	if "only=torch" in OS.get_cmdline_user_args():
+		save(torch(), "torch")           # generate just the newest icon, so hand-painted ones are left alone
+		print("torch icon written")
+		quit()
+		return
 	save(spear(), "spear")
 	save(hammer(), "hammer")
 	save(bow(), "bow")
@@ -156,6 +167,49 @@ func staff() -> Image:
 	rect(img, 11, 9, 20, 10, WOOD)
 	disc(img, 16.0, 6.0, 5.0, Color("7f5bff"))
 	disc(img, 14.5, 4.5, 1.6, Color("cbb8ff"))
+	return img
+
+func dawnbringer() -> Image:
+	var img := new_img()
+	# a long golden blade, tip up, with a sun in the guard
+	for i in 24:
+		var w := 2.4 * (1.0 - 0.45 * i / 23.0)
+		for dx in range(-int(w), int(w) + 1):
+			px(img, 16 + dx, 24 - i, Color("fff0a0") if dx <= 0 else Color("e8c040"))
+	px(img, 16, 0, Color("fff8d0"))
+	rect(img, 9, 24, 23, 25, GOLD)
+	disc(img, 16.0, 25.0, 3.0, Color("ffd45a"))
+	disc(img, 16.0, 25.0, 1.5, Color("fffbe0"))
+	rect(img, 15, 26, 17, 30, WOOD)
+	return img
+
+func voidreaver() -> Image:
+	var img := new_img()
+	# a long dark shaft with a curved violet blade at the top
+	rect(img, 15, 8, 16, 31, Color("3a2a4a"))
+	rect(img, 15, 8, 15, 31, Color("5a4470"))
+	for i in 30:
+		var t := i / 29.0
+		var p := Vector2(16.0 + 14.0 * t, 8.0 - 6.0 * sin(t * PI * 0.9) + 0.0 * t)
+		var w := 2.6 * (1.0 - 0.8 * t)
+		for dy in range(-int(w), int(w) + 1):
+			px(img, int(p.x), int(p.y) + dy + 3, Color("b080ff") if dy <= 0 else Color("6a3ac8"))
+	disc(img, 16.0, 8.0, 2.4, Color("9a5aff"))
+	return img
+
+func torch() -> Image:
+	var img := new_img()
+	rect(img, 14, 14, 17, 30, WOOD)
+	rect(img, 14, 14, 15, 30, WOOD_L)
+	rect(img, 12, 12, 19, 15, Color("5a3a1c"))
+	# flame, tip up
+	disc(img, 16.0, 9.0, 6.0, Color("ff7a1a"))
+	disc(img, 16.0, 7.0, 4.2, Color("ffb52e"))
+	disc(img, 16.0, 6.0, 2.4, Color("fff0a0"))
+	px(img, 16, 1, Color("ff7a1a"))
+	px(img, 16, 2, Color("ff7a1a"))
+	px(img, 15, 3, Color("ff7a1a"))
+	px(img, 17, 3, Color("ff7a1a"))
 	return img
 
 func scimitar() -> Image:

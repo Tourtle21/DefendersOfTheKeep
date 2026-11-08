@@ -17,6 +17,10 @@ var shield_time = 0.0
 var remote_controlled = false        # true for a co-op client's avatar on the host
 var remote_input = {"move": Vector2.ZERO, "aim": Vector2.ZERO}
 var remote_hp = 228.0
+const RESPAWN_TIME := 30.0          # seconds out of the fight after you fall
+var downed := false                 # fallen: out of the fight until respawn_left runs out
+var respawn_left := 0.0
+var _saved_layers := [0, 0]
 var carried = {}                 # co-op avatars: resources they hold until they reach a tower
 var has_crystal := false          # carrying the keep's crystal back to the Well
 var weapon_slots: Array = []     # co-op avatars: weapon ids they carry (max 3)
@@ -55,7 +59,51 @@ func aim_point() -> Vector2:
 		return remote_input.aim
 	return get_global_mouse_position()
 
+## You fell: out of the fight for RESPAWN_TIME seconds while the keep carries on, then back at the keep with full health.
+func fall() -> void:
+	if downed:
+		return
+	downed = true
+	respawn_left = RESPAWN_TIME
+	if is_in_tower:
+		Game.exit_base(self)
+		is_in_tower = false
+	is_using_item = false
+	velocity = Vector2.ZERO
+	dash_time = 0.0
+	_aim_start_ms.clear()
+	_saved_layers = [collision_layer, collision_mask]
+	collision_layer = 0                 # nothing can touch, target or pick up after a fallen player
+	collision_mask = 0
+	visible = false
+	global_position = Vector2(0, 40)    # the camera watches the keep while you wait
+	Sfx.play("hurt")
+	Game.announce.emit("You fell! Back in %d seconds." % int(RESPAWN_TIME))
+
+func respawn() -> void:
+	downed = false
+	respawn_left = 0.0
+	collision_layer = _saved_layers[0]
+	collision_mask = _saved_layers[1]
+	visible = true
+	modulate = Color(1, 1, 1)
+	is_taking_damage = false
+	global_position = Vector2(20, 0)
+	shield_time = 2.5                   # a moment of safety
+	if remote_controlled:
+		remote_hp = 228.0
+	else:
+		get_parent().get_node("Hud/Control2/ColorRect/Health").size.x = 228.0
+	WeaponFx.spawn(get_parent(), "ring", global_position, Color(1.0, 0.95, 0.6), {"radius": 22.0, "life": 0.5})
+	Sfx.play("unlock", 0.0, 1.3)
+	Game.announce.emit("You are back in the fight!")
+
 func _physics_process(delta):
+	if downed:
+		respawn_left -= delta
+		if respawn_left <= 0.0:
+			respawn()
+		return
 	$Camera2D.zoom = Vector2.ONE * base_zoom / Game.ui_scale
 	if is_in_tower and !is_taking_damage:
 		heal(8.0 * delta)      # the keep slowly mends whoever is inside
@@ -108,7 +156,7 @@ func aim_time(slot: String) -> float:
 	return (Time.get_ticks_msec() - _aim_start_ms[slot]) / 1000.0
 
 func _can_cast() -> bool:
-	return item != null and !Game.local_in_base() and !Game.draft_active
+	return !downed and item != null and !Game.local_in_base() and !Game.draft_active
 
 func _release_cast(slot: String) -> void:
 	if !_aim_start_ms.has(slot):
@@ -128,6 +176,8 @@ func _release_cast(slot: String) -> void:
 				item.use_ultimate()
 
 func _input(event):
+	if downed:
+		return
 	if remote_controlled:
 		return
 	# Hold a key to aim, release to cast. A quick tap casts right away at the cursor.
@@ -160,8 +210,24 @@ func _input(event):
 		item.use_item()
 		is_using_item = true
 	
+var _last_move := Vector2.ZERO
+var _last_move_ms := -10000
+
+## Which way a dash goes: the way you are moving (or were a moment ago). Standing still, it falls
+## back to `fallback` (the cursor), so a dash always goes somewhere.
+func dash_dir(fallback: Vector2) -> Vector2:
+	var d: Vector2 = remote_input.move if remote_controlled else Input.get_vector(controls.left, controls.right, controls.up, controls.down)
+	if d.length() > 0.1:
+		return d.normalized()
+	if _last_move.length() > 0.1 and Time.get_ticks_msec() - _last_move_ms < 400:
+		return _last_move
+	return fallback.normalized() if fallback.length() > 0.01 else Vector2.RIGHT
+
 func process_movement(delta):
 	var input_direction = remote_input.move if remote_controlled else Input.get_vector(controls.left, controls.right, controls.up, controls.down)
+	if input_direction.length() > 0.1:
+		_last_move = input_direction.normalized()
+		_last_move_ms = Time.get_ticks_msec()
 	if remote_controlled and is_in_tower:
 		input_direction = Vector2.ZERO       # a co-op avatar stays put while it is in the keep
 	if (input_direction.x != 0 or input_direction.y != 0):
@@ -212,8 +278,8 @@ func _remote_damage() -> void:
 	modulate = Color(1, 0, 0)
 	remote_hp -= 30.0
 	if remote_hp <= 0.0:
-		remote_hp = 228.0              # co-op avatars respawn at the keep
-		position = Vector2(20, 0)
+		fall()                         # co-op avatars fall too, and come back at the keep after the respawn time
+		return
 	await get_tree().create_timer(0.5).timeout
 	modulate = Color(1, 1, 1)
 	is_taking_damage = false
@@ -226,6 +292,8 @@ func heal(amount: float) -> void:
 	health_rect.size.x = min(health_rect.size.x + amount, 228.0)
 
 func take_damage(damage_origin: Vector2):
+	if downed:
+		return
 	if parry_time > 0.0 and on_parry.is_valid():
 		parry_time = 0.0
 		on_parry.call(damage_origin)
@@ -245,7 +313,7 @@ func take_damage(damage_origin: Vector2):
 		get_parent().get_node("Hud").get_node("Control2").get_node("ColorRect").get_node("Health").size.x = x_size - 30
 		audio_take_damage.play()
 		if x_size <= 18:
-			Game.end_run("You fell in battle")
+			fall()                      # no longer the end of the run: the keep fights on and you are back in 30 seconds
 		$DamageTimer.start()
 		await $DamageTimer.timeout
 		modulate = Color(1, 1, 1)

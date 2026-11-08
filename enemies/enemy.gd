@@ -222,9 +222,13 @@ func apply_traits(amount: float, element: String, aoe := false) -> float:
 		shield -= absorbed
 		a -= absorbed
 		queue_redraw()
+	if Game.is_dark() and !Game.is_lit(self):
+		a *= Game.SHROUD              # at night, an enemy in the dark takes less damage until it is lit
 	return a
 
 func spell_damage(amount: float, element := "", aoe := false) -> void:
+	if element == "fire":
+		Game.light_up(self, 2.5)          # fire is bright: it lights what it hits, so it is never shrouded
 	var raw := amount
 	amount = apply_traits(amount, element, aoe)
 	var tint := Color.WHITE
@@ -258,7 +262,7 @@ func _on_animation_player_animation_finished(anim_name: StringName) -> void:
 func _target_player():
 	var best = null
 	for p in get_tree().get_nodes_in_group("player"):
-		if is_instance_valid(p) and (best == null or p.global_position.distance_to(global_position) < best.global_position.distance_to(global_position)):
+		if is_instance_valid(p) and !p.get("downed") and (best == null or p.global_position.distance_to(global_position) < best.global_position.distance_to(global_position)):
 			best = p
 	return best
 

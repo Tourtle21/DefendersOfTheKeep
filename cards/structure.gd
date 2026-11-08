@@ -26,6 +26,8 @@ var tier := 1               # 1-3: place the same build card on a structure to m
 const MAX_TIER := 6
 
 var twist := ""             # a twist that changes how this works (see Game.TWISTS)
+var light_radius := 0.0     # > 0: this building is a light source at night (torches, and glowing turrets); group "light"
+var _glow: GlowLight
 var _rearm := 0.0
 
 func setup(card: Dictionary, pos: Vector2) -> void:
@@ -41,6 +43,7 @@ func setup(card: Dictionary, pos: Vector2) -> void:
 	hp = max_hp
 	life = card.get("duration", 0.0)
 	uses = card.get("uses", 0)
+	light_radius = float(card.get("light", 0.0))
 
 const MERGE_RANGE := 26.0
 
@@ -115,6 +118,8 @@ func _apply_twist() -> void:
 			data.burst = maxf(data.get("burst", 0.0), data.get("damage", 1.0) * 0.8)
 		"wide_field":
 			data.radius = data.radius * 1.4
+			if data.has("light"):
+				data.light = data.light * 1.4
 		"swift_heal":
 			data.heal_per_sec = data.get("heal_per_sec", 0.0) * 1.6
 		"deep_freeze":
@@ -132,6 +137,10 @@ func promote() -> void:
 	_apply_twist()
 	if kind in ["spike_trap", "mender", "totem"]:
 		radius = data.radius
+	if data.has("light"):
+		light_radius = float(data.light)
+		if _glow != null:
+			_glow.texture_scale = maxf(0.1, light_radius * 2.0 / 128.0)
 	max_hp = data.get("hp", max_hp)
 	hp = max_hp
 	if data.get("duration", 0.0) > 0.0:
@@ -144,6 +153,10 @@ func _ready() -> void:
 	add_to_group("structure")
 	add_to_group("net")
 	z_index = 4
+	if light_radius > 0.0 or float(data.get("light", 0.0)) > 0.0:
+		light_radius = maxf(light_radius, float(data.get("light", 0.0)))
+		add_to_group("light")
+		_glow = GlowLight.attach(self, light_radius, _color().lerp(Color(1.0, 0.85, 0.5), 0.5), 0.6)
 	if kind == "barricade":
 		add_to_group("nav_obstacle")
 		Game.nav_changed.emit()
@@ -217,6 +230,8 @@ func _physics_process(delta: float) -> void:
 			if _tick >= data.get("interval", 0.7):
 				var best = null
 				for e in _near_enemies(data.range):
+					if !Game.defence_sees(e, global_position):
+						continue                      # in the dark it only sees what is lit (a torch next to it helps)
 					if best == null or e.global_position.distance_to(global_position) < best.global_position.distance_to(global_position):
 						best = e
 				if best != null:
@@ -231,7 +246,7 @@ func _physics_process(delta: float) -> void:
 					if twist == "twin_shot":
 						var second = null
 						for e2 in _near_enemies(data.range):
-							if e2 != best and (second == null or e2.global_position.distance_to(global_position) < second.global_position.distance_to(global_position)):
+							if e2 != best and Game.defence_sees(e2, global_position) and (second == null or e2.global_position.distance_to(global_position) < second.global_position.distance_to(global_position)):
 								second = e2
 						if second != null:
 							second.spell_damage(data.damage, data.get("element", ""))
@@ -242,6 +257,11 @@ func _physics_process(delta: float) -> void:
 							if e != best:
 								e.spell_damage(blast * 0.5, data.get("element", ""), true)
 						WeaponFx.spawn(get_parent(), "burst", best.global_position, _color(), {"radius": 16.0, "life": 0.2})
+		"torch":
+			if twist == "blaze" and _tick >= 0.5:
+				_tick = 0.0
+				for e in _near_enemies(light_radius):
+					e.spell_damage(1.0 + 0.5 * tier, "fire", true)
 		"mender":
 			for p in get_tree().get_nodes_in_group("player"):
 				if is_instance_valid(p) and p.global_position.distance_to(global_position) <= radius:
@@ -270,6 +290,7 @@ func _color() -> Color:
 		"barricade": return Color(0.65, 0.45, 0.25)
 		"spike_trap": return Color(0.75, 0.75, 0.8)
 		"sentry": return Color(0.9, 0.8, 0.4)
+		"torch": return Color(1.0, 0.7, 0.25)
 		"mender": return Color(0.4, 1.0, 0.5)
 	return Color(0.7, 0.8, 1.0)
 
@@ -332,6 +353,15 @@ func _draw() -> void:
 				draw_line(Vector2(0, -5), shot_to - global_position, Color(col.lightened(0.5), 0.9), 2.0)
 			if life > 0.0:
 				draw_arc(Vector2(0, -5), 8.0, -PI / 2.0, -PI / 2.0 + TAU * clamp(life / max(data.duration, 1.0), 0.0, 1.0), 20, Color(1, 1, 1, 0.5), 1.0)
+		"torch":
+			var flick := 0.8 + 0.2 * sin(_age * 11.0) + 0.1 * sin(_age * 17.0)
+			draw_rect(Rect2(-1.5, -2, 3, 11), Color.BLACK)
+			draw_rect(Rect2(-0.5, -1, 1, 9), Color(0.55, 0.38, 0.2))
+			draw_circle(Vector2(0, -5), 5.0 * flick, Color(1.0, 0.45, 0.1, 0.9))
+			draw_circle(Vector2(0, -6), 3.2 * flick, Color(1.0, 0.8, 0.3))
+			draw_circle(Vector2(0, -6.5), 1.6 * flick, Color(1.0, 0.98, 0.8))
+			if Game.is_dark():
+				draw_arc(Vector2.ZERO, light_radius, 0, TAU, 40, Color(1.0, 0.8, 0.4, 0.15), 1.0)
 		"mender", "totem":
 			var pulse := 0.5 + 0.5 * sin(_age * 3.0)
 			draw_circle(Vector2.ZERO, radius, Color(col, 0.07 + 0.05 * pulse))

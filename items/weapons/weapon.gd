@@ -11,6 +11,9 @@ var tier := 1                  # 1-6: fusion tier + Forge awakenings (ability ne
 var awakened := 0
 var bonus_tier := 0            # this copy's tier bonus (rare drop or Forge combining), set before it enters the tree
 var twist := ""                # this copy's twist (see Game.TWISTS)
+const LIGHT_WEAPONS := {"staff": 75.0, "emberflail": 95.0, "magmamaul": 105.0, "bogstaff": 50.0, "witchstaff": 55.0, "crystalwand": 70.0,
+	"prismstaff": 95.0, "dawnbringer": 130.0, "frostglaive": 50.0, "rimelance": 55.0, "spellblade": 60.0, "starfall": 90.0}
+var light_radius := 0.0        # > 0: a glowing weapon. Its light cuts the night around you and its hits light the enemy (set in _init or by LIGHT_WEAPONS)
 var weapon_name := ""
 var icon_path := ""
 var ability_name := ""
@@ -47,14 +50,19 @@ func equip() -> void:
 func _ready() -> void:
 	tier = clampi(Fusion.tier_of(weapon_id) + bonus_tier, 1, 6)
 	awakened = bonus_tier
-	var cd_mult := pow(0.92, awakened) * maxf(0.4, 1.0 - Game.bonus("weapon_cd"))
+	var cd_mult := pow(0.92, awakened) * pow(0.95, Fusion.tier_of(weapon_id) - 1) * maxf(0.4, 1.0 - Game.bonus("weapon_cd"))        # fused weapons are also a little faster
 	attack_cooldown *= cd_mult
 	ability_cooldown *= cd_mult
 	dash_cooldown *= cd_mult * maxf(0.4, 1.0 - Game.bonus("dash_cd"))
 	ultimate_cooldown *= cd_mult * maxf(0.4, 1.0 - Game.bonus("ult_cd"))
 	WeaponUtil.element = element
 	WeaponUtil.twist = twist
-	WeaponUtil.power = (1.0 + 0.2 * awakened) * (1.0 + Game.bonus("weapon_dmg"))
+	WeaponUtil.power = Game.weapon_power(weapon_id, awakened) * (1.0 + Game.bonus("weapon_dmg"))
+	if light_radius <= 0.0:
+		light_radius = float(LIGHT_WEAPONS.get(weapon_id, 0.0))
+	WeaponUtil.lit = light_radius > 0.0
+	if light_radius > 0.0:
+		GlowLight.attach(self, light_radius, Color(1.0, 0.85, 0.55), 0.8)
 	top_level = true
 	z_as_relative = false
 	z_index = 5
@@ -164,6 +172,8 @@ func use_dash() -> void:
 		return
 	_dash_cd = dash_cooldown
 	Sfx.play("whoosh", 0.05, 1.5)
+	aim = player.dash_dir(aim)         # a dash goes the way you are moving, not toward the mouse
+	rotation = aim.angle()
 	dash_attack()
 
 func dash_attack() -> void:

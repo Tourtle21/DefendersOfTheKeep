@@ -30,7 +30,7 @@ const DRAFT_SIZE := 3
 # kind is handled in cards/spell.gd. "res" is a cost in pooled resources.
 const CARDS := {
 	"fireball": {
-		"element": "fire",
+		"element": "fire", "night": true,
 		"name": "Fireball", "mana": 25, "res": {}, "kind": "fireball",
 		"radius": 45.0, "damage": 5.0, "speed": 150.0,
 		"desc": "Slow shot that blasts an area. Lead your target.",
@@ -40,6 +40,36 @@ const CARDS := {
 		"name": "Frost Ring", "mana": 15, "res": {}, "kind": "frost_ring",
 		"radius": 55.0, "duration": 6.0, "slow": 0.35, "speed": 220.0,
 		"desc": "Slows enemies in the ring.",
+	},
+	"flare": {
+		"element": "fire", "night": true,
+		"name": "Flare", "mana": 20, "res": {"stick": 1}, "kind": "flare", "art": "flare",
+		"radius": 85.0, "duration": 12.0, "dps": 1.0, "speed": 220.0, "color": Color(1.0, 0.9, 0.5),
+		"desc": "A bright burst of light for a while. Enemies inside lose their shroud at night and burn a little.",
+	},
+	"meteor_shower": {
+		"element": "fire", "night": true, "legendary": true,
+		"name": "Meteor Shower", "mana": 60, "res": {}, "kind": "meteor", "art": "meteor_shower",
+		"radius": 110.0, "damage": 14.0, "count": 10, "duration": 3.5, "speed": 170.0, "color": Color(1.0, 0.5, 0.15),
+		"desc": "LEGENDARY. Meteors rain over a wide area and light it up.",
+	},
+	"stasis": {
+		"legendary": true,
+		"name": "Stasis Field", "mana": 50, "res": {}, "kind": "stasis", "art": "stasis",
+		"radius": 130.0, "duration": 5.0, "speed": 240.0, "color": Color(0.75, 0.9, 1.0),
+		"desc": "LEGENDARY. Freezes every enemy in the field in place and leaves them exposed.",
+	},
+	"sunspire": {
+		"element": "fire", "night": true, "legendary": true, "light": 170.0,
+		"name": "Sunspire", "mana": 0, "res": {"gold": 10, "stone": 4}, "kind": "build", "build": "sentry", "art": "sunspire",
+		"radius": 14.0, "range": 200.0, "damage": 5.0, "interval": 0.5, "burst": 4.0, "duration": 90.0, "speed": 260.0, "color": Color(1.0, 0.92, 0.5),
+		"desc": "LEGENDARY. A tower of daylight: a huge light and fast, fierce shots that never lose the dark.",
+	},
+	"phoenix_shrine": {
+		"legendary": true, "night": true, "light": 90.0,
+		"name": "Phoenix Shrine", "mana": 0, "res": {"gold": 8, "stone": 4}, "kind": "build", "build": "mender", "art": "phoenix_shrine",
+		"radius": 95.0, "heal_per_sec": 24.0, "duration": 100.0, "speed": 260.0, "color": Color(1.0, 0.55, 0.2),
+		"desc": "LEGENDARY. A burning shrine that heals everyone nearby fast and lights the area.",
 	},
 	"rejuvenation": {
 		"name": "Rejuvenation", "mana": 20, "res": {"stick": 1}, "kind": "rejuvenation",
@@ -64,7 +94,7 @@ const CARDS := {
 		"desc": "Squall that nearly freezes enemies.",
 	},
 	"lava_pool": {
-		"element": "fire",
+		"element": "fire", "night": true,
 		"name": "Lava Pool", "mana": 25, "res": {"ember": 1}, "kind": "zone", "art": "lava_pool",
 		"radius": 45.0, "duration": 7.0, "dps": 6.0, "slow": 0.85, "speed": 200.0, "color": Color(1.0, 0.4, 0.1),
 		"desc": "Burning pool, heavy damage over time.",
@@ -96,6 +126,12 @@ const CARDS := {
 		"radius": 22.0, "damage": 2.0, "uses": 10, "slow": 0.6, "duration": 0.0, "speed": 260.0,
 		"desc": "Hurts and slows whoever walks over it.",
 	},
+	"torch": {
+		"element": "fire", "night": true,
+		"name": "Torch", "mana": 0, "res": {"stick": 2}, "kind": "build", "build": "torch", "art": "torch",
+		"radius": 8.0, "hp": 10.0, "light": 85.0, "duration": 120.0, "speed": 260.0, "color": Color(1.0, 0.7, 0.25),
+		"desc": "Lights the ground around it. At night, enemies in its light lose their shroud and your sentries and towers can see them.",
+	},
 	"sentry": {
 		"name": "Sentry", "mana": 0, "res": {"stone": 2, "stick": 2, "gold": 3}, "kind": "build", "build": "sentry", "art": "sentry",
 		"radius": 12.0, "range": 110.0, "damage": 1.5, "duration": 45.0, "speed": 260.0,
@@ -118,7 +154,7 @@ const CARDS := {
 		"desc": "Chills every enemy in range.",
 	},
 	"ember_turret": {
-		"element": "fire",
+		"element": "fire", "night": true, "light": 55.0,
 		"name": "Ember Turret", "mana": 0, "res": {"ember": 2, "stick": 1}, "kind": "build", "build": "sentry", "art": "ember_turret",
 		"radius": 12.0, "range": 120.0, "damage": 3.0, "interval": 1.0, "burst": 2.5, "duration": 40.0, "speed": 260.0, "color": Color(1.0, 0.45, 0.15),
 		"desc": "Slow, hard-hitting fire bolts with a blast.",
@@ -129,7 +165,7 @@ const CARDS := {
 		"desc": "Wall that hurts enemies chewing on it.",
 	},
 	"crystal_pylon": {
-		"element": "pierce",
+		"element": "pierce", "night": true, "light": 50.0,
 		"name": "Crystal Pylon", "mana": 0, "res": {"gem": 2, "gold": 3}, "kind": "build", "build": "sentry", "art": "crystal_pylon",
 		"radius": 12.0, "range": 170.0, "damage": 2.5, "interval": 0.35, "duration": 40.0, "speed": 260.0, "color": Color(0.8, 0.6, 1.0),
 		"desc": "Long-range rapid crystal shards.",
@@ -236,18 +272,68 @@ func bonus(key: String) -> float:
 func keep_max() -> float:
 	return KEEP_BASE + bonus("keep_hp")
 var card_aim_active := false     # a card is selected or being dragged (turret clicks must not fire)
-var unlocked_cards: Array = ["fireball", "frost_ring", "barricade", "spike_trap"]
+var unlocked_cards: Array = ["fireball", "frost_ring", "barricade", "spike_trap", "torch"]
+
+# --- night ---
+# The world's clock sets night_level (0 = day, 1 = full night). In the dark, an enemy outside every light is
+# "shrouded": it takes less damage and towers and sentries only see it up close. Light comes from players (a
+# little), torches, flares, fire spells, glowing buildings and fire/crystal weapons.
+var night_level := 0.0
+var night_wave_now := false          # the wave that is currently walking in is a night wave
+const SHROUD := 0.6                  # damage multiplier on a shrouded enemy
+const NIGHT_SIGHT := 50.0            # how far defences see an unlit enemy in the dark
+const PLAYER_LIGHT := 46.0
+
+func is_dark() -> bool:
+	return night_level >= 0.6
+
+func player_light(p) -> float:
+	var r := PLAYER_LIGHT
+	var it = p.get("item")
+	if it != null and it.get("light_radius") != null:
+		r = maxf(r, float(it.light_radius))
+	return r
+
+## Is this point lit? (Always true in daylight.)
+func lit_at(pos: Vector2) -> bool:
+	if !is_dark():
+		return true
+	for n in get_tree().get_nodes_in_group("light"):
+		if is_instance_valid(n) and !n.is_queued_for_deletion() and n.get("light_radius") != null and n.global_position.distance_to(pos) <= float(n.light_radius):
+			return true
+	for p in get_tree().get_nodes_in_group("player"):
+		if is_instance_valid(p) and p.global_position.distance_to(pos) <= player_light(p):
+			return true
+	return false
+
+## An enemy is lit if it stands in light or was hit by something bright a moment ago.
+func is_lit(e: Node2D) -> bool:
+	if !is_dark():
+		return true
+	if e.has_meta("lit_until") and float(e.get_meta("lit_until")) > Time.get_ticks_msec() / 1000.0:
+		return true
+	return lit_at(e.global_position)
+
+func light_up(e: Node, secs: float) -> void:
+	if is_instance_valid(e):
+		e.set_meta("lit_until", Time.get_ticks_msec() / 1000.0 + secs)
+
+## Can a tower or sentry at `from` target this enemy? In the dark only what is lit, or very close.
+func defence_sees(e: Node2D, from: Vector2) -> bool:
+	if !is_dark() or is_lit(e):
+		return true
+	return e.global_position.distance_to(from) <= NIGHT_SIGHT
 
 # --- meta progression (saved between runs) ---
 # weapons: three Tier 1 weapons are in the chest pool from the start; Shards add the rest
 const STARTER_WEAPONS := []             # no weapon is free except the sword and pickaxe; everything else costs Shards
 # every weapon must be unlocked once (reward draw or the codex) before it can appear in a run
 # same price rule as cards: 16 x realm^1.5 (see unlock_price), by WEAPON_LEVEL
-const WEAPON_UNLOCK_COSTS := {"spear": 16, "hammer": 16, "bow": 16, "daggers": 16, "whip": 45, "shield": 45, "staff": 83, "scimitar": 45, "frostglaive": 83, "emberflail": 128, "bogstaff": 179, "crystalwand": 235}
+const WEAPON_UNLOCK_COSTS := {"torch": 16, "spear": 16, "hammer": 16, "bow": 16, "daggers": 16, "whip": 45, "shield": 45, "staff": 83, "scimitar": 45, "frostglaive": 83, "emberflail": 128, "bogstaff": 179, "crystalwand": 235}
 const FUSION_TIER_COSTS := {3: 60, 4: 140}      # tier 2 recipes are known from the start
-const STARTER_CARDS := ["fireball", "frost_ring", "barricade", "spike_trap"]
+const STARTER_CARDS := ["fireball", "frost_ring", "barricade", "spike_trap", "torch"]       # the Torch is free: night comes in the first run
 var save_path := "user://save.json"
-var meta := {"pending": [], "skills": {}, "card_tiers": {}, "weapons": [], "fusion_tiers": [], "start_weapon": "sword", "shards": 0, "unlocked": ["fireball", "frost_ring", "barricade", "spike_trap"], "best_wave": 0, "recipes_seen": [], "hints_seen": [], "hints_enabled": true}
+var meta := {"pending": [], "skills": {}, "card_tiers": {}, "weapons": [], "fusion_tiers": [], "start_weapon": "sword", "shards": 0, "unlocked": ["fireball", "frost_ring", "barricade", "spike_trap", "torch"], "best_wave": 0, "recipes_seen": [], "hints_seen": [], "hints_enabled": true}
 var run_stats := {"kills": 0, "gold": 0, "waves": 0, "bosses": 0}
 
 # the six sectors around the keep (centre angle in degrees, y down: 90 = south)
@@ -344,9 +430,9 @@ func pay_carried(cost: Dictionary, who = null) -> bool:
 
 ## Shards for this run: waves survived matter most, then kills and gold.
 func shards_for_run() -> int:
-	# every run pays 6 just for playing (a short first run is about 15: one new card or an upgrade),
+	# every run pays 6 just for playing, then 3 per wave (waves are big and 2 to 3 minutes apart); a short first run is about 15-20,
 	# then waves, kills, gold, bosses and realms opened add the rest
-	var base: float = 6.0 + run_stats.waves * 1.5 + run_stats.kills * 0.1 + run_stats.gold / 20.0 + run_stats.bosses * 6.0 + (level_reached() - 1) * 4.0
+	var base: float = 6.0 + run_stats.waves * 3.0 + run_stats.kills * 0.1 + run_stats.gold / 20.0 + run_stats.bosses * 6.0 + (level_reached() - 1) * 4.0
 	return int(base * (1.0 + bonus("shard_bonus")))
 
 func end_run(reason: String) -> void:
@@ -420,7 +506,7 @@ func win_run() -> void:
 	meta.best_wave = max(meta.best_wave, run_stats.waves)
 	meta["best_level"] = MAX_LEVEL
 	save_meta()
-	run_ended.emit({"reason": "VICTORY! The keep is saved", "shards": earned, "stats": run_stats.duplicate(), "rewards": make_rewards()})
+	run_ended.emit({"reason": "VICTORY! The keep is saved", "shards": earned, "stats": run_stats.duplicate(), "rewards": make_rewards(true)})
 
 ## Older saves (or tests that swap `meta`) may lack newer keys.
 func fix_meta() -> void:
@@ -435,6 +521,10 @@ func fix_meta() -> void:
 			meta[k] = []
 	if !meta.has("start_weapon"):
 		meta["start_weapon"] = "sword"
+	if meta.has("unlocked"):
+		for id in STARTER_CARDS:
+			if !(id in meta.unlocked):
+				meta.unlocked.append(id)          # a save from before a starter card existed still gets it
 
 func start_weapon_id() -> String:
 	fix_meta()
@@ -508,8 +598,60 @@ func buy_weapon(id: String) -> bool:
 
 func _forget_pending(kind: String, id: String) -> void:
 	for i in range(meta.pending.size() - 1, -1, -1):
-		if meta.pending[i].kind == kind and meta.pending[i].id == id:
+		if meta.pending[i].kind == kind and meta.pending[i].id == id and meta.pending[i].get("result", "offer") == "offer":
 			meta.pending.remove_at(i)
+
+func _drop_pending(entry: Dictionary) -> void:
+	for i in range(meta.pending.size() - 1, -1, -1):
+		if is_same(meta.pending[i], entry):
+			meta.pending.remove_at(i)
+
+# ---------- spare copies: a duplicate of a card you own ----------
+# It waits in the vault. Merge it into your card (a copy of the SAME tier raises the card one tier, like merging in a
+# run: 1 + 1 = 2, 2 + 2 = 3), combine two spares of the same card and tier into one spare a tier higher, or sell it.
+
+func spare_sell_value(entry: Dictionary) -> int:
+	return convert_value(int(entry.tier), int(entry.get("realm", 1)))
+
+## A copy can be merged when it matches your card's tier and that tier is below what your deepest run has reached.
+func spare_can_merge(entry: Dictionary) -> bool:
+	fix_meta()
+	return owns_card(str(entry.id)) and card_tier(str(entry.id)) == int(entry.tier) and int(entry.tier) < mini(MAX_LEVEL, int(meta.get("best_level", 1)))
+
+func spare_merge(entry: Dictionary) -> bool:
+	if entry.get("result", "") != "spare" or !spare_can_merge(entry):
+		return false
+	meta.card_tiers[str(entry.id)] = int(entry.tier) + 1
+	entry.result = "merged"
+	_drop_pending(entry)
+	save_meta()
+	return true
+
+## Another waiting spare of the same card and tier, or {}.
+func spare_pair(entry: Dictionary) -> Dictionary:
+	for pe in meta.pending:
+		if !is_same(pe, entry) and pe.get("result", "") == "spare" and pe.id == entry.id and int(pe.tier) == int(entry.tier):
+			return pe
+	return {}
+
+func spare_combine(entry: Dictionary) -> bool:
+	var other := spare_pair(entry)
+	if other.is_empty() or int(entry.tier) >= MAX_LEVEL:
+		return false
+	_drop_pending(other)
+	entry.tier = int(entry.tier) + 1
+	save_meta()
+	return true
+
+func spare_sell(entry: Dictionary) -> int:
+	if entry.get("result", "") != "spare":
+		return 0
+	entry.shards = spare_sell_value(entry)
+	entry.result = "converted"
+	meta.shards += int(entry.shards)
+	_drop_pending(entry)
+	save_meta()
+	return int(entry.shards)
 
 func set_start_weapon(id: String) -> void:
 	fix_meta()
@@ -618,7 +760,7 @@ func unlock_price(id: String) -> int:
 ## reached its realm (in any run); otherwise it only comes from reward draws.
 func can_buy_card(id: String) -> bool:
 	fix_meta()
-	return !owns_card(id) and card_level(id) <= int(meta.get("best_level", 1))
+	return !owns_card(id) and !is_legendary_card(id) and card_level(id) <= int(meta.get("best_level", 1))
 
 func buy_unlock(id: String) -> bool:
 	if !can_buy_card(id) or meta.shards < unlock_price(id):
@@ -657,8 +799,9 @@ func start_run() -> void:
 	players_in_base = []
 	fix_meta()
 	deck = {}
-	for id in ["fireball", "frost_ring", "barricade", "spike_trap"]:
-		deck[id] = 1                       # every card starts a run at tier 1 and grows toward its unlocked tier
+	for id in STARTER_CARDS:
+		if id in meta.unlocked:
+			deck[id] = 1                       # every card starts a run at tier 1 and grows toward its unlocked tier
 	draft_active = false
 	hand = []
 	for i in 3:
@@ -816,6 +959,7 @@ const TWISTS := {
 	"wide_field": ["Wide Field", "40% bigger area."],
 	"swift_heal": ["Swift Healing", "Heals 60% faster."],
 	"deep_freeze": ["Deep Freeze", "Chills much harder."],
+	"blaze": ["Blaze", "Enemies standing in its light burn."],
 	"bleed": ["Bleeding", "Hits cause bleeding."],
 	"chill": ["Chilling", "Hits slow the target."],
 	"chain": ["Chain", "Hits arc to a nearby enemy."],
@@ -824,7 +968,7 @@ const TWISTS := {
 }
 const BUILD_TWISTS := {
 	"barricade": ["thorned", "regrow"], "spike_trap": ["rearm", "venom"], "sentry": ["twin_shot", "frost_shot", "blast_shot"],
-	"mender": ["wide_field", "swift_heal"], "totem": ["deep_freeze", "wide_field"],
+	"mender": ["wide_field", "swift_heal"], "totem": ["deep_freeze", "wide_field"], "torch": ["wide_field", "blaze"],
 }
 
 func twist_pool(id: String) -> Array:
@@ -938,6 +1082,8 @@ func draw_card() -> String:
 	var bag := []
 	for id in pool:
 		var w := (3 if can_afford(CARDS[id].res) else 1) * int(deck[id])        # deck[id] = copies of this card you hold
+		if night_level >= 0.35 and CARDS[id].get("night", false):
+			w *= 3                                                              # at night, cards that make light come up much more often
 		var in_hand := 0
 		for h in hand:
 			if entry_id(h) == id:
@@ -979,7 +1125,7 @@ func scaled(id: String, level: int) -> Dictionary:
 	# it (a tier 3 is worth about 4.4 tier 1s). The power is split between the stats by what the card does.
 	var m := 1.0 if level <= 1 else 1.1 * pow(2.0, level - 1)
 	var bk: String = c.get("build", "")
-	var e := {"damage": 0.65, "dps": 0.65, "burst": 0.65, "radius": 0.25, "duration": 0.2, "heal_per_sec": 0.7, "hp": 1.0, "thorns": 0.5, "uses": 0.4, "range": 0.12}
+	var e := {"light": 0.25, "damage": 0.65, "dps": 0.65, "burst": 0.65, "radius": 0.25, "duration": 0.2, "heal_per_sec": 0.7, "hp": 1.0, "thorns": 0.5, "uses": 0.4, "range": 0.12}
 	if bk == "sentry":
 		e.damage = 0.55
 		e.burst = 0.55
@@ -992,7 +1138,7 @@ func scaled(id: String, level: int) -> Dictionary:
 	elif c.kind == "guards":
 		e.damage = 0.5
 		e.duration = 0.25
-	if bk in ["barricade", "sentry"]:
+	if bk in ["barricade", "sentry", "torch"]:
 		e.erase("radius")                                           # that radius is just the footprint
 	for key in e:
 		if !c.has(key):
@@ -1036,10 +1182,10 @@ func card_numbers(id: String, level: int) -> Array:
 	var defs := [
 		["damage", "Damage", "%.1f", 1.0], ["dps", "Damage/sec", "%.1f", 1.0], ["burst", "Blast damage", "%.1f", 1.0],
 		["thorns", "Thorns damage", "%.1f", 1.0], ["heal_per_sec", "Healing/sec", "%.1f", 1.0],
-		["hp", "Health", "%d", 1.0], ["uses", "Uses", "%d", 1.0], ["count", "Guards", "%d", 1.0],
-		["range", "Range", "%d", 1.0], ["duration", "Lasts (s)", "%.1f", 1.0], ["radius", "Radius", "%d", 1.0],
+		["hp", "Health", "%d", 1.0], ["uses", "Uses", "%d", 1.0], ["count", "Meteors" if c.kind == "meteor" else "Guards", "%d", 1.0],
+		["range", "Range", "%d", 1.0], ["light", "Light radius", "%d", 1.0], ["duration", "Lasts (s)", "%.1f", 1.0], ["radius", "Radius", "%d", 1.0],
 	]
-	var skip_radius: bool = c.get("build", "") in ["barricade", "sentry"]
+	var skip_radius: bool = c.get("build", "") in ["barricade", "sentry", "torch"]
 	var _unused := [
 	]
 	for d in defs:
@@ -1064,7 +1210,7 @@ func owns_card(id: String) -> bool:
 
 ## Upgrading tier n to n+1: 8, 23, 42, 64, 89 Shards (226 for a card from tier 1 to 6).
 func card_upgrade_cost(id: String) -> int:
-	return int(round(8.0 * pow(card_tier(id), 1.5)))
+	return int(round(8.0 * pow(card_tier(id), 1.5) * (2.0 if is_legendary_card(id) else 1.0)))        # legendary cards cost double to raise
 
 func upgrade_card(id: String) -> bool:
 	fix_meta()
@@ -1077,6 +1223,10 @@ func upgrade_card(id: String) -> bool:
 
 func convert_value(tier: int, realm := 1) -> int:
 	return 3 * tier + 2 * realm
+
+## What converting a waiting offer pays (a legendary is worth much more than an ordinary card).
+func offer_convert_value(entry: Dictionary) -> int:
+	return LEGENDARY_CONVERT if entry.get("legendary", false) else convert_value(int(entry.get("tier", 1)), int(entry.get("realm", 1)))
 
 ## The sector a sector-resource card belongs to ("" for cards available everywhere).
 func card_sector(id: String) -> String:
@@ -1099,8 +1249,14 @@ func card_available(id: String) -> bool:
 
 const REALM_LEVEL := {"s": 1, "se": 2, "ne": 3, "n": 4, "nw": 5, "sw": 6}
 # cards from the base realm that only appear a little deeper
-const CARD_LEVEL_OVERRIDE := {"aegis": 2, "guards": 2, "sentry": 2, "charm": 3, "mender": 1}
-const WEAPON_LEVEL := {"spear": 1, "hammer": 1, "bow": 1, "daggers": 1, "whip": 2, "shield": 2, "staff": 3, "scimitar": 2, "frostglaive": 3, "emberflail": 4, "bogstaff": 5, "crystalwand": 6}
+# Legendary cards and weapons cannot be bought or drawn from rewards. Beating the whole game unlocks one of them.
+const LEGENDARY_CARDS := ["meteor_shower", "stasis", "sunspire", "phoenix_shrine"]
+const LEGENDARY_WEAPONS := ["dawnbringer", "voidreaver"]
+# Reward cards at the end of a run, by the realms you opened. None unless you got past the first wave.
+const REWARD_COUNT := {1: 1, 2: 3, 3: 5, 4: 6, 5: 7, 6: 8}
+const WIN_REWARD_COUNT := 10
+const CARD_LEVEL_OVERRIDE := {"meteor_shower": 6, "stasis": 6, "sunspire": 6, "phoenix_shrine": 6, "aegis": 2, "guards": 2, "sentry": 2, "charm": 3, "mender": 1}
+const WEAPON_LEVEL := {"torch": 1, "spear": 1, "hammer": 1, "bow": 1, "daggers": 1, "whip": 2, "shield": 2, "staff": 3, "scimitar": 2, "frostglaive": 3, "emberflail": 4, "bogstaff": 5, "crystalwand": 6}
 
 ## The realm level a card belongs to (1 grassland ... 6 crystal caverns). Combo
 ## buildings count as the deepest realm they need.
@@ -1125,20 +1281,101 @@ func level_reached() -> int:
 ## level-3 run cannot raise anything past tier 3). Tier-ups apply at once; a brand-new
 ## card or weapon is an "offer" you pay Shards to unlock (or convert to Shards).
 ## Applies the rewards and returns
-## [{kind, id, tier, realm, result: "offer"|"upgrade"|"converted"|"unlocked", shards, cost}].
-func make_rewards() -> Array:
+## [{kind, id, tier, realm, result: "offer"|"upgrade"|"spare"|"converted"|"unlocked", shards, cost}].
+# ---------- rarity ----------
+# Cards and weapons have a rarity that comes from where they are found: realm 1 is Common, then Uncommon, Rare,
+# Epic, Mythic and Ancient for realms 2 to 6, and Legendary for the legendary cards and weapons. A fused weapon is one
+# step rarer than the rarest weapon it is made from. Raising a card's tier never changes its rarity.
+const RARITIES := [
+	{"name": "Common", "color": Color("c8ccd8")},
+	{"name": "Uncommon", "color": Color("5fe07a")},
+	{"name": "Rare", "color": Color("5aa8ff")},
+	{"name": "Epic", "color": Color("b066ff")},
+	{"name": "Mythic", "color": Color("ff5a5a")},
+	{"name": "Ancient", "color": Color("ff9a30")},
+	{"name": "Legendary", "color": Color("ffe14a")},
+]
+
+func card_rarity(id: String) -> int:
+	if is_legendary_card(id):
+		return 6
+	return clampi(card_level(id) - 1, 0, 5)
+
+func weapon_rarity(id: String) -> int:
+	if id in LEGENDARY_WEAPONS:
+		return 6
+	var parts: Array = Fusion.parts_of(id)
+	if parts.size() == 2:
+		return mini(5, maxi(weapon_rarity(parts[0]), weapon_rarity(parts[1])) + 1)
+	if id in ["sword", "pickaxe"]:
+		return 0
+	return clampi(WEAPON_LEVEL.get(id, 1) - 1, 0, 5)
+
+func rarity_of(kind: String, id: String) -> int:
+	return card_rarity(id) if kind == "card" else weapon_rarity(id)
+
+func rarity_name(r: int) -> String:
+	return RARITIES[clampi(r, 0, 6)].name
+
+func rarity_color(r: int) -> Color:
+	return RARITIES[clampi(r, 0, 6)].color
+
+## Damage multiplier of a weapon: +35% for every fusion tier above 1, +20% per bonus tier, and legendary weapons hit 50% harder.
+func weapon_power(id: String, bonus: int) -> float:
+	return (1.0 + 0.2 * bonus) * (1.0 + 0.35 * (Fusion.tier_of(id) - 1)) * (1.5 if id in LEGENDARY_WEAPONS else 1.0)
+
+func is_legendary_card(id: String) -> bool:
+	return CARDS.has(id) and CARDS[id].get("legendary", false)
+
+## How many reward cards this run earns: none unless you got past the first wave (the second wave has
+## started), then 1 / 3 / 5 / 6 / 7 / 8 by the realms you opened, and 10 for beating the whole game.
+func reward_count(won := false) -> int:
+	if won:
+		return WIN_REWARD_COUNT
+	if run_stats.waves < 2:
+		return 0
+	return REWARD_COUNT[level_reached()]
+
+const LEGENDARY_PRICE := 400          # Shards to unlock a legendary you earned (it is kept until you do, or convert it)
+const LEGENDARY_CONVERT := 150
+
+## Beating the whole game earns a legendary card or weapon you do not have yet (a random one). It is an offer like any new
+## unlock: it costs LEGENDARY_PRICE Shards, stays in your vault until you unlock or convert it, and never expires. Once every
+## legendary is owned or waiting, it is worth Shards instead. Returns the reward entry.
+func grant_legendary() -> Dictionary:
 	fix_meta()
-	var top := level_reached()
+	var waiting := []
+	for pe in meta.pending:
+		waiting.append(str(pe.id))
+	var left := []
+	for id in LEGENDARY_CARDS:
+		if !owns_card(id) and !(id in waiting):
+			left.append({"kind": "card", "id": id})
+	for id in LEGENDARY_WEAPONS:
+		if !(id in meta.weapons) and !(id in waiting):
+			left.append({"kind": "weapon", "id": id})
+	if left.is_empty():
+		meta.shards += 80
+		return {"kind": "card", "id": LEGENDARY_CARDS.pick_random(), "tier": 1, "realm": 6, "result": "converted", "shards": 80, "legendary": true}
+	var pick: Dictionary = left.pick_random()
+	var entry := {"kind": pick.kind, "id": pick.id, "tier": 1, "realm": 6, "result": "offer", "shards": 0, "legendary": true, "cost": LEGENDARY_PRICE}
+	meta.pending.append(entry)                  # kept for good: it does not count against the vault limit
+	return entry
+
+func make_rewards(won := false) -> Array:
+	fix_meta()
+	var top := 6 if won else level_reached()
 	var out := []
 	var used := []
 	# offers you have not acted on are kept (see meta.pending); drop any you got another way
 	for i in range(meta.pending.size() - 1, -1, -1):
 		var pe: Dictionary = meta.pending[i]
-		if (pe.kind == "card" and owns_card(pe.id)) or (pe.kind == "weapon" and weapon_unlocked(pe.id)):
+		if pe.get("result", "offer") == "offer" and ((pe.kind == "card" and owns_card(pe.id)) or (pe.kind == "weapon" and weapon_unlocked(pe.id))):
 			meta.pending.remove_at(i)
 	for pe in meta.pending:
-		used.append(pe.id if pe.kind == "card" else "w:" + pe.id)
-	for i in top:
+		if pe.get("result", "offer") == "offer":
+			used.append(pe.id if pe.kind == "card" else "w:" + pe.id)
+	for i in reward_count(won):
 		var entry := {"kind": "card", "id": "", "tier": 1, "realm": 1, "result": "", "shards": 0}
 		var weapons := []
 		for w in WEAPON_UNLOCK_COSTS:
@@ -1153,8 +1390,8 @@ func make_rewards() -> Array:
 		else:
 			var bag := []
 			for id in CARDS:
-				if id in used:
-					continue
+				if id in used or (is_legendary_card(id) and !owns_card(id)):
+					continue                       # a legendary card cannot be offered before you have won
 				var cl := card_level(id)
 				if cl > top:
 					continue
@@ -1169,13 +1406,16 @@ func make_rewards() -> Array:
 				# nothing new and nothing to raise at this level: a spare is turned into Shards
 				var shallow := []
 				for id in CARDS:
-					if card_level(id) <= top:
+					if card_level(id) <= top and !(is_legendary_card(id) and !owns_card(id)):
 						shallow.append(id)
 				entry.id = shallow.pick_random()
 				entry.realm = card_level(entry.id)
 				entry.tier = card_tier(entry.id) if owns_card(entry.id) else 1
-				entry.result = "converted"
-				entry.shards = convert_value(entry.tier, entry.realm)
+				if owns_card(entry.id):
+					entry.result = "spare"              # a copy of a card you own: merge it, combine it, or sell it (kept in the vault)
+				else:
+					entry.result = "converted"
+					entry.shards = convert_value(entry.tier, entry.realm)
 			else:
 				entry.id = bag.pick_random()
 				entry.realm = card_level(entry.id)
@@ -1187,6 +1427,12 @@ func make_rewards() -> Array:
 				else:
 					entry.tier = 1
 					entry.result = "offer"
+		if entry.result == "spare":
+			if meta.pending.size() >= MAX_PENDING:
+				entry.result = "converted"               # the vault is full: this copy is sold
+				entry.shards = convert_value(int(entry.tier), int(entry.realm))
+			else:
+				meta.pending.append(entry)
 		if entry.result == "offer":
 			entry.cost = unlock_cost(entry)
 			if meta.pending.size() >= MAX_PENDING:
@@ -1196,12 +1442,16 @@ func make_rewards() -> Array:
 				meta.pending.append(entry)
 		meta.shards += entry.shards
 		out.append(entry)
+	if won:
+		out.append(grant_legendary())              # beating the whole game always unlocks a legendary
 	save_meta()
 	return out
 
 ## Shards to unlock a new reward: weapons cost what the weapon shop charges, cards cost
 ## more the deeper their realm.
 func unlock_cost(entry: Dictionary) -> int:
+	if entry.get("legendary", false):
+		return LEGENDARY_PRICE
 	if entry.kind == "weapon":
 		return WEAPON_UNLOCK_COSTS.get(entry.id, 32)
 	return unlock_price(entry.id)
@@ -1228,7 +1478,7 @@ func convert_offer(entry: Dictionary) -> int:
 	if entry.result != "offer":
 		return 0
 	entry.result = "converted"
-	entry.shards = convert_value(int(entry.tier), int(entry.get("realm", 1)))
+	entry.shards = offer_convert_value(entry)
 	meta.shards += entry.shards
 	_forget_pending(entry.kind, entry.id)
 	save_meta()

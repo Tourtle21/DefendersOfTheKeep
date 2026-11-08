@@ -41,7 +41,7 @@ THE LOOP
   Walk into a tower to deposit what you carry. The Forge (anvil in the yard)
   fuses two weapons of the same tier into a new one for gold.
   Defeat each sector's boss to open the next sector. Beat all six, then the final boss.
-  Dying ends the run: you earn Shards and a reward draw (better the further you got) to unlock and upgrade cards, weapons and fusions."""
+  If you fall you are out for 30 seconds, then back at the keep. The run ends when the keep falls or the crystal is stolen: you earn Shards and reward cards (if you got past the first wave)."""
 
 func _ready() -> void:
 	layer = 15

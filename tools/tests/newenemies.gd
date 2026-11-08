@@ -26,7 +26,7 @@ func _initialize() -> void:
 				globs = max(globs, 1)
 		player.position = P      # stand still in its sights
 	print("spitter fired at the player: ", globs > 0, " | player health bar ", hp0, " -> ", hp.size.x, " (hit by globs)")
-	sp.queue_free()
+	if is_instance_valid(sp): sp.queue_free()
 	await wait(0.2)
 	# --- splitter
 	var spl = load("res://enemies/splitter/splitter.tscn").instantiate()

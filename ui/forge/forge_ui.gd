@@ -228,11 +228,13 @@ func _weapon_numbers(info: Dictionary, bonus: int) -> String:
 	var cds := [["Attack", inst.attack_cooldown, inst.attack_name], ["Ability (T2)", inst.ability_cooldown, inst.ability_name],
 		["Dash", inst.dash_cooldown, inst.dash_name], ["Ultimate (T3)", inst.ultimate_cooldown, inst.ultimate_name]]
 	inst.free()
-	var lines := ["Damage  [color=#ffd23a][b]x%.1f[/b][/color]  ->  [color=#6df08a][b]x%.1f[/b][/color]" % [1.0 + 0.2 * bonus, 1.0 + 0.2 * (bonus + 1)]]
+	var r: int = Game.weapon_rarity(str(info.id))
+	var fz: float = pow(0.95, Fusion.tier_of(str(info.id)) - 1)
+	var lines := ["[color=#%s][b]%s[/b][/color] weapon" % [Game.rarity_color(r).to_html(false), Game.rarity_name(r)], "Damage  [color=#ffd23a][b]x%.1f[/b][/color]  ->  [color=#6df08a][b]x%.1f[/b][/color]" % [Game.weapon_power(str(info.id), bonus), Game.weapon_power(str(info.id), bonus + 1)]]
 	for c in cds:
 		if c[2] == "":
 			continue
-		lines.append("%s: %s  [color=#ffd23a][b]%.2fs[/b][/color]  ->  [color=#6df08a][b]%.2fs[/b][/color]" % [c[0], c[2], c[1] * pow(0.92, bonus), c[1] * pow(0.92, bonus + 1)])
+		lines.append("%s: %s  [color=#ffd23a][b]%.2fs[/b][/color]  ->  [color=#6df08a][b]%.2fs[/b][/color]" % [c[0], c[2], c[1] * fz * pow(0.92, bonus), c[1] * fz * pow(0.92, bonus + 1)])
 	return "\n".join(lines)
 
 ## Combine two identical copies.

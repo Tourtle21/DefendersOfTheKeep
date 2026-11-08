@@ -81,9 +81,7 @@ func release_ability() -> void:
 	_charge = 0.0
 
 func dash_attack() -> void:
-	var d: Vector2 = cursor_target(70.0) - player.global_position
-	if d.length() < 8.0:
-		d = aim * 40.0
+	var d: Vector2 = aim * 70.0          # the way you are moving (aim is set by use_dash)
 	player.dash(d.normalized(), min(70.0, d.length()), 0.2)
 	ground_strike(player.global_position + d.limit_length(70.0), 22.0, 0.22, 2.0, 200.0, Color(1.0, 0.85, 0.3), 0.3)
 

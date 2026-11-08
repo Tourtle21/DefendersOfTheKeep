@@ -126,7 +126,7 @@ func _physics_process(delta: float) -> void:
 			slow_mult = 1.0
 	_player = null
 	for pl in get_tree().get_nodes_in_group("player"):
-		if is_instance_valid(pl) and (_player == null or pl.global_position.distance_to(global_position) < _player.global_position.distance_to(global_position)):
+		if is_instance_valid(pl) and !pl.get("downed") and (_player == null or pl.global_position.distance_to(global_position) < _player.global_position.distance_to(global_position)):
 			_player = pl
 	if _player == null:
 		return

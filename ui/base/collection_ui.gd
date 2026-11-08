@@ -159,6 +159,9 @@ func _show_detail() -> void:
 			buy.pressed.connect(func():
 				if Game.buy_unlock(id):
 					_refresh())
+		elif Game.is_legendary_card(id):
+			buy.text = "Legendary: beat the whole game to unlock one"
+			buy.disabled = true
 		else:
 			buy.text = "Reach level %d, or find it in a reward draw" % Game.card_level(id)
 			buy.disabled = true

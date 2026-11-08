@@ -17,6 +17,7 @@ const TIPS := {
 	"biome": "A new biome opened. Its enemies have weaknesses: look for the pips above them (filled dot = weak to that element, grey square = armored).",
 	"crystal": "The crystal was stolen! The base is offline until you kill the thief, pick the crystal up and carry it back to the Well. If the thief reaches the edge you lose.",
 	"sheep": "A rainbow sheep! It runs when you come close and tires after a sprint. Catch it for gold and resources (it is the rainbow dot on the radar).",
+	"night": "Night: enemies outside every light are shrouded (they take 40% less damage) and your towers and sentries only see them up close. Torches, flares, fire spells and fire or Torch weapons light them up. Night cards come up more often in your hand.",
 	"keep_low": "The keep is badly damaged! From inside a tower you can repair it (3 stone) and reload the turrets.",
 }
 
@@ -131,3 +132,5 @@ func _process(delta: float) -> void:
 		hint("sheep")
 	if Game.keep_hp < Game.keep_max() * 0.5:
 		hint("keep_low")
+	if Game.is_dark():
+		hint("night")

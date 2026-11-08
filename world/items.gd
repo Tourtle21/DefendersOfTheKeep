@@ -198,6 +198,21 @@ extends Resource
 		"texture": "res://items/weapons/icons/whip.png",
 		"type": "item"
 	},
+	"dawnbringer": {
+		"path": "res://items/weapons/dawnbringer.tscn",
+		"texture": "res://items/weapons/icons/dawnbringer.png",
+		"type": "item"
+	},
+	"voidreaver": {
+		"path": "res://items/weapons/voidreaver.tscn",
+		"texture": "res://items/weapons/icons/voidreaver.png",
+		"type": "item"
+	},
+	"torch": {
+		"path": "res://items/weapons/torch.tscn",
+		"texture": "res://items/weapons/icons/torch.png",
+		"type": "item"
+	},
 	"shield": {
 		"path": "res://items/weapons/shield.tscn",
 		"texture": "res://items/weapons/icons/shield.png",

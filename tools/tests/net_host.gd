@@ -28,7 +28,7 @@ func _initialize() -> void:
 			var pl = net.remote_players.values()[0]
 			if start_pos == null:
 				start_pos = pl.global_position
-				print("HOST: client joined, remote player spawned at ", start_pos, " holding ", pl.item.weapon_name if pl.item != null else "nothing")
+				print("HOST: client joined, remote player spawned at ", start_pos, " holding ", pl.item.get("weapon_name") if pl.item != null else "nothing")
 	var pl2 = net.remote_players.values()[0] if net.remote_players.size() > 0 else null
 	print("HOST: remote players ", net.remote_players.size(), " | remote avatar moved from ", start_pos, " to ", pl2.global_position if pl2 else "-")
 	print("HOST: dummy health after the client's attacks: ", snapped(dummy.health, 0.1), " of 30")

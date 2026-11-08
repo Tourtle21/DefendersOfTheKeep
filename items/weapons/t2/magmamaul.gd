@@ -36,9 +36,7 @@ func ability() -> void:
 		_fire(c, 44.0, 6.0)
 
 func dash_attack() -> void:
-	var d: Vector2 = cursor_target(70.0) - player.global_position
-	if d.length() < 8.0:
-		d = aim * 40.0
+	var d: Vector2 = aim * 70.0          # the way you are moving (aim is set by use_dash)
 	player.dash(d.normalized(), min(70.0, d.length()), 0.2)
 	var land: Vector2 = player.global_position + d.limit_length(70.0)
 	ground_strike(land, 30.0, 0.22, 4.0, 240.0, Color(1.0, 0.4, 0.1), 0.5)

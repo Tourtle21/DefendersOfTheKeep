@@ -160,6 +160,22 @@ func _initialize() -> void:
 	var tgt2 = nearest("enemy", Vector2(0, 220))
 	if tgt2 != null: game.cast("frost_ring", tgt2.global_position, player)
 	await say("Frost Ring slows what walks into it. Fast enemies take extra damage while slowed.", 5.0)
+	# ---- 4b. night
+	await say("Night comes slowly (a full day is 5 minutes) with one wave by day and one by night, well apart.", 3.5)
+	world.clock = 205.0
+	await say("At night, enemies in the dark are shrouded: they take less damage and your towers cannot see them.", 4.0)
+	game.resources = {"stone": 30, "stick": 30, "gold": 30}
+	game.hand = ["torch"]
+	game.cast("torch", Vector2(0, 150), player)
+	await say("A Torch (a free starter card) lights the ground around it and lets sentries see.", 4.0)
+	world.clock = 205.0
+	game.mana = 100
+	var dark_enemy = nearest("enemy", Vector2(0, 220))
+	if dark_enemy != null:
+		game.hand = ["flare"]
+		game.cast("flare", dark_enemy.global_position, player)
+	await say("A Flare floods an area with light, and the fireball glows too. Night cards are drawn more often at night.", 6.0)
+	world.clock = 20.0
 	# ---- 5. chest
 	await say("Chests pay out better the deeper you are. Choose a card (tier and twist shown).", 1.0)
 	var sm = null
@@ -187,7 +203,8 @@ func _initialize() -> void:
 	var sheep = spawner.spawn_sheep()          # the game's own spawn: an open spot somewhere in an unlocked sector
 	player.global_position = sheep.global_position + Vector2(-50, 10)
 	await wait(1.5)
-	root.get_viewport().get_texture().get_image().save_png("user://watch_sheep.png")
+	if DisplayServer.get_name() != "headless":
+		root.get_viewport().get_texture().get_image().save_png("user://watch_sheep.png")
 	await wait(1.0)
 	var guard := 0
 	while is_instance_valid(sheep) and !sheep.dead and guard < 120:

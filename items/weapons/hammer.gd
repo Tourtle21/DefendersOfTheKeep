@@ -66,11 +66,8 @@ func _draw() -> void:
 	draw_arc(Vector2.ZERO, r, 0, TAU, 40, Color(col, 0.9), 2.0 if !perfect else 3.0)
 
 func dash_attack() -> void:
-	# Leap Slam: jump toward the cursor and land with a shockwave
-	var target := cursor_target(70.0)
-	var d: Vector2 = target - player.global_position
-	if d.length() < 8.0:
-		d = aim * 20.0
+	# Leap Slam: jump the way you are moving and land with a shockwave
+	var d: Vector2 = aim * 70.0
 	player.dash(d.normalized(), min(70.0, d.length()), 0.2)
 	ground_strike(player.global_position + d.limit_length(70.0), 30.0, 0.22, 3.0, 260.0, Color(1.0, 0.5, 0.2), 0.5, ["stone"])
 

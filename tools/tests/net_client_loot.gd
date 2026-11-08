@@ -22,6 +22,7 @@ func _initialize() -> void:
 		return
 	var me: int = net.multiplayer.get_unique_id()
 	var view = load("res://net/client_view.tscn").instantiate()
+	view.scripted_input = true          # this script drives the input, not the keyboard
 	root.add_child(view)
 	await wait(1.5)
 	var rep = root.get_node("Rep")

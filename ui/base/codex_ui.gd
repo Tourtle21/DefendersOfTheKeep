@@ -117,7 +117,7 @@ func _refresh() -> void:
 			b.icon = load(_info.items[id].texture)
 			b.expand_icon = false
 			b.icon_alignment = HORIZONTAL_ALIGNMENT_LEFT
-		if known and Game.WEAPON_UNLOCK_COSTS.has(id) and !Game.weapon_unlocked(id):
+		if known and (Game.WEAPON_UNLOCK_COSTS.has(id) or id in Game.LEGENDARY_WEAPONS) and !Game.weapon_unlocked(id):
 			b.modulate = Color(0.5, 0.5, 0.58)          # locked
 			b.text += "  (locked)"
 		if id == selected:
@@ -129,6 +129,8 @@ func _refresh() -> void:
 	_show_detail(selected)
 
 func _where(id: String) -> String:
+	if id in Game.LEGENDARY_WEAPONS:
+		return ("Unlocked. " if Game.weapon_unlocked(id) else "LOCKED. LEGENDARY: beat the whole game to earn it, then unlock it with %d Shards. " % Game.LEGENDARY_PRICE) + "Hits 50% harder than a normal weapon."
 	var parts := Fusion.parts_of(id)
 	if parts.size() == 2:
 		var need := ""

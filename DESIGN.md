@@ -465,3 +465,40 @@ mind (see Networking) but not built yet.
       rearm, venom (spike trap), twin shot, frost shot, blast shot (sentry), wide field, swift healing (mender), deep freeze
       (totem). Weapons: bleeding, chilling, chain, vampiric, thunder (the ladder starts at a different one per weapon).
       Tests: card_tiers.gd, twists.gd, weapon_copies.gd, tier_ceiling.gd.
+
+45. **Day, night and waves** (world/world.gd, core/game.gd): a 300 s cycle (day until 150 s, dusk to 200, night to 260, dawn to 300),
+    clock only runs unpaused. One DAY wave (spawns at 40 s of the cycle; the first at 50 s) and one NIGHT wave (175 s), so waves are
+    125 to 165 s apart (they used to be 15 to 60 s). Waves are 2x bigger (WAVE_SIZE) and night waves another 1.5x with +1 level; Shards are
+    6 per run + 3 per wave. Token screen says "Day wave N" / "Night wave N" and finishes forced steps (Draw Two, Upgrade) after 15 idle s.
+    Night (Game.night_level, synced): enemies outside every light are SHROUDED (x0.6 damage, Game.SHROUD) and towers/sentries only see
+    them within 50 px (Game.defence_sees). Light comes from players (46 px), torches (card + Torch weapon), flares, fire spells (fireball
+    blast, lava pool), glowing buildings (ember turret, crystal pylon, tower tops) and glowing weapons (WEAPON light table in weapon.gd).
+    Fire damage and glowing-weapon hits light the enemy for 2 to 2.5 s. New: Torch (free starter building card, light radius by tier,
+    twists wide field / blaze), Flare (spell, realm 1), Torch (weapon, 16 Shards, Flare / Flame Dash / Sunburst). Cards with "night": true
+    are drawn 3x as often at night. Dash goes the way you move (falls back to the cursor standing still). Co-op clients see the night.
+    Tests: night.gd, wave_director.gd, token_flow.gd, night_shots.gd (window).
+
+46. **Rewards, rarity and legendaries** (core/game.gd, ui/base/run_end_ui.gd): reward cards need a run that got past the first wave
+    (waves >= 2); then 1/3/5/6/7/8 cards for the realms opened (REWARD_COUNT) and 10 + a legendary for winning (win_run ->
+    make_rewards(true)). Rarity (Game.RARITIES): realm 1 Common ... realm 6 Ancient, Legendary for the 6 legendaries; a card's rarity
+    never depends on its tier; a fused weapon is one rarity above its rarest part (weapon_rarity). Fused weapons also hit 35% harder
+    per fusion tier and are 5% faster (Game.weapon_power); legendary weapons x1.5. Legendaries (cannot be bought or drawn; winning earns one as an
+    OFFER you still unlock with Shards: LEGENDARY_PRICE 400, kept until unlocked or converted for 150, never counts toward the vault
+    limit; 80 Shards instead once all six are owned or waiting): cards Meteor Shower, Stasis Field, Sunspire, Phoenix Shrine; weapons
+    Dawnbringer, Voidreaver. Reward screen: cards arrive face down (deal-in, wobble, hover), click or Flip all; rumble + rarity-coloured
+    edge tell, overshoot flip, burst/sparks/shake/flash/banner scaled by rarity, per-rarity Sfx (core/sfx.gd _arp, play_ui), "Best pull".
+    Replication: rarely-changing Game state (sectors, hand, deck, resources...) now goes in a small reliable message (rep_game) and
+    only mana/keep hp/stats/night_level stay unreliable (a lost one-off packet used to leave a client stale). Tests: legendary.gd,
+    rewards_flip.gd (window).
+
+47. **Falling in battle** (player/player.gd, ui/hud/respawn_ui.gd): no longer ends the run. `Player.fall()` takes you out of the fight for
+    30 s (RESPAWN_TIME): hidden, collisions off, parked at the keep so the camera watches it, enemies/bosses/spitters/sheep ignore you
+    (`downed`), damage and input ignored; then `respawn()` at the keep with full health and 2.5 s of shield. Co-op avatars fall and
+    respawn the same way (snapshot `down` seconds, client countdown). The run still ends when the keep falls or the crystal is
+    stolen. Test: respawn.gd.
+
+48. **Spare copies** (core/game.gd spare_*, ui/base/run_end_ui.gd): a reward for a card you already own that cannot be raised
+    for free is no longer turned into Shards: it is a "spare" copy kept in the vault (MAX_PENDING, a full vault sells it). Merge it
+    into your card when its tier equals the card's tier and that tier is below the deepest level you have reached (1+1=2, 2+2=3:
+    spare_merge), combine two spares of the same card and tier into one a tier higher (spare_combine), or sell it for
+    convert_value(tier, realm) Shards (spare_sell). Test: spare_copies.gd.

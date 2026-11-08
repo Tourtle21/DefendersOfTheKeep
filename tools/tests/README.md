@@ -45,3 +45,9 @@ Progression and loot: `tool_tiers.gd` (Sword and Pickaxe tier ladder, chest pool
 tier odds by level, tiered drafts), `progression_sim.gd` (a new player over many runs: how fast cards, tiers and weapons open up),
 `tool_shots.gd` (window; HUD padlocks and the tiered draft), `net_host_shots.gd` + `net_client_shots.gd` (window client screenshot
 of buildings with feeding bars). Delete stale `user://rep_host_*.json` before rep runs (the host test now does it itself).
+
+Night and waves: `night.gd` (clock, shroud, lights, night draws, dash direction), `wave_director.gd` (real director sped up: when each
+wave spawns), `token_flow.gd` (every order of flipping wave tokens ends with Start), `night_shots.gd` (window screenshots).
+
+Rewards: `legendary.gd` (reward counts, win reward, the six legendaries in play), `rewards_flip.gd` (window: the face-down reward
+screen and the flip sequence; pass `-- win` for a victory).

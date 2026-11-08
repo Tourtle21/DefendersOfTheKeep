@@ -221,12 +221,26 @@ func _host_tick(slice := 0) -> void:
 		_send_spawns(spawns, gone)
 	_send_updates(updates, game_d)
 
+const FAST_GAME_KEYS := ["mana", "keep_hp", "crystal_eta", "night_level", "run_stats"]
 const MAX_PACKET := 1100            # keep unreliable packets under the ~1400 byte MTU
 
 ## Updates go out in packets small enough not to fragment; the Game state rides in the first.
 func _send_updates(updates: Dictionary, game_d: Dictionary) -> void:
 	if updates.is_empty() and game_d.is_empty():
 		return
+	# Game state: the rarely-changing parts (sectors, hand, deck, resources...) go in a small RELIABLE message, because a
+	# change is only sent once and a lost packet would leave a client stale for good. Numbers that change all the time
+	# (mana, keep hp, stats) ride in the unreliable updates: the next change repairs a lost one.
+	if !game_d.is_empty():
+		var slow := {}
+		for k in game_d.keys():
+			if !(k in FAST_GAME_KEYS):
+				slow[k] = game_d[k]
+				game_d.erase(k)
+		if !slow.is_empty():
+			rep_game.rpc(slow)
+		if updates.is_empty() and game_d.is_empty():
+			return
 	var chunk := {}
 	var size := var_to_bytes(game_d).size() if !game_d.is_empty() else 0
 	var first := true
@@ -276,7 +290,7 @@ func _on_client_connected(peer: int) -> void:
 		if is_instance_valid(n):
 			spawns.append(_spawn_record(id, n, state_of(n)))
 	_send_spawns(spawns, [], peer)
-	rep_update.rpc_id(peer, {}, _game_state())
+	rep_game.rpc_id(peer, _game_state())             # reliable: a joiner must get the whole state
 
 # ---------------------------------------------------------------- Game state
 
@@ -350,6 +364,12 @@ func rep_spawn(spawns: Array, gone: Array) -> void:
 			n.queue_free()
 		_puppets.erase(id)
 		_targets.erase(id)
+
+@rpc("authority", "call_remote", "reliable")
+func rep_game(state: Dictionary) -> void:
+	for k in state:
+		Game.set(k, state[k])
+	Game.net_synced.emit()
 
 @rpc("authority", "call_remote", "unreliable")
 func rep_update(updates: Dictionary, game_state: Dictionary) -> void:

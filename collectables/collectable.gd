@@ -93,10 +93,25 @@ func kit_text() -> String:
 	var ult: String = str(kit[3]) if tier >= 3 else "%s (tier 3)" % kit[3]
 	var tw := ("\n* %s: %s" % [Game.TWISTS[twist][0], Game.TWISTS[twist][1]]) if twist != "" and Game.TWISTS.has(twist) else ""
 	_kit = "%s (Tier %d)%s\nLeft: %s\nRight: %s\nShift: %s\nSpace: %s\nEnter: take (swaps if full)" % [
-		Fusion.display_name(item_type), tier, tw, kit[0], right, kit[2], ult]
+		Fusion.display_name(item_type) + " [" + Game.rarity_name(Game.weapon_rarity(item_type)) + "]", tier, tw, kit[0], right, kit[2], ult]
 	return _kit
 
+## The ring under a rare weapon: its colour is the weapon's rarity (fused weapons are rarer, legendary ones glow rainbow).
+func _rarity() -> int:
+	return Game.weapon_rarity(item_type) if item_info.items[item_type]["type"] == "item" else 0
+
+func _process(_delta: float) -> void:
+	if _rarity() >= 1:
+		queue_redraw()
+
 func _draw() -> void:
+	if item_info.items[item_type]["type"] == "item" and _rarity() >= 1:
+		var r := _rarity()
+		var t := Time.get_ticks_msec() / 1000.0
+		var col: Color = Color.from_hsv(fposmod(t * 0.6, 1.0), 0.55, 1.0) if r >= 6 else Game.rarity_color(r)
+		var pulse := 0.5 + 0.5 * sin(t * 3.0)
+		draw_arc(Vector2.ZERO, 11.0 + pulse, 0, TAU, 28, Color(col, 0.55 + 0.3 * pulse), 1.3 + 0.25 * r)
+		draw_circle(Vector2.ZERO, 9.0, Color(col, 0.10 + 0.03 * r))
 	if !hovering or item_info.items[item_type]["type"] != "item":
 		return
 	var lines := kit_text().split("\n")

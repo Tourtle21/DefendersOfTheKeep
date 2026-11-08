@@ -36,6 +36,7 @@ func _ready() -> void:
 		Net.respawn_avatars.call_deferred()
 	add_child(preload("res://ui/hud/ability_hud.gd").new())
 	add_child(preload("res://ui/base/crystal_alert.gd").new())
+	add_child(preload("res://ui/hud/respawn_ui.gd").new())
 	add_child(preload("res://ui/base/base_ui.gd").new())
 	add_child(preload("res://ui/base/draft_ui.gd").new())
 	add_child(preload("res://ui/base/run_end_ui.gd").new())
@@ -54,7 +55,8 @@ func _ready() -> void:
 	DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_MAXIMIZED)
 	Input.set_custom_mouse_cursor(cursor_path, 0, Vector2(16, 16))
 	$Player/PointLight2D.energy = 0
-	$SpawnTimer.wait_time = randf_range(spawn_min_speed, spawn_max_speed)
+	night_wave = false
+	$SpawnTimer.wait_time = FIRST_WAVE_AT          # setup time before the first (day) wave
 	$SpawnTimer.start()
 	await $SpawnTimer.timeout
 	Input.set_custom_mouse_cursor(pointer_path, 0, Vector2(0, 0))
@@ -66,22 +68,52 @@ func _ready() -> void:
 	if Net.active:
 		_coop_auto_pick()
 	
+# ---- day, night and the waves ----
+# One cycle is 5 minutes: a long day, a slow dusk, a night, a dawn. There is one wave in the day and one in the
+# night, well apart, so there is time to set up. The clock only runs while the game is not paused.
+const NIGHT_DARKNESS := 0.72       # how much of the day the night takes away (1 = pitch black); lights add back the same amount
+const WAVE_SIZE := 2.0             # waves come about three times less often than they used to, so each one is bigger
+const CYCLE := 300.0
+const FIRST_WAVE_AT := 50.0        # setup time before the first wave, in seconds
+const DAY_WAVE_AT := 40.0          # when in the cycle (seconds) each wave spawns
+const NIGHT_WAVE_AT := 175.0
+const DUSK_AT := 150.0             # darkness starts to rise (over 50 s), full night from 200
+const DAWN_AT := 260.0             # and fades again (over 40 s)
+var clock := 0.0
+var night_wave := false            # the wave being set up now is a night wave
+var _last_cycle_t := 0.0
+
+## How dark it is at a clock time: 0 in full day, 1 in full night.
+static func night_for(c: float) -> float:
+	var t := fposmod(c, CYCLE)
+	if t < DUSK_AT:
+		return 0.0
+	if t < 200.0:
+		return smoothstep(0.0, 1.0, (t - DUSK_AT) / 50.0)
+	if t < DAWN_AT:
+		return 1.0
+	return 1.0 - smoothstep(0.0, 1.0, (t - DAWN_AT) / 40.0)
+
+## Seconds until the clock next reaches `event_at`, never less than 40.
+func seconds_until(event_at: float) -> float:
+	return maxf(40.0, fposmod(event_at - clock, CYCLE))
+
+## "Day wave 2" / "Night wave 3": the wave that is about to come.
+func wave_title() -> String:
+	return "%s wave %d" % ["Night" if night_wave else "Day", Game.run_stats.waves + 1]
+
 func _process(delta: float) -> void:
-	if $DaylightTimer.time_left < 10 and (time == 1 or time == 3):
-		var light
-		if (time == 1):
-			light = 1 - $DaylightTimer.time_left / 10
-		elif (time == 3):
-			light = $DaylightTimer.time_left / 10
-		$Daylight.energy = light
-		$Player/PointLight2D.energy = light
-	if $DaylightTimer.time_left == 0:
-		$DaylightTimer.start()
-		if (time == 3):
-			time = 0
-		else:
-			time += 1
-	
+	clock += delta
+	var t := fposmod(clock, CYCLE)
+	Game.night_level = night_for(clock)
+	$Daylight.color = Color(1.0, 0.95, 0.75)               # takes less blue away: night is a dark blue, not black
+	$Daylight.energy = Game.night_level * NIGHT_DARKNESS
+	$Player/PointLight2D.energy = Game.night_level * 0.55          # the player's own light is a gentle circle, not a spotlight
+	if _last_cycle_t < DUSK_AT and t >= DUSK_AT:
+		Game.announce.emit("Night falls: enemies in the dark take less damage. Bring light!")
+	elif _last_cycle_t < DAWN_AT and t >= DAWN_AT:
+		Game.announce.emit("Dawn is breaking.")
+	_last_cycle_t = t
 
 ## The little lake in the yard was just for fun and got in the way (pathing, tests, space
 ## for biome features). It is turned into grass at start; set false to bring it back.
@@ -121,10 +153,13 @@ func _spawn_position() -> Vector2:
 func wave_plan(picked: Array) -> Array:
 	var w: int = Game.run_stats.waves
 	var players: int = max(1, get_tree().get_nodes_in_group("player").size())
-	var factor := 1.0 + 0.6 * (players - 1)        # every group grows with the number of players
+	var factor := WAVE_SIZE * (1.0 + 0.6 * (players - 1))        # every group grows with the number of players
 	var bonus := int(w * 0.5) + (Game.sectors_unlocked.size() - 1)
 	var level_bonus := int(w / 3.0)
 	var plan := []
+	if night_wave:
+		factor *= 1.5                  # a night wave is a bigger one
+		level_bonus += 1
 	for e in picked:
 		plan.append({"name": e.name, "amount": int(ceil((e.amount + bonus) * factor)), "level": e.level + level_bonus})
 	if w >= 3 and w % 3 == 0:
@@ -149,10 +184,8 @@ func spawn_enemies(enemies) -> void:
 	var total := 0
 	for e in plan:
 		total += e.amount
-	Game.announce.emit("Wave %d: %d enemies from %d direction(s)" % [Game.run_stats.waves, total, Game.sectors_unlocked.size()])
-	# the pause between waves shrinks as the run goes on
-	spawn_min_speed = max(15.0, 30.0 - Game.run_stats.waves * 1.5)
-	spawn_max_speed = max(30.0, 60.0 - Game.run_stats.waves * 2.0)
+	Game.night_wave_now = night_wave
+	Game.announce.emit("%s wave %d: %d enemies from %d direction(s)%s" % ["Night" if night_wave else "Day", Game.run_stats.waves, total, Game.sectors_unlocked.size(), " (shrouded until lit)" if night_wave else ""])
 	Input.set_custom_mouse_cursor(cursor_path, 0, Vector2(16, 16))
 	for enemy in plan:
 		for i in enemy.amount:
@@ -162,7 +195,8 @@ func spawn_enemies(enemies) -> void:
 			enemy_scene.position = _spawn_position()
 			$Enemies.add_child(enemy_scene)
 	
-	$SpawnTimer.wait_time = randf_range(spawn_min_speed, spawn_max_speed)
+	night_wave = !night_wave                       # the next wave is the other kind, a long while from now
+	$SpawnTimer.wait_time = seconds_until(NIGHT_WAVE_AT if night_wave else DAY_WAVE_AT)
 	$SpawnTimer.start()
 	await $SpawnTimer.timeout
 	Input.set_custom_mouse_cursor(pointer_path, 0, Vector2(0, 0))

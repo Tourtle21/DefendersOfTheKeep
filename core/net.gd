@@ -173,6 +173,8 @@ func spawn_avatar(id: int) -> void:
 	give_weapon(pl, Game.start_weapon_id() if Game.start_weapon_id() in Game.start_weapon_options() else "sword")      # a joining player starts with the host's chosen starting weapon (the free sword by default)
 	remote_players[id] = pl
 	_prev[id] = {}
+	if !_last_slow.is_empty():
+		net_snapshot_slow.rpc_id(id, _last_slow)          # a joiner needs the slow part right away
 	client_connected.emit(id)
 
 func _on_peer_disconnected(id: int) -> void:
@@ -243,6 +245,8 @@ func give_weapon(pl, entry: String) -> void:
 	pl.equip_item(Game.weapon_info(entry))
 
 func _interact(pl) -> void:
+	if pl.downed:
+		return
 	if pl.is_in_tower:
 		_set_base(pl, false)
 		return
@@ -395,7 +399,7 @@ func build_snapshot() -> Dictionary:
 	var players := []
 	for p in get_tree().get_nodes_in_group("player"):
 		if is_instance_valid(p):
-			players.append({"id": p.get_meta("peer_id", 1), "pos": p.global_position, "hp": (p.remote_hp if p.remote_controlled else 228.0) / 228.0, "base": p.is_in_tower, "slots": p.weapon_slots, "active": p.active_slot, "near_forge": p.global_position.distance_to(FORGE_POS) <= 50.0, "carried": (p.carried if p.remote_controlled else Game.carried)})
+			players.append({"id": p.get_meta("peer_id", 1), "pos": p.global_position, "hp": (p.remote_hp if p.remote_controlled else 228.0) / 228.0, "base": p.is_in_tower, "slots": p.weapon_slots, "active": p.active_slot, "near_forge": p.global_position.distance_to(FORGE_POS) <= 50.0, "down": (ceili(p.respawn_left) if p.downed else 0), "carried": (p.carried if p.remote_controlled else Game.carried)})
 	return {
 		"players": players,
 		"keep": Game.keep_hp, "mana": Game.mana, "wave": Game.run_stats.waves,
@@ -411,8 +415,21 @@ var my_cd := {}                    # client: this player's weapon cooldowns (sen
 func net_cooldowns(cd: Dictionary) -> void:
 	my_cd = cd
 
+const SLOW_SNAPSHOT_KEYS := ["hand", "resources", "deck", "upgrades", "roster", "lobby", "draft", "forge", "sectors", "max_mana", "keep_max"]
+var _last_slow := {}
+var _slow_cache := {}              # client: the latest slow part, merged into every snapshot
+
+@rpc("authority", "call_remote", "reliable")
+func net_snapshot_slow(slow: Dictionary) -> void:
+	_slow_cache = slow
+	for k in slow:
+		last_snapshot[k] = slow[k]
+	snapshot_received.emit(last_snapshot)
+
 @rpc("authority", "call_remote", "unreliable")
 func net_snapshot(data: Dictionary) -> void:
+	for k in _slow_cache:
+		data[k] = _slow_cache[k]
 	last_snapshot = data
 	snapshot_received.emit(data)
 
@@ -426,7 +443,18 @@ func _process(delta: float) -> void:
 		_snap_t += delta
 		if _snap_t >= 0.1 and !multiplayer.get_peers().is_empty():
 			_snap_t = 0.0
-			net_snapshot.rpc(build_snapshot())
+			var snap := build_snapshot()
+			# the slow parts (hand, resources, deck, draft, roster...) go as a small RELIABLE message, only when they change:
+			# one unreliable snapshot near the packet size limit can be dropped, and a dropped draft or hand would not come back
+			var slow := {}
+			for k in SLOW_SNAPSHOT_KEYS:
+				if snap.has(k):
+					slow[k] = snap[k]
+					snap.erase(k)
+			if slow != _last_slow:
+				_last_slow = slow
+				net_snapshot_slow.rpc(slow)
+			net_snapshot.rpc(snap)
 			for id in remote_players:
 				if is_instance_valid(remote_players[id]):
 					net_cooldowns.rpc_id(id, _cooldowns(remote_players[id]))

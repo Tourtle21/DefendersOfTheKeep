@@ -39,6 +39,8 @@ static var power := 1.0
 static var element := ""
 ## Twist of the weapon in hand: extra effects on every hit.
 static var twist := ""
+## True while a glowing weapon is in hand: its hits light the enemy (see Game.light_up).
+static var lit := false
 static var _twist_hits := 0
 
 ## Damage an enemy; optional knockback impulse and stun (seconds).
@@ -48,6 +50,8 @@ static var _hit_targets := 0
 static func hit(e: Node, dmg: float, from: Vector2, knock := 0.0, stun := 0.0, elem := "", aoe := false) -> void:
 	if !_alive(e):
 		return
+	if lit:
+		Game.light_up(e, 2.0)          # a glowing weapon lights what it hits
 	# one attack hitting several enemies in the same frame counts as an area attack
 	var frame := Engine.get_physics_frames()
 	if frame != _hit_frame:

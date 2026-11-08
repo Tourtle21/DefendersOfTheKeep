@@ -13,6 +13,8 @@ var ammo := BASE_AMMO
 var turret_range := 135.0
 var fire_delay := 1.1
 var _cd := 0.5
+var light_radius := 0.0               # the tower is a light source at night while it is online (group "light")
+var _glow: GlowLight
 const ARROW_SPEED := 300.0
 const MUZZLE := Vector2(0, -22)       # where the arrow leaves the tower top
 var _seen := {}                       # enemy instance id -> recent [time, position] samples, so shots can lead a moving target
@@ -20,7 +22,10 @@ var _seen := {}                       # enemy instance id -> recent [time, posit
 func _ready() -> void:
 	add_to_group("turret")
 	add_to_group("net")
+	add_to_group("light")
 	z_index = 6
+	_glow = GlowLight.attach(self, 70.0, Color(1.0, 0.85, 0.55), 0.4)
+	_glow.position = Vector2(0, -20)
 
 ## A tower only defends once its sector is open and it is visible: the towers under the
 ## grey covers (or hidden ones) must not shoot from places the player cannot see.
@@ -29,6 +34,9 @@ func online() -> bool:
 	return tower != null and !Game.crystal_away() and tower.is_visible_in_tree() and Game.sector_at(tower.position) in Game.sectors_unlocked
 
 func _process(delta: float) -> void:
+	light_radius = 70.0 if online() else 0.0
+	if _glow != null:
+		_glow.visible = light_radius > 0.0
 	if Rep.is_puppet(self) or !online():
 		queue_redraw()
 		return
@@ -40,7 +48,7 @@ func _process(delta: float) -> void:
 		for e in get_tree().get_nodes_in_group("enemy"):
 			if is_instance_valid(e) and !e.is_queued_for_deletion():
 				var d: float = e.global_position.distance_to(origin)
-				if d <= turret_range and (best == null or d < best.global_position.distance_to(origin)):
+				if d <= turret_range and Game.defence_sees(e, origin) and (best == null or d < best.global_position.distance_to(origin)):
 					best = e
 		if best != null:
 			var muzzle := origin + MUZZLE

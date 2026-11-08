@@ -11,6 +11,7 @@ func _initialize() -> void:
 	game.meta.shards = 0
 	var chain = ["s", "se", "ne", "n"]
 	game.sectors_unlocked = chain
+	game.run_stats.waves = 3                       # a run that got past the first wave earns cards
 	var r1: Array = game.make_rewards()
 	var offers1 := r1.filter(func(e): return e.result == "offer")
 	print("run 1: ", r1.size(), " rewards, ", offers1.size(), " offers, pending kept: ", game.meta.pending.size())

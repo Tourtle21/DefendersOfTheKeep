@@ -39,9 +39,7 @@ func release_ability() -> void:
 		await get_tree().create_timer(0.16).timeout
 
 func dash_attack() -> void:
-	var d: Vector2 = cursor_target(110.0) - player.global_position
-	if d.length() < 8.0:
-		d = aim * 60.0
+	var d: Vector2 = aim * 110.0          # the way you are moving (aim is set by use_dash)
 	player.dash(d.normalized(), min(110.0, d.length()), 0.28)
 	var land: Vector2 = player.global_position + d.limit_length(110.0)
 	ground_strike(land, 30.0, 0.3, 3.0, 240.0, Color(1.0, 0.85, 0.3), 0.6)

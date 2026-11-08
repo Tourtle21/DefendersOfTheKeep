@@ -15,6 +15,7 @@ func _initialize() -> void:
 	for i in 60:
 		await wait(0.5)
 		if net.remote_players.size() > 0: break
+	world.clock = 215.0          # night, so the client screenshot shows the darkness
 	var spots := [["barricade", 3, "regrow", Vector2(-50, 120)], ["sentry", 2, "twin_shot", Vector2(0, 120)], ["spike_trap", 1, "", Vector2(50, 120)], ["barricade", 4, "regrow", Vector2(100, 120)]]
 	var made := []
 	for s in spots:

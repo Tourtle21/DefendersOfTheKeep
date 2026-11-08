@@ -17,6 +17,18 @@ func spend(game, log: Array) -> void:
 			if game.card_tier(id) < 6 and c < best_cost and c <= game.meta.shards:
 				best = {"kind": "up", "id": id}
 				best_cost = c
+		for pe in game.meta.pending:                           # spare copies: merge when they fit, otherwise sell
+			if pe.get("result", "") == "spare":
+				if game.spare_can_merge(pe):
+					game.spare_merge(pe)
+					log.append("merge %s" % pe.id)
+				else:
+					game.spare_sell(pe)
+				best = {"kind": "again"}
+				best_cost = 0
+				break
+		if best.get("kind", "") == "again":
+			continue
 		for w in game.WEAPON_UNLOCK_COSTS:
 			if !(w in game.meta.weapons) and game.WEAPON_LEVEL[w] <= int(game.meta.get("best_level", 1)) and game.WEAPON_UNLOCK_COSTS[w] < best_cost and game.WEAPON_UNLOCK_COSTS[w] <= game.meta.shards:
 				best = {"kind": "wep", "id": w}

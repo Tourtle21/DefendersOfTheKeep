@@ -4,7 +4,7 @@ extends SceneTree
 func wait(sec: float) -> void:
 	await create_timer(sec, true, false, true).timeout
 func fresh_meta(game) -> void:
-	game.meta.unlocked = ["fireball", "frost_ring", "barricade", "spike_trap"]
+	game.meta.unlocked = ["fireball", "frost_ring", "barricade", "spike_trap", "torch"]
 	game.meta.card_tiers = {}
 	game.meta.weapons = []
 	game.meta.shards = 0
@@ -19,20 +19,21 @@ func _initialize() -> void:
 	for lvl in range(1, 7):
 		var violations := 0
 		var skipped_tier := 0
-		var counts := {"offer": 0, "upgrade": 0, "converted": 0}
+		var counts := {"offer": 0, "upgrade": 0, "spare": 0, "converted": 0}
 		var count_ok := true
 		for trial in 40:
 			fresh_meta(game)
 			# a random collection: some cards owned at random tiers
 			for id in game.CARDS:
-				if randf() < 0.5 and game.card_level(id) <= 6:
+				if randf() < 0.5 and game.card_level(id) <= 6 and !game.is_legendary_card(id):
 					if !(id in game.meta.unlocked): game.meta.unlocked.append(id)
 					game.meta.card_tiers[id] = randi_range(1, 6)
 			var before: Dictionary = game.meta.card_tiers.duplicate()
 			var owned_before: Array = game.meta.unlocked.duplicate()
 			game.sectors_unlocked = chain.slice(0, lvl)
+			game.run_stats.waves = 3
 			var r: Array = game.make_rewards()
-			if r.size() != lvl: count_ok = false
+			if r.size() != game.REWARD_COUNT[lvl]: count_ok = false
 			for e in r:
 				counts[e.result] += 1
 				if e.kind == "card":

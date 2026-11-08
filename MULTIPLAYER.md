@@ -54,3 +54,6 @@ end to end (including a throw-away new content type, `tools/tests/fixtures/new_t
 - The client's own avatar is simulated by the host from its input (fine on a LAN; no client-side prediction).
 - Per-player progress (Shards, unlocks) belongs to the host only, by design: clients play with the host's unlocks and skills and earn nothing of their own.
 - Player avatars are simple markers with a name and weapon, not the full player scene.
+
+Night: `Game.night_level` is synced like every Game variable; the client view draws the same dark overlay and a light on your own
+player. Lights (torch, flare, glowing buildings) replicate as normal gameplay nodes; the shroud and what defences see is host-side.

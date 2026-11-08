@@ -5,6 +5,8 @@ extends Node2D
 
 const SM := preload("res://world/sector_manager.gd")
 var cam: Camera2D
+var _down_label: Label
+var _daylight: PointLight2D
 var info: Label
 var hp_bar: ProgressBar
 var carry_label: Label
@@ -34,7 +36,6 @@ func _ready() -> void:
 	# This view acts as the "world" for replicated puppets (see core/replication.gd): it has the
 	# same landmark nodes real enemies look for, and Game.world points here for effects.
 	Game.world = self
-	Rep.client_root = self
 	Game.set_process(false)             # the host simulates mana, card draws and so on
 	var enemies_root := Node2D.new()
 	enemies_root.name = "Enemies"
@@ -45,11 +46,38 @@ func _ready() -> void:
 	crystal.name = "Crystal"
 	well.add_child(crystal)
 	add_child(well)
+	Rep.client_root = self              # only now: spawns that arrived early are created here and look for the Enemies and Well nodes above
 	cam = Camera2D.new()
 	cam.zoom = Vector2.ONE * 2.0 / Game.ui_scale
 	add_child(cam)
+	# night: the same dark overlay as the host's world (night_level is synced), and a light on your own player
+	var g := Gradient.new()
+	g.offsets = PackedFloat32Array([0, 0.00554017])
+	var tex := GradientTexture2D.new()
+	tex.gradient = g
+	tex.width = 3000
+	tex.height = 3000
+	tex.fill_from = Vector2(1, 0)
+	tex.fill_to = Vector2(0, 1)
+	_daylight = PointLight2D.new()
+	_daylight.texture = tex
+	_daylight.blend_mode = Light2D.BLEND_MODE_SUB
+	_daylight.energy = 0.0
+	_daylight.color = Color(1.0, 0.95, 0.75)
+	add_child(_daylight)
+	GlowLight.attach(cam, 46.0, Color(1.0, 1.0, 1.0), 0.55)
 	var layer := CanvasLayer.new()
 	add_child(layer)
+	_down_label = Label.new()
+	_down_label.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
+	_down_label.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_down_label.position.y = 120
+	_down_label.add_theme_font_size_override("font_size", 34)
+	_down_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.5))
+	_down_label.add_theme_color_override("font_outline_color", Color.BLACK)
+	_down_label.add_theme_constant_override("outline_size", 8)
+	_down_label.visible = false
+	layer.add_child(_down_label)
 	info = Label.new()
 	info.position = Vector2(12, 8)
 	info.add_theme_font_size_override("font_size", 16)
@@ -152,6 +180,7 @@ func smooth(delta: float) -> void:
 func _process(delta: float) -> void:
 	if _host_lost:
 		return
+	_daylight.energy = Game.night_level * 0.72          # same strength as the host's NIGHT_DARKNESS
 	_ingest(Net.last_snapshot)
 	smooth(delta)
 	# gather input for the host
@@ -169,6 +198,8 @@ func _process(delta: float) -> void:
 			if p.id == multiplayer.get_unique_id():
 				cam.position = cam.position.lerp(_player_disp.get(p.id, p.pos), 0.2)
 				_in_base = p.base
+				_down_label.visible = p.get("down", 0) > 0
+				_down_label.text = "You fell!  Back in %d" % p.get("down", 0)
 		cam.zoom = Vector2.ONE * (1.2 if _in_base else 2.0) / Game.ui_scale
 		Net.local_input["attack"] = Net.local_input.attack and !_in_base      # clicks are for casting while in the keep
 		_update_keep_ui(snap)
