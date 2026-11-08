@@ -32,7 +32,7 @@ func _ready() -> void:
 	root_ctl.visible = false
 	add_child(root_ctl)
 	var dim := ColorRect.new()
-	dim.color = Color(0, 0, 0, 0.8)
+	dim.color = Color(0.02, 0.02, 0.05, 0.97)
 	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
 	dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root_ctl.add_child(dim)

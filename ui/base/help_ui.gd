@@ -44,7 +44,7 @@ THE LOOP
   If you fall you are out for 30 seconds, then back at the keep. The run ends when the keep falls or the crystal is stolen: you earn Shards and reward cards (if you got past the first wave)."""
 
 func _ready() -> void:
-	layer = 15
+	layer = 6          # under the menus (forge 8, run end 20, collection/codex/skills 22)
 	panel = Control.new()
 	panel.set_anchors_preset(Control.PRESET_FULL_RECT)
 	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE

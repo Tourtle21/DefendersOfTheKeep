@@ -84,6 +84,42 @@ var enemy_tokens = [
 ]
 var total_tokens = len(enemy_tokens)
 
+## The wave draw, played for you: flip cards until the rules are satisfied (Draw Two asks for two more,
+## Upgrade strengthens every flipped enemy), then hand back the enemies and a plain-words account of it.
+func auto_pick() -> Dictionary:
+	var order: Array = range(enemy_tokens.size())
+	order.shuffle()
+	var need := 1
+	var flips := 0
+	var upgrade_flipped := false
+	var enemies := []
+	var names := []
+	for idx in order:
+		if flips >= need and !(upgrade_flipped and enemies.is_empty()):
+			break
+		var t: Dictionary = enemy_tokens[idx]
+		flips += 1
+		if t.name == "draw_two":
+			need += 2
+			names.append("Draw Two (two more cards)")
+		elif t.name == "upgrade":
+			upgrade_flipped = true
+			names.append("Upgrade")
+		else:
+			enemies.append(t)
+			names.append(str(t.name).capitalize())
+	var lines := ["Cards drawn: " + ", ".join(names)]
+	if upgrade_flipped:
+		for t in enemies:
+			var stat: String = ["level", "amount"].pick_random()
+			t[stat] += 1
+			lines.append("%s upgraded: %s is now %d" % [str(t.name).capitalize(), "level" if stat == "level" else "group size", t[stat]])
+	var parts := []
+	for t in enemies:
+		parts.append("%d %s (level %d)" % [t.amount, t.name, t.level])
+	lines.append("Sent: " + ", ".join(parts))
+	return {"enemies": enemies, "lines": lines}
+
 func create_tokens() -> void:
 	_idle = 0.0
 	if _hint == null:

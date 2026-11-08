@@ -55,6 +55,7 @@ func open() -> void:
 	root_ctl.visible = true
 	if selected == "":
 		selected = Game.CARDS.keys()[0]
+	await get_tree().process_frame
 	_refresh()
 
 func _refresh() -> void:
@@ -63,13 +64,15 @@ func _refresh() -> void:
 		grid_area.remove_child(c)
 		c.queue_free()
 	var ids: Array = Game.CARDS.keys()
-	var area: Vector2 = get_viewport().get_visible_rect().size - Vector2(470, 190)
-	var fit := UiKit.fit_cards(ids.size(), area - Vector2(0, 0), 0.6, 6.0, 96.0)
+	var area: Vector2 = grid_area.size if grid_area.size.x > 100 else get_viewport().get_visible_rect().size - Vector2(470, 190)
+	area.y -= 16.0 * ceili(sqrt(ids.size() / 1.6))      # room for the gem row under each card
+	var fit := UiKit.fit_cards(ids.size(), area, 0.6, 6.0, 132.0)
 	var cols: int = fit.cols
 	var csize: Vector2 = fit.size
 	var k := csize.x / CardView.SIZE.x
 	var gem_h := 16.0
 	var cell := Vector2(csize.x, csize.y + gem_h)
+	var off_x := maxf(0.0, (area.x - (cols * (cell.x + 6.0) - 6.0)) / 2.0)
 	for n in ids.size():
 		var id: String = ids[n]
 		var owned: bool = Game.owns_card(id)
@@ -80,7 +83,7 @@ func _refresh() -> void:
 		var holder := Control.new()
 		holder.custom_minimum_size = cell
 		holder.size = cell
-		holder.position = Vector2((n % cols) * (cell.x + 6.0), (n / cols) * (cell.y + 6.0))
+		holder.position = Vector2(off_x + (n % cols) * (cell.x + 6.0), (n / cols) * (cell.y + 6.0))
 		holder.add_child(view)
 		view.modulate = Color.WHITE if owned else Color(0.4, 0.4, 0.45)
 		var gems := Label.new()
@@ -128,9 +131,7 @@ func _show_detail() -> void:
 	var t := "[b]%s[/b]\n" % c.name
 	t += "[color=#c9d3f2]%s[/color]\n\n" % c.desc
 	if owned:
-		t += "Unlocked tier [color=#ffd23a][b]%d[/b][/color] of %d. In a run this card starts at tier 1 and can be raised (chest duplicates, merging buildings) up to tier %d." % [tier, Game.MAX_LEVEL, tier]
-		if tier < Game.MAX_LEVEL:
-			t += "   (next tier shown in green)"
+		t += "Tier [color=#ffd23a][b]%d[/b][/color] of %d" % [tier, Game.MAX_LEVEL]
 		t += "\n\n" + _num_block(id, tier, tier + 1)
 	else:
 		t += "[color=#ff9a7a]Not unlocked.[/color] Tier 1 shown.\n\n" + _num_block(id, 1, 1)

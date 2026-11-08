@@ -54,7 +54,7 @@ func open() -> void:
 
 ## Fit the five branches to the window: no scrolling.
 func _layout() -> void:
-	var a: Vector2 = get_viewport().get_visible_rect().size - Vector2(32 + 16, 230)
+	var a: Vector2 = tree.size if tree.size.y > 100 else get_viewport().get_visible_rect().size - Vector2(48, 260)
 	BRANCH_W = a.x / Skills.BRANCHES.size()
 	COL_W = (BRANCH_W - 20.0) / 2.0
 	NODE = Vector2(COL_W - 8.0, 0)
@@ -107,10 +107,11 @@ func _refresh() -> void:
 			tree.add_child(b)
 			_buttons[id] = b
 		var lines := []
-		lines.append(Skills.effect_text(id, lvl) if lvl > 0 else "no bonus yet")
+		lines.append(Skills.effect_text(id, lvl) if lvl > 0 else "-")
 		if lvl < sk.max:
-			lines.append("+ " + Skills.effect_text(id, lvl + 1))
-		b.setup({"size": NODE, "title": sk.name, "glyph": str(lvl), "tier": lvl, "max_tier": sk.max, "lines": lines,
+			var nx: String = Skills.effect_text(id, lvl + 1)
+			lines.append(nx if nx.begins_with("+") else "+" + nx)
+		b.setup({"size": NODE, "title": sk.name, "glyph": "%d/%d" % [lvl, sk.max], "tier": lvl, "max_tier": sk.max, "lines": lines,
 			"accent": col if avail else Color(0.4, 0.4, 0.46), "locked": false, "footer": foot, "footer_color": fcol})
 		b.modulate = Color(1, 1, 1) if avail else Color(0.6, 0.6, 0.65)
 		b.position = _node_pos(id)

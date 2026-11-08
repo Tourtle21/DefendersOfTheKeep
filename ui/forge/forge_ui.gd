@@ -122,7 +122,7 @@ func _refresh() -> void:
 		var lines := []
 		if tw != "" and Game.TWISTS.has(tw):
 			lines.append("* " + Game.TWISTS[tw][0])
-		b.setup({"size": Vector2(124, 176), "title": Fusion.display_name(id), "icon": _icon_of(slots[i].current_item.texture),
+		b.setup({"size": Vector2(150, 210), "title": Fusion.display_name(id), "icon": _icon_of(slots[i].current_item.texture),
 			"tier": Game.weapon_tier_of(entry), "max_tier": 6, "lines": lines,
 			"accent": Game.rarity_color(Game.weapon_rarity(id)), "footer": "PICKED" if i in selected else ""})
 		b.set_selected(i in selected)

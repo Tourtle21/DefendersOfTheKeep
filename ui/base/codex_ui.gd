@@ -65,6 +65,7 @@ func _ready() -> void:
 
 func open() -> void:
 	root_ctl.visible = true
+	await get_tree().process_frame
 	_refresh()
 
 func _weapon_ids() -> Array:
@@ -87,10 +88,11 @@ func _refresh() -> void:
 		grid_area.remove_child(c)
 		c.queue_free()
 	var ids := _weapon_ids()
-	var area := get_viewport().get_visible_rect().size - Vector2(480, 150)
+	var area := grid_area.size if grid_area.size.x > 100 else get_viewport().get_visible_rect().size - Vector2(480, 200)
 	var fit := UiKit.fit_cards(ids.size(), area, 0.72, 8.0, 130.0)
 	var cols: int = fit.cols
 	var csize: Vector2 = fit.size
+	var off_x := maxf(0.0, (area.x - (cols * (csize.x + 8.0) - 8.0)) / 2.0)
 	for n in ids.size():
 		var id: String = ids[n]
 		var known := _known(id)
@@ -100,13 +102,13 @@ func _refresh() -> void:
 		if known:
 			var inst = load(_info.items[id].path).instantiate()
 			if inst.attack_name != "":
-				lines.append(inst.attack_name)
+				lines.append(str(inst.attack_name).split(" (")[0])
 			inst.free()
 		card.setup({"size": csize, "title": Fusion.display_name(id) if known else "???", "icon": load(_info.items[id].texture) if known else null,
 			"glyph": "?" if !known else "", "tier": Fusion.tier_of(id), "max_tier": 6, "lines": lines, "locked": locked,
 			"accent": Game.rarity_color(Game.weapon_rarity(id)) if known else Color(0.4, 0.4, 0.5),
 			"footer": ("%d shards" % Game.WEAPON_UNLOCK_COSTS[id]) if locked and Game.WEAPON_UNLOCK_COSTS.has(id) else ""})
-		card.position = Vector2((n % cols) * (csize.x + 8.0), (n / cols) * (csize.y + 8.0))
+		card.position = Vector2(off_x + (n % cols) * (csize.x + 8.0), (n / cols) * (csize.y + 8.0))
 		card.set_selected(id == selected)
 		card.pressed.connect(func(_c):
 			selected = id

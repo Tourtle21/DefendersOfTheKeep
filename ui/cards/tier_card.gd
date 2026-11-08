@@ -85,7 +85,7 @@ func _draw() -> void:
 		var dr := Vector2(ts.x * k, ts.y * k)
 		draw_texture_rect(tex, Rect2(art.position + (art.size - dr) / 2.0, dr), false, Color(1, 1, 1, dim))
 	elif data.has("glyph"):
-		draw_string(font, art.position + Vector2(0, art.size.y * 0.7), str(data.glyph), HORIZONTAL_ALIGNMENT_CENTER, art.size.x, maxi(8, int(art.size.y * 0.6)), Color(accent, dim))
+		draw_string(font, art.position + Vector2(0, art.size.y * 0.68), str(data.glyph), HORIZONTAL_ALIGNMENT_CENTER, art.size.x, maxi(8, int(minf(art.size.y * 0.6, art.size.x / (maxf(1.0, float(str(data.glyph).length())) * 0.62)))), Color(accent, dim))
 	# corner badge (cost, mana, "NEW")
 	var badge: String = str(data.get("badge", ""))
 	if badge != "":
@@ -107,11 +107,15 @@ func _draw() -> void:
 			break
 		var col := Color(0.8, 0.85, 1.0, dim)
 		var txt := str(l)
+		if font.get_multiline_string_size(txt, HORIZONTAL_ALIGNMENT_CENTER, w - 18 * u, lfs, 2).y > room:
+			break
 		if txt.begins_with("+"):
 			col = Color(0.45, 0.95, 0.55, dim)
-		draw_string(font, Vector2(10 * u, ty + lfs), txt, HORIZONTAL_ALIGNMENT_CENTER, w - 20 * u, lfs, col)
-		ty += lfs + 2 * u
-		room -= lfs + 2 * u
+		var lw := w - 18 * u
+		var sz := font.get_multiline_string_size(txt, HORIZONTAL_ALIGNMENT_CENTER, lw, lfs, 2)
+		draw_multiline_string(font, Vector2(9 * u, ty + lfs), txt, HORIZONTAL_ALIGNMENT_CENTER, lw, lfs, 2, col)
+		ty += sz.y + 2 * u
+		room -= sz.y + 2 * u
 	# footer (price / state)
 	if foot != "":
 		var fc: Color = data.get("footer_color", Color(1, 0.88, 0.5))
@@ -129,7 +133,7 @@ func _draw() -> void:
 			var oc := Color(1, 0.9, 0.4) if nxt and !locked else (Color(accent, dim) if owned else Color(0.4, 0.4, 0.5))
 			_gem(Vector2(gx + i * gr * 2.2, gy), gr, gc, oc, owned)
 	if locked:
-		draw_string(font, Vector2(0, art.position.y + art.size.y * 0.55), "LOCKED", HORIZONTAL_ALIGNMENT_CENTER, w, int(clampf(13.0 * u, 9.0, 20.0)), Color(1, 0.6, 0.5, 0.95))
+		draw_rect(Rect2(0, 0, w, h), Color(0, 0, 0, 0.25))
 	if _hover:
 		draw_rect(Rect2(0, 0, w, h), Color(1, 1, 1, 0.07))
 	if selected:
