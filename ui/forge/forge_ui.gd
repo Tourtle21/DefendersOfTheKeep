@@ -8,6 +8,7 @@ var fuse_button: Button
 var awaken_button: Button
 var journal: Label
 var numbers: RichTextLabel
+var recipes_box: HFlowContainer
 var selected: Array = []        # slot indexes into the hud item slots
 
 func _ready() -> void:
@@ -38,6 +39,16 @@ func _ready() -> void:
 	list_box.alignment = BoxContainer.ALIGNMENT_CENTER
 	list_box.add_theme_constant_override("separation", 14)
 	box.add_child(list_box)
+	var rhead := Label.new()
+	rhead.text = "Recipes you know  (green = you carry both and can forge it: click to forge, yellow = you carry both but can't pay yet, grey = missing a weapon)"
+	rhead.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(rhead)
+	recipes_box = HFlowContainer.new()
+	recipes_box.alignment = FlowContainer.ALIGNMENT_CENTER
+	recipes_box.custom_minimum_size = Vector2(980, 0)
+	recipes_box.add_theme_constant_override("h_separation", 8)
+	recipes_box.add_theme_constant_override("v_separation", 8)
+	box.add_child(recipes_box)
 	info_label = Label.new()
 	info_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	info_label.custom_minimum_size = Vector2(620, 70)
@@ -114,7 +125,43 @@ func _refresh() -> void:
 		b.modulate = Color(1, 1, 0.5) if i in selected else Color.WHITE
 		b.pressed.connect(_toggle.bind(i))
 		list_box.add_child(b)
+	_refresh_recipes()
 	_update_info()
+
+## slot index of a carried weapon by id, skipping `not_slot`
+func _slot_of(id: String, not_slot := -1) -> int:
+	var slots = _hud().item_slots.get_children()
+	for i in slots.size():
+		if i != not_slot and slots[i].has_item and _item_id(slots[i].current_item) == id:
+			return i
+	return -1
+
+func _refresh_recipes() -> void:
+	for c in recipes_box.get_children():
+		recipes_box.remove_child(c)
+		c.queue_free()
+	for key in Fusion.RECIPES:
+		var r: Dictionary = Fusion.RECIPES[key]
+		if !Game.weapon_known(r.id):
+			continue
+		var p: PackedStringArray = key.split("+")
+		var a := _slot_of(p[0])
+		var b := _slot_of(p[1], a)
+		var carry := a >= 0 and b >= 0
+		var ok := carry and Game.fusion_tier_unlocked(r.tier) and Game.can_afford(Fusion.cost(r.tier))
+		var rb := Button.new()
+		rb.text = "%s + %s -> %s" % [Fusion.display_name(p[0]), Fusion.display_name(p[1]), Fusion.display_name(r.id)]
+		rb.custom_minimum_size = Vector2(0, 36)
+		rb.modulate = Color(0.5, 1.0, 0.5) if ok else (Color(1, 1, 0.5) if carry else Color(0.55, 0.55, 0.55))
+		if carry:
+			rb.pressed.connect(func():
+				selected = [a, b]
+				_refresh()
+				if ok:
+					fuse())
+		else:
+			rb.disabled = true
+		recipes_box.add_child(rb)
 
 ## Recipes you have discovered (previewed or fused) are listed; the rest stay hidden.
 func _refresh_journal() -> void:
@@ -273,7 +320,10 @@ func fuse() -> void:
 		return
 	Game.pay(cost)
 	var hud = _hud()
-	for i in selected:
+	var gone := selected.duplicate()
+	gone.sort()
+	gone.reverse()                 # remove the higher slot first so the other index stays valid
+	for i in gone:
 		hud.remove_slot(i)
 	var new_info := Game.weapon_info(Game.make_weapon_entry(r.id, 0, Game.weapon_twist(r.id, r.tier)))
 	var player = get_tree().get_first_node_in_group("player")
