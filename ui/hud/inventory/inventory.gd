@@ -44,7 +44,7 @@ func _set_badge(item) -> void:
 		badge.add_theme_color_override("font_outline_color", Color.BLACK)
 		badge.add_theme_constant_override("outline_size", 6)
 		add_child(badge)
-	var weapon := id != "" and Fusion.NAMES.has(id) and item.get("type", "") == "item"
+	var weapon: bool = id != "" and Fusion.NAMES.has(id) and item.get("type", "") == "item"
 	badge.visible = weapon
 	if weapon:
 		badge.text = "T%d" % Game.weapon_tier_of(entry)
