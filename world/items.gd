@@ -2,6 +2,212 @@ class_name ItemInfo
 extends Resource
 
 @export var items = {
+	"scimitar": {
+		"path": "res://items/weapons/t1x/scimitar.tscn",
+		"texture": "res://items/weapons/icons/scimitar.png",
+		"type": "item"
+	},
+	"frostglaive": {
+		"path": "res://items/weapons/t1x/frostglaive.tscn",
+		"texture": "res://items/weapons/icons/frostglaive.png",
+		"type": "item"
+	},
+	"emberflail": {
+		"path": "res://items/weapons/t1x/emberflail.tscn",
+		"texture": "res://items/weapons/icons/emberflail.png",
+		"type": "item"
+	},
+	"bogstaff": {
+		"path": "res://items/weapons/t1x/bogstaff.tscn",
+		"texture": "res://items/weapons/icons/bogstaff.png",
+		"type": "item"
+	},
+	"crystalwand": {
+		"path": "res://items/weapons/t1x/crystalwand.tscn",
+		"texture": "res://items/weapons/icons/crystalwand.png",
+		"type": "item"
+	},
+	"sultanguard": {
+		"path": "res://items/weapons/t2/sultanguard.tscn",
+		"texture": "res://items/weapons/icons/sultanguard.png",
+		"type": "item",
+		"tier": 2
+	},
+	"rimelance": {
+		"path": "res://items/weapons/t2/rimelance.tscn",
+		"texture": "res://items/weapons/icons/rimelance.png",
+		"type": "item",
+		"tier": 2
+	},
+	"magmamaul": {
+		"path": "res://items/weapons/t2/magmamaul.tscn",
+		"texture": "res://items/weapons/icons/magmamaul.png",
+		"type": "item",
+		"tier": 2
+	},
+	"witchstaff": {
+		"path": "res://items/weapons/t2/witchstaff.tscn",
+		"texture": "res://items/weapons/icons/witchstaff.png",
+		"type": "item",
+		"tier": 2
+	},
+	"prismstaff": {
+		"path": "res://items/weapons/t2/prismstaff.tscn",
+		"texture": "res://items/weapons/icons/prismstaff.png",
+		"type": "item",
+		"tier": 2
+	},
+	"dragoonpike": {
+		"path": "res://items/weapons/t3/dragoonpike.tscn",
+		"texture": "res://items/weapons/icons/dragoonpike.png",
+		"type": "item",
+		"tier": 3
+	},
+	"soulreaper": {
+		"path": "res://items/weapons/t3/soulreaper.tscn",
+		"texture": "res://items/weapons/icons/soulreaper.png",
+		"type": "item",
+		"tier": 3
+	},
+	"earthshaker": {
+		"path": "res://items/weapons/t3/earthshaker.tscn",
+		"texture": "res://items/weapons/icons/earthshaker.png",
+		"type": "item",
+		"tier": 3
+	},
+	"starfall": {
+		"path": "res://items/weapons/t3/starfall.tscn",
+		"texture": "res://items/weapons/icons/starfall.png",
+		"type": "item",
+		"tier": 3
+	},
+	"worldbreaker": {
+		"path": "res://items/weapons/t3/worldbreaker.tscn",
+		"texture": "res://items/weapons/icons/worldbreaker.png",
+		"type": "item",
+		"tier": 4
+	},
+	"iron": {
+		"texture": "res://collectables/sector/iron.png",
+		"type": "resource"
+	},
+	"frost": {
+		"texture": "res://collectables/sector/frost.png",
+		"type": "resource"
+	},
+	"ember": {
+		"texture": "res://collectables/sector/ember.png",
+		"type": "resource"
+	},
+	"moss": {
+		"texture": "res://collectables/sector/moss.png",
+		"type": "resource"
+	},
+	"gem": {
+		"texture": "res://collectables/sector/gem.png",
+		"type": "resource"
+	},
+	"lance": {
+		"path": "res://items/weapons/t2/lance.tscn",
+		"texture": "res://items/weapons/icons/lance.png",
+		"type": "item",
+		"tier": 2
+	},
+	"warpbow": {
+		"path": "res://items/weapons/t2/warpbow.tscn",
+		"texture": "res://items/weapons/icons/warpbow.png",
+		"type": "item",
+		"tier": 2
+	},
+	"chainfangs": {
+		"path": "res://items/weapons/t2/chainfangs.tscn",
+		"texture": "res://items/weapons/icons/chainfangs.png",
+		"type": "item",
+		"tier": 2
+	},
+	"bulwark": {
+		"path": "res://items/weapons/t2/bulwark.tscn",
+		"texture": "res://items/weapons/icons/bulwark.png",
+		"type": "item",
+		"tier": 2
+	},
+	"knightblade": {
+		"path": "res://items/weapons/t2/knightblade.tscn",
+		"texture": "res://items/weapons/icons/knightblade.png",
+		"type": "item",
+		"tier": 2
+	},
+	"quakepick": {
+		"path": "res://items/weapons/t2/quakepick.tscn",
+		"texture": "res://items/weapons/icons/quakepick.png",
+		"type": "item",
+		"tier": 2
+	},
+	"tempest": {
+		"path": "res://items/weapons/t2/tempest.tscn",
+		"texture": "res://items/weapons/icons/tempest.png",
+		"type": "item",
+		"tier": 2
+	},
+	"rapier": {
+		"path": "res://items/weapons/t2/rapier.tscn",
+		"texture": "res://items/weapons/icons/rapier.png",
+		"type": "item",
+		"tier": 2
+	},
+	"spellblade": {
+		"path": "res://items/weapons/t2/spellblade.tscn",
+		"texture": "res://items/weapons/icons/spellblade.png",
+		"type": "item",
+		"tier": 2
+	},
+	"stormbow": {
+		"path": "res://items/weapons/t2/stormbow.tscn",
+		"texture": "res://items/weapons/icons/stormbow.png",
+		"type": "item",
+		"tier": 3
+	},
+	"juggernaut": {
+		"path": "res://items/weapons/t2/juggernaut.tscn",
+		"texture": "res://items/weapons/icons/juggernaut.png",
+		"type": "item",
+		"tier": 3
+	},
+	"spear": {
+		"path": "res://items/weapons/spear.tscn",
+		"texture": "res://items/weapons/icons/spear.png",
+		"type": "item"
+	},
+	"hammer": {
+		"path": "res://items/weapons/hammer.tscn",
+		"texture": "res://items/weapons/icons/hammer.png",
+		"type": "item"
+	},
+	"bow": {
+		"path": "res://items/weapons/bow.tscn",
+		"texture": "res://items/weapons/icons/bow.png",
+		"type": "item"
+	},
+	"daggers": {
+		"path": "res://items/weapons/daggers.tscn",
+		"texture": "res://items/weapons/icons/daggers.png",
+		"type": "item"
+	},
+	"whip": {
+		"path": "res://items/weapons/whip.tscn",
+		"texture": "res://items/weapons/icons/whip.png",
+		"type": "item"
+	},
+	"shield": {
+		"path": "res://items/weapons/shield.tscn",
+		"texture": "res://items/weapons/icons/shield.png",
+		"type": "item"
+	},
+	"staff": {
+		"path": "res://items/weapons/staff.tscn",
+		"texture": "res://items/weapons/icons/staff.png",
+		"type": "item"
+	},
 	"sword": {
 		"path": "res://items/tools/sword/sword.tscn",
 		"texture": "res://items/tools/sword/excalibur_.png",

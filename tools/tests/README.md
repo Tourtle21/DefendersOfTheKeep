@@ -1,0 +1,47 @@
+# Scripted playtests
+
+These drive the real game headlessly-ish (a window opens) and print results; some save
+screenshots to `user://` (on macOS: `~/Library/Application Support/Godot/app_userdata/Defenders Of The Keep/`).
+
+Run one with:
+
+    /path/to/Godot --path . --script res://tools/tests/<name>.gd
+
+They use a throwaway save file (`user://test_save.json`) so your real Shards are untouched.
+Known quirks: do not name `Game`-dependent `class_name`s inside these files (compile order in
+`--script` mode); key events cannot be injected, so keyboard handlers are called directly.
+
+| script | checks |
+|---|---|
+| kits.gd | left/right/dash actions of the nine base weapons |
+| tiers.gd | hold-to-aim rule, the Forge flow, every fused weapon runs all four actions |
+| sectors.gd | boss chain through all six sectors, gates, iron mining, final boss and victory |
+| newcards.gd | the five sector cards, resource costs, draft pool unlocks |
+| waves.gd | wave growth, multi-sector spawns, turrets (fire, empty, reload, click) |
+| newenemies.gd | spitter projectiles, splitter bursting, wave 6 composition |
+| runend.gd | game-over, Shards, unlock shop, persistence |
+| hitstop.gd, feedback.gd | hit-stop, damage numbers, hurt signal |
+| music.gd, pause.gd | music themes and switching, pause menu and volume |
+| radar.gd | wide view, minimap, chest markers (screenshot) |
+
+## Two-process network test
+
+    Godot --headless --path . --script res://tools/tests/net_host.gd &    # starts hosting, waits ~20s
+    sleep 5
+    Godot --headless --path . --script res://tools/tests/net_client.gd    # joins, moves, attacks
+
+The client prints what it received; the host prints the avatar movement and the dummy's health.
+
+New in the progression/building pass: `build.gd` (build cards, tiers, guards, charm), `weapon_shop.gd`
+(Shard weapon/fusion unlocks, start weapon), `weapon_tiers.gd` (tier gating + awakening),
+`rewards.gd` (end-of-run draw, card tiers, upgrades; needs a window for its two screenshots),
+`ability_hud.gd` (screenshot of the cooldown HUD; needs a window).
+
+Multiplayer tests (see MULTIPLAYER.md): `net_coverage.gd` (single process; fails if a gameplay node is not replicated),
+`rep_host.gd` + `rep_client.gd` (replication end to end; start the host, wait ~6 s, start one or more clients),
+`lan_host.gd` + `lan_scan.gd` (LAN discovery), and the older `net_host*/net_client*` pairs.
+
+Progression and loot: `tool_tiers.gd` (Sword and Pickaxe tier ladder, chest pool), `chest_quality.gd` (chest and rainbow sheep
+tier odds by level, tiered drafts), `progression_sim.gd` (a new player over many runs: how fast cards, tiers and weapons open up),
+`tool_shots.gd` (window; HUD padlocks and the tiered draft), `net_host_shots.gd` + `net_client_shots.gd` (window client screenshot
+of buildings with feeding bars). Delete stale `user://rep_host_*.json` before rep runs (the host test now does it itself).

@@ -17,6 +17,13 @@ func equip(item) -> void:
 	if current_item.type == "item":
 		toggle_active()
 
+func unequip() -> void:
+	if is_active:
+		toggle_active()
+	has_item = false
+	current_item = null
+	$LeftHand.visible = false
+
 func toggle_active() -> void:
 	if (is_active):
 		is_active = false

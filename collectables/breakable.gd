@@ -8,6 +8,13 @@ var is_taking_damage = false
 
 var collectable_path = "res://collectables/collectable.tscn"
 
+func _ready() -> void:
+	add_to_group("breakable")
+	add_to_group("net")
+	add_to_group("nav_obstacle")
+	Game.nav_changed.emit()
+	tree_exiting.connect(func(): Game.nav_changed.emit())
+
 func take_damage(position) -> void:
 	is_taking_damage = true
 	health -= 1
@@ -25,7 +32,8 @@ func drop_items() -> void:
 			var collectable = collectable_scene.instantiate()
 			collectable.position = position + Vector2(randf_range(-10, 10), randf_range(-10, 10))
 			collectable.item_type = drop_type
-			get_parent().get_parent().add_child(collectable)
+			# deferred: we are called from a physics callback, where adding Area2Ds is not allowed
+			get_parent().get_parent().add_child.call_deferred(collectable)
 
 func _on_animation_player_animation_finished(anim_name: StringName) -> void:
 	$AnimationPlayer.play("RESET")

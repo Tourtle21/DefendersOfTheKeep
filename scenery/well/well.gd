@@ -7,6 +7,4 @@ func deactive():
 	$Crystal.deactive()
 
 func return_crystal():
-	$Crystal.being_held = false
-	$Crystal.dropped = false
-	$Crystal.position = Vector2(0, $Crystal.starting_position)
+	$Crystal.return_home()

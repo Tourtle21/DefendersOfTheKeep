@@ -1,0 +1,115 @@
+[gd_scene load_steps=10 format=3]
+
+[ext_resource type="Texture2D" uid="uid://wcjnv5ehjf1j" path="res://enemies/blobbert/running_blob.png" id="1_65yv6"]
+[ext_resource type="Script" path="res://enemies/bog_lurker/bog_lurker.gd" id="1_ebrrg"]
+[ext_resource type="PackedScene" uid="uid://ct3ybaw6glffy" path="res://hitboxes/hitbox.tscn" id="3_a6ht3"]
+[ext_resource type="AudioStream" uid="uid://dm6drq54bje88" path="res://enemies/blobbert/take_damage.ogg" id="4_sejs2"]
+
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_tssu1"]
+radius = 3.0
+height = 10.0
+
+[sub_resource type="Animation" id="Animation_3xy38"]
+length = 0.001
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath(".:frame")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [3]
+}
+
+[sub_resource type="Animation" id="Animation_hd34m"]
+resource_name = "walking"
+loop_mode = 1
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath(".:frame")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.25, 0.5, 0.75),
+"transitions": PackedFloat32Array(1, 1, 1, 1),
+"update": 1,
+"values": [0, 1, 2, 3]
+}
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_tprle"]
+_data = {
+&"RESET": SubResource("Animation_3xy38"),
+&"walking": SubResource("Animation_hd34m")
+}
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_021hn"]
+size = Vector2(12, 8)
+
+[node name="Blobbert" type="CharacterBody2D" groups=["enemy"]]
+collision_layer = 2
+collision_mask = 159
+motion_mode = 1
+wall_min_slide_angle = 0.0
+script = ExtResource("1_ebrrg")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+rotation = 1.5708
+shape = SubResource("CapsuleShape2D_tssu1")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+y_sort_enabled = true
+texture_filter = 1
+position = Vector2(1, -3)
+texture = ExtResource("1_65yv6")
+hframes = 2
+vframes = 2
+frame = 3
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="."]
+root_node = NodePath("../Sprite2D")
+libraries = {
+&"": SubResource("AnimationLibrary_tprle")
+}
+
+[node name="DamageTimer" type="Timer" parent="."]
+wait_time = 0.5
+
+[node name="Hitbox" parent="." instance=ExtResource("3_a6ht3")]
+position = Vector2(1, -3)
+collision_mask = 1
+
+[node name="CollisionShape2D2" type="CollisionShape2D" parent="Hitbox"]
+position = Vector2(-1, 3)
+shape = SubResource("RectangleShape2D_021hn")
+
+[node name="ColorRect" type="ColorRect" parent="."]
+offset_left = -9.0
+offset_top = -16.0
+offset_right = 13.0
+offset_bottom = -11.0
+color = Color(0, 0, 0, 1)
+
+[node name="Health" type="ColorRect" parent="ColorRect"]
+layout_mode = 0
+offset_left = 1.0
+offset_top = 1.0
+offset_right = 21.0
+offset_bottom = 4.0
+color = Color(1, 0, 0, 1)
+
+[node name="TakeDamage" type="AudioStreamPlayer" parent="."]
+stream = ExtResource("4_sejs2")
+volume_db = -15.0
+pitch_scale = 3.0
+
+[node name="NavigationAgent2D" type="NavigationAgent2D" parent="."]
+
+[node name="NavigationTimer" type="Timer" parent="."]
+wait_time = 0.1
+autostart = true
+
+[connection signal="timeout" from="NavigationTimer" to="." method="_on_navigation_timer_timeout"]

@@ -7,15 +7,17 @@ func _input(event: InputEvent) -> void:
 		entered = !entered
 		if entered:
 			get_parent().get_parent().get_node("Player").is_in_tower = true
+			Game.enter_base(get_parent().get_parent().get_node("Player"))
 			get_parent().get_parent().get_node("Player").z_index = 1
 			get_parent().get_parent().get_node("Player").position = global_position - Vector2(0, 10)
-			get_parent().get_parent().get_node("Player").get_node("Camera2D").zoom = Vector2(3, 3)
+			get_parent().get_parent().get_node("Player").base_zoom = 2.0
 			get_parent().get_parent().get_node("Player").get_node("Camera2D").position += Vector2(0, 100)
 		else:
 			get_parent().get_parent().get_node("Player").is_in_tower = false
+			Game.exit_base(get_parent().get_parent().get_node("Player"))
 			get_parent().get_parent().get_node("Player").position = global_position + Vector2(0, 40)
 			get_parent().get_parent().get_node("Player").z_index = 0
-			get_parent().get_parent().get_node("Player").get_node("Camera2D").zoom = Vector2(5, 5)
+			get_parent().get_parent().get_node("Player").base_zoom = 5.0
 			get_parent().get_parent().get_node("Player").get_node("Camera2D").position += Vector2(0, -100)
 		get_parent().get_node("Sprite2D2").visible = entered
 		get_parent().get_node("CollisionShape2D2").disabled = !entered
