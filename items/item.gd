@@ -82,7 +82,6 @@ func use_ability() -> void:
 				WeaponFx.spawn(world, "ring", pos, Color(1, 1, 1), {"radius": 34.0 * area(), "life": 0.25})
 				for e in WeaponUtil.enemies_in_circle(get_tree(), pos, 34.0 * area()):
 					WeaponUtil.hit(e, 2.0, pos, 160.0)
-				WeaponUtil.hit_breakables(get_tree(), pos, 34.0 * area())
 				player.shake(1.0, 0.1)
 				await get_tree().create_timer(0.3).timeout
 		"pickaxe":
@@ -147,7 +146,6 @@ func use_dash() -> void:
 			WeaponFx.spawn(world, "arc", pos, Color(1, 1, 1), {"radius": 28.0, "dir": aim, "half_angle": 1.1, "life": 0.18})
 			for e in WeaponUtil.enemies_in_arc(get_tree(), pos, aim, 28.0, 65.0):
 				WeaponUtil.hit(e, 2.5, pos, 200.0)
-			WeaponUtil.hit_breakables(get_tree(), pos + aim * 14.0, 20.0)
 		"pickaxe":
 			# Dash-Mine: lunge forward breaking whatever is in the way
 			_dash_cd = dash_cooldown
