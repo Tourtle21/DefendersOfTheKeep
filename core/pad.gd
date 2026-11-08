@@ -45,6 +45,23 @@ func _ready() -> void:
 	_art.draw.connect(_draw_cursor)
 	layer.add_child(_art)
 
+func _notification(what: int) -> void:
+	# Never leave the OS mouse hidden or a trigger click held when the game closes.
+	if what == NOTIFICATION_WM_CLOSE_REQUEST or what == NOTIFICATION_PREDELETE:
+		_release_triggers()
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	# Switching to another app (the terminal, the editor): hand the mouse back with the normal cursor,
+	# and take the game cursor back when the window is focused again.
+	elif what == NOTIFICATION_APPLICATION_FOCUS_OUT or what == NOTIFICATION_WM_WINDOW_FOCUS_OUT:
+		_release_triggers()
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+		Input.set_custom_mouse_cursor(null)
+	elif what == NOTIFICATION_APPLICATION_FOCUS_IN or what == NOTIFICATION_WM_WINDOW_FOCUS_IN:
+		if !using_pad and Game.world != null:
+			Input.set_custom_mouse_cursor(load("res://ui/cursors/aim_cursor.png"), 0, Vector2(16, 16))
+		else:
+			Input.mouse_mode = Input.MOUSE_MODE_HIDDEN if using_pad else Input.MOUSE_MODE_VISIBLE
+
 # ---------- bindings ----------
 
 func _bind(action: String, ev: InputEvent) -> void:
