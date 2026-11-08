@@ -11,7 +11,7 @@ var stats_label: Label
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	layer = 40
+	layer = 21      # under the collection, codex and skill screens (layer 22) so they open on top
 	get_tree().paused = true
 	root_ctl = Control.new()
 	root_ctl.set_anchors_preset(Control.PRESET_FULL_RECT)
