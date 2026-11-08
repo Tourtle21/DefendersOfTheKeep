@@ -11,80 +11,83 @@ var numbers: RichTextLabel
 var recipes_box: HFlowContainer
 var selected: Array = []        # slot indexes into the hud item slots
 
+const UiKit = preload("res://ui/cards/ui_kit.gd")
+const TierCard = preload("res://ui/cards/tier_card.gd")
+
 func _ready() -> void:
 	add_to_group("forge_ui")
 	layer = 8
-	root_ctl = Control.new()
-	root_ctl.set_anchors_preset(Control.PRESET_FULL_RECT)
-	root_ctl.mouse_filter = Control.MOUSE_FILTER_STOP
-	root_ctl.visible = false
-	add_child(root_ctl)
-	var dim := ColorRect.new()
-	dim.color = Color(0, 0, 0, 0.65)
-	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
-	dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	root_ctl.add_child(dim)
-	var box := VBoxContainer.new()
-	box.set_anchors_preset(Control.PRESET_CENTER)
-	box.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	box.grow_vertical = Control.GROW_DIRECTION_BOTH
-	box.add_theme_constant_override("separation", 14)
-	root_ctl.add_child(box)
-	var title := Label.new()
-	title.text = "Forge  -  two different weapons fuse into a new one; two identical copies combine into a higher tier"
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 24)
-	box.add_child(title)
+	var sc := UiKit.screen(self, "Forge", func(): root_ctl.visible = false,
+		"Pick two weapons, then press the button.")
+	root_ctl = sc.root
+	sc.right.text = ""
+	var top := HBoxContainer.new()
+	top.add_theme_constant_override("separation", 12)
+	sc.body.add_child(top)
+	var left := UiKit.panel()
+	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	top.add_child(left)
+	var lv := VBoxContainer.new()
+	lv.add_theme_constant_override("separation", 8)
+	left.add_child(lv)
+	lv.add_child(UiKit.heading("1. Your weapons"))
 	list_box = HBoxContainer.new()
-	list_box.alignment = BoxContainer.ALIGNMENT_CENTER
-	list_box.add_theme_constant_override("separation", 14)
-	box.add_child(list_box)
-	var rhead := Label.new()
-	rhead.text = "Recipes you know  (green = you carry both and can forge it: click to forge, yellow = you carry both but can't pay yet, grey = missing a weapon)"
-	rhead.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	box.add_child(rhead)
-	recipes_box = HFlowContainer.new()
-	recipes_box.alignment = FlowContainer.ALIGNMENT_CENTER
-	recipes_box.custom_minimum_size = Vector2(980, 0)
-	recipes_box.add_theme_constant_override("h_separation", 8)
-	recipes_box.add_theme_constant_override("v_separation", 8)
-	box.add_child(recipes_box)
+	list_box.add_theme_constant_override("separation", 12)
+	lv.add_child(list_box)
+	var right := UiKit.panel(Color(0.08, 0.08, 0.14))
+	right.custom_minimum_size = Vector2(430, 0)
+	top.add_child(right)
+	var rv := VBoxContainer.new()
+	rv.add_theme_constant_override("separation", 8)
+	right.add_child(rv)
+	rv.add_child(UiKit.heading("2. Result"))
 	info_label = Label.new()
-	info_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	info_label.custom_minimum_size = Vector2(620, 70)
+	info_label.custom_minimum_size = Vector2(400, 60)
 	info_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	box.add_child(info_label)
+	info_label.add_theme_font_size_override("font_size", 15)
+	rv.add_child(info_label)
 	numbers = RichTextLabel.new()
 	numbers.bbcode_enabled = true
 	numbers.fit_content = true
-	numbers.custom_minimum_size = Vector2(620, 0)
-	numbers.add_theme_font_size_override("normal_font_size", 15)
-	numbers.add_theme_font_size_override("bold_font_size", 15)
-	box.add_child(numbers)
-	journal = Label.new()
-	journal.add_theme_font_size_override("font_size", 12)
-	journal.add_theme_color_override("font_color", Color(0.8, 0.85, 1.0))
-	journal.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	box.add_child(journal)
+	numbers.add_theme_font_size_override("normal_font_size", 14)
+	numbers.add_theme_font_size_override("bold_font_size", 14)
+	rv.add_child(numbers)
+	var spacer := Control.new()
+	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	rv.add_child(spacer)
+	rv.add_child(UiKit.heading("3. Forge it"))
 	var row := HBoxContainer.new()
-	row.alignment = BoxContainer.ALIGNMENT_CENTER
-	row.add_theme_constant_override("separation", 20)
-	box.add_child(row)
+	row.add_theme_constant_override("separation", 12)
+	rv.add_child(row)
 	fuse_button = Button.new()
 	fuse_button.text = "Fuse"
-	fuse_button.custom_minimum_size = Vector2(160, 40)
+	fuse_button.custom_minimum_size = Vector2(150, 44)
 	fuse_button.pressed.connect(fuse)
 	row.add_child(fuse_button)
 	awaken_button = Button.new()
 	awaken_button.text = "Combine copies"
-	awaken_button.custom_minimum_size = Vector2(200, 40)
+	awaken_button.custom_minimum_size = Vector2(200, 44)
 	awaken_button.pressed.connect(awaken)
 	row.add_child(awaken_button)
-	var close := Button.new()
-	close.text = "Close"
-	close.custom_minimum_size = Vector2(120, 40)
-	close.pressed.connect(func(): root_ctl.visible = false)
-	row.add_child(close)
+	journal = Label.new()          # kept for the recipe notes; the recipe cards below show the same thing
+	journal.visible = false
+	rv.add_child(journal)
+	var bottom := UiKit.panel()
+	bottom.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	sc.body.add_child(bottom)
+	var bv := VBoxContainer.new()
+	bv.add_theme_constant_override("separation", 6)
+	bottom.add_child(bv)
+	bv.add_child(UiKit.heading("Recipes you know"))
+	var legend := Label.new()
+	legend.text = "Green: click to forge     Yellow: need more     Grey: missing weapon"
+	legend.add_theme_font_size_override("font_size", 13)
+	legend.add_theme_color_override("font_color", Color(0.75, 0.8, 0.9))
+	bv.add_child(legend)
+	recipes_box = HFlowContainer.new()
+	recipes_box.add_theme_constant_override("h_separation", 8)
+	recipes_box.add_theme_constant_override("v_separation", 8)
+	bv.add_child(recipes_box)
 
 func _hud():
 	return get_parent().get_node("Hud")
@@ -114,16 +117,16 @@ func _refresh() -> void:
 			continue
 		var id: String = _item_id(slots[i].current_item)
 		var entry: String = _entry_of(slots[i].current_item)
-		var b := Button.new()
-		b.custom_minimum_size = Vector2(150, 150)
 		var tw: String = Game.entry_twist(entry)
-		b.text = "%s\nTier %d%s" % [Fusion.display_name(id), Game.weapon_tier_of(entry), ("\n* " + Game.TWISTS[tw][0]) if tw != "" and Game.TWISTS.has(tw) else ""]
-		b.icon = _icon_of(slots[i].current_item.texture)
-		b.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		b.vertical_icon_alignment = VERTICAL_ALIGNMENT_TOP
-		b.expand_icon = false
-		b.modulate = Color(1, 1, 0.5) if i in selected else Color.WHITE
-		b.pressed.connect(_toggle.bind(i))
+		var b := TierCard.new()
+		var lines := []
+		if tw != "" and Game.TWISTS.has(tw):
+			lines.append("* " + Game.TWISTS[tw][0])
+		b.setup({"size": Vector2(124, 176), "title": Fusion.display_name(id), "icon": _icon_of(slots[i].current_item.texture),
+			"tier": Game.weapon_tier_of(entry), "max_tier": 6, "lines": lines,
+			"accent": Game.rarity_color(Game.weapon_rarity(id)), "footer": "PICKED" if i in selected else ""})
+		b.set_selected(i in selected)
+		b.pressed.connect(func(_c): _toggle(i))
 		list_box.add_child(b)
 	_refresh_recipes()
 	_update_info()
@@ -322,10 +325,10 @@ func _update_info() -> void:
 	if selected.size() == 1:
 		var e: String = _entries()[0]
 		var id := Game.entry_id(e)
-		info_label.text = "%s, tier %d. Pick a second copy of the same weapon and tier to combine them into tier %d, or a different weapon to fuse." % [Fusion.display_name(id), Game.weapon_tier_of(e), Game.weapon_tier_of(e) + 1]
+		info_label.text = "Now pick a second weapon."
 		return
 	if selected.size() < 2:
-		info_label.text = "Carry two weapons and pick both here. Costs gold from the keep (%d gold in the pool)." % Game.resources.gold
+		info_label.text = "Pick two weapons."
 		return
 	var es := _entries()
 	var ids := _selected_ids()
@@ -334,16 +337,15 @@ func _update_info() -> void:
 		return
 	var r := Fusion.recipe(ids[0], ids[1])
 	if r.is_empty():
-		info_label.text = "These two do not fuse. Try a different pairing."
+		info_label.text = "These two cannot fuse."
 		return
 	Game.note_recipe(Fusion.key(ids[0], ids[1]))
 	_refresh_journal()
 	if !Game.fusion_tier_unlocked(r.tier):
-		info_label.text = "%s is a Tier %d recipe you have not unlocked. Spend Shards on it after a run." % [Fusion.display_name(r.id), r.tier]
+		info_label.text = "%s: locked (buy Tier %d fusions)." % [Fusion.display_name(r.id), r.tier]
 		return
 	var cost: Dictionary = Fusion.cost(r.tier)
-	info_label.text = "%s  (Tier %d)  -  right click: %s\nCost: %s" % [
-		Fusion.display_name(r.id), r.tier, Fusion.TIER_ABILITY.get(r.id, ""), _cost_text(cost)]
+	info_label.text = "%s  (Tier %d)\nCost: %s" % [Fusion.display_name(r.id), r.tier, _cost_text(cost)]
 	fuse_button.disabled = !Game.can_afford(cost)
 	fuse_button.text = "Fuse"
 
@@ -351,21 +353,21 @@ func _update_info() -> void:
 func _info_combine(a: String, b: String) -> void:
 	awaken_button.visible = true
 	if Game.weapon_bonus(a) != Game.weapon_bonus(b):
-		info_label.text = "These copies are different tiers (%d and %d). Combine two of the same tier." % [Game.weapon_tier_of(a), Game.weapon_tier_of(b)]
+		info_label.text = "Tiers differ (%d and %d). Pick matching tiers." % [Game.weapon_tier_of(a), Game.weapon_tier_of(b)]
 		return
 	var id := Game.entry_id(a)
 	var result := Game.combine_weapons(a, b)
 	var t := Game.weapon_tier_of(a)
 	if result == "":
 		if t >= 6:
-			info_label.text = "%s is already at the maximum tier (6)." % Fusion.display_name(id)
+			info_label.text = "Max tier."
 		else:
-			info_label.text = "%s is at tier %d, as far as you can go for now. Buy Tier %d fusions with Shards after a run to go further." % [Fusion.display_name(id), t, Game.weapon_tier_cap() - 1]
+			info_label.text = "Tier %d is the limit for now." % t
 		return
 	var cost: Dictionary = Game.combine_cost(a)
 	var gained: String = Game.weapon_twist(id, t + 1)
 	var twist_note: String = ("  Gains the twist: " + Game.TWISTS[gained][0]) if gained != "" and Game.TWISTS.has(gained) else ""
-	info_label.text = "Combine two %s (tier %d) into one tier %d.  %s%s\nCost: %s" % [Fusion.display_name(id), t, t + 1, Fusion.TIER_TEXT[t + 1], twist_note, _cost_text(cost)]
+	info_label.text = "%s: tier %d -> %d%s\nCost: %s" % [Fusion.display_name(id), t, t + 1, twist_note, _cost_text(cost)]
 	awaken_button.disabled = !Game.can_afford(cost)
 	awaken_button.text = "Combine into tier %d" % (t + 1)
 	numbers.text = _weapon_numbers(Game.weapon_info(a), Game.weapon_bonus(a))

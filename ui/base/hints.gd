@@ -3,17 +3,17 @@ extends CanvasLayer
 ## and is remembered in Game.meta["hints_seen"]. Turn them off in the pause menu.
 
 const TIPS := {
-	"pickup": "Walk onto the sword or pickaxe on the grass and press Enter to pick it up.",
+	"pickup": "Walk onto the sword or pickaxe on the grass and press E to pick it up.",
 	"attack": "Left click attacks and Shift is a dash attack. The right-click ability unlocks at weapon tier 2 and Space (ultimate) at tier 3: raise tiers at the Forge. Tap to cast at the cursor, hold a second to aim.",
 	"gather": "Chop trees and mine rocks (left click) for sticks and stone, and kill enemies for gold.",
-	"tower": "You are carrying resources. Walk into a tower (Enter) to deposit them and use the keep.",
+	"tower": "You are carrying resources. Walk into a tower (E) to deposit them and use the keep.",
 	"cards": "In the keep: drag a card onto the map. It flies from the crystal, so aim ahead of moving enemies.",
-	"chest": "A chest appeared! Gold chests give a card draft, blue chests drop a weapon. Walk to it and press Enter.",
+	"chest": "A chest appeared! Gold chests give a card draft, blue chests drop a weapon. Walk to it and press E.",
 	"gold": "Enemies drop gold. Walk over the coins before they vanish, then deposit it in the keep.",
 	"wave": "A wave is coming. Defend the crystal: fight outside, and from the keep reload turrets (click a tower) and repair the keep.",
 	"forge": "Two weapons? Take them to the Forge (the anvil in the yard) to fuse a stronger one for gold.",
 	"build": "Build cards (walls, traps, sentries) cost materials, not mana, and stay on the map. Two of the same kind and tier next to each other merge into the next tier (tier 3 takes four).",
-	"generator": "A resource generator! Press Enter to activate it with carried gold. It fills with this biome's resource: come back to collect, or upgrade it.",
+	"generator": "A resource generator! Press E to activate it with carried gold. It fills with this biome's resource: come back to collect, or upgrade it.",
 	"biome": "A new biome opened. Its enemies have weaknesses: look for the pips above them (filled dot = weak to that element, grey square = armored).",
 	"crystal": "The crystal was stolen! The base is offline until you kill the thief, pick the crystal up and carry it back to the Well. If the thief reaches the edge you lose.",
 	"sheep": "A rainbow sheep! It runs when you come close and tires after a sprint. Catch it for gold and resources (it is the rainbow dot on the radar).",

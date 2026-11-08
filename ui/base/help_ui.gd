@@ -5,8 +5,8 @@ var panel: Control
 
 const TEXT := """DEFENDERS OF THE KEEP        (H to hide / show this)
 
-MOVE: WASD          INTERACT: Enter (pick up, tower, chest, Forge)
-SWITCH WEAPON: E          PAUSE / OPTIONS: P
+MOVE: WASD          INTERACT: E (pick up, tower, chest, Forge)
+SWITCH WEAPON: Q          PAUSE / OPTIONS: P
 
 OUTSIDE THE KEEP
   Left click ........ basic attack
@@ -36,7 +36,7 @@ COUNTERS (every enemy has a weakness)
 
 THE LOOP
   Gather stone and sticks, kill enemies for gold, open chests (cards or weapons).
-  Resource generators (one per biome) make that biome's resource: Enter to activate with
+  Resource generators (one per biome) make that biome's resource: E to activate with
   carried gold, collect everything stored, or upgrade (5 levels).
   Walk into a tower to deposit what you carry. The Forge (anvil in the yard)
   fuses two weapons of the same tier into a new one for gold.

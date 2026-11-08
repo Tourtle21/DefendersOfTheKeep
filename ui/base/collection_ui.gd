@@ -20,7 +20,7 @@ func _ready() -> void:
 	layer = 22
 	var sc := UiKit.screen(self, "Card Collection", func():
 		root_ctl.visible = false
-		closed.emit(), "Click a card to see its numbers. Dark cards are locked: buy them with Shards. Owned cards can be upgraded with Shards (each tier makes it stronger). The gems under a card show the tier you own.")
+		closed.emit(), "Click a card. Dark = locked. Gems = your tier.")
 	root_ctl = sc.root
 	shards_label = sc.right
 	var body := HBoxContainer.new()

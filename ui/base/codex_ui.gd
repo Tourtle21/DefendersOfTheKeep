@@ -32,7 +32,7 @@ func _ready() -> void:
 	_info = load("res://world/item_info.tres")
 	var sc := UiKit.screen(self, "Weapon Codex", func():
 		root_ctl.visible = false
-		closed.emit(), "Click a weapon card to read its moves, element and how to get it. Grey LOCKED cards can be unlocked with Shards (button on the right). The gems at the bottom of each card show its base tier.")
+		closed.emit(), "Click a weapon. Grey = locked.")
 	root_ctl = sc.root
 	shards_label = sc.right
 	var body := HBoxContainer.new()

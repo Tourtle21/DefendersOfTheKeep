@@ -26,7 +26,7 @@ func _ready() -> void:
 	layer = 22
 	var sc := UiKit.screen(self, "Skill Tree", func():
 		root_ctl.visible = false
-		closed.emit(), "Each card is a permanent upgrade bought with Shards. Click a card to buy its next level (gold border = you can afford it, grey = locked until the card above it is bought). The gems show levels owned. Point at a card to read what it does.")
+		closed.emit(), "Click a card to buy a level. Gold frame = you can afford it.")
 	root_ctl = sc.root
 	shards_label = sc.right
 	var area := UiKit.panel(UiKit.PANEL, UiKit.BORDER, 8.0)
