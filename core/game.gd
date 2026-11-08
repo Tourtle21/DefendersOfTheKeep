@@ -710,8 +710,16 @@ func roll_weapon_entry(id: String, lvl := -1) -> String:
 		t = 3
 	elif r < RARE_P4[lvl] + RARE_P3[lvl] + RARE_P2[lvl]:
 		t = 2
-	var bonus := clampi(t - 1, 0, maxi(0, weapon_tier_cap() - ft))
+	var bonus := clampi(t - 1, 0, maxi(0, weapon_drop_cap() - ft))
 	return make_weapon_entry(id, bonus, weapon_twist(id, ft + bonus))
+
+## Highest tier a weapon can drop at: tier 1 until you buy Tier 3 fusions (then 2), Tier 4 fusions (3), and so on.
+func weapon_drop_cap() -> int:
+	fix_meta()
+	var best := 2
+	for t in meta.fusion_tiers:
+		best = maxi(best, int(t))
+	return mini(6, best - 1)
 
 ## How far a weapon can be raised this run: 2 above the highest fusion tier you own
 ## (tier 2 recipes are free, so 4 at first; Tier 3 fusions give 5, Tier 4 fusions 6).
