@@ -32,6 +32,7 @@ var _input_t := 0.0
 var _prev := {}
 
 func _ready() -> void:
+	process_mode = Node.PROCESS_MODE_ALWAYS      # the join menu pauses the game; LAN scanning must keep running
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("join="):
 			cmd_join = a.substr(5)
