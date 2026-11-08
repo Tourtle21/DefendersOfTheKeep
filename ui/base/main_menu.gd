@@ -3,6 +3,7 @@ class_name MainMenu
 ## Start screen: your permanent unlocks (cards, weapons, skills, shards) and a Play button that starts the run.
 ## Shown once per launch; restarting a run goes straight back into the game.
 
+const UiKit = preload("res://ui/cards/ui_kit.gd")
 var root_ctl: Control
 var skills: SkillTreeUi
 var codex: CodexUi
@@ -16,6 +17,7 @@ func _ready() -> void:
 	root_ctl = Control.new()
 	root_ctl.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root_ctl.mouse_filter = Control.MOUSE_FILTER_STOP
+	root_ctl.theme = UiKit.make_theme()
 	add_child(root_ctl)
 	var dim := ColorRect.new()
 	dim.color = Color(0.03, 0.03, 0.08, 1.0)

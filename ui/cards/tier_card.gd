@@ -19,6 +19,7 @@ func setup(d: Dictionary):
 	size = custom_minimum_size
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	mouse_filter = Control.MOUSE_FILTER_STOP
+	focus_mode = Control.FOCUS_ALL          # controller / keyboard: move with the d-pad, confirm with A / Enter
 	if d.has("tooltip"):
 		tooltip_text = d.tooltip
 	queue_redraw()
@@ -31,8 +32,12 @@ func set_selected(on: bool) -> void:
 func _ready() -> void:
 	mouse_entered.connect(func(): _hover = true; queue_redraw())
 	mouse_exited.connect(func(): _hover = false; queue_redraw())
+	focus_entered.connect(queue_redraw)
+	focus_exited.connect(queue_redraw)
 	gui_input.connect(func(ev):
 		if ev is InputEventMouseButton and ev.pressed and ev.button_index == MOUSE_BUTTON_LEFT:
+			pressed.emit(self)
+		elif ev.is_action_pressed("ui_accept"):
 			pressed.emit(self))
 
 func _gem(center: Vector2, r: float, fill: Color, outline: Color, filled: bool) -> void:
@@ -136,5 +141,7 @@ func _draw() -> void:
 		draw_rect(Rect2(0, 0, w, h), Color(0, 0, 0, 0.25))
 	if _hover:
 		draw_rect(Rect2(0, 0, w, h), Color(1, 1, 1, 0.07))
+	if has_focus():
+		draw_rect(Rect2(-3, -3, w + 6, h + 6), Color(0.5, 0.85, 1.0), false, 3.0)
 	if selected:
 		draw_rect(Rect2(-1, -1, w + 2, h + 2), Color(1, 0.85, 0.25), false, 3.0)

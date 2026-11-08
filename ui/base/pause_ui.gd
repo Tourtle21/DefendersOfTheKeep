@@ -15,6 +15,7 @@ func _ready() -> void:
 	root_ctl.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root_ctl.mouse_filter = Control.MOUSE_FILTER_STOP
 	root_ctl.visible = false
+	root_ctl.theme = UiKit.make_theme()
 	add_child(root_ctl)
 	var dim := ColorRect.new()
 	dim.color = Color(0, 0, 0, 0.7)

@@ -21,6 +21,27 @@ static func panel(bg := PANEL, border := BORDER, margin := 12.0) -> PanelContain
 	p.add_theme_stylebox_override("panel", style(bg, border, margin))
 	return p
 
+## One theme for every menu: dark buttons with a gold edge on hover and focus, so plain buttons match the cards.
+static func make_theme() -> Theme:
+	var t := Theme.new()
+	var states := {"normal": [Color(0.14, 0.14, 0.22), Color(0.4, 0.34, 0.2)], "hover": [Color(0.2, 0.19, 0.3), GOLD],
+		"pressed": [Color(0.3, 0.26, 0.12), GOLD], "disabled": [Color(0.1, 0.1, 0.14), Color(0.25, 0.25, 0.3)], "focus": [Color(0, 0, 0, 0), GOLD]}
+	for k in states:
+		var sb := StyleBoxFlat.new()
+		sb.bg_color = states[k][0]
+		sb.border_color = states[k][1]
+		sb.set_border_width_all(2)
+		sb.set_corner_radius_all(6)
+		sb.content_margin_left = 12
+		sb.content_margin_right = 12
+		sb.content_margin_top = 6
+		sb.content_margin_bottom = 6
+		t.set_stylebox(k, "Button", sb)
+	t.set_color("font_color", "Button", Color(0.92, 0.92, 1.0))
+	t.set_color("font_hover_color", "Button", Color(1, 1, 1))
+	t.set_color("font_disabled_color", "Button", Color(0.5, 0.5, 0.58))
+	return t
+
 static func heading(text: String, size := 18) -> Label:
 	var l := Label.new()
 	l.text = text
@@ -35,6 +56,7 @@ static func screen(parent: Node, title: String, on_back: Callable, hint := "") -
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root.mouse_filter = Control.MOUSE_FILTER_STOP
 	root.visible = false
+	root.theme = make_theme()
 	parent.add_child(root)
 	var dim := ColorRect.new()
 	dim.color = BG

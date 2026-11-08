@@ -3,6 +3,7 @@ extends CanvasLayer
 ## the Shard shop that permanently unlocks cards, and Play again.
 
 const UiKit = preload("res://ui/cards/ui_kit.gd")
+const TierCard = preload("res://ui/cards/tier_card.gd")
 var root_ctl: Control
 var title: Label
 var summary: Label
@@ -30,6 +31,7 @@ func _ready() -> void:
 	root_ctl.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root_ctl.mouse_filter = Control.MOUSE_FILTER_STOP
 	root_ctl.visible = false
+	root_ctl.theme = UiKit.make_theme()
 	add_child(root_ctl)
 	var dim := ColorRect.new()
 	dim.color = Color(0.02, 0.02, 0.05, 0.97)
@@ -85,6 +87,7 @@ func _ready() -> void:
 	recipe_label.add_theme_font_size_override("font_size", 15)
 	box.add_child(recipe_label)
 	box.add_child(shop_row)                      # wraps onto more rows: no scrolling
+	box.add_child(UiKit.heading("Unlock with Shards", 16))
 	extras_row = HFlowContainer.new()                  # wraps onto more lines instead of running off the screen
 	extras_row.alignment = FlowContainer.ALIGNMENT_CENTER
 	extras_row.custom_minimum_size = Vector2(1000, 0)
@@ -533,31 +536,46 @@ func _refresh_extras() -> void:
 	for c in extras_row.get_children():
 		extras_row.remove_child(c)
 		c.queue_free()
+	var items: Dictionary = load("res://world/item_info.tres").items
 	for id in Game.WEAPON_UNLOCK_COSTS:
 		if id in Game.SECTOR_WEAPONS.values():
 			continue                      # sector weapons are unlocked in the weapon codex or from reward draws
 		var owned: bool = id in Game.meta.weapons
-		var b := Button.new()
-		b.text = "%s (owned)" % id.capitalize() if owned else "Weapon: %s - %d" % [id.capitalize(), Game.WEAPON_UNLOCK_COSTS[id]]
-		b.disabled = owned or Game.meta.shards < Game.WEAPON_UNLOCK_COSTS[id]
-		b.tooltip_text = "Adds this weapon to the chest pool for every run."
-		b.pressed.connect(func():
-			if Game.buy_weapon(id):
-				_refresh())
-		extras_row.add_child(b)
+		var price: int = Game.WEAPON_UNLOCK_COSTS[id]
+		var can: bool = !owned and Game.meta.shards >= price
+		var c := TierCard.new()
+		c.setup({"size": Vector2(92, 130), "title": Fusion.display_name(id), "icon": load(items[id].texture), "tier": 1 if owned else 0, "max_tier": 6,
+			"accent": Game.rarity_color(Game.weapon_rarity(id)), "locked": !owned and !can,
+			"footer": "OWNED" if owned else "%d shards" % price, "footer_color": Color(0.5, 1, 0.55) if owned else (Color(1, 0.9, 0.5) if can else Color(1, 0.55, 0.45)),
+			"tooltip": "Adds this weapon to the chest pool for every run."})
+		c.set_selected(can)
+		if can:
+			c.pressed.connect(func(_c):
+				if Game.buy_weapon(id):
+					_refresh())
+		extras_row.add_child(c)
 	for t in Game.FUSION_TIER_COSTS:
 		var have: bool = Game.fusion_tier_unlocked(t)
-		var b := Button.new()
-		b.text = "Tier %d fusions (owned)" % t if have else "Tier %d fusions - %d" % [t, Game.FUSION_TIER_COSTS[t]]
-		b.disabled = have or Game.meta.shards < Game.FUSION_TIER_COSTS[t] or (t > 3 and !Game.fusion_tier_unlocked(t - 1))
-		b.pressed.connect(func():
-			if Game.buy_fusion_tier(t):
-				_refresh())
-		extras_row.add_child(b)
+		var price: int = Game.FUSION_TIER_COSTS[t]
+		var gated: bool = t > 3 and !Game.fusion_tier_unlocked(t - 1)
+		var can: bool = !have and !gated and Game.meta.shards >= price
+		var c := TierCard.new()
+		c.setup({"size": Vector2(92, 130), "title": "Fusions T%d" % t, "glyph": "T%d" % t, "tier": t if have else t - 1, "max_tier": 4,
+			"lines": ["Forge tier %d" % t], "accent": Color(1.0, 0.6, 0.25), "locked": !have and !can,
+			"footer": "OWNED" if have else ("needs T%d" % (t - 1) if gated else "%d shards" % price),
+			"footer_color": Color(0.5, 1, 0.55) if have else (Color(1, 0.9, 0.5) if can else Color(1, 0.55, 0.45))})
+		c.set_selected(can)
+		if can:
+			c.pressed.connect(func(_c):
+				if Game.buy_fusion_tier(t):
+					_refresh())
+		extras_row.add_child(c)
 	var l := Label.new()
 	l.text = "Start with:"
+	l.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	extras_row.add_child(l)
 	var opt := OptionButton.new()
+	opt.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	var options: Array = Game.start_weapon_options()
 	for o in options:
 		opt.add_item(Fusion.display_name(String(o)))
