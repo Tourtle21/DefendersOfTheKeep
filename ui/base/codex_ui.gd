@@ -4,10 +4,12 @@ class_name CodexUi
 ## numbers, how to get it (chest pool, sector drop or fusion recipe), and what awakening
 ## adds. Weapons you have not met yet show as ???.
 
+const UiKit = preload("res://ui/cards/ui_kit.gd")
+const TierCard = preload("res://ui/cards/tier_card.gd")
 signal closed
 
 var root_ctl: Control
-var grid: GridContainer
+var grid_area: Control
 var detail: RichTextLabel
 var selected := "spear"
 var action_row: HBoxContainer
@@ -28,63 +30,38 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	layer = 22
 	_info = load("res://world/item_info.tres")
-	root_ctl = Control.new()
-	root_ctl.set_anchors_preset(Control.PRESET_FULL_RECT)
-	root_ctl.mouse_filter = Control.MOUSE_FILTER_STOP
-	root_ctl.visible = false
-	add_child(root_ctl)
-	var dim := ColorRect.new()
-	dim.color = Color(0.03, 0.03, 0.08, 0.97)
-	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
-	dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	root_ctl.add_child(dim)
-	var margin := MarginContainer.new()
-	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
-	for side in ["left", "right", "top", "bottom"]:
-		margin.add_theme_constant_override("margin_" + side, 24)
-	root_ctl.add_child(margin)
-	var outer := VBoxContainer.new()
-	outer.add_theme_constant_override("separation", 10)
-	margin.add_child(outer)
-	var top := HBoxContainer.new()
-	outer.add_child(top)
-	var title := Label.new()
-	title.text = "Weapon Codex"
-	title.add_theme_font_size_override("font_size", 28)
-	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	top.add_child(title)
-	var close := Button.new()
-	close.text = "Back"
-	close.custom_minimum_size = Vector2(110, 36)
-	close.pressed.connect(func():
+	var sc := UiKit.screen(self, "Weapon Codex", func():
 		root_ctl.visible = false
-		closed.emit())
-	top.add_child(close)
+		closed.emit(), "Click a weapon card to read its moves, element and how to get it. Grey LOCKED cards can be unlocked with Shards (button on the right). The gems at the bottom of each card show its base tier.")
+	root_ctl = sc.root
+	shards_label = sc.right
 	var body := HBoxContainer.new()
 	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	body.add_theme_constant_override("separation", 20)
-	outer.add_child(body)
-	var scroll := ScrollContainer.new()
-	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	body.add_child(scroll)
-	grid = GridContainer.new()
-	grid.columns = 6
-	grid.add_theme_constant_override("h_separation", 8)
-	grid.add_theme_constant_override("v_separation", 8)
-	scroll.add_child(grid)
-	var side := VBoxContainer.new()
-	side.add_theme_constant_override("separation", 10)
+	body.add_theme_constant_override("separation", 12)
+	sc.body.add_child(body)
+	var left := UiKit.panel()
+	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	left.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	body.add_child(left)
+	grid_area = Control.new()                       # the cards are placed to exactly fill this area
+	grid_area.clip_contents = true
+	left.add_child(grid_area)
+	var side := UiKit.panel(Color(0.08, 0.08, 0.14))
+	side.custom_minimum_size = Vector2(400, 0)
+	side.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	body.add_child(side)
+	var sv := VBoxContainer.new()
+	sv.add_theme_constant_override("separation", 10)
+	side.add_child(sv)
+	sv.add_child(UiKit.heading("Details"))
 	detail = RichTextLabel.new()
 	detail.bbcode_enabled = true
-	detail.custom_minimum_size = Vector2(430, 0)
-	detail.fit_content = true
-	detail.add_theme_font_size_override("normal_font_size", 15)
-	detail.add_theme_font_size_override("bold_font_size", 18)
-	side.add_child(detail)
+	detail.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	detail.add_theme_font_size_override("normal_font_size", 14)
+	detail.add_theme_font_size_override("bold_font_size", 17)
+	sv.add_child(detail)
 	action_row = HBoxContainer.new()
-	side.add_child(action_row)
+	sv.add_child(action_row)
 
 func open() -> void:
 	root_ctl.visible = true
@@ -105,27 +82,36 @@ func _known(id: String) -> bool:
 	return Game.weapon_known(id)       # a recipe is shown only once you have unlocked both ingredients
 
 func _refresh() -> void:
-	for c in grid.get_children():
-		grid.remove_child(c)
+	shards_label.text = "Shards: %d" % Game.meta.shards
+	for c in grid_area.get_children():
+		grid_area.remove_child(c)
 		c.queue_free()
-	for id in _weapon_ids():
+	var ids := _weapon_ids()
+	var area := get_viewport().get_visible_rect().size - Vector2(480, 150)
+	var fit := UiKit.fit_cards(ids.size(), area, 0.72, 8.0, 130.0)
+	var cols: int = fit.cols
+	var csize: Vector2 = fit.size
+	for n in ids.size():
+		var id: String = ids[n]
 		var known := _known(id)
-		var b := Button.new()
-		b.custom_minimum_size = Vector2(120, 78)
-		b.text = "%s\nT%d" % [Fusion.display_name(id) if known else "???", Fusion.tier_of(id)]
+		var locked: bool = known and (Game.WEAPON_UNLOCK_COSTS.has(id) or id in Game.LEGENDARY_WEAPONS) and !Game.weapon_unlocked(id)
+		var card := TierCard.new()
+		var lines := []
 		if known:
-			b.icon = load(_info.items[id].texture)
-			b.expand_icon = false
-			b.icon_alignment = HORIZONTAL_ALIGNMENT_LEFT
-		if known and (Game.WEAPON_UNLOCK_COSTS.has(id) or id in Game.LEGENDARY_WEAPONS) and !Game.weapon_unlocked(id):
-			b.modulate = Color(0.5, 0.5, 0.58)          # locked
-			b.text += "  (locked)"
-		if id == selected:
-			b.modulate = Color(1.2, 1.2, 0.7)
-		b.pressed.connect(func():
+			var inst = load(_info.items[id].path).instantiate()
+			if inst.attack_name != "":
+				lines.append(inst.attack_name)
+			inst.free()
+		card.setup({"size": csize, "title": Fusion.display_name(id) if known else "???", "icon": load(_info.items[id].texture) if known else null,
+			"glyph": "?" if !known else "", "tier": Fusion.tier_of(id), "max_tier": 6, "lines": lines, "locked": locked,
+			"accent": Game.rarity_color(Game.weapon_rarity(id)) if known else Color(0.4, 0.4, 0.5),
+			"footer": ("%d shards" % Game.WEAPON_UNLOCK_COSTS[id]) if locked and Game.WEAPON_UNLOCK_COSTS.has(id) else ""})
+		card.position = Vector2((n % cols) * (csize.x + 8.0), (n / cols) * (csize.y + 8.0))
+		card.set_selected(id == selected)
+		card.pressed.connect(func(_c):
 			selected = id
 			_refresh())
-		grid.add_child(b)
+		grid_area.add_child(card)
 	_show_detail(selected)
 
 func _where(id: String) -> String:
