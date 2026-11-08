@@ -2,10 +2,11 @@ extends CanvasLayer
 ## Shown when a run ends (you fall, or the crystal is stolen): what you earned,
 ## the Shard shop that permanently unlocks cards, and Play again.
 
+const UiKit = preload("res://ui/cards/ui_kit.gd")
 var root_ctl: Control
 var title: Label
 var summary: Label
-var shop_row: HBoxContainer
+var shop_row: Container
 var extras_row: Container
 var skills: SkillTreeUi
 var codex: CodexUi
@@ -35,12 +36,14 @@ func _ready() -> void:
 	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
 	dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root_ctl.add_child(dim)
+	var frame := UiKit.panel(Color(0.07, 0.07, 0.13), UiKit.BORDER, 16.0)
+	frame.set_anchors_preset(Control.PRESET_CENTER)
+	frame.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	frame.grow_vertical = Control.GROW_DIRECTION_BOTH
+	root_ctl.add_child(frame)
 	var box := VBoxContainer.new()
-	box.set_anchors_preset(Control.PRESET_CENTER)
-	box.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	box.grow_vertical = Control.GROW_DIRECTION_BOTH
-	box.add_theme_constant_override("separation", 16)
-	root_ctl.add_child(box)
+	box.add_theme_constant_override("separation", 12)
+	frame.add_child(box)
 	_box = box
 	title = Label.new()
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -71,20 +74,17 @@ func _ready() -> void:
 	pull_label.add_theme_font_size_override("font_size", 20)
 	pull_label.visible = false
 	box.add_child(pull_label)
-	shop_row = HBoxContainer.new()
-	shop_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	shop_row.add_theme_constant_override("separation", 14)
+	shop_row = HFlowContainer.new()
+	shop_row.alignment = FlowContainer.ALIGNMENT_CENTER
+	shop_row.add_theme_constant_override("h_separation", 14)
+	shop_row.add_theme_constant_override("v_separation", 10)
+	shop_row.custom_minimum_size = Vector2(1000, 0)
 	recipe_label = Label.new()
 	recipe_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	recipe_label.add_theme_color_override("font_color", Color("6df08a"))
 	recipe_label.add_theme_font_size_override("font_size", 15)
 	box.add_child(recipe_label)
-	var scroll := ScrollContainer.new()          # kept offers can be many: scroll sideways
-	scroll.custom_minimum_size = Vector2(1000, 300)
-	shop_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	scroll.add_child(shop_row)
-	box.add_child(scroll)
+	box.add_child(shop_row)                      # wraps onto more rows: no scrolling
 	extras_row = HFlowContainer.new()                  # wraps onto more lines instead of running off the screen
 	extras_row.alignment = FlowContainer.ALIGNMENT_CENTER
 	extras_row.custom_minimum_size = Vector2(1000, 0)
@@ -99,21 +99,25 @@ func _ready() -> void:
 	skills.closed.connect(func(): _refresh())
 	codex = CodexUi.new()
 	add_child(codex)
+	var menu_row := HBoxContainer.new()
+	menu_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	menu_row.add_theme_constant_override("separation", 10)
+	box.add_child(menu_row)
 	var codex_btn := Button.new()
-	codex_btn.text = "Weapon codex"
-	codex_btn.custom_minimum_size = Vector2(320, 40)
+	codex_btn.text = "Weapons"
+	codex_btn.custom_minimum_size = Vector2(150, 40)
 	codex_btn.pressed.connect(func(): codex.open())
-	box.add_child(codex_btn)
+	menu_row.add_child(codex_btn)
 	var skill_btn := Button.new()
-	skill_btn.text = "Skill tree (permanent upgrades)"
-	skill_btn.custom_minimum_size = Vector2(320, 40)
+	skill_btn.text = "Skills"
+	skill_btn.custom_minimum_size = Vector2(150, 40)
 	skill_btn.pressed.connect(func(): skills.open())
-	box.add_child(skill_btn)
+	menu_row.add_child(skill_btn)
 	var coll_btn := Button.new()
-	coll_btn.text = "Card collection (upgrade with Shards)"
-	coll_btn.custom_minimum_size = Vector2(320, 40)
+	coll_btn.text = "Cards"
+	coll_btn.custom_minimum_size = Vector2(150, 40)
 	coll_btn.pressed.connect(func(): collection.open())
-	box.add_child(coll_btn)
+	menu_row.add_child(coll_btn)
 	var again := Button.new()
 	again.text = "Play again"
 	again.custom_minimum_size = Vector2(200, 48)
@@ -152,10 +156,9 @@ func _refresh(earned: int = -1) -> void:
 		if !is_new:
 			kept.append(pe)
 	var shown: Array = _rewards + kept
-	reward_head.text = "Flip your cards! Reached level %d of 6: %d reward cards%s. New cards and weapons cost Shards to unlock, or convert them to save up. Offers and spare copies you leave here are kept for next time; tier-ups apply. A spare copy can be merged into your card (same tier makes the next tier), combined with another spare, or sold. Sold or full-vault copies: +%d Shards" % [
-		Game.level_reached(), _rewards.size(), (" and %d kept from before" % kept.size()) if kept.size() > 0 else "", total_conv]
+	reward_head.text = "Flip your reward cards  (level %d)%s" % [Game.level_reached(), (" + %d kept" % kept.size()) if kept.size() > 0 else ""]
 	if _rewards.is_empty():
-		reward_head.text = "No reward cards this time: get past the first wave to earn them (1 card at level 1, 3 at level 2, 5, 6, 7, 8, and 10 for beating the game)."
+		reward_head.text = "No rewards this time. Survive wave 1 to earn cards."
 	recipe_label.text = "\n".join(Game.recipe_log)
 	var unrevealed := 0
 	for opt in shown:
