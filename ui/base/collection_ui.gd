@@ -12,70 +12,44 @@ var shards_label: Label
 var selected := ""
 signal closed
 
+const UiKit = preload("res://ui/cards/ui_kit.gd")
+var grid_area: Control
+
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	layer = 22
-	root_ctl = Control.new()
-	root_ctl.set_anchors_preset(Control.PRESET_FULL_RECT)
-	root_ctl.mouse_filter = Control.MOUSE_FILTER_STOP
-	root_ctl.visible = false
-	add_child(root_ctl)
-	var dim := ColorRect.new()
-	dim.color = Color(0.03, 0.03, 0.08, 0.96)
-	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
-	dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	root_ctl.add_child(dim)
-	var margin := MarginContainer.new()
-	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
-	for side in ["left", "right", "top", "bottom"]:
-		margin.add_theme_constant_override("margin_" + side, 24)
-	root_ctl.add_child(margin)
-	var outer := VBoxContainer.new()
-	outer.add_theme_constant_override("separation", 10)
-	margin.add_child(outer)
-	var top := HBoxContainer.new()
-	outer.add_child(top)
-	var title := Label.new()
-	title.text = "Card Collection"
-	title.add_theme_font_size_override("font_size", 28)
-	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	top.add_child(title)
-	shards_label = Label.new()
-	shards_label.add_theme_font_size_override("font_size", 20)
-	shards_label.add_theme_color_override("font_color", Color("8fd8ff"))
-	top.add_child(shards_label)
-	var close := Button.new()
-	close.text = "Back"
-	close.custom_minimum_size = Vector2(110, 36)
-	close.pressed.connect(func():
+	var sc := UiKit.screen(self, "Card Collection", func():
 		root_ctl.visible = false
-		closed.emit())
-	top.add_child(close)
+		closed.emit(), "Click a card to see its numbers. Dark cards are locked: buy them with Shards. Owned cards can be upgraded with Shards (each tier makes it stronger). The gems under a card show the tier you own.")
+	root_ctl = sc.root
+	shards_label = sc.right
 	var body := HBoxContainer.new()
 	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	body.add_theme_constant_override("separation", 20)
-	outer.add_child(body)
-	var scroll := ScrollContainer.new()
-	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	body.add_child(scroll)
-	grid = GridContainer.new()
-	grid.columns = 6
-	grid.add_theme_constant_override("h_separation", 10)
-	grid.add_theme_constant_override("v_separation", 14)
-	scroll.add_child(grid)
-	var side := VBoxContainer.new()
-	side.custom_minimum_size = Vector2(330, 0)
-	side.add_theme_constant_override("separation", 10)
+	body.add_theme_constant_override("separation", 12)
+	sc.body.add_child(body)
+	var left := UiKit.panel()
+	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	left.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	body.add_child(left)
+	grid_area = Control.new()
+	grid_area.clip_contents = true
+	left.add_child(grid_area)
+	var side := UiKit.panel(Color(0.08, 0.08, 0.14))
+	side.custom_minimum_size = Vector2(380, 0)
+	side.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	body.add_child(side)
+	var sv := VBoxContainer.new()
+	sv.add_theme_constant_override("separation", 10)
+	side.add_child(sv)
+	sv.add_child(UiKit.heading("Selected card"))
 	detail = RichTextLabel.new()
 	detail.bbcode_enabled = true
-	detail.fit_content = true
-	detail.add_theme_font_size_override("normal_font_size", 16)
-	detail.add_theme_font_size_override("bold_font_size", 20)
-	side.add_child(detail)
+	detail.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	detail.add_theme_font_size_override("normal_font_size", 15)
+	detail.add_theme_font_size_override("bold_font_size", 19)
+	sv.add_child(detail)
 	action_row = HBoxContainer.new()
-	side.add_child(action_row)
+	sv.add_child(action_row)
 
 func open() -> void:
 	root_ctl.visible = true
@@ -85,28 +59,50 @@ func open() -> void:
 
 func _refresh() -> void:
 	shards_label.text = "Shards: %d" % Game.meta.shards
-	for c in grid.get_children():
-		grid.remove_child(c)
+	for c in grid_area.get_children():
+		grid_area.remove_child(c)
 		c.queue_free()
-	for id in Game.CARDS:
+	var ids: Array = Game.CARDS.keys()
+	var area: Vector2 = get_viewport().get_visible_rect().size - Vector2(470, 190)
+	var fit := UiKit.fit_cards(ids.size(), area - Vector2(0, 0), 0.6, 6.0, 96.0)
+	var cols: int = fit.cols
+	var csize: Vector2 = fit.size
+	var k := csize.x / CardView.SIZE.x
+	var gem_h := 16.0
+	var cell := Vector2(csize.x, csize.y + gem_h)
+	for n in ids.size():
+		var id: String = ids[n]
 		var owned: bool = Game.owns_card(id)
+		var tier: int = Game.card_tier(id) if owned else 0
 		var view := CardView.new()
-		view.setup(id, Game.card_tier(id) if owned else 1)
+		view.setup(id, maxi(tier, 1))
+		view.scale = Vector2(k, k)
 		var holder := Control.new()
-		holder.custom_minimum_size = CardView.SIZE
+		holder.custom_minimum_size = cell
+		holder.size = cell
+		holder.position = Vector2((n % cols) * (cell.x + 6.0), (n / cols) * (cell.y + 6.0))
 		holder.add_child(view)
-		holder.modulate = Color.WHITE if owned else Color(0.4, 0.4, 0.45)
+		view.modulate = Color.WHITE if owned else Color(0.4, 0.4, 0.45)
+		var gems := Label.new()
+		gems.text = "◆".repeat(tier) + "◇".repeat(Game.MAX_LEVEL - tier)
+		gems.position = Vector2(0, csize.y)
+		gems.size = Vector2(csize.x, gem_h)
+		gems.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		gems.add_theme_font_size_override("font_size", 10)
+		gems.add_theme_color_override("font_color", Color(1, 0.85, 0.3) if owned else Color(0.5, 0.5, 0.55))
+		holder.add_child(gems)
 		if id == selected:
 			var frame := ReferenceRect.new()
 			frame.border_color = Color("ffd23a")
 			frame.border_width = 3.0
 			frame.editor_only = false
-			frame.size = CardView.SIZE
+			frame.size = csize
+			frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			holder.add_child(frame)
 		view.pressed_down.connect(func(_v):
 			selected = id
 			_refresh())
-		grid.add_child(holder)
+		grid_area.add_child(holder)
 	_show_detail()
 
 func _num_block(id: String, tier: int, next_tier: int) -> String:
