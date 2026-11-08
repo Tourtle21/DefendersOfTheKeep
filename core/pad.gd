@@ -54,6 +54,8 @@ func _notification(what: int) -> void:
 	# and take the game cursor back when the window is focused again.
 	elif what == NOTIFICATION_APPLICATION_FOCUS_OUT or what == NOTIFICATION_WM_WINDOW_FOCUS_OUT:
 		_release_triggers()
+		for a in InputMap.get_actions():         # Cmd+Tab never delivers the key-up: let go of everything
+			Input.action_release(a)
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 		Input.set_custom_mouse_cursor(null)
 	elif what == NOTIFICATION_APPLICATION_FOCUS_IN or what == NOTIFICATION_WM_WINDOW_FOCUS_IN:
