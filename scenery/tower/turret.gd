@@ -13,6 +13,9 @@ var ammo := BASE_AMMO
 var turret_range := 135.0
 var fire_delay := 1.1
 var _cd := 0.5
+const ARROW_SPEED := 300.0
+const MUZZLE := Vector2(0, -22)       # where the arrow leaves the tower top
+var _seen := {}                       # enemy instance id -> recent [time, position] samples, so shots can lead a moving target
 
 func _ready() -> void:
 	add_to_group("turret")
@@ -29,6 +32,7 @@ func _process(delta: float) -> void:
 	if Rep.is_puppet(self) or !online():
 		queue_redraw()
 		return
+	_track(delta)
 	_cd -= delta
 	if _cd <= 0.0 and ammo > 0:
 		var best = null
@@ -39,12 +43,47 @@ func _process(delta: float) -> void:
 				if d <= turret_range and (best == null or d < best.global_position.distance_to(origin)):
 					best = e
 		if best != null:
-			var dir: Vector2 = (best.global_position - origin).normalized()
-			WeaponProjectile.shoot(get_parent().get_parent(), origin + Vector2(0, -22) + dir * 6.0, dir, 300.0, 1.5, Color(0.95, 0.85, 0.5), 0.55, 0, 50.0)
+			var muzzle := origin + MUZZLE
+			var dir: Vector2 = (_aim_point(best, muzzle) - muzzle).normalized()
+			WeaponProjectile.shoot(get_parent().get_parent(), muzzle + dir * 6.0, dir, ARROW_SPEED, 1.5, Color(0.95, 0.85, 0.5), 0.55, 0, 50.0)
 			ammo -= 1
 			Sfx.play("whoosh", 0.1, 1.8)
 			_cd = fire_delay
 	queue_redraw()
+
+## Remember where each enemy has been over the last third of a second, so its velocity can be measured
+## smoothly (positions update in steps, so a frame-to-frame difference is far too noisy).
+const TRACK_WINDOW := 0.33
+func _track(_delta: float) -> void:
+	var now := Time.get_ticks_msec() / 1000.0
+	var live := {}
+	for e in get_tree().get_nodes_in_group("enemy"):
+		if !is_instance_valid(e) or e.is_queued_for_deletion():
+			continue
+		var id: int = e.get_instance_id()
+		var hist: Array = _seen.get(id, [])
+		if hist.is_empty() or e.global_position != hist[-1][1]:
+			hist.append([now, e.global_position])
+		while hist.size() > 2 and now - hist[0][0] > TRACK_WINDOW:
+			hist.pop_front()
+		live[id] = hist
+	_seen = live
+
+func _velocity_of(e: Node2D) -> Vector2:
+	var hist: Array = _seen.get(e.get_instance_id(), [])
+	if hist.size() < 2:
+		return Vector2.ZERO
+	var dt: float = hist[-1][0] - hist[0][0]
+	return (hist[-1][1] - hist[0][1]) / dt if dt > 0.12 else Vector2.ZERO
+
+## Where to aim so the arrow meets a moving enemy: the spot it will reach by the time the arrow gets there.
+func _aim_point(e: Node2D, from: Vector2) -> Vector2:
+	var v := _velocity_of(e)
+	var p: Vector2 = e.global_position
+	var t := 0.0
+	for i in 3:
+		t = from.distance_to(p + v * t) / ARROW_SPEED
+	return p + v * t
 
 ## Returns true if the turret was reloaded.
 func reload() -> bool:

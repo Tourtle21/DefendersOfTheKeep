@@ -6,13 +6,14 @@ class_name RainbowSheep
 ## It is not an enemy: turrets and sentries ignore it (group "critter"), but every weapon,
 ## spell and the starting sword can hit it.
 
-## Art: "rainbow sheep.png" is 4 x 6 frames of 24x16 (facing left).
-const TEXTURE := "res://collectables/sheep/rainbow sheep.png"
+## Art: the same sheep as the one standing at the well (sheep.png, 3 x 3 frames of 12x12, same size and
+## the same idle animation), so the sheep you chase is the sheep you already know.
+const TEXTURE := "res://collectables/sheep/sheep.png"
 const FLEE_RANGE := 150.0
 
 var health := 14.0
 var max_health := 14.0
-var hit_radius := 8.0
+var hit_radius := 7.0
 var is_taking_damage := false      # the starting sword's hitbox asks for this
 var slow_mult := 1.0
 var dead := false
@@ -42,11 +43,11 @@ func _ready() -> void:
 	_sprite = Sprite2D.new()
 	_sprite.name = "Sprite2D"
 	_sprite.texture = load(TEXTURE)
-	_sprite.hframes = 4                   # 24x16 frames, 4 across and 6 down: the rainbow bands shift each frame
-	_sprite.vframes = 6
+	_sprite.hframes = 3                   # 12x12 frames, 3 across and 3 down, like the sheep at the well
+	_sprite.vframes = 3
 	_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_sprite.scale = Vector2(1.0, 1.0)
-	_sprite.position = Vector2(0, -5)
+	_sprite.position = Vector2.ZERO
 	add_child(_sprite)
 	z_index = 3
 	_unstick.chip = false          # a sheep walks around trees instead of chewing them
@@ -56,7 +57,7 @@ func _ready() -> void:
 func _update_visual() -> void:
 	if _sprite == null:
 		return
-	_sprite.frame = int(age * 12.0) % 24
+	_sprite.frame = int(age * 10.0) % 9       # the well sheep plays its 9 frames at 10 per second
 	_sprite.modulate = Color(1.6, 1.6, 1.6) if _flash > 0.0 else Color.WHITE
 
 func net_tick(_delta: float) -> void:
@@ -111,16 +112,14 @@ func _physics_process(delta: float) -> void:
 	velocity = _unstick.steer(_heading, spd * slow_mult, delta)
 	move_and_slide()
 	_unstick.after_move(self, _heading, spd * slow_mult, delta)
-	if absf(_heading.x) > 0.1:
-		_sprite.flip_h = _heading.x > 0.0     # the art faces left
 	_update_visual()
 	queue_redraw()
 
 func _draw() -> void:
-	draw_circle(Vector2(0, 3), 6.0, Color(0, 0, 0, 0.25))
+	draw_circle(Vector2(0, 5), 4.5, Color(0, 0, 0, 0.25))
 	if health < max_health and !dead:
-		draw_rect(Rect2(-8, -18, 16, 2), Color(0.2, 0, 0))
-		draw_rect(Rect2(-8, -18, 16.0 * clampf(health / max_health, 0.0, 1.0), 2), Color(1.0, 0.4, 0.7))
+		draw_rect(Rect2(-8, -13, 16, 2), Color(0.2, 0, 0))
+		draw_rect(Rect2(-8, -13, 16.0 * clampf(health / max_health, 0.0, 1.0), 2), Color(1.0, 0.4, 0.7))
 
 # ---------- the hit API every weapon expects ----------
 
