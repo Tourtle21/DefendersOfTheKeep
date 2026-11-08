@@ -136,6 +136,41 @@ func _slot_of(id: String, not_slot := -1) -> int:
 			return i
 	return -1
 
+func _icon_for(id: String) -> Texture2D:
+	var items: Dictionary = load("res://world/item_info.tres").items
+	if items.has(id) and items[id].has("texture"):
+		return _icon_of(items[id].texture)
+	return null
+
+## highest tier of a carried copy of this weapon, 0 if you do not carry it
+func _carried_tier(id: String) -> int:
+	var best := 0
+	var slots = _hud().item_slots.get_children()
+	for i in slots.size():
+		if slots[i].has_item and _item_id(slots[i].current_item) == id:
+			best = maxi(best, Game.weapon_tier_of(_entry_of(slots[i].current_item)))
+	return best
+
+func _chip(id: String, tier_text: String) -> Control:
+	var v := VBoxContainer.new()
+	v.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	v.alignment = BoxContainer.ALIGNMENT_CENTER
+	var tr := TextureRect.new()
+	tr.texture = _icon_for(id)
+	tr.custom_minimum_size = Vector2(48, 48)
+	tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	tr.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	v.add_child(tr)
+	var l := Label.new()
+	l.text = "%s\n%s" % [Fusion.display_name(id), tier_text]
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	l.add_theme_font_size_override("font_size", 12)
+	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	v.add_child(l)
+	return v
+
 func _refresh_recipes() -> void:
 	for c in recipes_box.get_children():
 		recipes_box.remove_child(c)
@@ -150,9 +185,26 @@ func _refresh_recipes() -> void:
 		var carry := a >= 0 and b >= 0
 		var ok := carry and Game.fusion_tier_unlocked(r.tier) and Game.can_afford(Fusion.cost(r.tier))
 		var rb := Button.new()
-		rb.text = "%s + %s -> %s" % [Fusion.display_name(p[0]), Fusion.display_name(p[1]), Fusion.display_name(r.id)]
-		rb.custom_minimum_size = Vector2(0, 36)
-		rb.modulate = Color(0.5, 1.0, 0.5) if ok else (Color(1, 1, 0.5) if carry else Color(0.55, 0.55, 0.55))
+		rb.custom_minimum_size = Vector2(330, 100)
+		rb.modulate = Color(0.5, 1.0, 0.5) if ok else (Color(1, 1, 0.5) if carry else Color(0.65, 0.65, 0.65))
+		var h := HBoxContainer.new()
+		h.set_anchors_preset(Control.PRESET_FULL_RECT)
+		h.alignment = BoxContainer.ALIGNMENT_CENTER
+		h.add_theme_constant_override("separation", 6)
+		h.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var ta := _carried_tier(p[0])
+		var tb := _carried_tier(p[1])
+		h.add_child(_chip(p[0], ("T%d carried" % ta) if ta > 0 else "not carried"))
+		var plus := Label.new()
+		plus.text = "+"
+		h.add_child(plus)
+		h.add_child(_chip(p[1], ("T%d carried" % tb) if tb > 0 else "not carried"))
+		var arrow := Label.new()
+		arrow.text = "->"
+		h.add_child(arrow)
+		var lock := "" if Game.fusion_tier_unlocked(r.tier) else " (locked)"
+		h.add_child(_chip(r.id, "Tier %d%s" % [r.tier, lock]))
+		rb.add_child(h)
 		if carry:
 			rb.pressed.connect(func():
 				selected = [a, b]
