@@ -72,7 +72,7 @@ func _ready() -> void:
 # ---- day, night and the waves ----
 # One cycle is 5 minutes: a long day, a slow dusk, a night, a dawn. There is one wave in the day and one in the
 # night, well apart, so there is time to set up. The clock only runs while the game is not paused.
-const NIGHT_DARKNESS := 0.72       # how much of the day the night takes away (1 = pitch black); lights add back the same amount
+const NIGHT_DARKNESS := 0.92       # how much of the day the night takes away (1 = pitch black); lights add back the same amount
 const WAVE_SIZE := 2.0             # waves come about three times less often than they used to, so each one is bigger
 const FIRST_BOSS_WAVE := 3          # King Blobbert shows up when this wave starts
 const CYCLE := 260.0
@@ -114,11 +114,24 @@ func _process(delta: float) -> void:
 	$Daylight.color = Color(1.0, 0.95, 0.75)               # takes less blue away: night is a dark blue, not black
 	$Daylight.energy = Game.night_level * NIGHT_DARKNESS
 	$Player/PointLight2D.energy = Game.night_level * 0.55          # the player's own light is a gentle circle, not a spotlight
+	_hide_t -= delta
+	if _hide_t <= 0.0:
+		_hide_t = 0.1
+		_hide_unlit_enemies()
 	if _last_cycle_t < DUSK_AT and t >= DUSK_AT:
 		Game.announce.emit("Night falls: enemies in the dark take less damage. Bring light!")
 	elif _last_cycle_t < DAWN_AT and t >= DAWN_AT:
 		Game.announce.emit("Dawn is breaking.")
 	_last_cycle_t = t
+
+var _hide_t := 0.0
+
+## At night an enemy outside every light cannot be seen (torches, flares, fire and your own small light reveal it).
+func _hide_unlit_enemies() -> void:
+	for e in get_tree().get_nodes_in_group("enemy"):
+		if !is_instance_valid(e) or e.process_mode == Node.PROCESS_MODE_DISABLED:
+			continue
+		e.visible = Game.is_lit(e)
 
 ## The little lake in the yard was just for fun and got in the way (pathing, tests, space
 ## for biome features). It is turned into grass at start; set false to bring it back.
