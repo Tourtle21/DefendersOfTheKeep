@@ -85,7 +85,7 @@ func _build(id: String) -> void:
 	boss.position = Vector2(0, 1050).rotated(rot)
 	boss.defeated.connect(_on_boss_defeated.bind(id))
 	add_child(boss)
-	if id != "s":
+	if true:               # the first boss waits for wave 3 (world.gd calls arrive()); the others wait for their sector
 		boss.visible = false
 		boss.process_mode = Node.PROCESS_MODE_DISABLED
 	_bosses[id] = boss
@@ -214,7 +214,7 @@ func _spawn_final_boss() -> void:
 	var boss := Boss.new()
 	boss.setup({"boss_name": "The Devourer", "sector_id": "final", "max_health": 260.0, "speed": 32.0,
 		"color": Color(0.35, 0.1, 0.45), "body_radius": 34.0, "attacks": ["slam", "charge", "summon", "volley", "quake"],
-		"gold_drop": 30, "wake_distance": 9999.0})
+		"gold_drop": 30, "wake_distance": 9999.0, "wake_wave": 0})
 	boss.position = Vector2(0, -70)
 	boss.defeated.connect(func(_b): Game.win_run())
 	add_child.call_deferred(boss)

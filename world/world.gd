@@ -74,6 +74,7 @@ func _ready() -> void:
 # night, well apart, so there is time to set up. The clock only runs while the game is not paused.
 const NIGHT_DARKNESS := 0.72       # how much of the day the night takes away (1 = pitch black); lights add back the same amount
 const WAVE_SIZE := 2.0             # waves come about three times less often than they used to, so each one is bigger
+const FIRST_BOSS_WAVE := 3          # King Blobbert shows up when this wave starts
 const CYCLE := 260.0
 const FIRST_WAVE_AT := 40.0        # setup time before the first wave, in seconds
 const DAY_WAVE_AT := 35.0          # when in the cycle (seconds) each wave spawns
@@ -196,6 +197,10 @@ func _wave_alive() -> int:
 
 func spawn_enemies(enemies, draw_lines := []) -> void:
 	Game.run_stats.waves += 1
+	if Game.run_stats.waves == FIRST_BOSS_WAVE:
+		for b in get_tree().get_nodes_in_group("boss"):
+			if b.sector_id == "s" and !b.awake:
+				b.arrive()
 	var plan := wave_plan(enemies)
 	var total := 0
 	for e in plan:

@@ -46,6 +46,11 @@ var _nav: NavigationAgent2D
 var _nav_t := 0.0
 var _unstick := Unstick.new()
 
+## The first boss stays out of the world until the wave director calls this (wave 3), then it appears and hunts you.
+func arrive() -> void:
+	visible = true
+	process_mode = Node.PROCESS_MODE_INHERIT
+
 func setup(p: Dictionary) -> void:
 	for k in p:
 		set(k, p[k])
@@ -144,9 +149,12 @@ func _physics_process(delta: float) -> void:
 			if n > 1:
 				max_health *= 1.0 + 0.6 * (n - 1)       # more players, tougher boss
 				health = max_health
-			_state = "chase"               # no wake-up scene: it simply starts walking toward you
-			_timer = 1.5
-			Game.announce.emit("%s is coming for the keep!" % boss_name)
+			_state = "intro"
+			_intro = 1.3
+			_timer = 1.0
+			_player.shake(4.0, 0.5)
+			Game.announce.emit("%s arrives and comes for the keep!" % boss_name)
+			Sfx.play("boss_roar", 0.02)
 			Game.boss_fight.emit(true)
 		queue_redraw()
 		return
