@@ -171,10 +171,60 @@ func _chip(id: String, tier_text: String) -> Control:
 	v.add_child(l)
 	return v
 
+## One card per carried weapon: two copies of the same tier combine into the next tier (T1 + T1 = T2).
+func _add_combines() -> void:
+	var slots = _hud().item_slots.get_children()
+	var seen := {}
+	for i in slots.size():
+		if !slots[i].has_item:
+			continue
+		var e: String = _entry_of(slots[i].current_item)
+		var id := Game.entry_id(e)
+		var k := "%s:%d" % [id, Game.weapon_bonus(e)]
+		if seen.has(k):
+			continue
+		seen[k] = true
+		var j := -1
+		for m in slots.size():
+			if m != i and slots[m].has_item and _item_id(slots[m].current_item) == id and Game.weapon_bonus(_entry_of(slots[m].current_item)) == Game.weapon_bonus(e):
+				j = m
+				break
+		var t := Game.weapon_tier_of(e)
+		var res := Game.combine_weapons(e, e)
+		var ok := j >= 0 and res != "" and Game.can_afford(Game.combine_cost(e))
+		var rb := Button.new()
+		rb.custom_minimum_size = Vector2(330, 100)
+		rb.modulate = Color(0.5, 1.0, 0.5) if ok else (Color(1, 1, 0.5) if j >= 0 else Color(0.65, 0.65, 0.65))
+		var h := HBoxContainer.new()
+		h.set_anchors_preset(Control.PRESET_FULL_RECT)
+		h.alignment = BoxContainer.ALIGNMENT_CENTER
+		h.add_theme_constant_override("separation", 6)
+		h.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		h.add_child(_chip(id, "Tier %d" % t))
+		var plus := Label.new()
+		plus.text = "+"
+		h.add_child(plus)
+		h.add_child(_chip(id, "Tier %d%s" % [t, "" if j >= 0 else " (need a 2nd)"]))
+		var arrow := Label.new()
+		arrow.text = "->"
+		h.add_child(arrow)
+		h.add_child(_chip(id, ("Tier %d" % (t + 1)) if res != "" else "max for now"))
+		rb.add_child(h)
+		if j >= 0:
+			rb.pressed.connect(func():
+				selected = [i, j]
+				_refresh()
+				if ok:
+					awaken())
+		else:
+			rb.disabled = true
+		recipes_box.add_child(rb)
+
 func _refresh_recipes() -> void:
 	for c in recipes_box.get_children():
 		recipes_box.remove_child(c)
 		c.queue_free()
+	_add_combines()
 	for key in Fusion.RECIPES:
 		var r: Dictionary = Fusion.RECIPES[key]
 		if !Game.weapon_known(r.id):
