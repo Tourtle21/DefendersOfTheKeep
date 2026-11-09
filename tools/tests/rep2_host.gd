@@ -15,6 +15,10 @@ func _initialize() -> void:
 		await wait(0.5)
 		if net.remote_players.size() > 0: break
 	await wait(1.0)
+	if net.remote_players.is_empty():
+		print("HOST: no client joined (start rep2_client after the host); nothing to check")
+		quit()
+		return
 	var pl = net.remote_players.values()[0]
 	var gen = null
 	for g in get_nodes_in_group("generator"):
