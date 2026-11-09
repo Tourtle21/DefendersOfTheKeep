@@ -519,14 +519,18 @@ func fix_meta() -> void:
 	for k in ["weapons", "fusion_tiers", "seen"]:
 		if !meta.has(k):
 			meta[k] = []
+	if !meta.has("used_ever"):
+		meta["used_ever"] = {}               # "card:fireball" / "weapon:sword": things you have used at least once
 	if !meta.has("draw_history"):
 		meta["draw_history"] = {}
 	if !meta.get("history_cleaned_v2", false):         # one-time: the starting tools and starter cards were used before use was tracked
 		meta["history_cleaned_v2"] = true
 		for gone in ["weapon:sword", "weapon:pickaxe"]:
 			meta.draw_history.erase(gone)
+			meta.used_ever[gone] = true
 		for id in STARTER_CARDS:
 			meta.draw_history.erase("card:" + id)
+			meta.used_ever["card:" + id] = true
 	if !meta.get("history_backfilled", false):
 		meta["history_backfilled"] = true
 		_backfill_history()            # "card:fireball" / "weapon:spear" -> {kind, id, count, tier}: every reward you have drawn
@@ -571,11 +575,14 @@ func _backfill_history() -> void:
 func mark_used(kind: String, id: String) -> void:
 	fix_meta()
 	meta.draw_history.erase("%s:%s" % [kind, id])
+	meta.used_ever["%s:%s" % [kind, id]] = true
 
 ## Remember a draw for the Drawn Cards screen (it stays until you use it).
-func record_draw(entry: Dictionary) -> void:
+func record_draw(entry: Dictionary, force := false) -> void:
 	fix_meta()
 	var key := "%s:%s" % [entry.kind, entry.id]
+	if !force and meta.used_ever.has(key):
+		return                           # you have already used this one: drawing it again is not news
 	var h: Dictionary = meta.draw_history.get(key, {"kind": entry.kind, "id": str(entry.id), "count": 0, "tier": 1})
 	h.count = int(h.count) + 1
 	h.tier = maxi(int(h.tier), int(entry.get("tier", 1)))
@@ -1510,7 +1517,7 @@ func grant_legendary() -> Dictionary:
 	var pick: Dictionary = left.pick_random()
 	mark_seen(str(pick.id))
 	var entry := {"kind": pick.kind, "id": pick.id, "tier": 1, "realm": 6, "result": "offer", "shards": 0, "legendary": true, "cost": LEGENDARY_PRICE}
-	record_draw(entry)
+	record_draw(entry, true)
 	meta.pending.append(entry)                  # kept for good: it does not count against the vault limit
 	return entry
 
@@ -1614,7 +1621,7 @@ func make_rewards(won := false) -> Array:
 				meta.pending.append(entry)
 		meta.shards += entry.shards
 		if entry.result != "converted":              # a card turned into Shards is gone, not waiting
-			record_draw(entry)
+			record_draw(entry, true)                 # reward draws always count: they are new offers, tier-ups and spares
 		out.append(entry)
 	if won:
 		out.append(grant_legendary())              # beating the whole game always unlocks a legendary
