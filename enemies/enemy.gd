@@ -40,6 +40,8 @@ var aggro_target = null
 var aggro_left := 0.0
 var _aggro_cd := 0.0
 var _aggro_scan := randf() * 0.25
+var _edge_cd := randf() * 0.25
+var _off_map := false
 var _alert := 0.0                 # the "!" over its head
 var facing := Vector2.DOWN
 var hit_from := Vector2.INF       # where the hit that is being applied came from (set by WeaponUtil.hit), for the backstab bonus
@@ -144,9 +146,15 @@ func _physics_process(delta):
 				modulate = Color(1, 1, 1)
 	if knock_time > 0:
 		knock_time -= delta
-		velocity = knock_vel
+		velocity = Game.keep_on_map(global_position, knock_vel, delta)
 		move_and_slide()
 		return
+	_edge_cd -= delta
+	if _edge_cd <= 0.0:
+		_edge_cd = randf_range(0.2, 0.3)
+		_off_map = !Game.in_playable(global_position)
+	if _off_map:
+		global_position = global_position.move_toward(center, 160.0 * delta)        # a stray on the grey ground outside the map walks back in
 	_update_aggro(delta)
 	if affix == "leeching" and aggro_left > 0.0 and health < max_health and !dead:
 		health = minf(max_health, health + max_health * 0.05 * delta)          # it feeds while it fights you

@@ -95,12 +95,12 @@ const NIGHT_DARKNESS := 1.0        # how much of the day the night takes away (1
 const WAVE_SIZE := 2.0             # waves come about three times less often than they used to, so each one is bigger
 const WAVES_PER_SECTOR := 5         # each sector lasts this many waves; its boss arrives when the last one starts
 var waves_in_sector := 0            # waves started since the front sector opened
-const CYCLE := 210.0
-const FIRST_WAVE_AT := 40.0        # setup time before the first wave, in seconds
-const DAY_WAVE_AT := 28.0          # when in the cycle (seconds) each wave spawns
-const NIGHT_WAVE_AT := 122.0
-const DUSK_AT := 104.0             # darkness starts to rise (over 35 s), full night from 139
-const DAWN_AT := 182.0             # and fades again (over 32 s)
+const CYCLE := 120.0
+const FIRST_WAVE_AT := 30.0        # setup time before the first wave, in seconds
+const DAY_WAVE_AT := 15.0          # when in the cycle (seconds) each wave spawns
+const NIGHT_WAVE_AT := 75.0
+const DUSK_AT := 55.0              # darkness starts to rise (over 25 s), full night from 80
+const DAWN_AT := 100.0             # and fades again (over 20 s)
 var clock := 0.0
 var _banner
 const GAME_SPEED := 0.8           # the whole game runs a little slower than real time (not in headless tests)
@@ -113,15 +113,15 @@ static func night_for(c: float) -> float:
 	var t := fposmod(c, CYCLE)
 	if t < DUSK_AT:
 		return 0.0
-	if t < DUSK_AT + 35.0:
-		return smoothstep(0.0, 1.0, (t - DUSK_AT) / 35.0)
+	if t < DUSK_AT + 25.0:
+		return smoothstep(0.0, 1.0, (t - DUSK_AT) / 25.0)
 	if t < DAWN_AT:
 		return 1.0
-	return 1.0 - smoothstep(0.0, 1.0, (t - DAWN_AT) / 32.0)
+	return 1.0 - smoothstep(0.0, 1.0, (t - DAWN_AT) / 20.0)
 
 ## Seconds until the clock next reaches `event_at`, never less than 40.
 func seconds_until(event_at: float) -> float:
-	return maxf(40.0, fposmod(event_at - clock, CYCLE))
+	return maxf(25.0, fposmod(event_at - clock, CYCLE))
 
 ## "Day wave 2" / "Night wave 3": the wave that is about to come.
 func wave_title() -> String:
@@ -183,6 +183,14 @@ func _start_client(address: String) -> void:
 	Net.join_game(address)
 
 func _spawn_position() -> Vector2:
+	var p := _spawn_position_raw()
+	var tries := 0
+	while !Game.in_playable(p) and tries < 40:        # never spawn on the grey ground outside the sector
+		p *= 0.97
+		tries += 1
+	return p
+
+func _spawn_position_raw() -> Vector2:
 	var id: String = Game.sectors_unlocked.pick_random()
 	if id != "s":
 		var rot := deg_to_rad(Game.SECTOR_ANGLES[id] - 90.0)
@@ -253,9 +261,9 @@ func _boss_arrives() -> void:
 		if b.sector_id == front and !b.awake and !b.dead:
 			b.arrive()
 
-## How strong the early waves' enemies are: the first wave is a lot easier, and by wave 5 everything is at full strength.
+## How strong the early waves' enemies are: 80% health in wave 1, 90% in wave 2, full strength from wave 3 (the first waves are also much smaller, see early_size_mult).
 static func early_health_mult(wave: int) -> float:
-	return clampf(0.5 + 0.125 * float(wave - 1), 0.5, 1.0)
+	return clampf(0.8 + 0.1 * float(wave - 1), 0.8, 1.0)
 
 static func early_size_mult(wave: int) -> float:
 	return 0.4 if wave <= 1 else (0.7 if wave == 2 else 1.0)
