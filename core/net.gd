@@ -263,7 +263,7 @@ func _interact(pl) -> void:
 	if pl.is_in_tower:
 		_set_base(pl, false)
 		return
-	if _nearest_tower(pl.global_position, 60.0) != null:
+	if _tower_at_door(pl.global_position) != null:
 		_set_base(pl, true)
 		return
 	for c in get_tree().get_nodes_in_group("chest"):
@@ -440,6 +440,15 @@ func net_command(cmd: Dictionary) -> void:
 			if pl.is_in_tower:
 				Game.buy_upgrade(cmd.id)
 
+## The tower whose door you are standing at (player 1's 52 x 27 door area plus the width of a player), so only the tower next to you can be entered.
+func _tower_at_door(pos: Vector2):
+	for c in Game.world.get_children():
+		if c is StaticBody2D and c.name.begins_with("Tower"):
+			var d: Vector2 = pos - c.global_position
+			if absf(d.x) <= 32.0 and absf(d.y) <= 26.0:
+				return c
+	return null
+
 func _nearest_tower(pos: Vector2, max_dist: float):
 	var best = null
 	for c in Game.world.get_children():
@@ -451,7 +460,7 @@ func _nearest_tower(pos: Vector2, max_dist: float):
 
 func _set_base(pl, on: bool) -> void:
 	if on and !pl.is_in_tower:
-		var tower = _nearest_tower(pl.global_position, 60.0)
+		var tower = _tower_at_door(pl.global_position)
 		if tower == null:
 			return
 		if Game.tower_taken(tower, pl):
