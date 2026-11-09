@@ -79,7 +79,9 @@ func _ready() -> void:
 	add_child(draws)
 	lobby = LocalLobby.new()
 	add_child(lobby)
-	lobby.started.connect(_play)
+	lobby.started.connect(func():
+		get_parent().start_split_screen()          # the world was built before the players picked their controllers
+		_play())
 	_button(box, "Local co-op (2-4 players, split screen)", func(): lobby.open())
 	_button(box, "Collection", func(): collection.open())      # tabs along the bottom switch between them
 	_button(box, "Quit", func():

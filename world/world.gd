@@ -60,13 +60,7 @@ func _ready() -> void:
 	add_child(preload("res://ui/forge/card_fuse_ui.gd").new())
 	add_child(preload("res://scenery/card_fuser/card_fuser.gd").new())
 	add_child(preload("res://world/chest_spawner.gd").new())
-	if Game._local_devices.size() >= 2 and !Net.active:          # local split screen: the players chose their controllers in the lobby
-		var lp := preload("res://world/local_players.gd").new()
-		add_child(lp)
-		lp.setup(Game._local_devices.size())
-		var split := preload("res://world/split_screen.gd").new()
-		add_child(split)
-		split.setup(Game._local_devices.size(), lp)
+	start_split_screen()
 	DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_MAXIMIZED)
 	Input.set_custom_mouse_cursor(cursor_path, 0, Vector2(16, 16))
 	$Player/PointLight2D.energy = 0
@@ -78,6 +72,21 @@ func _ready() -> void:
 		$Well.return_crystal()
 	_begin_wave()
 	
+var _split_started := false
+
+## Local split screen: the players chose their controllers in the lobby (Game._local_devices). Called when the world is
+## built (tests, restarts) and again by the main menu when the lobby starts a game, since the world exists before that.
+func start_split_screen() -> void:
+	if _split_started or Game._local_devices.size() < 2 or Net.active:
+		return
+	_split_started = true
+	var lp := preload("res://world/local_players.gd").new()
+	add_child(lp)
+	lp.setup(Game._local_devices.size())
+	var split := preload("res://world/split_screen.gd").new()
+	add_child(split)
+	split.setup(Game._local_devices.size(), lp)
+
 # ---- day, night and the waves ----
 # One cycle is 5 minutes: a long day, a slow dusk, a night, a dawn. There is one wave in the day and one in the
 # night, well apart, so there is time to set up. The clock only runs while the game is not paused.

@@ -303,19 +303,16 @@ func _process(delta: float) -> void:
 	var vp := get_viewport()
 	var vsize := view_size(vp)
 	if mode == "keep":
-		# a free cursor over the map: the right stick (or the left) moves it
-		var v := _stick(JOY_AXIS_RIGHT_X, JOY_AXIS_RIGHT_Y) + _stick(JOY_AXIS_LEFT_X, JOY_AXIS_LEFT_Y)
+		# a free cursor over the map: only the right stick moves it
+		var v := _stick(JOY_AXIS_RIGHT_X, JOY_AXIS_RIGHT_Y)
 		cursor = (cursor + v.limit_length(1.0) * KEEP_CURSOR_SPEED * delta).clamp(Vector2.ZERO, vsize)
 		_art.queue_redraw()
 		return
 	var right := _stick(JOY_AXIS_RIGHT_X, JOY_AXIS_RIGHT_Y)
-	var left := _stick(JOY_AXIS_LEFT_X, JOY_AXIS_LEFT_Y)
 	var now := Time.get_ticks_msec()
-	if right != Vector2.ZERO:
+	if right != Vector2.ZERO:                 # only the right stick aims; the left stick never moves the aimer
 		aim_dir = right.normalized()
 		_last_aim_ms = now
-	elif left != Vector2.ZERO and now - _last_aim_ms > 1500:
-		aim_dir = left.normalized()           # hands-free: face where you walk
 	var xf := view_transform(vp)
 	var origin := vsize / 2.0
 	var p := _local_player()

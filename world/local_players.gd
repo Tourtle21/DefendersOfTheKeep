@@ -90,8 +90,6 @@ func _physics_process(delta: float) -> void:
 		if right != Vector2.ZERO:
 			_aim_dir[slot] = right.normalized()
 			_last_aim_ms[slot] = now
-		elif left != Vector2.ZERO and now - _last_aim_ms[slot] > 1500:
-			_aim_dir[slot] = left.normalized()            # hands-free: face where you walk
 		var state := {
 			"move": left, "aim": pl.global_position + _aim_dir[slot] * AIM_REACH,
 			"attack": Input.get_joy_axis(dev, JOY_AXIS_TRIGGER_RIGHT) > 0.5, "ability": Input.get_joy_axis(dev, JOY_AXIS_TRIGGER_LEFT) > 0.5,
