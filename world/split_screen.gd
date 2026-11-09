@@ -17,6 +17,7 @@ var _corner: Array = []                    # slot -> {hp, name, weapon, down}
 var _scale: Array = []
 var _bg: ColorRect
 var _p1_layers: Array = []                 # player 1's HUD layers (their controls are pinned to player 1's view)
+var _local_huds: Array = []                # players 2 to 4: their always-on HUD (ui/base/local_hud.gd)
 var _slot_roots: Array = []                # slot -> the Control the small HUDs of players 2 to 4 are built in
 var _count := 0
 var _local: Node
@@ -136,6 +137,8 @@ func _pin_all() -> void:
 			kui.fit(Vector2(viewports[slot].size))
 		if _local != null and _local.forge_uis.has(slot):
 			_local.forge_uis[slot].fit(Vector2(viewports[slot].size))
+		if slot - 1 < _local_huds.size():
+			_local_huds[slot - 1].fit(Vector2(viewports[slot].size))
 		if _local != null and _local.fuser_uis.has(slot):
 			_local.fuser_uis[slot].fit(Vector2(viewports[slot].size))
 		if _local != null and _local.draft_uis.has(slot):
@@ -183,34 +186,20 @@ func _make_corner(slot: int) -> void:
 	layer.add_child(holder)
 	_slot_roots.resize(maxi(_slot_roots.size(), slot + 1))
 	_slot_roots[slot] = holder
-	var box := VBoxContainer.new()
-	box.position = Vector2(10, 8)
-	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	holder.add_child(box)
-	var name_l := Label.new()
-	name_l.text = "PLAYER %d" % (slot + 1)
-	name_l.add_theme_font_size_override("font_size", 18)
-	name_l.add_theme_color_override("font_color", [Color(1, 0.85, 0.3), Color(0.5, 0.85, 1.0), Color(0.6, 1.0, 0.5), Color(1.0, 0.6, 0.9)][slot])
-	name_l.add_theme_color_override("font_outline_color", Color.BLACK)
-	name_l.add_theme_constant_override("outline_size", 5)
-	box.add_child(name_l)
-	var hp := ProgressBar.new()
-	hp.custom_minimum_size = Vector2(170, 14)
-	hp.max_value = 228.0
-	hp.show_percentage = false
-	hp.modulate = Color(1.0, 0.35, 0.3)
-	box.add_child(hp)
-	var carry := Label.new()                            # what this player has collected and not yet deposited in a tower
-	carry.add_theme_font_size_override("font_size", 13)
-	carry.add_theme_color_override("font_color", Color(1.0, 0.92, 0.6))
-	carry.add_theme_color_override("font_outline_color", Color.BLACK)
-	carry.add_theme_constant_override("outline_size", 4)
-	box.add_child(carry)
-	var weapon := Label.new()
-	weapon.add_theme_font_size_override("font_size", 14)
-	weapon.add_theme_color_override("font_outline_color", Color.BLACK)
-	weapon.add_theme_constant_override("outline_size", 4)
-	box.add_child(weapon)
+	var hud := preload("res://ui/base/local_hud.gd").new()      # resources, keep bar, health bar, announcements, hurt flash: like player 1's
+	add_child(hud)
+	hud.setup(_players[slot], viewports[slot], slot)
+	_local_huds.append(hud)
+	var alert := CrystalAlert.new()                          # "the crystal was stolen": banner and an arrow in this player's view
+	alert.view = viewports[slot]
+	add_child(alert)
+	alert.custom_viewport = viewports[slot]
+	var wave := preload("res://ui/hud/wave_banner.gd").new()
+	wave.title_font = 30
+	wave.body_font = 14
+	wave.half_width = 300.0
+	add_child(wave)
+	wave.custom_viewport = viewports[slot]
 	var down := Label.new()
 	down.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
 	down.add_theme_font_size_override("font_size", 28)
@@ -275,7 +264,7 @@ func _make_corner(slot: int) -> void:
 		aimer.draw_arc(at, 12.0, 0, TAU, 28, col, 2.0)
 		for d in [Vector2.UP, Vector2.DOWN, Vector2.LEFT, Vector2.RIGHT]:
 			aimer.draw_line(at + d * 16.0, at + d * 22.0, col, 2.0))
-	_corner[slot] = {"hp": hp, "weapon": weapon, "carry": carry, "down": down, "aimer": aimer, "slots": slots_ctl}
+	_corner[slot] = {"down": down, "aimer": aimer, "slots": slots_ctl}
 
 func _process(_delta: float) -> void:
 	var screen := get_viewport().get_visible_rect().size
@@ -292,14 +281,6 @@ func _process(_delta: float) -> void:
 		cam.zoom = pcam.zoom          # the same magnification as single player: a split view is a narrower window onto the same picture
 		if slot > 0:
 			var c: Dictionary = _corner[slot]
-			c.hp.value = pl.remote_hp
-			var item = pl.item
-			c.weapon.text = "%s  T%d" % [Fusion.display_name(str(item.get("weapon_id")) if item != null and item.get("weapon_id") != null and str(item.get("weapon_id")) != "" else (item._id() if item != null and item.has_method("_id") else "")), Game.weapon_tier_of(str(pl.weapon_slots[pl.active_slot]))] if item != null and !pl.weapon_slots.is_empty() else "no weapon"
-			var parts := []
-			for k in pl.carried:
-				if int(pl.carried[k]) > 0:
-					parts.append("%d %s" % [int(pl.carried[k]), k])
-			c.carry.text = "Carrying: " + (", ".join(parts) if !parts.is_empty() else "nothing")
 			c.aimer.queue_redraw()
 			c.slots.queue_redraw()
 			c.down.visible = pl.downed

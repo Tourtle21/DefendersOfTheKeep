@@ -239,7 +239,8 @@ func spawn_enemies(enemies, draw_lines := []) -> void:
 	var head := "%s wave %d" % ["Night" if night_wave else "Day", Game.run_stats.waves]
 	var lines: Array = draw_lines.duplicate()
 	lines.append("%d enemies from %d direction(s)%s" % [total, Game.sectors_unlocked.size(), " (shrouded until lit)" if night_wave else ""])
-	_banner.show_wave(head.to_upper() + " STARTS", lines)
+	for b in get_tree().get_nodes_in_group("wave_banner"):      # player 1's, and each split-screen player's own
+		b.show_wave(head.to_upper() + " STARTS", lines)
 	Game.announce.emit("%s starts: %d enemies. %s" % [head, total, " / ".join(draw_lines)])
 	Sfx.play("wave_horn")
 	for enemy in plan:

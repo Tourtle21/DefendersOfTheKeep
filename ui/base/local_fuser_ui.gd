@@ -2,6 +2,7 @@ extends CanvasLayer
 ## The Card Fuser for a local split-screen player (players 2 to 4). Stand at the table and press d-pad up. It shows the
 ## shared hand. LB / RB move, A picks a card (two of them), X fuses them, B closes. Rules are Game.fuse_preview / Net.card_fuse.
 
+const UiKit = preload("res://ui/cards/ui_kit.gd")
 const CARD_SCALE := 0.6
 
 var pl: Node
@@ -24,14 +25,15 @@ func setup(player: Node, viewport: SubViewport) -> void:
 	_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_root.size = Vector2(viewport.size)
 	_root.visible = false
+	_root.theme = UiKit.make_theme()
 	add_child(_root)
+	var backdrop := ColorRect.new()                 # dims the view like player 1's full-screen menus
+	backdrop.color = Color(UiKit.BG, 0.9)
+	backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
+	backdrop.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_root.add_child(backdrop)
 	var panel := PanelContainer.new()
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.06, 0.05, 0.1, 0.94)
-	sb.border_color = Color(0.6, 0.5, 0.8)
-	sb.set_border_width_all(2)
-	sb.set_corner_radius_all(8)
-	sb.set_content_margin_all(12)
+	var sb: StyleBoxFlat = UiKit.style(UiKit.PANEL, UiKit.BORDER, 12.0)       # the same panel as player 1's screens
 	panel.add_theme_stylebox_override("panel", sb)
 	panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
 	panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
@@ -40,11 +42,8 @@ func setup(player: Node, viewport: SubViewport) -> void:
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 8)
 	panel.add_child(v)
-	var t := Label.new()
-	t.text = "CARD FUSER"
+	var t := UiKit.heading("Card Fuser", 26)
 	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	t.add_theme_font_size_override("font_size", 20)
-	t.add_theme_color_override("font_color", Color(0.85, 0.75, 1.0))
 	v.add_child(t)
 	_row = HBoxContainer.new()
 	_row.alignment = BoxContainer.ALIGNMENT_CENTER

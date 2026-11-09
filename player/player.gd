@@ -22,6 +22,7 @@ var downed := false                 # fallen: out of the fight until respawn_lef
 var respawn_left := 0.0
 var _saved_layers := [0, 0]
 var carried = {}                 # co-op avatars: resources they hold until they reach a tower
+signal hurt                     # a co-op avatar was hit (its view flashes red)
 const CRYSTAL_CARRY_SPEED := 6.0
 var has_crystal := false          # carrying the keep's crystal back to the Well
 var weapon_slots: Array = []     # co-op avatars: weapon ids they carry (max 3)
@@ -302,6 +303,8 @@ func _remote_damage(damage := 30.0) -> void:
 	is_taking_damage = true
 	modulate = Color(1, 0, 0)
 	remote_hp -= damage
+	hurt.emit()
+	Sfx.play("hurt")
 	if remote_hp <= 0.0:
 		fall()                         # co-op avatars fall too, and come back at the keep after the respawn time
 		return

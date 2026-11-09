@@ -5,6 +5,7 @@ class_name CrystalAlert
 ## Reads only Game.crystal_* so it works the same for a co-op client.
 
 var canvas: Control
+var view: SubViewport = null          # split screen, players 2 to 4: draw for this player's view
 var _t := 0.0
 
 func _ready() -> void:
@@ -35,12 +36,14 @@ func _draw_alert() -> void:
 	var font := ThemeDB.fallback_font
 	var vp := canvas.size
 	var pulse := 0.6 + 0.4 * sin(_t * 6.0)
-	canvas.draw_rect(Rect2(vp.x / 2.0 - 260.0, 150.0, 520.0, 52.0), Color(0, 0, 0, 0.55))
-	canvas.draw_rect(Rect2(vp.x / 2.0 - 260.0, 150.0, 520.0, 52.0), Color(col, 0.5 + 0.4 * pulse), false, 2.0)
-	canvas.draw_string(font, Vector2(vp.x / 2.0 - 260.0, 174.0), msg[0], HORIZONTAL_ALIGNMENT_CENTER, 520.0, 22, col)
-	canvas.draw_string(font, Vector2(vp.x / 2.0 - 260.0, 194.0), msg[1], HORIZONTAL_ALIGNMENT_CENTER, 520.0, 14, Color(1, 1, 1, 0.9))
+	var bw := minf(520.0, vp.x - 16.0)               # (a half-width view is narrower than the banner)
+	var small := bw < 500.0
+	canvas.draw_rect(Rect2(vp.x / 2.0 - bw / 2.0, 150.0, bw, 52.0), Color(0, 0, 0, 0.55))
+	canvas.draw_rect(Rect2(vp.x / 2.0 - bw / 2.0, 150.0, bw, 52.0), Color(col, 0.5 + 0.4 * pulse), false, 2.0)
+	canvas.draw_string(font, Vector2(vp.x / 2.0 - bw / 2.0, 174.0), msg[0], HORIZONTAL_ALIGNMENT_CENTER, bw, 18 if small else 22, col)
+	canvas.draw_string(font, Vector2(vp.x / 2.0 - bw / 2.0, 194.0), msg[1], HORIZONTAL_ALIGNMENT_CENTER, bw, 11 if small else 14, Color(1, 1, 1, 0.9))
 	# arrow toward the crystal when it is off screen
-	var xf := Pad.view_transform(get_viewport())
+	var xf: Transform2D = view.get_canvas_transform() if view != null else Pad.view_transform(get_viewport())
 	var sp: Vector2 = xf * Game.crystal_pos
 	var rect := Rect2(Vector2.ZERO, vp).grow(-40)
 	if rect.size.x <= 0.0 or rect.size.y <= 0.0:

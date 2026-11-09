@@ -37,12 +37,18 @@ func setup(player: Node, viewport: SubViewport, slot_index: int) -> void:
 	box.add_theme_constant_override("separation", 10)
 	_root.add_child(box)
 	var t := Label.new()
-	t.text = "Chest!  LB/RB move, A takes"
+	t.text = "Chest! Choose a card  (cards you own are upgraded)"
 	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	t.add_theme_font_size_override("font_size", 16)
+	t.add_theme_font_size_override("font_size", 20)
 	t.add_theme_color_override("font_outline_color", Color.BLACK)
 	t.add_theme_constant_override("outline_size", 4)
 	box.add_child(t)
+	var sub := Label.new()
+	sub.text = "LB / RB move   A take it"
+	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	sub.add_theme_font_size_override("font_size", 12)
+	sub.add_theme_color_override("font_color", Color(0.7, 0.75, 0.9))
+	box.add_child(sub)
 	_row = HBoxContainer.new()
 	_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	_row.add_theme_constant_override("separation", 10)

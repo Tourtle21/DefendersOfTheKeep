@@ -4,6 +4,7 @@ extends CanvasLayer
 ## X forges (two different weapons fuse, two copies of the same one combine into the next tier), Y drops the weapon
 ## under the cursor into the forge or takes it out, B closes. Costs and unlocked tiers are the normal forge's.
 
+const UiKit = preload("res://ui/cards/ui_kit.gd")
 const ForgeLayout = preload("res://ui/forge/forge_layout.gd")
 
 var pl: Node
@@ -27,14 +28,15 @@ func setup(player: Node, viewport: SubViewport) -> void:
 	_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_root.size = Vector2(viewport.size)
 	_root.visible = false
+	_root.theme = UiKit.make_theme()
 	add_child(_root)
+	var backdrop := ColorRect.new()                 # dims the view like player 1's full-screen menus
+	backdrop.color = Color(UiKit.BG, 0.9)
+	backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
+	backdrop.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_root.add_child(backdrop)
 	var panel := PanelContainer.new()
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.05, 0.05, 0.1, 0.94)
-	sb.border_color = Color(0.55, 0.45, 0.2)
-	sb.set_border_width_all(2)
-	sb.set_corner_radius_all(8)
-	sb.set_content_margin_all(12)
+	var sb: StyleBoxFlat = UiKit.style(UiKit.PANEL, UiKit.BORDER, 12.0)       # the same panel as player 1's screens
 	panel.add_theme_stylebox_override("panel", sb)
 	panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
 	panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
@@ -43,11 +45,8 @@ func setup(player: Node, viewport: SubViewport) -> void:
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 8)
 	panel.add_child(v)
-	var t := Label.new()
-	t.text = "FORGE"
+	var t := UiKit.heading("Forge", 26)
 	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	t.add_theme_font_size_override("font_size", 20)
-	t.add_theme_color_override("font_color", Color(1, 0.85, 0.35))
 	v.add_child(t)
 	_row = HBoxContainer.new()
 	_row.alignment = BoxContainer.ALIGNMENT_CENTER

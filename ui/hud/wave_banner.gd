@@ -2,23 +2,27 @@ extends CanvasLayer
 ## Big centre-screen announcement when a wave begins: the title, then what the card draw did.
 ## (Clients get the same news as a normal banner line through Game.announce.)
 
+var title_font := 46          # split screen: players 2 to 4 get a smaller copy for their narrower view
+var body_font := 18
+var half_width := 480.0
 var _title: Label
 var _body: Label
 var _tween: Tween
 
 func _ready() -> void:
 	layer = 11
+	add_to_group("wave_banner")
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	_title = _make_label(46, 0.0)
-	_body = _make_label(18, 70.0)
+	_title = _make_label(title_font, 0.0)
+	_body = _make_label(body_font, 70.0 * float(title_font) / 46.0)
 	add_child(_title)
 	add_child(_body)
 
 func _make_label(font: int, y: float) -> Label:
 	var l := Label.new()
 	l.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
-	l.offset_left = -480
-	l.offset_right = 480
+	l.offset_left = -half_width
+	l.offset_right = half_width
 	l.offset_top = 150 + y
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -28,7 +32,7 @@ func _make_label(font: int, y: float) -> Label:
 	l.add_theme_constant_override("outline_size", 10 if font > 30 else 5)
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	l.modulate.a = 0.0
-	l.pivot_offset = Vector2(480, 30)
+	l.pivot_offset = Vector2(half_width, 30)
 	return l
 
 func show_wave(title: String, lines: Array) -> void:
