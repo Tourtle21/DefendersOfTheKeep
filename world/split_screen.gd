@@ -6,7 +6,7 @@ extends Node
 
 const SPLIT_LAYER := 3                     # above the world, below the HUD layers (5 and up) and the menus
 const BIG_SCREENS := ["forge_ui.gd", "card_fuse_ui.gd", "draft_ui.gd", "help_ui.gd"]
-const HUD_SCRIPTS := ["ability_hud.gd", "base_ui.gd", "crystal_alert.gd", "respawn_ui.gd", "wave_banner.gd", "forge_ui.gd", "card_fuse_ui.gd", "draft_ui.gd", "help_ui.gd"]
+const HUD_SCRIPTS := ["ability_hud.gd", "base_ui.gd", "crystal_alert.gd", "respawn_ui.gd", "wave_banner.gd", "forge_ui.gd", "card_fuse_ui.gd", "draft_ui.gd", "help_ui.gd", "hints.gd"]
 
 var containers: Array = []
 var viewports: Array = []
