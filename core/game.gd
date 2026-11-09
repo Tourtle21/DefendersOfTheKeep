@@ -284,10 +284,11 @@ func skill_level(id: String) -> int:
 	return int(meta.skills.get(id, 0))
 
 const SKILL_COST_SCALE := 2.5
+const SKILL_COST_CURVE := 1.8       # cost of level n+1 grows with (n+1)^1.8 (1, 3.5, 7.2, 12.1, 18 times the first level)
 const MAX_PENDING := 12            # offers kept between runs until you unlock or convert them
 
 func skill_cost(id: String) -> int:
-	return int(round(Skills.TREE[id].cost * (skill_level(id) + 1) * SKILL_COST_SCALE))
+	return int(round(Skills.TREE[id].cost * pow(skill_level(id) + 1, SKILL_COST_CURVE) * SKILL_COST_SCALE))      # each level costs clearly more than the last
 
 func skill_available(id: String) -> bool:
 	for r in Skills.TREE[id].req:

@@ -2,7 +2,7 @@ extends RefCounted
 class_name Skills
 ## The permanent skill tree, bought with Shards. Five branches; a skill unlocks once
 ## everything in its "req" has at least one level. Each level of a skill adds `per` to
-## its bonus `key` (read with Game.bonus(key)); cost of the next level = cost * (level + 1).
+## its bonus `key` (read with Game.bonus(key)); cost of the next level = cost * (level + 1)^1.8 (times Game.SKILL_COST_SCALE).
 ## pos = [column, row] in the tree screen.
 
 const BRANCHES := {
