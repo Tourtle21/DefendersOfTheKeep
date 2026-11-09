@@ -40,7 +40,7 @@ func _draw_alert() -> void:
 	canvas.draw_string(font, Vector2(vp.x / 2.0 - 260.0, 174.0), msg[0], HORIZONTAL_ALIGNMENT_CENTER, 520.0, 22, col)
 	canvas.draw_string(font, Vector2(vp.x / 2.0 - 260.0, 194.0), msg[1], HORIZONTAL_ALIGNMENT_CENTER, 520.0, 14, Color(1, 1, 1, 0.9))
 	# arrow toward the crystal when it is off screen
-	var xf := get_viewport().get_canvas_transform()
+	var xf := Pad.view_transform(get_viewport())
 	var sp: Vector2 = xf * Game.crystal_pos
 	var rect := Rect2(Vector2.ZERO, vp).grow(-40)
 	if rect.size.x <= 0.0 or rect.size.y <= 0.0:

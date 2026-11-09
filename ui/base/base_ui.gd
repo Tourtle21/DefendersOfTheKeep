@@ -290,7 +290,7 @@ func select(i: int) -> void:
 	_refresh_hand_enabled()
 
 func _world_mouse() -> Vector2:
-	return get_viewport().get_canvas_transform().affine_inverse() * Pad.screen_mouse(get_viewport())
+	return Pad.view_transform(get_viewport()).affine_inverse() * Pad.screen_mouse(get_viewport())
 
 func cast_selected_at(world_pos: Vector2) -> void:
 	if selected < 0 or selected >= Game.hand.size():
@@ -400,7 +400,7 @@ func _draw_tower_markers() -> void:
 	if player == null:
 		return
 	var here = Game.current_tower(player)
-	var xf := get_viewport().get_canvas_transform()
+	var xf := Pad.view_transform(get_viewport())
 	var pulse := 0.5 + 0.5 * sin(Time.get_ticks_msec() / 250.0)
 	var zoom: float = xf.get_scale().x
 	for t in Game.all_towers():
@@ -418,7 +418,7 @@ func _draw_reticle() -> void:
 		return
 	var id: String = Game.hand[idx]
 	var card: Dictionary = Game.stats_of(id)
-	var zoom: float = get_viewport().get_canvas_transform().get_scale().x
+	var zoom: float = Pad.view_transform(get_viewport()).get_scale().x
 	var mouse := Pad.screen_mouse(get_viewport())
 	var cancel := dragging >= 0 and _over_hand()
 	var col := Color(1, 0.35, 0.35, 0.8) if cancel else Color(1, 1, 0.4, 0.95)
@@ -427,7 +427,7 @@ func _draw_reticle() -> void:
 	if cancel:
 		return
 	# the shot leaves the crystal, so show the path and how long it takes
-	var crystal_screen: Vector2 = get_viewport().get_canvas_transform() * Game.crystal_position()
+	var crystal_screen: Vector2 = Pad.view_transform(get_viewport()) * Game.crystal_position()
 	reticle.draw_dashed_line(crystal_screen, mouse, Color(col, 0.6), 2.0, 8.0)
 	reticle.draw_circle(crystal_screen, 4.0, col)
 	var secs := Game.flight_time(id, _world_mouse())
@@ -444,7 +444,7 @@ func _refresh_deck() -> void:
 
 ## Edge markers for chests: lets whoever is in the keep spot and call out loot.
 func _draw_chest_markers() -> void:
-	var xf := get_viewport().get_canvas_transform()
+	var xf := Pad.view_transform(get_viewport())
 	var rect := Rect2(Vector2.ZERO, get_viewport().get_visible_rect().size).grow(-48)
 	if rect.size.x <= 0.0 or rect.size.y <= 0.0:
 		return

@@ -216,6 +216,7 @@ func apply_input_state(id: int, pl, state: Dictionary) -> void:
 	if item != null and !pl.has_crystal:            # whoever carries the crystal cannot fight
 		if state.attack and !prev.get("attack", false) and item.has_method("use_item"):
 			item.use_item()
+			pl.is_using_item = true               # the sword and pickaxe swing through their animation, which this flag starts (as player 1's click does)
 		elif !state.attack and prev.get("attack", false) and item.has_method("release_item"):
 			item.release_item()
 		if state.ability and !prev.get("ability", false) and item.has_method("use_ability"):
