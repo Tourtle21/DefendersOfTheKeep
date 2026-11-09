@@ -14,6 +14,8 @@ const BOX := 64.0
 const GAP := 8.0
 
 var canvas: Control
+var target: Node = null             # split screen: show this co-op avatar's moves instead of player 1's
+var key_labels: Array = []          # split screen: the controller buttons to print under the slots (attack, ability, dash, ultimate)
 var remote_cd: Dictionary = {}       # client: cooldown info sent by the host (slot -> [left, total, name, locked, tier])
 var _was_ready := {}
 var _pop := {}               # slot id -> seconds since it became ready
@@ -22,13 +24,16 @@ var _time := 0.0
 func _ready() -> void:
 	layer = 5
 	canvas = Control.new()
-	canvas.set_anchors_preset(Control.PRESET_FULL_RECT)
+	if target == null:
+		canvas.set_anchors_preset(Control.PRESET_FULL_RECT)
 	canvas.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	canvas.draw.connect(_draw_slots)
 	add_child(canvas)
 
 func _process(delta: float) -> void:
 	_time += delta
+	if target != null and custom_viewport != null:
+		canvas.size = Vector2(custom_viewport.size)          # fitted to the view this avatar is shown in
 	for k in _pop.keys():
 		_pop[k] += delta
 		if _pop[k] > 0.7:
@@ -38,6 +43,11 @@ func _process(delta: float) -> void:
 func _weapon():
 	if !remote_cd.is_empty():
 		return self          # cd_info() below answers from the host's data
+	if target != null:
+		if !is_instance_valid(target) or target.downed or target.is_in_tower:
+			return null
+		var tw = target.get("item")
+		return tw if (tw is Weapon or tw is Tool) else null
 	var pl = get_tree().get_first_node_in_group("player")
 	if pl == null or !is_instance_valid(pl) or Game.local_in_base():
 		return null
@@ -114,7 +124,7 @@ func _draw_slots() -> void:
 			for s in 6:
 				var a := s * TAU / 6.0 + t
 				canvas.draw_circle(center + Vector2.from_angle(a) * half * (1.1 + t * 0.8), 2.5 * (1.0 - t), Color(1, 1, 0.8, 1.0 - t))
-		canvas.draw_string(font, pos + Vector2(0, BOX + 12.0), spec.key, HORIZONTAL_ALIGNMENT_CENTER, BOX, 10, Color(0.75, 0.8, 0.95))
+		canvas.draw_string(font, pos + Vector2(0, BOX + 12.0), (key_labels[i] if i < key_labels.size() else spec.key), HORIZONTAL_ALIGNMENT_CENTER, BOX, 10, Color(0.75, 0.8, 0.95))
 		var short: String = name if name.length() <= 11 else name.substr(0, 10) + "."
 		canvas.draw_string(font, pos + Vector2(-4.0, -4.0), short, HORIZONTAL_ALIGNMENT_CENTER, BOX + 8.0, 11, Color(1, 1, 1, 0.85) if ready else Color(1, 1, 1, 0.45))
 

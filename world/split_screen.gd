@@ -203,6 +203,34 @@ func _make_corner(slot: int) -> void:
 	down.visible = false
 	holder.add_child(down)
 	_corner.resize(maxi(_corner.size(), slot + 1))
+	var abilities := AbilityHud.new()                   # the same attack / ability / dash / ultimate panel player 1 has, for this avatar
+	abilities.target = _players[slot]
+	abilities.key_labels = ["RT", "LT", "B", "Y"]
+	add_child(abilities)
+	abilities.custom_viewport = viewports[slot]
+	var slots_ctl := Control.new()                      # the weapon slots: what you carry, the one in hand lit (X switches)
+	slots_ctl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	slots_ctl.set_anchors_preset(Control.PRESET_FULL_RECT)
+	holder.add_child(slots_ctl)
+	slots_ctl.draw.connect(func():
+		var pl = _players[slot]
+		if !is_instance_valid(pl):
+			return
+		var font := ThemeDB.fallback_font
+		var base := Vector2(14.0, float(viewports[slot].size.y) - 62.0)
+		for i in pl.weapon_slots.size():
+			var entry: String = pl.weapon_slots[i]
+			var rect := Rect2(base + Vector2(i * 86.0, 0), Vector2(80, 44))
+			var active: bool = i == pl.active_slot
+			slots_ctl.draw_rect(rect.grow(2.0), Color.BLACK)
+			slots_ctl.draw_rect(rect, Color(0.12, 0.13, 0.2, 0.92) if !active else Color(0.22, 0.2, 0.1, 0.95))
+			if active:
+				slots_ctl.draw_rect(rect.grow(1.0), Color(1.0, 0.9, 0.4), false, 2.0)
+			var nm: String = Fusion.display_name(Game.entry_id(entry))
+			slots_ctl.draw_string(font, rect.position + Vector2(4, 17), nm if nm.length() <= 11 else nm.substr(0, 10) + ".", HORIZONTAL_ALIGNMENT_LEFT, 74.0, 12, Color.WHITE if active else Color(1, 1, 1, 0.65))
+			slots_ctl.draw_string(font, rect.position + Vector2(4, 35), "Tier %d" % Game.weapon_tier_of(entry), HORIZONTAL_ALIGNMENT_LEFT, 74.0, 11, Color(1.0, 0.85, 0.4) if active else Color(0.8, 0.8, 0.9, 0.6))
+		if pl.weapon_slots.size() > 1:
+			slots_ctl.draw_string(font, base + Vector2(0, -6), "X: switch weapon", HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(0.75, 0.8, 0.95)))
 	var aimer := Control.new()                          # the yellow aimer of this player, drawn in their view only (like player 1's cursor)
 	aimer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	aimer.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -217,7 +245,7 @@ func _make_corner(slot: int) -> void:
 		aimer.draw_arc(at, 12.0, 0, TAU, 28, col, 2.0)
 		for d in [Vector2.UP, Vector2.DOWN, Vector2.LEFT, Vector2.RIGHT]:
 			aimer.draw_line(at + d * 16.0, at + d * 22.0, col, 2.0))
-	_corner[slot] = {"hp": hp, "weapon": weapon, "down": down, "aimer": aimer}
+	_corner[slot] = {"hp": hp, "weapon": weapon, "down": down, "aimer": aimer, "slots": slots_ctl}
 
 func _process(_delta: float) -> void:
 	var screen := get_viewport().get_visible_rect().size
@@ -229,13 +257,14 @@ func _process(_delta: float) -> void:
 		var cam: Camera2D = cameras[slot]
 		cam.global_position = pcam.global_position
 		cam.offset = pcam.offset
-		cam.zoom = pcam.zoom * sqrt(_scale[slot])          # closer than "same area as the full screen", so the smaller views are not tiny
+		cam.zoom = pcam.zoom          # the same magnification as single player: a split view is a narrower window onto the same picture
 		if slot > 0:
 			var c: Dictionary = _corner[slot]
 			c.hp.value = pl.remote_hp
 			var item = pl.item
 			c.weapon.text = "%s  T%d" % [Fusion.display_name(str(item.get("weapon_id")) if item != null and item.get("weapon_id") != null and str(item.get("weapon_id")) != "" else (item._id() if item != null and item.has_method("_id") else "")), Game.weapon_tier_of(str(pl.weapon_slots[pl.active_slot]))] if item != null and !pl.weapon_slots.is_empty() else "no weapon"
 			c.aimer.queue_redraw()
+			c.slots.queue_redraw()
 			c.down.visible = pl.downed
 			c.down.text = "You fell!  Back in %d" % ceili(pl.respawn_left)
 			var light = pl.get_node_or_null("PointLight2D")
