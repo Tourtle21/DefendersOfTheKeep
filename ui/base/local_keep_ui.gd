@@ -112,6 +112,7 @@ func poll(dev: int, delta: float) -> void:
 		_prev["a"] = Input.is_joy_button_pressed(dev, JOY_BUTTON_A)
 		_prev["b"] = Input.is_joy_button_pressed(dev, JOY_BUTTON_B)
 		_prev["x"] = Input.is_joy_button_pressed(dev, JOY_BUTTON_X)
+		_prev["y"] = Input.is_joy_button_pressed(dev, JOY_BUTTON_Y)
 		_prev["up"] = Input.is_joy_button_pressed(dev, JOY_BUTTON_DPAD_UP)
 		_prev["down"] = Input.is_joy_button_pressed(dev, JOY_BUTTON_DPAD_DOWN)
 		_prev["rt"] = Input.get_joy_axis(dev, JOY_AXIS_TRIGGER_RIGHT) > 0.5
@@ -130,6 +131,13 @@ func poll(dev: int, delta: float) -> void:
 	var down := _edge("down", Input.is_joy_button_pressed(dev, JOY_BUTTON_DPAD_DOWN))
 	var rt := _edge("rt", Input.get_joy_axis(dev, JOY_AXIS_TRIGGER_RIGHT) > 0.5)
 	var lt := _edge("lt", Input.get_joy_axis(dev, JOY_AXIS_TRIGGER_LEFT) > 0.5)
+	var y := _edge("y", Input.is_joy_button_pressed(dev, JOY_BUTTON_Y))
+	if y:
+		var tower = Game.current_tower(pl)                 # Y reloads the arrows of the tower you are in (2 sticks from the keep)
+		if tower != null:
+			for c in tower.get_children():
+				if c.has_method("reload"):
+					c.reload()
 	if Game.draft_active and !Game.draft_options.is_empty():
 		var n := Game.draft_options.size()
 		if lb: draft_sel = wrapi(draft_sel - 1, 0, n)
@@ -176,7 +184,7 @@ func _refresh_ui() -> void:
 	var ids: Array = Game.UPGRADES.keys()
 	var u: String = ids[upg % ids.size()]
 	_info.text = "Keep %d/%d   %s   Upgrade: %s lv%d" % [Game.keep_hp, Game.keep_max(), _res_text(), Game.UPGRADES[u].name, Game.upgrade_levels.get(u, 0)]
-	_hint.text = "LB/RB card   RT place   X merge   A leave   D-pad: up repair  down buy upgrade" if !Game.draft_active else "Chest draft!  LB/RB choose   A take it"
+	_hint.text = "LB/RB card   RT place   X merge   A leave   Y reload tower   D-pad: up repair  down buy upgrade" if !Game.draft_active else "Chest draft!  LB/RB choose   A take it"
 	var key := str(Game.hand) + "|" + str(sel) + "|" + str(Game.draft_options) + str(draft_sel) + str(Game.draft_active)
 	if key != _hand_key:
 		_hand_key = key
