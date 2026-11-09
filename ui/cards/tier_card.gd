@@ -12,6 +12,8 @@ signal pressed(card)
 var data := {}
 var selected := false
 var _hover := false
+var _pulse := 0.0
+var _pulse_tw: Tween
 
 func setup(d: Dictionary):
 	data = d
@@ -22,14 +24,26 @@ func setup(d: Dictionary):
 	focus_mode = Control.FOCUS_ALL          # controller / keyboard: move with the d-pad, confirm with A / Enter
 	if d.has("tooltip"):
 		tooltip_text = d.tooltip
+	if d.get("blink", false):
+		_start_blink()
 	queue_redraw()
 	return self
+
+## A pulsing gold glow: this card can be upgraded right now.
+func _start_blink() -> void:
+	if _pulse_tw != null or !is_inside_tree():
+		return
+	_pulse_tw = create_tween().set_loops()
+	_pulse_tw.tween_method(func(v): _pulse = v; queue_redraw(), 0.0, 1.0, 0.6)
+	_pulse_tw.tween_method(func(v): _pulse = v; queue_redraw(), 1.0, 0.0, 0.6)
 
 func set_selected(on: bool) -> void:
 	selected = on
 	queue_redraw()
 
 func _ready() -> void:
+	if data.get("blink", false):
+		_start_blink()
 	mouse_entered.connect(func(): _hover = true; queue_redraw())
 	mouse_exited.connect(func(): _hover = false; queue_redraw())
 	focus_entered.connect(queue_redraw)
@@ -147,6 +161,9 @@ func _draw() -> void:
 		draw_rect(Rect2(c + Vector2(-k * 0.14, -k * 0.05), Vector2(k * 0.28, k * 0.5)), Color(0.15, 0.12, 0.05))
 	if _hover:
 		draw_rect(Rect2(0, 0, w, h), Color(1, 1, 1, 0.07))
+	if data.get("blink", false):
+		draw_rect(Rect2(0, 0, w, h), Color(1, 0.85, 0.25, 0.28 * _pulse))
+		draw_rect(Rect2(-2, -2, w + 4, h + 4), Color(1, 0.85, 0.25, 0.4 + 0.6 * _pulse), false, 3.0)
 	if has_focus():
 		draw_rect(Rect2(-3, -3, w + 6, h + 6), Color(0.5, 0.85, 1.0), false, 3.0)
 	if selected:

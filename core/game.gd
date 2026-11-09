@@ -519,6 +519,8 @@ func fix_meta() -> void:
 	for k in ["weapons", "fusion_tiers", "seen"]:
 		if !meta.has(k):
 			meta[k] = []
+	if !meta.has("tier_drawn"):
+		meta["tier_drawn"] = {}              # card id -> the highest tier you have drawn at the end of a run
 	if !meta.has("start_weapon"):
 		meta["start_weapon"] = "sword"
 	if meta.has("unlocked"):
@@ -1238,9 +1240,14 @@ func owns_card(id: String) -> bool:
 func card_upgrade_cost(id: String) -> int:
 	return int(round(8.0 * pow(card_tier(id), 1.5) * (2.0 if is_legendary_card(id) else 1.0)))        # legendary cards cost double to raise
 
+## Has the next tier of this card been drawn (so it may be bought with Shards)?
+func upgrade_available(id: String) -> bool:
+	fix_meta()
+	return owns_card(id) and card_tier(id) < MAX_LEVEL and int(meta.tier_drawn.get(id, 1)) >= card_tier(id) + 1
+
 func upgrade_card(id: String) -> bool:
 	fix_meta()
-	if !owns_card(id) or card_tier(id) >= MAX_LEVEL or meta.shards < card_upgrade_cost(id):
+	if !upgrade_available(id) or meta.shards < card_upgrade_cost(id):
 		return false
 	meta.shards -= card_upgrade_cost(id)
 	meta.card_tiers[id] = card_tier(id) + 1
@@ -1426,8 +1433,8 @@ func make_rewards(won := false) -> Array:
 				var weight := 0
 				if !owns_card(id):
 					weight = 4 if cl == top else 3                     # something new, deeper realms favoured
-				elif card_tier(id) < mini(MAX_LEVEL, top):
-					weight = 3                                           # the next tier of something you own
+				elif card_tier(id) < mini(MAX_LEVEL, top) and int(meta.tier_drawn.get(id, 1)) <= card_tier(id):
+					weight = 3                                           # the next tier of something you own (not one you already drew)
 				for k in weight:
 					bag.append(id)
 			if bag.is_empty():
@@ -1450,8 +1457,8 @@ func make_rewards(won := false) -> Array:
 				used.append(entry.id)
 				if owns_card(entry.id):
 					entry.tier = card_tier(entry.id) + 1
-					entry.result = "upgrade"
-					meta.card_tiers[entry.id] = entry.tier
+					entry.result = "upgrade"                        # drawn, not applied: you pay Shards for it (collection or the reward card)
+					meta.tier_drawn[entry.id] = maxi(int(meta.tier_drawn.get(entry.id, 1)), int(entry.tier))
 				else:
 					entry.tier = 1
 					entry.result = "offer"

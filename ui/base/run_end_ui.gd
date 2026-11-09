@@ -470,7 +470,7 @@ func _fill_footer(footer: VBoxContainer, opt: Dictionary, holder: Control, is_ke
 			tag.text = "LEGENDARY UNLOCKED!" if opt.get("legendary", false) else "UNLOCKED"
 			tag.add_theme_color_override("font_color", Color("ffd23a") if opt.get("legendary", false) else Color("6df08a"))
 		"upgrade":
-			tag.text = "TIER UP -> T%d" % opt.tier
+			tag.text = "TIER %d DRAWN" % opt.tier
 			tag.add_theme_color_override("font_color", Color("ffd23a"))
 		"spare":
 			tag.text = "SPARE COPY (T%d)" % opt.tier
@@ -482,6 +482,17 @@ func _fill_footer(footer: VBoxContainer, opt: Dictionary, holder: Control, is_ke
 			tag.text = "Owned: +%d Shards" % opt.shards
 			tag.add_theme_color_override("font_color", Color("8fd8ff"))
 	footer.add_child(tag)
+	if opt.result == "upgrade":
+		var upb := Button.new()
+		var cid := str(opt.id)
+		var owned_next: bool = Game.card_tier(cid) >= int(opt.tier)
+		upb.text = "Upgraded" if owned_next else "Upgrade (%d)" % Game.card_upgrade_cost(cid)
+		upb.disabled = owned_next or Game.meta.shards < Game.card_upgrade_cost(cid)
+		upb.pressed.connect(func():
+			if Game.upgrade_card(cid):
+				Sfx.play_ui("reveal_3")
+				_refresh())
+		footer.add_child(upb)
 	if opt.result == "spare":
 		var merge := Button.new()
 		merge.text = "Merge -> T%d" % (int(opt.tier) + 1) if int(opt.tier) < Game.MAX_LEVEL else "Max tier"

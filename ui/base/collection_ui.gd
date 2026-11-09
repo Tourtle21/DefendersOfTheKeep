@@ -113,6 +113,10 @@ func _refresh() -> void:
 		gems.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		gems.add_theme_font_size_override("font_size", 10)
 		gems.add_theme_color_override("font_color", Color(1, 0.85, 0.3) if owned else Color(0.5, 0.5, 0.55))
+		if Game.upgrade_available(id):                    # the gems blink: this card can be upgraded
+			var bt := gems.create_tween().set_loops()
+			bt.tween_property(gems, "modulate:a", 0.25, 0.5)
+			bt.tween_property(gems, "modulate:a", 1.0, 0.5)
 		holder.add_child(gems)
 		if id == selected:
 			var frame := ReferenceRect.new()
@@ -157,9 +161,11 @@ func _show_detail() -> void:
 		viewed_tier = maxi(1, owned_tier)
 	for t in range(1, Game.MAX_LEVEL + 1):
 		var ok := t <= owned_tier
+		var next_up: bool = t == owned_tier + 1 and Game.upgrade_available(id)      # drawn: can be bought now
 		var tc := TierCard.new()
-		tc.setup({"size": Vector2(62, 76), "title": "T%d" % t, "glyph": "T%d" % t if ok else "", "lock": !ok, "locked": !ok,
-			"accent": Game.rarity_color(Game.card_rarity(id)), "tooltip": "Tier %d%s" % [t, "" if ok else " (locked)"]})
+		tc.setup({"size": Vector2(62, 76), "title": "T%d" % t, "glyph": "T%d" % t if (ok or next_up) else "", "lock": !ok and !next_up, "locked": !ok and !next_up,
+			"blink": next_up, "footer": ("%d" % Game.card_upgrade_cost(id)) if next_up else "",
+			"accent": Game.rarity_color(Game.card_rarity(id)), "tooltip": "Tier %d%s" % [t, "" if ok else (" (upgrade available)" if next_up else " (locked: draw it at the end of a run)")]})
 		tc.set_selected(t == viewed_tier)
 		tc.pressed.connect(func(_c):
 			viewed_tier = t
@@ -181,8 +187,12 @@ func _show_detail() -> void:
 			up.text = "Max tier"
 			up.disabled = true
 		else:
-			up.text = "Upgrade to tier %d  (%d shards)" % [owned_tier + 1, Game.card_upgrade_cost(id)]
-			up.disabled = Game.meta.shards < Game.card_upgrade_cost(id)
+			if Game.upgrade_available(id):
+				up.text = "Upgrade to tier %d  (%d shards)" % [owned_tier + 1, Game.card_upgrade_cost(id)]
+				up.disabled = Game.meta.shards < Game.card_upgrade_cost(id)
+			else:
+				up.text = "Draw the tier %d card to upgrade" % (owned_tier + 1)
+				up.disabled = true
 			up.pressed.connect(func():
 				if Game.upgrade_card(id):
 					viewed_tier = -1
