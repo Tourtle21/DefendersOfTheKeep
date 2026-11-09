@@ -15,7 +15,6 @@ func _ready() -> void:
 	resist = {"earth": 0.3}
 	super()
 	scale = Vector2(1.4, 1.4)
-	$Sprite2D.modulate = Color(0.95, 0.8, 0.45)
 
 func _physics_process(delta: float) -> void:
 	if charm_time <= 0.0:

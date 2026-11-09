@@ -9,4 +9,3 @@ func _ready() -> void:
 	knockback_strength = 120.0
 	super()
 	scale = Vector2(1.5, 1.5)
-	$Sprite2D.modulate = Color(0.75, 0.5, 0.95)

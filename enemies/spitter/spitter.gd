@@ -9,7 +9,6 @@ func _ready() -> void:
 	speed = 28
 	keep_dps = 0.8
 	super()
-	$Sprite2D.modulate = Color(0.55, 1.0, 0.45)
 
 func _physics_process(delta: float) -> void:
 	if charm_time > 0.0:

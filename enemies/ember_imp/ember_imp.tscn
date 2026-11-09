@@ -1,7 +1,7 @@
 [gd_scene load_steps=11 format=3]
 
 [ext_resource type="Script"  path="res://enemies/ember_imp/ember_imp.gd" id="1_mu5q7"]
-[ext_resource type="Texture2D" uid="uid://dd85psp3ymkm0" path="res://enemies/goblin/goblin.png" id="2_bbwjf"]
+[ext_resource type="Texture2D" path="res://enemies/ember_imp/ember_imp.png" id="2_bbwjf"]
 [ext_resource type="PackedScene" uid="uid://ct3ybaw6glffy" path="res://hitboxes/hitbox.tscn" id="3_tkb6o"]
 [ext_resource type="AudioStream" uid="uid://dm6drq54bje88" path="res://enemies/blobbert/take_damage.ogg" id="4_isfd2"]
 

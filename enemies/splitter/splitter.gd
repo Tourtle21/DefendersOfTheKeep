@@ -6,7 +6,6 @@ func _ready() -> void:
 	speed = 24
 	swarm = true
 	super()
-	$Sprite2D.modulate = Color(0.5, 0.8, 1.0)
 
 func die() -> void:
 	if dead:

@@ -7,7 +7,6 @@ func _ready() -> void:
 	speed = 56
 	resist = {"fire": 0.2, "ice": 1.8}
 	super()
-	$Sprite2D.modulate = Color(1.4, 0.55, 0.3)
 
 func die() -> void:
 	var was_dead: bool = dead

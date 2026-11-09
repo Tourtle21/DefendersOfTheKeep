@@ -11,7 +11,6 @@ func _ready() -> void:
 	resist = {"poison": 0.1, "fire": 1.6}
 	super()
 	scale = Vector2(1.3, 1.3)
-	$Sprite2D.modulate = Color(0.55, 0.85, 0.4)
 
 func _physics_process(delta: float) -> void:
 	if health < max_health and !dead:

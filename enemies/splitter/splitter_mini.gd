@@ -8,4 +8,3 @@ func _ready() -> void:
 	swarm = true
 	super()
 	scale = Vector2(0.6, 0.6)
-	$Sprite2D.modulate = Color(0.5, 0.8, 1.0)

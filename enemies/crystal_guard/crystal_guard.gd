@@ -15,7 +15,6 @@ func _ready() -> void:
 	shield = SHIELD_MAX
 	super()
 	scale = Vector2(1.3, 1.3)
-	$Sprite2D.modulate = Color(0.85, 0.65, 1.3)
 
 func _physics_process(delta: float) -> void:
 	if shield <= 0.0:

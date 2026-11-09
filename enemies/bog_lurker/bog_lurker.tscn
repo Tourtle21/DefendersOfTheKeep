@@ -1,6 +1,6 @@
 [gd_scene load_steps=10 format=3]
 
-[ext_resource type="Texture2D" uid="uid://wcjnv5ehjf1j" path="res://enemies/blobbert/running_blob.png" id="1_65yv6"]
+[ext_resource type="Texture2D" path="res://enemies/bog_lurker/bog_lurker.png" id="1_65yv6"]
 [ext_resource type="Script" path="res://enemies/bog_lurker/bog_lurker.gd" id="1_ebrrg"]
 [ext_resource type="PackedScene" uid="uid://ct3ybaw6glffy" path="res://hitboxes/hitbox.tscn" id="3_a6ht3"]
 [ext_resource type="AudioStream" uid="uid://dm6drq54bje88" path="res://enemies/blobbert/take_damage.ogg" id="4_sejs2"]
