@@ -79,7 +79,8 @@ func _draw() -> void:
 	if affix != "":
 		draw_arc(Vector2(0, 2), 13.0, 0, TAU, 24, AFFIX_COLORS.get(affix, Color.WHITE), 1.8)          # an elite: a coloured ring
 	if _alert > 0.0:
-		draw_string(ThemeDB.fallback_font, Vector2(-3, -26), "!", HORIZONTAL_ALIGNMENT_CENTER, 8.0, 12, Color(1.0, 0.85, 0.2))
+		draw_string_outline(ThemeDB.fallback_font, Vector2(-4, -27), "!", HORIZONTAL_ALIGNMENT_CENTER, 10.0, 18, 4, Color.BLACK)
+		draw_string(ThemeDB.fallback_font, Vector2(-4, -27), "!", HORIZONTAL_ALIGNMENT_CENTER, 10.0, 18, Color(1.0, 0.85, 0.2))
 	if slowed_bonus > 1.0:
 		pips.append([Color(0.5, 0.9, 1.0), "slow"])
 	for i in pips.size():

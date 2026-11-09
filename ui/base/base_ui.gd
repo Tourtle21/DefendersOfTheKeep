@@ -70,6 +70,7 @@ func _ready() -> void:
 	keep_bar.add_child(keep_lbl)
 	ui.add_child(keep_bar)
 	Game.keep_sel_changed.connect(func(): _rebuild_upgrades())
+	Pad.device_changed.connect(func(_on): _refresh_all())          # the hint names the buttons of whichever device you are using
 	Game.keep_changed.connect(func():
 		keep_bar.value = Game.keep_hp
 		keep_lbl.text = "Keep %d / %d" % [Game.keep_hp, Game.keep_max()]
@@ -212,7 +213,7 @@ func _refresh_all() -> void:
 			carry.append("%d %s" % [Game.carried[k], k])
 	info_label.text = "Carrying: %s     Keep: %s" % [", ".join(carry), ", ".join(keep)]
 	if Game.local_in_base():
-		hint_label.text = "Drag a card onto the map.  Click a lit tower to jump to it."
+		hint_label.text = "LB / RB pick a card   RT place it (or jump to a lit tower)   D-pad up/down pick Repair / an upgrade, Y buy   X reload the tower   A leave" if Pad.using_pad else "Drag a card onto the map.  Click a lit tower to jump to it."
 	_rebuild_upgrades()
 	_refresh_hand_enabled()
 
