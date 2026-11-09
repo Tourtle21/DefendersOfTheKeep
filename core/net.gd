@@ -445,7 +445,7 @@ func _tower_at_door(pos: Vector2):
 	for c in Game.world.get_children():
 		if c is StaticBody2D and c.name.begins_with("Tower"):
 			var d: Vector2 = pos - c.global_position
-			if absf(d.x) <= 32.0 and absf(d.y) <= 26.0:
+			if absf(d.x) <= 34.0 and absf(d.y) <= 32.0:
 				return c
 	return null
 
