@@ -123,12 +123,13 @@ static func aim(b) -> Vector2:
 
 # ------------------------------------------------------------------ King Blobbert (grassland)
 
-## Leaps into the air and crashes down where you stood.
+## Leaps towards you (a hop of at most 85 units, not all the way onto you) and crashes down there.
 static func bounce(b) -> void:
 	var p = target(b)
 	if p == null:
 		return
-	var land: Vector2 = p.global_position
+	var to: Vector2 = p.global_position - b.global_position
+	var land: Vector2 = b.global_position + to.limit_length(85.0)
 	var col := Color(0.4, 0.9, 0.4)
 	ring_fx(b, land, 38.0, 0.8, col)
 	var tw: Tween = b.create_tween()

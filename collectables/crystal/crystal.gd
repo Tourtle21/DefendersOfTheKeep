@@ -48,7 +48,7 @@ func _set_state(s: String) -> void:
 
 func _enemy_here():
 	for b in get_overlapping_bodies():
-		if is_instance_valid(b) and b.is_in_group("enemy") and !b.is_queued_for_deletion() and !b.get("dead") and !b.get("has_crystal"):
+		if is_instance_valid(b) and b.is_in_group("enemy") and "has_crystal" in b and !b.is_queued_for_deletion() and !b.get("dead") and !b.get("has_crystal"):      # (bosses cannot carry it)
 			return b
 	return null
 
@@ -104,7 +104,8 @@ func _physics_process(delta: float) -> void:
 
 func _take(thief: Node) -> void:
 	_carrier = thief
-	thief.has_crystal = true
+	if "has_crystal" in thief:
+		thief.has_crystal = true
 	z_index = 4
 	var home: Vector2 = get_parent().global_position
 	exit_point = home + (thief.global_position - home).normalized() * EXIT_RADIUS
