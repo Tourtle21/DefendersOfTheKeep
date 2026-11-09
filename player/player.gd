@@ -285,12 +285,12 @@ func equip_item(new_item) -> void:
 	if item.has_node("AnimationPlayer"):
 		item_animation_player = item.get_node("AnimationPlayer")
 
-func _remote_damage() -> void:
+func _remote_damage(damage := 30.0) -> void:
 	if is_taking_damage:
 		return
 	is_taking_damage = true
 	modulate = Color(1, 0, 0)
-	remote_hp -= 30.0
+	remote_hp -= damage
 	if remote_hp <= 0.0:
 		fall()                         # co-op avatars fall too, and come back at the keep after the respawn time
 		return
@@ -305,7 +305,7 @@ func heal(amount: float) -> void:
 	var health_rect = get_parent().get_node("Hud/Control2/ColorRect/Health")
 	health_rect.size.x = min(health_rect.size.x + amount, 228.0)
 
-func take_damage(damage_origin: Vector2):
+func take_damage(damage_origin: Vector2, damage := 30.0):
 	if downed or is_in_tower:
 		return                       # inside a tower nothing can hurt you (shots, stomps, hazards, bosses)
 	if parry_time > 0.0 and on_parry.is_valid():
@@ -315,7 +315,7 @@ func take_damage(damage_origin: Vector2):
 	if shield_time > 0:
 		return
 	if remote_controlled:
-		_remote_damage()
+		_remote_damage(damage)
 		return
 	if !is_taking_damage:
 		Game.player_hurt.emit()
@@ -324,7 +324,7 @@ func take_damage(damage_origin: Vector2):
 		var direction = (position - damage_origin).normalized()
 		apply_knockback(direction * knockback_strength)
 		var x_size = get_parent().get_node("Hud").get_node("Control2").get_node("ColorRect").get_node("Health").size.x
-		get_parent().get_node("Hud").get_node("Control2").get_node("ColorRect").get_node("Health").size.x = x_size - 30
+		get_parent().get_node("Hud").get_node("Control2").get_node("ColorRect").get_node("Health").size.x = x_size - damage
 		audio_take_damage.play()
 		if x_size <= 18:
 			fall()                      # no longer the end of the run: the keep fights on and you are back in 30 seconds

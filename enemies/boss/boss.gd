@@ -185,7 +185,7 @@ func _physics_process(delta: float) -> void:
 			velocity = _dir * 230.0 * slow_mult
 			move_and_slide()
 			_windup -= delta
-			_contact_damage(10.0)
+			_contact_damage(10.0, 70.0)         # a charge hits hardest
 			if get_slide_collision_count() > 0 and _windup < 0.45:
 				_player.shake(3.0, 0.2)      # crashed into something solid: the charge ends
 				_end_attack()
@@ -196,10 +196,15 @@ func _physics_process(delta: float) -> void:
 		_contact_damage(6.0)
 	queue_redraw()
 
-func _contact_damage(extra: float) -> void:
+## Boss hits are much heavier than a normal enemy's 30: a body slam costs a fifth of your health, a slam or
+## charge about a third, and an enraged boss hits 30% harder.
+func _dmg(base: float) -> float:
+	return base * (1.3 if enraged else 1.0)
+
+func _contact_damage(extra: float, base := 45.0) -> void:
 	if _hit_cd <= 0.0 and _player != null and _player.global_position.distance_to(global_position) < body_radius + extra:
 		_hit_cd = 1.0
-		_player.take_damage(global_position)
+		_player.take_damage(global_position, _dmg(base))
 
 func _begin_attack() -> void:
 	_attack = attacks.pick_random()
@@ -215,7 +220,7 @@ func _do_attack() -> void:
 			var r := body_radius * (2.6 if !enraged else 3.2)
 			WeaponFx.spawn(get_parent(), "ring", global_position, color.lightened(0.3), {"radius": r, "life": 0.35})
 			if _player != null and _player.global_position.distance_to(global_position) <= r:
-				_player.take_damage(global_position)
+				_player.take_damage(global_position, _dmg(65.0))
 			_player.shake(4.0, 0.25)
 			_end_attack()
 		"charge":
@@ -241,7 +246,7 @@ func _quake() -> void:
 		if _player != null:
 			var d: float = _player.global_position.distance_to(global_position)
 			if d >= r - 12.0 and d <= r + 12.0:
-				_player.take_damage(global_position)
+				_player.take_damage(global_position, _dmg(50.0))
 		_player.shake(3.0, 0.15)
 		await get_tree().create_timer(0.35).timeout
 		if dead:
