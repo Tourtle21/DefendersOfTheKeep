@@ -188,7 +188,7 @@ func _spawn_position() -> Vector2:
 ## enemy types (brutes every third wave, runners from wave 4, spitters from wave 5, splitters from wave 6).
 func wave_plan(picked: Array) -> Array:
 	var w: int = Game.run_stats.waves
-	var factor := WAVE_SIZE * Game.team_scale(0.75)        # every group grows with the number of players (LAN and split screen)
+	var factor := WAVE_SIZE * Game.team_scale(Game.WAVE_TEAM_SCALE)        # every group grows with the number of players (LAN and split screen)
 	var bonus := int(w * 0.5) + (Game.sectors_unlocked.size() - 1)
 	var level_bonus := int(w / 3.0)
 	var plan := []
@@ -220,7 +220,7 @@ const ELITE_AFFIXES := ["shielded", "hasty", "leeching"]
 static func elite_chance_for(wave: int) -> float:
 	if wave < 2:
 		return 0.0
-	return minf(0.4, 0.06 + 0.02 * float(wave) + 0.03 * float(Game.player_count() - 1))
+	return minf(0.4, 0.06 + 0.02 * float(wave) + Game.ELITE_TEAM_BONUS * float(Game.player_count() - 1))
 
 ## The wave draw plays itself (no card screen): the account of what happened is part of the wave banner.
 func _begin_wave() -> void:

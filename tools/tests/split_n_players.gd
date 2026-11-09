@@ -70,7 +70,7 @@ func _initialize() -> void:
 	split._pin_all()
 	await wait(0.4)
 	print("--- %d players: views %s" % [N, split.viewports.map(func(v): return Vector2(v.size))])
-	ok("%d views, %d players, team scale %.2f" % [split.viewports.size(), game.player_count(), game.team_scale(0.75)], split.viewports.size() == N and game.player_count() == N)
+	ok("%d views, %d players, team scale %.2f" % [split.viewports.size(), game.player_count(), game.team_scale(game.WAVE_TEAM_SCALE)], split.viewports.size() == N and game.player_count() == N)
 	game.resources = {"stone": 40, "stick": 40, "gold": 99}
 	var players := [world.get_node("Player")]
 	for s in range(1, N):

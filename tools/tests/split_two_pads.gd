@@ -47,7 +47,7 @@ func _initialize() -> void:
 	var p1 = world.get_node("Player")
 	var p2 = lp.avatars[1]
 	print("--- setup")
-	ok("two views, two players, team scale 1.75 (%.2f)" % game.team_scale(0.75), split.viewports.size() == 2 and game.player_count() == 2 and is_equal_approx(game.team_scale(0.75), 1.75))
+	ok("two views, two players, team scale 1.45 (%.2f)" % game.team_scale(game.WAVE_TEAM_SCALE), split.viewports.size() == 2 and game.player_count() == 2 and is_equal_approx(game.team_scale(game.WAVE_TEAM_SCALE), 1.45))
 	ok("pad is split with player 1 on controller 1 (dev %d)" % pad._dev, pad._dev == 1)
 	# ---------------- walking
 	print("--- walking")

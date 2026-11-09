@@ -989,6 +989,11 @@ func player_count() -> int:
 
 ## 1.0 for one player, growing by `per` for every extra player (LAN or split screen). Waves, bosses and the shared
 ## mana pool all use it, so a team of four faces roughly four players' worth of enemies.
+const WAVE_TEAM_SCALE := 0.45       # extra enemies per wave for every player beyond the first (2 players: x1.45, 3: x1.9, 4: x2.35)
+const BOSS_HP_TEAM_SCALE := 0.5     # extra boss health per extra player
+const BOSS_PACE_TEAM_SCALE := 0.1   # how much sooner a boss attacks again per extra player
+const ELITE_TEAM_BONUS := 0.0       # elites do not get likelier with more players (only the number of enemies, and the bosses, scale)
+
 func team_scale(per: float) -> float:
 	return 1.0 + per * float(player_count() - 1)
 

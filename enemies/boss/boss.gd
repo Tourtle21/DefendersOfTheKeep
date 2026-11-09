@@ -291,13 +291,13 @@ func _rescale_for_players() -> void:
 	if _base_max_health <= 0.0 or n == _scaled_for:
 		return
 	var ratio := health / maxf(1.0, max_health)
-	max_health = _base_max_health * Game.team_scale(0.8)
+	max_health = _base_max_health * Game.team_scale(Game.BOSS_HP_TEAM_SCALE)
 	health = max_health * ratio
 	_scaled_for = n
 
 func _end_attack() -> void:
 	_state = "chase"
-	_timer = (2.4 if !enraged else 1.5) / Game.team_scale(0.2)       # with more players the next attack comes sooner
+	_timer = (2.4 if !enraged else 1.5) / Game.team_scale(Game.BOSS_PACE_TEAM_SCALE)       # with more players the next attack comes sooner
 
 func _die() -> void:
 	if dead:
