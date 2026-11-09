@@ -118,7 +118,7 @@ func _nudge() -> void:
 ## HUD controls anchored to the window's edges are laid out for the whole window, not for a view: re-place each one
 ## (keeping its anchors and offsets as designed) against the size of the view it is shown in.
 func _pin_all() -> void:
-	if viewports.is_empty():
+	if viewports.is_empty() or !is_inside_tree():
 		return
 	var s0 := Vector2(viewports[0].size)
 	for layer in _p1_layers:
@@ -164,6 +164,8 @@ func _pin(c: Control, area: Vector2) -> void:
 
 ## Fit the views to the window.
 func _relayout() -> void:
+	if !is_inside_tree() or get_viewport() == null:
+		return                                   # (a window resize, or a deferred call, arriving after "Restart run" removed this screen)
 	var screen := get_viewport().get_visible_rect().size
 	rects = layout(_count, screen)
 	_scale.clear()
@@ -290,4 +292,7 @@ func _process(_delta: float) -> void:
 				light.energy = Game.night_level * 0.55        # the same gentle night light player 1 has
 
 func _exit_tree() -> void:
+	var vp := get_viewport()
+	if vp != null and vp.size_changed.is_connected(_relayout):
+		vp.size_changed.disconnect(_relayout)
 	Pad.leave_split()
