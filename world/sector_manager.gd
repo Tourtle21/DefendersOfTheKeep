@@ -73,11 +73,13 @@ func _build(id: String) -> void:
 		_scatter_hazards(def, rot, box)
 		_place_generator(id, def, rot, box)
 	if id == "s":
-		var home := ResourceGenerator.new()
-		home.resource = "stone"
-		home.color = Color(0.75, 0.78, 0.85)
-		home.position = Vector2(-40, 300)
-		add_child(home)
+		# the grassland has a stone generator and a stick generator, hidden somewhere in the sector each game
+		for kind in [["stone", Color(0.75, 0.78, 0.85)], ["stick", Color(0.65, 0.5, 0.3)]]:
+			var home := ResourceGenerator.new()
+			home.resource = kind[0]
+			home.color = kind[1]
+			home.position = _random_spot(rot, 240.0, 850.0)
+			add_child(home)
 	var boss := Boss.new()
 	var params: Dictionary = def.boss.duplicate()
 	params["sector_id"] = id
@@ -91,13 +93,32 @@ func _build(id: String) -> void:
 		boss.process_mode = Node.PROCESS_MODE_DISABLED
 	_bosses[id] = boss
 
-## One resource generator per biome (the grassland's sits near the keep, producing stone).
+## One resource generator per biome, somewhere in the sector (different every game: you have to find it).
 func _place_generator(id: String, def: Dictionary, rot: float, box: Node) -> void:
 	var gen := ResourceGenerator.new()
 	gen.resource = def.resource
 	gen.color = def.get("native", Color(0.8, 0.9, 1.0))
-	gen.position = (Vector2(0, 1).rotated(randf_range(0.25, 0.5) * (1.0 if randf() < 0.5 else -1.0)) * randf_range(260.0, 430.0)).rotated(rot)
+	gen.position = _random_spot(rot, 260.0, 900.0)
 	box.add_child(gen)
+
+var _gen_spots: Array = []            # where generators already are (in world space), so two never sit on top of each other
+
+## A random point in a sector's cone, `min_d` to `max_d` units from the keep along its axis, away from other generators
+## and from the boss at the far end. (`rot` turns the grassland-shaped cone to the sector.)
+func _random_spot(rot: float, min_d: float, max_d: float) -> Vector2:
+	var best := Vector2.ZERO
+	for attempt in 30:
+		var angle := randf_range(-0.42, 0.42)
+		var pos: Vector2 = (Vector2(0, 1).rotated(angle) * randf_range(min_d, max_d)).rotated(rot)
+		best = pos
+		var clear := true
+		for other in _gen_spots:
+			if other.distance_to(pos) < 160.0:
+				clear = false
+		if clear:
+			break
+	_gen_spots.append(best)
+	return best
 
 func _scatter_props(id: String, def: Dictionary, rot: float, box: Node) -> void:
 	var specs := [
