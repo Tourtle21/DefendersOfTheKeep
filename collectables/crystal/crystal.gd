@@ -81,7 +81,7 @@ func _physics_process(delta: float) -> void:
 		"dropped":
 			var taker = null
 			for p in get_tree().get_nodes_in_group("player"):
-				if is_instance_valid(p) and !p.get("is_in_tower") and p.global_position.distance_to(global_position) <= PICKUP_RANGE:
+				if is_instance_valid(p) and !p.get("is_in_tower") and !p.get("downed") and p.global_position.distance_to(global_position) <= PICKUP_RANGE:
 					taker = p
 					break
 			if taker != null:
@@ -91,8 +91,8 @@ func _physics_process(delta: float) -> void:
 				if e != null:
 					_take(e)
 		"player":
-			if !is_instance_valid(_carrier):
-				_drop()
+			if !is_instance_valid(_carrier) or _carrier.get("downed"):
+				_drop()                               # whoever carries it fell (they are sent back to the keep): it drops where they were
 			else:
 				global_position = _carrier.global_position + Vector2(0, -16)
 				if _carrier.global_position.distance_to(get_parent().global_position) < 38.0:
@@ -115,12 +115,18 @@ func _take(thief: Node) -> void:
 	Sfx.play("boss_roar", 0.0)
 	Game.announce.emit("THE CRYSTAL WAS STOLEN! The base is offline. Kill the thief before it escapes!")
 
-func _drop() -> void:
+## The carrying player fell: leave the crystal where they stood.
+func drop_from(p: Node) -> void:
+	if state == "player" and _carrier == p:
+		global_position = p.global_position + Vector2(0, -16)
+		_drop("The crystal carrier fell! Pick it up and carry it back to the Well.")
+
+func _drop(msg := "The thief fell! Grab the crystal and carry it back to the Well.") -> void:
 	if is_instance_valid(_carrier) and "has_crystal" in _carrier:
 		_carrier.has_crystal = false
 	_carrier = null
 	_set_state("dropped")
-	Game.announce.emit("The thief fell! Grab the crystal and carry it back to the Well.")
+	Game.announce.emit(msg)
 
 func _pickup(p: Node) -> void:
 	_carrier = p

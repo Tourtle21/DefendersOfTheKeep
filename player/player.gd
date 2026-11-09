@@ -66,6 +66,10 @@ func fall() -> void:
 	if downed:
 		return
 	downed = true
+	if has_crystal:
+		var well = get_parent().get_node_or_null("Well")
+		if well != null and well.has_node("Crystal"):
+			well.get_node("Crystal").drop_from(self)          # the crystal stays where you fell
 	respawn_left = RESPAWN_TIME
 	if is_in_tower:
 		Game.exit_base(self)
