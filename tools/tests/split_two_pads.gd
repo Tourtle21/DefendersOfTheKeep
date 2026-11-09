@@ -191,6 +191,22 @@ func _initialize() -> void:
 	await wait(0.3)
 	ok("two hammers fused into one tier 2 hammer", p2.weapon_slots.size() == 1 and game.weapon_tier_of(p2.weapon_slots[0]) == 2)
 	await tap(2, JOY_BUTTON_B)
+	# ---------------- card fuser
+	print("--- card fuser")
+	game.hand = ["torch", "sentry", "fireball"]
+	p2.global_position = net.CARD_FUSER_POS + Vector2(8, 0)
+	await wait(0.3)
+	var zui = lp.fuser_uis[1]
+	await tap(2, JOY_BUTTON_DPAD_UP)
+	ok("d-pad up at the Card Fuser opens player 2's screen", zui.is_open)
+	await tap(2, JOY_BUTTON_A)
+	await tap(2, JOY_BUTTON_RIGHT_SHOULDER)
+	await tap(2, JOY_BUTTON_A)
+	await tap(2, JOY_BUTTON_X)
+	await wait(0.3)
+	ok("torch + sentry fused into a Beacon Turret by player 2 (%s)" % str(game.hand), game.hand.size() == 2 and game.hand.any(func(h): return game.entry_id(h) == "beacon_turret"))
+	await tap(2, JOY_BUTTON_B)
+	ok("B closes it", !zui.is_open)
 	# ---------------- pause
 	print("--- pause")
 	await tap(1, JOY_BUTTON_START)

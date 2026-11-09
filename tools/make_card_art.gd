@@ -49,6 +49,17 @@ const ACCENTS := {
 	"phoenix_shrine": Color("ff8a3a"),
 }
 
+# Card Fuser hybrids: id -> [parent a, parent b, frame accent]. The icon is the two parents' icons joined along a diagonal.
+const FUSED := {
+	"frostfire": ["fireball", "frost_ring", Color("a9c8ff")],
+	"solar_burst": ["fireball", "flare", Color("ffe07a")],
+	"spiked_wall": ["barricade", "spike_trap", Color("d0c0a0")],
+	"spiked_sentry": ["spike_trap", "sentry", Color("e0d890")],
+	"beacon_turret": ["torch", "sentry", Color("ffb860")],
+	"healing_lantern": ["mender", "torch", Color("9affc0")],
+	"bonfire_wall": ["barricade", "torch", Color("ff9a4a")],
+}
+
 func _initialize() -> void:
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("res://ui/cards"))
 	if "only=legend" in OS.get_cmdline_user_args():
@@ -59,6 +70,13 @@ func _initialize() -> void:
 		save(make_turret(Color("ffe070")), "icon_sunspire")
 		save(make_totem(Color("ff8a3a")), "icon_phoenix_shrine")
 		print("legendary card art written")
+		quit()
+		return
+	if "only=fused" in OS.get_cmdline_user_args():
+		for id in FUSED:
+			save(make_frame(FUSED[id][2], false), "frame_%s" % id)
+			save(blend(parent_icon(FUSED[id][0]), parent_icon(FUSED[id][1])), "icon_%s" % id)
+		print("fused card art written")
 		quit()
 		return
 	if "only=night" in OS.get_cmdline_user_args():
@@ -101,6 +119,31 @@ func _initialize() -> void:
 	save(make_heart(), "icon_charm")
 	print("card art written")
 	quit()
+
+func parent_icon(id: String) -> Image:
+	match id:
+		"fireball": return make_flame()
+		"frost_ring": return make_snowflake()
+		"flare": return make_flare()
+		"torch": return make_torch()
+		"barricade": return make_wall(Color("a9743c"))
+		"spike_trap": return make_trap()
+		"sentry": return make_turret(Color("e8cc66"))
+		"mender": return make_totem(Color("5be37a"))
+	return new_img(32, 32)
+
+## Left-below the diagonal from `a`, right-above it from `b`, then a fresh outline.
+func blend(a: Image, b: Image) -> Image:
+	for im in [a, b]:
+		if im.get_width() != 32:
+			im.resize(32, 32, Image.INTERPOLATE_NEAREST)          # some icons are drawn at 16 px
+	var img := new_img(32, 32)
+	for y in 32:
+		for x in 32:
+			var src: Image = a if (x + y) < 32 else b
+			img.set_pixel(x, y, src.get_pixel(x, y))
+	outline(img)
+	return img
 
 func save(img: Image, name: String) -> void:
 	img.save_png(ProjectSettings.globalize_path("res://ui/cards/%s.png" % name))

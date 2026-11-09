@@ -253,7 +253,7 @@ Every weapon has the same four slots, each with its own cooldown:
   Recipes (Game.FUSE_RECIPES): Fireball+Frost Ring = Frostfire, Fireball+Flare = Solar Burst, Barricade+Spike Trap = Spiked Wall,
   Sentry+Spike Trap = Spiked Sentry, Sentry+Torch = Beacon Turret, Mender+Torch = Healing Lantern, Barricade+Torch = Bonfire Wall.
 - Fused cards live in Game.CARDS with "fused": true and are never drawn, offered as rewards or unlocked; they exist only in the hand.
-- Not built: art of their own (they reuse a parent's frame), a split-screen screen for players 2-4.
+- Each hybrid has its own frame and an icon made from its two parents' icons (tools/make_card_art.gd, `only=fused`). Split-screen players 2-4 open it with d-pad up (ui/base/local_fuser_ui.gd).
 
 ## Quadrants and progression within a run
 The world is split into quadrants around the Keep, each locked at the start.
