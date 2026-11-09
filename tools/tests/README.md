@@ -59,3 +59,4 @@ Forge storage over LAN: `net_forge_host.gd` + `net_forge_client.gd` (run as a pa
 into the forge and combines a held with a stored one; the host checks). The split-screen forge (grouped list, drop in / take out, combine with a
 stored weapon) is covered by the same rules in `Net.forge_*`.
 
+Local split screen: `split_two_pads.gd` (two simulated controllers, 22 checks: each controller drives only its own player; pickup, fighting, towers and cards, one person per tower, the forge, pause, damage).
