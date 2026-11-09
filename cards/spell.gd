@@ -10,6 +10,7 @@ var origin := Vector2.ZERO
 var flight := 1.0           # seconds of travel
 var effect_time := 1.0      # seconds the effect lasts after landing
 var age := 0.0
+var caster = null           # who cast it: a Flare follows that player's aim
 var landed := false
 var _tick := 0.0
 var light_radius := 0.0     # > 0 once a bright spell (flare, fire zone) has landed: it is a light source (group "light")
@@ -26,7 +27,7 @@ func setup(card: Dictionary, target: Vector2, from: Vector2) -> void:
 			card.duration = card.duration * 1.3
 		data = card
 	radius = card.radius
-	flight = max(0.15, from.distance_to(target) / card.speed)
+	flight = 0.1 if card.kind == "flare" else max(0.15, from.distance_to(target) / card.speed)         # a Flare is just there, at your aim
 	effect_time = 0.4 if card.kind == "fireball" else card.duration
 
 func _ready() -> void:
@@ -83,6 +84,8 @@ func _in_radius(group: String) -> Array:
 
 func _physics_process(delta: float) -> void:
 	age += delta
+	if data.kind == "flare" and caster != null and is_instance_valid(caster) and caster.has_method("aim_point"):
+		position = caster.aim_point()                 # the Flare follows your aimer (the cursor, or the stick), so you can sweep it around
 	if !landed:
 		if age >= flight:
 			landed = true

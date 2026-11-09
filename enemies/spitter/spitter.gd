@@ -5,7 +5,8 @@ var _shoot_cd := 2.0
 var _windup := 0.0
 
 func _ready() -> void:
-	max_health = 5.0
+	max_health = 4.0
+	contact_damage = 6.0
 	speed = 28
 	keep_dps = 0.8
 	can_aggro = false         # it keeps its distance and shoots

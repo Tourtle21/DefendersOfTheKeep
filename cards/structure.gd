@@ -266,8 +266,8 @@ func _physics_process(delta: float) -> void:
 					e.spell_damage(1.0 + 0.5 * tier, "fire", true)
 		"mender":
 			for p in get_tree().get_nodes_in_group("player"):
-				if is_instance_valid(p) and p.global_position.distance_to(global_position) <= radius:
-					p.heal(data.heal_per_sec * delta)
+				if is_instance_valid(p) and p.global_position.distance_to(global_position) <= radius and p.needs_health():
+					p.heal(data.heal_per_sec * delta)             # only a hurt player in range uses up its healing
 					_healed += data.heal_per_sec * delta
 			if _heal_budget > 0.0 and _healed >= _heal_budget:
 				_expire()                                    # it has healed all it had

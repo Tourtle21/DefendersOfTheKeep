@@ -7,11 +7,12 @@ var _stomp := 4.0
 var _stomp_wind := 0.0
 
 func _ready() -> void:
-	max_health = 30.0
+	max_health = 14.0
+	contact_damage = 18.0
 	speed = 12
 	keep_dps = 4.0
 	knockback_strength = 100.0
-	armor = 3.0
+	armor = 0.5
 	resist = {"earth": 0.3}
 	super()
 	scale = Vector2(1.4, 1.4)

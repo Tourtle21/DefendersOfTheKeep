@@ -2,7 +2,8 @@ extends Enemy
 ## Splitter: a blob that bursts into two fast minis when it dies.
 
 func _ready() -> void:
-	max_health = 9.0
+	max_health = 7.0
+	contact_damage = 8.0
 	speed = 24
 	swarm = true
 	super()

@@ -3,7 +3,8 @@ extends Enemy
 ## When it dies it leaves a patch of embers that burns whoever stands in it.
 
 func _ready() -> void:
-	max_health = 6.0
+	max_health = 5.0
+	contact_damage = 8.0
 	speed = 56
 	resist = {"fire": 0.2, "ice": 1.8}
 	super()

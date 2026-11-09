@@ -2,10 +2,11 @@ extends Enemy
 ## Bog lurker (swamp): regenerates and is immune to poison, but dry fire cooks it.
 ## Burst it down before it heals.
 
-var regen := 1.2
+var regen := 0.8
 
 func _ready() -> void:
-	max_health = 20.0
+	max_health = 12.0
+	contact_damage = 12.0
 	speed = 16
 	keep_dps = 3.0
 	resist = {"poison": 0.1, "fire": 1.6}

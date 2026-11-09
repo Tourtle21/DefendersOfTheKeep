@@ -3,14 +3,15 @@ extends Enemy
 ## the first few points of damage and regrows after a pause; piercing damage ignores
 ## both the shield and the armor.
 
-const SHIELD_MAX := 4.0
+const SHIELD_MAX := 2.0
 var _regrow := 0.0
 
 func _ready() -> void:
-	max_health = 22.0
+	max_health = 13.0
+	contact_damage = 16.0
 	speed = 16
 	keep_dps = 4.0
-	armor = 2.5
+	armor = 0.5
 	resist = {"earth": 1.8, "ice": 0.7}
 	shield = SHIELD_MAX
 	super()
@@ -37,7 +38,7 @@ func _ability(delta: float, t, dist: float) -> bool:
 	if _dashing(delta):
 		if !_bash_hit and _valid_target(t) and t.global_position.distance_to(global_position) <= 20.0:
 			_bash_hit = true
-			t.take_damage(global_position, 22.0)
+			t.take_damage(global_position, 16.0)
 			t.global_position += (t.global_position - global_position).normalized() * 14.0
 		return true
 	if ability_cd <= 0.0 and dist > 24.0 and dist < 70.0:

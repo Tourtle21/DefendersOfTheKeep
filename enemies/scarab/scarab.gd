@@ -4,7 +4,8 @@ extends Enemy
 var tint := Color(1.0, 0.75, 0.35)
 
 func _ready() -> void:
-	max_health = 8.0
+	max_health = 6.0
+	contact_damage = 8.0
 	speed = 34
 	keep_dps = 1.6
 	swarm = true

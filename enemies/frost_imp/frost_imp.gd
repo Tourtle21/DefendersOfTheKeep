@@ -3,7 +3,8 @@ extends Enemy
 ## When it dies it leaves a patch of freezing ground: kill it at range.
 
 func _ready() -> void:
-	max_health = 6.0
+	max_health = 5.0
+	contact_damage = 8.0
 	speed = 60
 	resist = {"ice": 0.2, "fire": 1.8}
 	super()

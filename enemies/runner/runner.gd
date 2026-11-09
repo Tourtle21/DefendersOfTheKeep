@@ -3,6 +3,7 @@ extends Enemy
 
 func _ready() -> void:
 	max_health = 3.0
+	contact_damage = 6.0
 	speed = 72
 	slowed_bonus = 1.6        # fast and fragile: slows and traps make it easy prey
 	can_aggro = false

@@ -45,8 +45,8 @@ const CARDS := {
 	"flare": {
 		"element": "fire", "night": true,
 		"name": "Flare", "mana": 20, "res": {"stick": 1}, "kind": "flare", "art": "flare",
-		"radius": 85.0, "duration": 20.0, "dps": 1.0, "speed": 220.0, "color": Color(1.0, 0.9, 0.5),
-		"desc": "A bright light at the spot you aim at, for 20 seconds. Enemies inside lose their shroud at night and burn a little.",
+		"radius": 85.0, "duration": 12.0, "dps": 1.0, "speed": 220.0, "color": Color(1.0, 0.9, 0.5),
+		"desc": "A light that follows your aim for 12 seconds: move it around to light things up. Enemies inside lose their shroud at night and burn a little.",
 	},
 	"meteor_shower": {
 		"element": "fire", "night": true, "legendary": true,
@@ -1191,6 +1191,7 @@ func cast(card_id: String, pos: Vector2, caster: Node = null) -> bool:
 	pay(c.res)
 	hand.remove_at(hand.find(card_id))
 	var spell := Spell.new()
+	spell.caster = caster
 	spell.setup(stats_of(card_id), pos, crystal_position())
 	world.add_child(spell)
 	mana_changed.emit()
@@ -1431,6 +1432,23 @@ func can_merge(i: int, j: int) -> bool:
 	if entry_id(hand[i]) != entry_id(hand[j]) or entry_tier(hand[i]) != entry_tier(hand[j]):
 		return false
 	return entry_tier(hand[i]) + 1 <= mini(MAX_LEVEL, card_tier(entry_id(hand[i])))
+
+## The hand grouped for display: [{entry, count, i, j}] where i and j are the first two positions of that card (j = -1 if only one).
+func hand_groups() -> Array:
+	var groups := {}
+	var order := []
+	for i in hand.size():
+		var e: String = hand[i]
+		if !groups.has(e):
+			groups[e] = {"entry": e, "count": 0, "i": i, "j": -1}
+			order.append(e)
+		groups[e].count += 1
+		if groups[e].count == 2:
+			groups[e].j = i
+	var out := []
+	for e in order:
+		out.append(groups[e])
+	return out
 
 func merge_hand(i: int, j: int) -> bool:
 	if !can_merge(i, j):

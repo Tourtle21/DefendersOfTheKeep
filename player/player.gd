@@ -317,6 +317,14 @@ func _remote_damage(damage := 30.0) -> void:
 	modulate = Color(1, 1, 1)
 	is_taking_damage = false
 
+## Is this player hurt (so a healer would actually do something)?
+func needs_health() -> bool:
+	if downed:
+		return false
+	if remote_controlled:
+		return remote_hp < 227.5
+	return get_parent().get_node("Hud/Control2/ColorRect/Health").size.x < 227.5
+
 func heal(amount: float) -> void:
 	amount /= Game.hp_scale()               # (Vitality: the same healing is a smaller share of a bigger health pool)
 	if remote_controlled:

@@ -3,6 +3,7 @@ extends Enemy
 
 func _ready() -> void:
 	max_health = 1.0
+	contact_damage = 5.0
 	speed = 46
 	keep_dps = 0.6
 	swarm = true

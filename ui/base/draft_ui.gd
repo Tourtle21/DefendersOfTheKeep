@@ -4,6 +4,8 @@ extends CanvasLayer
 var root_ctl: Control
 var title: Label
 var row: HBoxContainer
+var hand_row: HBoxContainer
+var hand_title: Label
 
 func _ready() -> void:
 	layer = 7
@@ -33,6 +35,18 @@ func _ready() -> void:
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_theme_constant_override("separation", 24)
 	box.add_child(row)
+	hand_title = Label.new()                       # the cards you hold now, with how many of each, and a Combine button for pairs
+	hand_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	hand_title.add_theme_font_size_override("font_size", 16)
+	hand_title.add_theme_color_override("font_color", Color(0.85, 0.9, 1.0))
+	box.add_child(hand_title)
+	hand_row = HBoxContainer.new()
+	hand_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	hand_row.add_theme_constant_override("separation", 14)
+	box.add_child(hand_row)
+	Game.hand_changed.connect(func():
+		if root_ctl.visible:
+			_refresh_hand())
 	preload("res://ui/cards/menu_pad.gd").attach(root_ctl, Callable(), "", row)     # any controller: d-pad / left stick to move, A to take
 	Game.draft_started.connect(_show)
 	Game.deck_changed.connect(func(): root_ctl.visible = Game.draft_active and Game.draft_owner_slot == 0)
@@ -58,4 +72,36 @@ func _show(options: Array) -> void:
 		wrap.add_child(view)
 		row.add_child(wrap)
 		view.flip_in(i * 0.1)
+	_refresh_hand()
 	root_ctl.visible = true
+
+## Your hand, one card per kind with x2 / x3 when you hold copies; two of the same card and tier can be combined right here
+## (that needs the next tier unlocked in the Collection).
+func _refresh_hand() -> void:
+	for c in hand_row.get_children():
+		hand_row.remove_child(c)
+		c.queue_free()
+	hand_title.text = "Your cards" + ("  (two of the same card combine into the next tier)" if !Game.hand.is_empty() else "")
+	for g in Game.hand_groups():
+		var col := VBoxContainer.new()
+		col.alignment = BoxContainer.ALIGNMENT_CENTER
+		col.add_theme_constant_override("separation", 4)
+		var wrap := Control.new()
+		wrap.custom_minimum_size = CardView.SIZE * 0.8
+		var view := CardView.new()
+		view.setup(Game.entry_id(g.entry), Game.entry_tier(g.entry), ("x%d" % g.count) if g.count > 1 else "", Game.entry_twist(g.entry))
+		view.scale = Vector2(0.8, 0.8)
+		view.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		wrap.add_child(view)
+		col.add_child(wrap)
+		if g.count > 1:
+			var b := Button.new()
+			var can: bool = Game.can_merge(g.i, g.j)
+			b.text = ("Combine -> T%d" % (Game.entry_tier(g.entry) + 1)) if can else "Next tier locked"
+			b.disabled = !can
+			b.tooltip_text = "" if can else "Unlock this card's next tier in the Collection to combine them."
+			var i: int = g.i
+			var j: int = g.j
+			b.pressed.connect(func(): Game.merge_hand(i, j))
+			col.add_child(b)
+		hand_row.add_child(col)

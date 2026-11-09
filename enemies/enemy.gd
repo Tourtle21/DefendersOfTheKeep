@@ -3,7 +3,7 @@ class_name Enemy
 
 @export var speed = 20
 @export var knockback_strength: float = 300.0
-@export var max_health = 8.0
+@export var max_health = 6.0
 
 var health = max_health
 var level = 1
@@ -29,6 +29,7 @@ var _charm_hit := 0.0
 var _unstick := Unstick.new()
 
 # --- fighting back: enemies notice you, turn on you when hit, and have a move of their own ---
+const SWORD_HIT := 2.0
 const AGGRO_TIME := 3.0           # how long an enemy stays on you once it has noticed or been hit by you
 const AGGRO_RANGE := 90.0         # walk this close IN FRONT of it and it notices you (it does not notice you behind its back)
 const FRONT_DOT := 0.3            # in front = within about 70 degrees of the way it is facing
@@ -45,6 +46,7 @@ var _off_map := false
 var _alert := 0.0                 # the "!" over its head
 var facing := Vector2.DOWN
 var hit_from := Vector2.INF       # where the hit that is being applied came from (set by WeaponUtil.hit), for the backstab bonus
+var contact_damage := 10.0           # what touching a player does (per hit); the types below set their own
 var haste := 1.0                  # speed multiplier (the Hasty elite, the runner's sprint)
 var ability_cd := 2.0
 var _wind := 0.0                  # >0: winding up an attack (stands still, flashes, shows where it will land)
@@ -370,7 +372,7 @@ func take_damage(damage_origin: Vector2):
 		var direction = (position - damage_origin).normalized()
 		apply_knockback(direction * knockback_strength)
 		audio_take_damage.play()
-		health -= 1
+		health -= SWORD_HIT               # the sword and pickaxe swing: 2 damage (it was 1)
 		if health <= 0:
 			die()
 		var maxSize = $ColorRect.size.x - 2

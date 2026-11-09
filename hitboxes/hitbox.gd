@@ -39,6 +39,9 @@ func _process(delta: float) -> void:
 ## (+20% per awakening, like every other weapon) add that share of the damage that hit did, so they count here too.
 func _tool_hit(body: Node) -> void:
 	var tool = get_parent()
+	if "contact_damage" in tool:
+		body.take_damage(tool.global_position, tool.contact_damage)       # an enemy touching a player: its own damage, not a flat 30
+		return
 	var before = body.get("health")
 	body.take_damage(tool.get_parent().get_parent().position)
 	if before == null or !("bonus_tier" in tool) or !is_instance_valid(body) or !body.has_method("spell_damage"):
