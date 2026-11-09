@@ -31,3 +31,6 @@ func _physics_process(delta: float) -> void:
 			_stomp_wind = 0.7
 			WeaponFx.spawn(Game.world, "ring", global_position, Color(1.0, 0.4, 0.3), {"radius": 38.0, "life": 0.7})
 	super(delta)
+
+func _ability(_delta: float, _t, _dist: float) -> bool:
+	return false                      # its move is the stomp above

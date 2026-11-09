@@ -8,6 +8,7 @@ func _ready() -> void:
 	max_health = 5.0
 	speed = 28
 	keep_dps = 0.8
+	can_aggro = false         # it keeps its distance and shoots
 	super()
 
 func _physics_process(delta: float) -> void:

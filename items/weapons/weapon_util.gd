@@ -63,6 +63,8 @@ static func hit(e: Node, dmg: float, from: Vector2, knock := 0.0, stun := 0.0, e
 	var dir: Vector2 = (e.global_position - from).normalized()
 	if dmg >= 5.0:
 		Game.hit_stop(0.06)
+	if "hit_from" in e:
+		e.hit_from = from
 	e.spell_damage(dmg * power, elem if elem != "" else element, aoe)
 	if twist != "":
 		_apply_twist(e, dmg * power)

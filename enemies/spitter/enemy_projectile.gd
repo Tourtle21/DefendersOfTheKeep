@@ -9,10 +9,11 @@ var damage := 30.0
 var tint := Color(0.5, 0.95, 0.3)
 var split_at := 0.0               # > 0: after this many seconds it bursts into split_n shots (Crystal Warden)
 var split_n := 3
+var slow := 0.0                   # > 0: a hit slows the player to this fraction of their speed for 1.5 seconds
 var _age := 0.0
 var _split_done := false
 
-static func fire(world: Node, from: Vector2, dir: Vector2, speed := 95.0, dmg := 30.0, col := Color(0.5, 0.95, 0.3), rad := 7.0, lifetime := 3.0, split_time := 0.0) -> void:
+static func fire(world: Node, from: Vector2, dir: Vector2, speed := 95.0, dmg := 30.0, col := Color(0.5, 0.95, 0.3), rad := 7.0, lifetime := 3.0, split_time := 0.0, slow_to := 0.0) -> void:
 	var p := EnemyProjectile.new()
 	p.position = from
 	p.vel = dir.normalized() * speed
@@ -21,6 +22,7 @@ static func fire(world: Node, from: Vector2, dir: Vector2, speed := 95.0, dmg :=
 	p.radius = rad
 	p.life = lifetime
 	p.split_at = split_time
+	p.slow = slow_to
 	world.add_child.call_deferred(p)
 
 func _ready() -> void:
@@ -41,6 +43,9 @@ func _physics_process(delta: float) -> void:
 	for pl in get_tree().get_nodes_in_group("player"):
 		if is_instance_valid(pl) and !pl.get("is_in_tower") and pl.global_position.distance_to(global_position) <= radius + 4.0:
 			pl.take_damage(global_position - vel.normalized() * 10.0, damage)
+			if slow > 0.0:
+				pl.speed_mult = slow
+				get_tree().create_timer(1.5).timeout.connect(func(): if is_instance_valid(pl): pl.speed_mult = 1.0)
 			queue_free()
 			return
 	if life <= 0.0:

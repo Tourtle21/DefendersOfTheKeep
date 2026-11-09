@@ -213,6 +213,15 @@ func wave_plan(picked: Array) -> Array:
 				plan.append({"name": biome_enemy[sec], "amount": int(ceil((1 + w / 4.0) * factor)), "level": 1})
 	return plan
 
+const ELITE_AFFIXES := ["shielded", "hasty", "leeching"]
+
+## Chance that an enemy of a wave is an elite (a coloured ring and one modifier): none in the first wave, then more every
+## wave, and more again for every extra player (LAN or split screen).
+static func elite_chance_for(wave: int) -> float:
+	if wave < 2:
+		return 0.0
+	return minf(0.4, 0.06 + 0.02 * float(wave) + 0.03 * float(Game.player_count() - 1))
+
 ## The wave draw plays itself (no card screen): the account of what happened is part of the wave banner.
 func _begin_wave() -> void:
 	var r: Dictionary = $Upgrades.auto_pick()
@@ -243,6 +252,7 @@ func spawn_enemies(enemies, draw_lines := []) -> void:
 		b.show_wave(head.to_upper() + " STARTS", lines)
 	Game.announce.emit("%s starts: %d enemies. %s" % [head, total, " / ".join(draw_lines)])
 	Sfx.play("wave_horn")
+	var elite_chance := elite_chance_for(Game.run_stats.waves)
 	for enemy in plan:
 		for i in enemy.amount:
 			var scene = load("res://enemies/" + enemy.name + "/" + enemy.name + ".tscn")
@@ -250,6 +260,8 @@ func spawn_enemies(enemies, draw_lines := []) -> void:
 			enemy_scene.level = enemy.level
 			enemy_scene.position = _spawn_position()
 			$Enemies.add_child(enemy_scene)
+			if enemy_scene.has_method("apply_affix") and randf() < elite_chance:
+				enemy_scene.apply_affix(ELITE_AFFIXES.pick_random())
 	
 	night_wave = !night_wave                       # the next wave is the other kind, a long while from now
 	$SpawnTimer.wait_time = seconds_until(NIGHT_WAVE_AT if night_wave else DAY_WAVE_AT)

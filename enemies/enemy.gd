@@ -28,9 +28,34 @@ var charm_time = 0.0     # >0: fights for the defenders (Charm card)
 var _charm_hit := 0.0
 var _unstick := Unstick.new()
 
+# --- fighting back: enemies notice you, turn on you when hit, and have a move of their own ---
+const AGGRO_TIME := 3.0           # how long an enemy stays on you once it has noticed or been hit by you
+const AGGRO_RANGE := 80.0         # walk this close and it notices you
+const AGGRO_COOLDOWN := 2.5       # after losing interest it ignores you for this long (so nobody can be dragged around forever)
+const TURN_RATE := 3.5            # how fast it turns to face something (radians per second, roughly): a slow turn is the flanking window
+const BACKSTAB := 1.3             # damage multiplier for a hit from behind
+var can_aggro := true             # runners and spitters keep to their own job
+var aggro_target = null
+var aggro_left := 0.0
+var _aggro_cd := 0.0
+var _aggro_scan := randf() * 0.25
+var _alert := 0.0                 # the "!" over its head
+var facing := Vector2.DOWN
+var hit_from := Vector2.INF       # where the hit that is being applied came from (set by WeaponUtil.hit), for the backstab bonus
+var haste := 1.0                  # speed multiplier (the Hasty elite, the runner's sprint)
+var ability_cd := 2.0
+var _wind := 0.0                  # >0: winding up an attack (stands still, flashes, shows where it will land)
+var _wind_kind := ""
+var _dash_left := 0.0
+var _dash_dir := Vector2.ZERO
+var _dash_speed := 300.0
+var affix := ""                   # "shielded", "hasty" or "leeching": an elite with a modifier (see apply_affix)
+
 @onready var audio_take_damage = $TakeDamage
 @onready var nav_agent = $NavigationAgent2D as NavigationAgent2D
 @onready var crystal = get_parent().get_parent().get_node("Well").get_node("Crystal")
+
+const AFFIX_COLORS := {"shielded": Color(0.75, 0.6, 1.0), "hasty": Color(1.0, 0.9, 0.3), "leeching": Color(1.0, 0.35, 0.4)}
 
 const ELEMENT_COLORS := {
 	"fire": Color(1.0, 0.5, 0.15), "ice": Color(0.5, 0.9, 1.0), "poison": Color(0.55, 0.95, 0.3),
@@ -50,6 +75,10 @@ func _draw() -> void:
 		pips.append([Color(1.0, 0.95, 0.5), "swarm"])
 	if shield > 0.0:
 		draw_arc(Vector2(0, -2), 11.0, -PI * 0.85, -PI * 0.15, 12, Color(0.75, 0.6, 1.0, 0.8), 1.6)
+	if affix != "":
+		draw_arc(Vector2(0, 2), 13.0, 0, TAU, 24, AFFIX_COLORS.get(affix, Color.WHITE), 1.8)          # an elite: a coloured ring
+	if _alert > 0.0:
+		draw_string(ThemeDB.fallback_font, Vector2(-3, -26), "!", HORIZONTAL_ALIGNMENT_CENTER, 8.0, 12, Color(1.0, 0.85, 0.2))
 	if slowed_bonus > 1.0:
 		pips.append([Color(0.5, 0.9, 1.0), "slow"])
 	for i in pips.size():
@@ -80,6 +109,7 @@ func _ready():
 	speed += level * 2
 	
 	health = max_health
+	facing = (center - global_position).normalized() if global_position.distance_to(center) > 1.0 else Vector2.DOWN
 	# slower, staggered path updates: with 100+ enemies, 10 path queries each per second is a lot
 	$NavigationTimer.wait_time = randf_range(0.3, 0.45)
 
@@ -114,27 +144,173 @@ func _physics_process(delta):
 		velocity = knock_vel
 		move_and_slide()
 		return
+	_update_aggro(delta)
+	if affix == "leeching" and aggro_left > 0.0 and health < max_health and !dead:
+		health = minf(max_health, health + max_health * 0.05 * delta)          # it feeds while it fights you
+		$ColorRect/Health.size.x = ($ColorRect.size.x - 2) * clampf(health / max_health, 0.0, 1.0)
+	if aggro_left > 0.0 and aggro_target != null and charm_time <= 0.0:
+		var dist: float = global_position.distance_to(aggro_target.global_position)
+		if !_ability(delta, aggro_target, dist):
+			_chase(delta)
+		_update_facing(delta, aggro_target.global_position - global_position)
+		if !has_crystal and global_position.distance_to(center) <= 14.0:
+			Game.damage_keep(keep_dps * delta)
+		_flip_sprite()
+		return
+	_wind = 0.0
+	_dash_left = 0.0
 	if has_crystal or global_position.distance_to(center) > 5 or crystal.state != "home":
 		if _is_far(delta):
-			velocity = (nav_agent.target_position - global_position).normalized() * speed * slow_mult
+			velocity = (nav_agent.target_position - global_position).normalized() * speed * slow_mult * haste
 			global_position += velocity * delta
 		else:
 			var next_pos = nav_agent.get_next_path_position()
 			if next_pos.distance_to(global_position) < 2.0:
 				next_pos = nav_agent.target_position      # no path (outside the navmesh): go straight
 			var dir = to_local(next_pos).normalized()
-			var go: float = speed * slow_mult * (0.8 if has_crystal else 1.0)
+			var go: float = speed * slow_mult * haste * (0.8 if has_crystal else 1.0)
 			velocity = _unstick.steer(dir, go, delta)
 			move_and_slide()
 			_unstick.after_move(self, dir, go, delta)
 	
 	if !has_crystal and global_position.distance_to(center) <= 14.0:
 		Game.damage_keep(keep_dps * delta)
+	_update_facing(delta, velocity)
+	_flip_sprite()
 
+func _flip_sprite() -> void:
 	if velocity.x < 0 and $Sprite2D.scale.x > 0:
 		$Sprite2D.scale.x = -1
 	elif velocity.x > 0 and $Sprite2D.scale.x < 0:
 		$Sprite2D.scale.x = 1
+
+## Turn towards `v` at a limited rate (so a hit from the side or behind lands before it has turned round).
+func _update_facing(delta: float, v: Vector2) -> void:
+	if v.length_squared() > 1.0:
+		facing = facing.slerp(v.normalized(), minf(1.0, TURN_RATE * delta))
+
+## True if `from` (an attacker's position) is behind this enemy.
+func is_behind(from: Vector2) -> bool:
+	var to := from - global_position
+	return to.length() > 0.1 and facing.dot(to.normalized()) < -0.3
+
+# ---------------- awareness ----------------
+
+func _valid_target(p) -> bool:
+	return p != null and is_instance_valid(p) and !p.get("downed") and !p.get("is_in_tower")
+
+func _nearest_player(max_dist: float):
+	var best = null
+	var best_d := max_dist
+	for p in get_tree().get_nodes_in_group("player"):
+		if _valid_target(p):
+			var d: float = p.global_position.distance_to(global_position)
+			if d <= best_d:
+				best = p
+				best_d = d
+	return best
+
+## Start (or refresh) fighting a player for a few seconds.
+func start_aggro(p) -> void:
+	if !can_aggro or has_crystal or charm_time > 0.0 or !_valid_target(p):
+		return
+	if aggro_left <= 0.0:
+		_alert = 0.6
+		queue_redraw()
+	aggro_target = p
+	aggro_left = AGGRO_TIME
+
+## You hit it: it turns on the nearest player (whoever it was).
+func provoke() -> void:
+	if can_aggro and !has_crystal and !dead:
+		var p = _nearest_player(240.0)
+		if p != null:
+			start_aggro(p)
+
+func _update_aggro(delta: float) -> void:
+	if _alert > 0.0:
+		_alert -= delta
+		if _alert <= 0.0:
+			queue_redraw()
+	_aggro_cd -= delta
+	ability_cd -= delta
+	if aggro_left > 0.0:
+		aggro_left -= delta
+		if !_valid_target(aggro_target) or has_crystal:
+			aggro_left = 0.0
+		if aggro_left <= 0.0:
+			aggro_target = null
+			_aggro_cd = AGGRO_COOLDOWN             # lost interest: back to the objective for a while
+		return
+	if !can_aggro or has_crystal or _aggro_cd > 0.0:
+		return
+	_aggro_scan -= delta
+	if _aggro_scan <= 0.0:
+		_aggro_scan = 0.25
+		var p = _nearest_player(AGGRO_RANGE)
+		if p != null:
+			start_aggro(p)
+
+func _chase(delta: float) -> void:
+	var dir: Vector2 = (aggro_target.global_position - global_position).normalized()
+	var go: float = speed * slow_mult * haste * 1.1
+	velocity = _unstick.steer(dir, go, delta)
+	move_and_slide()
+	_unstick.after_move(self, dir, go, delta)
+
+## Called each frame while it is fighting you. Return true if it moved this frame itself (a wind-up or a dash).
+## The default move is a lunge: a short telegraphed dash at you. Types override this with their own.
+func _ability(delta: float, t, dist: float) -> bool:
+	return _lunge(delta, t, dist)
+
+## --- shared building blocks for the moves ---
+func _winding(delta: float, col: Color) -> bool:
+	if _wind <= 0.0:
+		return false
+	_wind -= delta
+	velocity = Vector2.ZERO
+	modulate = col if int(_wind * 14.0) % 2 == 0 else Color.WHITE
+	if _wind <= 0.0:
+		modulate = Color.WHITE
+		_wind = 0.0
+		return false
+	return true
+
+func _dashing(delta: float) -> bool:
+	if _dash_left <= 0.0:
+		return false
+	_dash_left -= delta
+	velocity = _dash_dir * _dash_speed
+	move_and_slide()
+	return true
+
+func _lunge(delta: float, t, dist: float) -> bool:
+	if _wind > 0.0:
+		if _winding(delta, Color(1.0, 0.85, 0.3)):
+			return true
+		_dash_left = 0.22                              # the wind-up is over: it launches
+		return _dashing(delta)
+	if _dashing(delta):
+		return true
+	if ability_cd <= 0.0 and dist > 22.0 and dist < 80.0:
+		_wind = 0.45
+		ability_cd = 4.5
+		_dash_dir = (t.global_position - global_position).normalized()
+		_dash_speed = 300.0
+		WeaponFx.spawn(Game.world, "line", global_position, Color(1.0, 0.85, 0.3, 0.7), {"dir": _dash_dir, "length": 68.0, "width": 5.0, "life": 0.45})
+		return true
+	return false
+
+## An elite: a stronger version with one modifier. (Waves roll these; see world.gd.)
+func apply_affix(a: String) -> void:
+	affix = a
+	match a:
+		"shielded":
+			shield += 6.0 + level
+		"hasty":
+			haste = 1.5
+	scale *= 1.12
+	queue_redraw()
 
 ## Charmed enemies hunt the nearest other enemy instead of the keep.
 func charm(time: float) -> void:
@@ -169,6 +345,7 @@ func _charmed(delta: float) -> void:
 		$Sprite2D.scale.x = 1
 
 func take_damage(damage_origin: Vector2):
+	provoke()
 	if !is_taking_damage:
 		is_taking_damage = true
 		modulate = Color(1, 0, 0)
@@ -229,13 +406,23 @@ func apply_traits(amount: float, element: String, aoe := false) -> float:
 func spell_damage(amount: float, element := "", aoe := false) -> void:
 	if element == "fire":
 		Game.light_up(self, 2.5)          # fire is bright: it lights what it hits, so it is never shrouded
+	provoke()
+	var backstab := false
+	if hit_from != Vector2.INF:
+		backstab = is_behind(hit_from)
+		hit_from = Vector2.INF
 	var raw := amount
 	amount = apply_traits(amount, element, aoe)
+	if backstab:
+		amount *= BACKSTAB
+		raw *= BACKSTAB
 	var tint := Color.WHITE
 	if amount < raw * 0.6:
 		tint = Color(0.6, 0.65, 0.8)          # resisted
 	elif amount > raw * 1.3:
 		tint = Color(1.0, 0.5, 0.15)          # weak to it
+	if backstab:
+		tint = Color(1.0, 0.9, 0.3)           # a hit from behind
 	DamageNumber.spawn(Game.world, global_position + Vector2(0, -14), amount, amount >= 4.0 or tint.g < 0.6, tint)
 	Sfx.play("big_hit" if amount >= 4.0 else "hit")
 	health -= amount

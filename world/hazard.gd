@@ -7,6 +7,8 @@ var kind := "slow"
 var factor := 0.5
 var radius := 34.0
 var color := Color(0.6, 0.5, 0.3, 0.5)
+var player_damage := 30.0   # what a burn tick does to a player
+var hurts_enemies := true   # false: a patch an enemy made, which only hurts players
 var lifetime := 0.0         # > 0: the patch fades and removes itself after this many seconds
 var _tick := 0.0
 var _t := 0.0
@@ -41,8 +43,10 @@ func _physics_process(delta: float) -> void:
 			if kind == "heal":
 				p.heal(8.0 * delta)
 			elif kind == "burn" and burn_now:
-				p.take_damage(global_position)
+				p.take_damage(global_position, player_damage)
 	for e in get_tree().get_nodes_in_group("enemy"):
+		if !hurts_enemies and kind == "burn":
+			break
 		if !is_instance_valid(e) or e.is_in_group("boss") or e.global_position.distance_to(global_position) > radius:
 			continue
 		if kind == "slow":

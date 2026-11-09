@@ -44,6 +44,8 @@ func _tool_hit(body: Node) -> void:
 	if before == null or !("bonus_tier" in tool) or !is_instance_valid(body) or !body.has_method("spell_damage"):
 		return
 	var mult: float = (1.0 + 0.2 * tool.bonus_tier) * (1.0 + Game.bonus("weapon_dmg"))
+	if body.has_method("is_behind") and body.is_behind(tool.get_parent().get_parent().global_position):
+		mult *= body.BACKSTAB                          # a swing from behind hits harder
 	var lost: float = float(before) - float(body.get("health"))
 	if mult > 1.001 and lost > 0.0 and !body.get("dead"):
 		body.spell_damage(lost * (mult - 1.0))

@@ -14,3 +14,21 @@ func die() -> void:
 	super()
 	if !was_dead:
 		WeaponUtil.patch(Game.world, pos, "burn", 22.0, Color(1.0, 0.4, 0.1, 0.5), 3.0)
+
+## Fire trail: while it fights you it leaves burning ground behind it (it only burns players, not other enemies).
+var _trail := 0.0
+
+func _ability(delta: float, _t, _dist: float) -> bool:
+	_trail -= delta
+	if _trail <= 0.0:
+		_trail = 0.45
+		var h := Hazard.new()
+		h.kind = "burn"
+		h.radius = 13.0
+		h.color = Color(1.0, 0.4, 0.1, 0.5)
+		h.lifetime = 2.5
+		h.hurts_enemies = false
+		h.player_damage = 8.0
+		h.position = global_position
+		Game.world.add_child.call_deferred(h)
+	return false
