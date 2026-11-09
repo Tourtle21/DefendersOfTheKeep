@@ -368,6 +368,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		Net.net_command.rpc_id(1, {"cmd": "interact"})      # tower, chest or pickup: the host decides what is in reach
 	elif _in_base and event is InputEventKey and event.pressed and !event.echo and event.keycode >= KEY_1 and event.keycode <= KEY_5:
 		selected = event.keycode - KEY_1
+	elif _in_base and event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT and selected < 0:
+		Net.net_command.rpc_id(1, {"cmd": "tower_tp", "pos": Pad.world_mouse(self)})      # the host checks there is a lit tower there
 	elif _in_base and event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT and selected >= 0:
 		var hand: Array = Net.last_snapshot.get("hand", [])
 		if selected < hand.size():

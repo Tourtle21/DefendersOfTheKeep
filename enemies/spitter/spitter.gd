@@ -18,7 +18,7 @@ func _physics_process(delta: float) -> void:
 	_shoot_cd -= delta
 	var player = null
 	for pl in get_tree().get_nodes_in_group("player"):
-		if is_instance_valid(pl) and !pl.get("downed") and (player == null or pl.global_position.distance_to(global_position) < player.global_position.distance_to(global_position)):
+		if is_instance_valid(pl) and !pl.get("downed") and !pl.get("is_in_tower") and (player == null or pl.global_position.distance_to(global_position) < player.global_position.distance_to(global_position)):
 			player = pl
 	if _windup > 0.0:
 		_windup -= delta

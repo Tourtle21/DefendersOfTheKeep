@@ -306,8 +306,8 @@ func heal(amount: float) -> void:
 	health_rect.size.x = min(health_rect.size.x + amount, 228.0)
 
 func take_damage(damage_origin: Vector2):
-	if downed:
-		return
+	if downed or is_in_tower:
+		return                       # inside a tower nothing can hurt you (shots, stomps, hazards, bosses)
 	if parry_time > 0.0 and on_parry.is_valid():
 		parry_time = 0.0
 		on_parry.call(damage_origin)

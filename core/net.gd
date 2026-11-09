@@ -338,6 +338,9 @@ func net_command(cmd: Dictionary) -> void:
 		"cast":
 			if pl.is_in_tower:
 				Game.cast(cmd.card, cmd.pos, pl)
+		"tower_tp":
+			if pl.is_in_tower:
+				Game.teleport_to_tower(pl, Game.tower_at(cmd.pos, 34.0, Game.current_tower(pl)), false)
 		"repair":
 			if pl.is_in_tower:
 				Game.repair_keep()

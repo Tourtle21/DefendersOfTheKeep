@@ -211,7 +211,7 @@ func _refresh_all() -> void:
 			carry.append("%d %s" % [Game.carried[k], k])
 	info_label.text = "Carrying: %s     Keep: %s" % [", ".join(carry), ", ".join(keep)]
 	if Game.local_in_base():
-		hint_label.text = "Drag a card onto the map. It flies from the crystal: lead your targets."
+		hint_label.text = "Drag a card onto the map.  Click a lit tower to jump to it."
 	_rebuild_upgrades()
 	_refresh_hand_enabled()
 
@@ -369,13 +369,50 @@ func _unhandled_input(event: InputEvent) -> void:
 			_refresh_hand_enabled()
 	elif event is InputEventMouseButton and event.pressed:
 		if event.button_index == MOUSE_BUTTON_LEFT:
+			if selected < 0 and dragging < 0 and _try_tower_jump(_world_mouse()):
+				return
 			cast_selected_at(_world_mouse())
 		elif event.button_index == MOUSE_BUTTON_RIGHT:
 			selected = -1
 			_refresh_hand_enabled()
 
+## With no card picked up, clicking another lit tower jumps you there.
+func _try_tower_jump(world_pos: Vector2) -> bool:
+	var player = null
+	for p in Game.players_in_base:
+		if is_instance_valid(p) and !p.remote_controlled:
+			player = p
+	if player == null:
+		return false
+	var target = Game.tower_at(world_pos, 34.0, Game.current_tower(player))
+	if target == null:
+		return false
+	return Game.teleport_to_tower(player, target)
+
+## Rings on the other lit towers while you are inside one.
+func _draw_tower_markers() -> void:
+	if selected >= 0 or dragging >= 0:
+		return
+	var player = null
+	for p in Game.players_in_base:
+		if is_instance_valid(p) and !p.remote_controlled:
+			player = p
+	if player == null:
+		return
+	var here = Game.current_tower(player)
+	var xf := get_viewport().get_canvas_transform()
+	var pulse := 0.5 + 0.5 * sin(Time.get_ticks_msec() / 250.0)
+	var zoom: float = xf.get_scale().x
+	for t in Game.all_towers():
+		if t == here or !Game.tower_online(t):
+			continue
+		var sp: Vector2 = xf * (t.global_position + Vector2(0, -6))
+		reticle.draw_arc(sp, (20.0 + 3.0 * pulse) * zoom, 0, TAU, 32, Color(0.7, 0.9, 1.0, 0.8), 2.0)
+		reticle.draw_string(ThemeDB.fallback_font, sp + Vector2(-30, -26 * zoom), "click to go", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color(0.8, 0.95, 1.0))
+
 func _draw_reticle() -> void:
 	_draw_chest_markers()
+	_draw_tower_markers()
 	var idx := dragging if dragging >= 0 else selected
 	if idx < 0 or idx >= Game.hand.size():
 		return

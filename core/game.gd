@@ -970,6 +970,60 @@ func cast(card_id: String, pos: Vector2, caster: Node = null) -> bool:
 	hand_changed.emit()
 	return true
 
+## --- towers: while you are inside one you can jump to any other lit tower ---
+
+## A tower is lit (usable) when its turret says it is online: sector open, visible, crystal home.
+func tower_online(t: Node) -> bool:
+	for c in t.get_children():
+		if c.has_method("online"):
+			return c.online()
+	return false
+
+func all_towers() -> Array:
+	var out := []
+	if world == null:
+		return out
+	for c in world.get_children():
+		if c is StaticBody2D and c.name.begins_with("Tower"):
+			out.append(c)
+	return out
+
+## The lit tower nearest to a world point within `radius`, or null.
+func tower_at(pos: Vector2, radius: float, skip: Node = null):
+	var best = null
+	for t in all_towers():
+		if t == skip or !tower_online(t):
+			continue
+		var d: float = t.global_position.distance_to(pos)
+		if d <= radius and (best == null or d < best.global_position.distance_to(pos)):
+			best = t
+	return best
+
+func current_tower(player: Node):
+	var best = null
+	for t in all_towers():
+		var d: float = t.global_position.distance_to(player.global_position)
+		if d <= 60.0 and (best == null or d < best.global_position.distance_to(player.global_position)):
+			best = t
+	return best
+
+## Move a player from the tower they are in to another lit one. `visuals` toggles the doors and interior (local player).
+func teleport_to_tower(player: Node, target: Node, visuals := true) -> bool:
+	if player == null or target == null or !player.is_in_tower or !tower_online(target):
+		return false
+	var cur = current_tower(player)
+	if cur == target:
+		return false
+	if visuals:
+		if cur != null:
+			cur.get_node("EnterArea").teleport_leave()
+		target.get_node("EnterArea").teleport_arrive(player)
+	else:
+		player.global_position = target.global_position - Vector2(0, 10)
+	WeaponFx.spawn(world, "ring", target.global_position, Color(0.7, 0.9, 1.0), {"radius": 22.0, "life": 0.35})
+	Sfx.play("unlock", 0.0)
+	return true
+
 ## The crystal powers the keep: while it is away nothing in the base works.
 func crystal_away() -> bool:
 	return crystal_state != "home"
