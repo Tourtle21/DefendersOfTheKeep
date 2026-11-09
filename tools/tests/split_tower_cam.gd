@@ -44,8 +44,8 @@ func _initialize() -> void:
 	print("  p2 in tower: %s; camera offsets seen: %s; zoom before %s after %s" % [p2.is_in_tower, maxoff, zoom0, [split.cameras[0].zoom, split.cameras[1].zoom]])
 	print("  p1 camera pos %s -> %s, p1 base_zoom %s, p1 in tower %s" % [pos0[0], split.cameras[0].global_position, p1.base_zoom, p1.is_in_tower])
 	var steady := true
-	for t in trace:
-		if t[0].distance_to(trace[0][0]) > 0.01:
+	for row in trace:
+		if row[0].distance_to(trace[0][0]) > 0.01:
 			steady = false
 	ok("player 2's view holds still for 90 frames in the tower (it flipped +-0.5 every frame before)", steady)
 	ok("player 2 is in the tower", p2.is_in_tower)
