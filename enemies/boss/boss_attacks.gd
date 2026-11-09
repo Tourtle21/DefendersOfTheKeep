@@ -20,6 +20,18 @@ const LABELS := {
 	"prism_beams": "PRISM BEAMS", "shard_trail": "SHARD TRAIL", "facet_burst": "FACET BURST",
 }
 
+## How many players beyond the first: attacks get bigger and spread over several players.
+static func extra() -> int:
+	return maxi(0, Game.player_count() - 1)
+
+## A random player who can be hit (for attacks that should spread out), or the boss's usual target.
+static func any_target(b):
+	var pool := []
+	for p in b.get_tree().get_nodes_in_group("player"):
+		if is_instance_valid(p) and !p.get("downed") and !p.get("is_in_tower"):
+			pool.append(p)
+	return pool.pick_random() if !pool.is_empty() else target(b)
+
 static func has(name: String) -> bool:
 	return LABELS.has(name)
 
@@ -134,7 +146,10 @@ static func bounce(b) -> void:
 static func bramble(b) -> void:
 	var base := aim(b)
 	var col := Color(0.35, 0.75, 0.25)
-	for k in [-0.45, 0.0, 0.45]:
+	var fan := [-0.45, 0.0, 0.45]
+	if extra() >= 1:
+		fan = [-0.8, -0.4, 0.0, 0.4, 0.8]
+	for k in fan:
 		line(b, b.global_position, base.rotated(k), 170.0, 18.0, 0.8, 55.0, col)
 		if !await wait(b, 0.3):
 			return
@@ -165,9 +180,10 @@ static func vine_sweep(b) -> void:
 static func sand_spiral(b) -> void:
 	var col := Color(0.9, 0.75, 0.4)
 	var a := randf() * TAU
+	var arms := 3 + (1 if extra() >= 2 else 0)
 	for i in 24:
-		for arm in 3:
-			shot(b, Vector2.from_angle(a + arm * TAU / 3.0), 85.0, 26.0, col, 6.0, 3.2)
+		for arm in arms:
+			shot(b, Vector2.from_angle(a + arm * TAU / float(arms)), 85.0, 26.0, col, 6.0, 3.2)
 		a += 0.38
 		if !await wait(b, 0.07):
 			return
@@ -180,8 +196,9 @@ static func quicksand(b) -> void:
 		return
 	var col := Color(0.75, 0.6, 0.3)
 	zone(b, p.global_position, 44.0, 6.0, 10.0, 0.35, col)
-	for i in 2:
-		zone(b, p.global_position + Vector2.from_angle(randf() * TAU) * randf_range(55.0, 90.0), 40.0, 6.0, 10.0, 0.35, col)
+	for i in 2 + extra():
+		var at = any_target(b)
+		zone(b, (at.global_position if at != null else p.global_position) + Vector2.from_angle(randf() * TAU) * randf_range(20.0, 90.0), 40.0, 6.0, 10.0, 0.35, col)
 	await wait(b, 1.2)
 
 ## A fan of scarabs skitters out, twice.
@@ -189,8 +206,9 @@ static func scarab_fan(b) -> void:
 	var col := Color(0.8, 0.55, 0.2)
 	for round in 2:
 		var base := aim(b)
-		for i in 7:
-			shot(b, base.rotated((i - 3) * 0.17), 125.0, 30.0, col, 7.0, 3.0)
+		var n := 7 + 2 * extra()
+		for i in n:
+			shot(b, base.rotated((i - (n - 1) / 2.0) * 0.17), 125.0, 30.0, col, 7.0, 3.0)
 		if !await wait(b, 0.55):
 			return
 	await wait(b, 0.4)
@@ -232,8 +250,8 @@ static func meteor_rain(b) -> void:
 	if p == null:
 		return
 	var col := Color(1.0, 0.45, 0.1)
-	for i in 7:
-		var pl = target(b)
+	for i in 7 + 2 * extra():
+		var pl = target(b) if i == 0 else any_target(b)         # later meteors pick a random player: they spread over the team
 		if pl == null:
 			break
 		var at: Vector2 = pl.global_position + (Vector2.ZERO if i == 0 else Vector2.from_angle(randf() * TAU) * randf_range(10.0, 70.0))
@@ -251,21 +269,23 @@ static func _meteor(b, at: Vector2, col: Color) -> void:
 static func lava_spokes(b) -> void:
 	var col := Color(1.0, 0.4, 0.1)
 	var off := randf() * TAU
-	for i in 8:
-		line(b, b.global_position, Vector2.from_angle(off + i * TAU / 8.0), 170.0, 14.0, 0.9, 62.0, col)
+	var spokes := 8 + 2 * mini(extra(), 3)
+	for i in spokes:
+		line(b, b.global_position, Vector2.from_angle(off + i * TAU / float(spokes)), 170.0, 14.0, 0.9, 62.0, col)
 	if !await wait(b, 1.5):
 		return
-	for i in 8:
-		line(b, b.global_position, Vector2.from_angle(off + PI / 8.0 + i * TAU / 8.0), 170.0, 14.0, 0.7, 62.0, col)
+	for i in spokes:
+		line(b, b.global_position, Vector2.from_angle(off + PI / float(spokes) + i * TAU / float(spokes)), 170.0, 14.0, 0.7, 62.0, col)
 	await wait(b, 1.5)
 
 ## Three walls of flame roll toward you.
 static func fire_wave(b) -> void:
 	var col := Color(1.0, 0.55, 0.15)
-	for w in 3:
+	for w in 3 + (1 if extra() >= 2 else 0):
 		var base := aim(b)
-		for i in 6:
-			shot(b, base.rotated((i - 2.5) * 0.17), 100.0 + w * 22.0, 34.0, col, 10.0, 3.6)
+		var n := 6 + 2 * extra()
+		for i in n:
+			shot(b, base.rotated((i - (n - 1) / 2.0) * 0.17), 100.0 + w * 22.0, 34.0, col, 10.0, 3.6)
 		if !await wait(b, 0.45):
 			return
 	await wait(b, 0.5)
@@ -277,8 +297,9 @@ static func poison_pools(b) -> void:
 	var p = target(b)
 	if p == null:
 		return
-	for i in 4:
-		zone(b, p.global_position + Vector2.from_angle(randf() * TAU) * randf_range(10.0, 95.0), 36.0, 7.0, 10.0, 0.6, Color(0.4, 0.7, 0.2))
+	for i in 4 + 2 * extra():
+		var at = any_target(b)
+		zone(b, (at.global_position if at != null else p.global_position) + Vector2.from_angle(randf() * TAU) * randf_range(10.0, 95.0), 36.0, 7.0, 10.0, 0.6, Color(0.4, 0.7, 0.2))
 	await wait(b, 1.5)
 
 ## A sticky tongue lashes out and drags you in.
@@ -333,7 +354,7 @@ static func prism_beams(b) -> void:
 static func shard_trail(b) -> void:
 	var dir := aim(b)
 	var col := Color(0.8, 0.55, 1.0)
-	for i in 8:
+	for i in 8 + 2 * extra():
 		circle(b, b.global_position + dir * (28.0 + i * 24.0), 19.0, 0.55, 55.0, col)
 		if !await wait(b, 0.13):
 			return
@@ -343,10 +364,11 @@ static func shard_trail(b) -> void:
 static func facet_burst(b) -> void:
 	var col := Color(0.75, 0.5, 1.0)
 	var off := randf() * TAU
-	for i in 6:
-		shot(b, Vector2.from_angle(off + i * TAU / 6.0), 115.0, 34.0, col, 9.0, 3.0, 0.7)
+	var n := 6 + 2 * mini(extra(), 3)
+	for i in n:
+		shot(b, Vector2.from_angle(off + i * TAU / float(n)), 115.0, 34.0, col, 9.0, 3.0, 0.7)
 	if !await wait(b, 1.0):
 		return
-	for i in 6:
-		shot(b, Vector2.from_angle(off + PI / 6.0 + i * TAU / 6.0), 115.0, 34.0, col, 9.0, 3.0, 0.7)
+	for i in n:
+		shot(b, Vector2.from_angle(off + PI / float(n) + i * TAU / float(n)), 115.0, 34.0, col, 9.0, 3.0, 0.7)
 	await wait(b, 1.4)

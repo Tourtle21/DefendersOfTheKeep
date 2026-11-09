@@ -44,6 +44,8 @@ var _windup_total := 1.0
 var _dir := Vector2.DOWN
 var _hit_cd := 0.0
 var _flash := 0.0
+var _base_max_health := 0.0       # the boss's health for one player
+var _scaled_for := 1              # how many players its health is scaled for right now
 var _intro := 0.0
 var _player
 var _nav: NavigationAgent2D
@@ -157,10 +159,9 @@ func _physics_process(delta: float) -> void:
 	if !awake:
 		if true:                       # bosses do not sleep: it spawns with the run and comes for you
 			awake = true
-			var n: int = Game.player_count()
-			if n > 1:
-				max_health *= Game.team_scale(0.8)      # more players, tougher boss
-				health = max_health
+			_base_max_health = max_health
+			_scaled_for = 1
+			_rescale_for_players()
 			_state = "intro"
 			_intro = 1.3
 			_timer = 1.0
@@ -170,6 +171,7 @@ func _physics_process(delta: float) -> void:
 			Game.boss_fight.emit(true)
 		queue_redraw()
 		return
+	_rescale_for_players()
 	match _state:
 		"intro":
 			velocity = Vector2.ZERO
@@ -282,9 +284,20 @@ func _summon() -> void:
 		add.position = global_position + Vector2.from_angle(randf() * TAU) * (body_radius + 20.0)
 		get_parent().add_child(add)        # the Enemies-style parent expects the world above it
 
+## More players (LAN or split screen), tougher boss: its health follows the player count, also when someone joins or
+## leaves mid-fight (the fraction of health it has left stays the same).
+func _rescale_for_players() -> void:
+	var n: int = Game.player_count()
+	if _base_max_health <= 0.0 or n == _scaled_for:
+		return
+	var ratio := health / maxf(1.0, max_health)
+	max_health = _base_max_health * Game.team_scale(0.8)
+	health = max_health * ratio
+	_scaled_for = n
+
 func _end_attack() -> void:
 	_state = "chase"
-	_timer = 2.4 if !enraged else 1.5
+	_timer = (2.4 if !enraged else 1.5) / Game.team_scale(0.2)       # with more players the next attack comes sooner
 
 func _die() -> void:
 	if dead:
