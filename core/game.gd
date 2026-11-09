@@ -521,6 +521,9 @@ func fix_meta() -> void:
 			meta[k] = []
 	if !meta.has("draw_history"):
 		meta["draw_history"] = {}
+	for tool_id in ["sword", "pickaxe"]:                  # the free starting tools are always on the Drawn Cards screen
+		if !meta.draw_history.has("weapon:" + tool_id):
+			meta.draw_history["weapon:" + tool_id] = {"kind": "weapon", "id": tool_id, "count": 1, "tier": 1}
 	if !meta.get("history_backfilled", false):
 		meta["history_backfilled"] = true
 		_backfill_history()            # "card:fireball" / "weapon:spear" -> {kind, id, count, tier}: every reward you have drawn

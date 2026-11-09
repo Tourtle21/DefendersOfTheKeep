@@ -80,7 +80,7 @@ func open() -> void:
 func _weapon_ids() -> Array:
 	var out := []
 	for id in _info.items:
-		if _info.items[id].type == "item" and !(id in ["sword", "pickaxe"]):
+		if _info.items[id].type == "item":
 			out.append(id)
 	out.sort_custom(func(a, b):                    # common first, rare last
 		var ra: int = Game.weapon_rarity(a)
@@ -117,10 +117,11 @@ func _refresh() -> void:
 		var lines := []
 		if known:
 			var inst = load(_info.items[id].path).instantiate()
+			_name_tool_moves(id, inst)
 			if inst.attack_name != "":
 				lines.append(str(inst.attack_name).split(" (")[0])
 			inst.free()
-		card.setup({"size": csize, "title": Fusion.display_name(id) if known else "???", "icon": load(_info.items[id].texture) if known else null,
+		card.setup({"size": csize, "title": Fusion.display_name(id) if known else "???", "icon": _icon_of(str(_info.items[id].texture)) if known else null,
 			"glyph": "?" if !known else "", "tier": Fusion.tier_of(id), "max_tier": 6, "lines": lines, "locked": locked,
 			"accent": Game.rarity_color(Game.weapon_rarity(id)) if known else Color(0.4, 0.4, 0.5),
 			"footer": ("%d shards" % Game.WEAPON_UNLOCK_COSTS[id]) if locked and Game.WEAPON_UNLOCK_COSTS.has(id) else ""})
@@ -134,6 +135,8 @@ func _refresh() -> void:
 	_show_detail(selected)
 
 func _where(id: String) -> String:
+	if id in ["sword", "pickaxe"]:
+		return "A free starting tool: always unlocked. Combine two copies at the Forge to raise its tier."
 	if id in Game.LEGENDARY_WEAPONS:
 		return ("Unlocked. " if Game.weapon_unlocked(id) else "LOCKED. LEGENDARY: beat the whole game to earn it, then unlock it with %d Shards. " % Game.LEGENDARY_PRICE) + "Hits 50% harder than a normal weapon."
 	var parts := Fusion.parts_of(id)
@@ -200,13 +203,14 @@ func _show_detail(id: String) -> void:
 		tier_row.add_child(tc)
 	var info: Dictionary = _info.items[id]
 	var inst = load(info.path).instantiate()
+	_name_tool_moves(id, inst)
 	var t := viewed_tier
 	var bonus := t - base
 	var fz: float = pow(0.95, base - 1) * pow(0.92, bonus)
 	var tier_ok := _tier_unlocked(id, t)
 	var txt := "[b]%s[/b]   tier [color=#ffd23a][b]%d[/b][/color]%s\n" % [Fusion.display_name(id), t, "" if tier_ok else "   [color=#ff9a7a](locked)[/color]"]
 	txt += "[color=#c9d3f2]%s[/color]\n\n" % _where(id)
-	txt += "[b]Element[/b]  %s\n" % (String(inst.element).capitalize() if inst.element != "" else "Physical")
+	txt += "[b]Element[/b]  %s\n" % (String(inst.get("element")).capitalize() if str(inst.get("element")) not in ["", "<null>", "Null"] else "Physical")
 	txt += "Damage  [color=#ffd23a][b]x%.1f[/b][/color]\n\n" % Game.weapon_power(id, bonus)
 	var moves := [["Left click", inst.attack_name, inst.attack_cooldown, 1], ["Shift", inst.dash_name, inst.dash_cooldown, 1],
 		["Right click", inst.ability_name, inst.ability_cooldown, 2], ["Space", inst.ultimate_name, inst.ultimate_cooldown, 3]]
@@ -225,3 +229,22 @@ func _show_detail(id: String) -> void:
 	if t > base:
 		txt += "To reach it: %s\n" % _cost_text(Fusion.AWAKEN_COSTS[t - 1])
 	detail.text = txt
+
+## The sword and pickaxe name their moves in _ready (which never runs on a codex preview): do it here.
+func _name_tool_moves(id: String, inst) -> void:
+	if id == "sword":
+		inst.attack_name = "Slash"; inst.dash_name = "Slash Dash"; inst.ability_name = "Whirlwind"; inst.ultimate_name = "Blade Tempest"
+	elif id == "pickaxe":
+		inst.attack_name = "Mine"; inst.dash_name = "Dash-Mine"; inst.ability_name = "Seismic Strike"; inst.ultimate_name = "Earthquake"
+
+## Sword and pickaxe use sprite sheets: show their first frame.
+const SHEETS := {"res://items/tools/sword/excalibur_.png": Vector2i(4, 4), "res://items/tools/pickaxe/pickaxe.png": Vector2i(2, 2)}
+
+func _icon_of(path: String) -> Texture2D:
+	var tex: Texture2D = load(path)
+	if SHEETS.has(path):
+		var at := AtlasTexture.new()
+		at.atlas = tex
+		at.region = Rect2(0, 0, tex.get_width() / SHEETS[path].x, tex.get_height() / SHEETS[path].y)
+		return at
+	return tex
