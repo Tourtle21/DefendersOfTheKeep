@@ -571,6 +571,8 @@ func fix_meta() -> void:
 	for k in ["weapons", "fusion_tiers", "seen"]:
 		if !meta.has(k):
 			meta[k] = []
+	if !meta.has("seen_w"):
+		meta["seen_w"] = []                  # weapons you have met (separate from cards, whose ids can match: the Torch)
 	if !meta.has("weapon_tiers"):
 		meta["weapon_tiers"] = {}            # weapon id -> the highest tier you have drawn or found (the Forge cannot go past it)
 	if !meta.has("tier_drawn"):
@@ -612,10 +614,23 @@ func waiting_draws() -> Array:
 			groups["card:%s:upgrade" % id] = {"kind": "card", "id": id, "tier": card_tier(id) + 1, "count": 1, "result": "upgrade"}
 	return groups.values()
 
-func mark_seen(id: String) -> void:
+func mark_seen(id: String, kind := "card") -> void:
 	fix_meta()
 	if !(id in meta.seen):
 		meta.seen.append(id)
+	if kind == "weapon" and !(id in meta.seen_w):
+		meta.seen_w.append(id)
+
+## Have you met this WEAPON (offered it, held it, or unlocked it)? Weapon and card ids can be the same word (the Torch),
+## so a card you own must not make the weapon of that name look known: those are tracked on their own list.
+func weapon_seen(id: String) -> bool:
+	fix_meta()
+	if id in ["sword", "pickaxe"] or id in meta.weapons or id in meta.seen_w:
+		return true
+	for pe in meta.pending:
+		if str(pe.get("kind", "")) == "weapon" and str(pe.get("id", "")) == id:
+			return true
+	return !CARDS.has(id) and id in meta.seen
 
 func start_weapon_id() -> String:
 	fix_meta()
@@ -679,7 +694,7 @@ func _add_weapon(id: String) -> void:
 
 func buy_weapon(id: String) -> bool:
 	fix_meta()
-	if id in meta.weapons or !WEAPON_UNLOCK_COSTS.has(id) or meta.shards < WEAPON_UNLOCK_COSTS[id] or !is_seen(id):
+	if id in meta.weapons or !WEAPON_UNLOCK_COSTS.has(id) or meta.shards < WEAPON_UNLOCK_COSTS[id] or !weapon_seen(id):
 		return false
 	meta.shards -= WEAPON_UNLOCK_COSTS[id]
 	_add_weapon(id)
@@ -1635,7 +1650,7 @@ func grant_legendary() -> Dictionary:
 		meta.shards += 80
 		return {"kind": "card", "id": LEGENDARY_CARDS.pick_random(), "tier": 1, "realm": 6, "result": "converted", "shards": 80, "legendary": true}
 	var pick: Dictionary = left.pick_random()
-	mark_seen(str(pick.id))
+	mark_seen(str(pick.id), str(pick.kind))
 	var entry := {"kind": pick.kind, "id": pick.id, "tier": 1, "realm": 6, "result": "offer", "shards": 0, "legendary": true, "cost": LEGENDARY_PRICE}
 	meta.pending.append(entry)                  # kept for good: it does not count against the vault limit
 	return entry
@@ -1731,7 +1746,7 @@ func make_rewards(won := false) -> Array:
 			else:
 				meta.pending.append(entry)
 		if entry.result == "offer":
-			mark_seen(str(entry.id))
+			mark_seen(str(entry.id), str(entry.kind))
 			entry.cost = unlock_cost(entry)
 			if meta.pending.size() >= MAX_PENDING:
 				entry.result = "converted"               # the vault is full: this one turns into Shards

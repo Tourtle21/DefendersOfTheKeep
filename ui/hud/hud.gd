@@ -47,7 +47,7 @@ func swap_active(new_item):
 func equip_item(item) -> bool:
 	var equippable = false
 	if item.has("id"):
-		Game.mark_seen(str(item.id))               # a weapon you have held counts as met
+		Game.mark_seen(str(item.id), "weapon")            # a weapon you have held counts as met
 		if item.has("entry"):
 			Game.note_weapon_tier(str(item.id), Game.weapon_tier_of(str(item.entry)))     # so does the tier you found it at
 	if item.type == "item":

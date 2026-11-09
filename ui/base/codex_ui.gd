@@ -99,7 +99,7 @@ func _weapon_ids() -> Array:
 ## Known = in the chest pool, a sector weapon, or a recipe you have discovered.
 func _known(id: String) -> bool:
 	if Fusion.tier_of(id) == 1:
-		return Game.weapon_unlocked(id) or Game.is_seen(id)      # a weapon is a "?" until you have been offered or held it
+		return Game.weapon_unlocked(id) or Game.weapon_seen(id)      # a weapon is a "?" until you have been offered or held it
 	return Game.weapon_known(id)       # a recipe is shown only once you have unlocked both ingredients
 
 func _refresh() -> void:
@@ -186,7 +186,7 @@ func _show_detail(id: String) -> void:
 	for c in tier_row.get_children():
 		tier_row.remove_child(c)
 		c.queue_free()
-	if Game.WEAPON_UNLOCK_COSTS.has(id) and !Game.weapon_unlocked(id) and Game.is_seen(id):
+	if Game.WEAPON_UNLOCK_COSTS.has(id) and !Game.weapon_unlocked(id) and Game.weapon_seen(id):
 		var b := Button.new()
 		b.text = "Unlock for %d Shards  (you have %d)" % [Game.WEAPON_UNLOCK_COSTS[id], Game.meta.shards]
 		b.disabled = Game.meta.shards < Game.WEAPON_UNLOCK_COSTS[id]
