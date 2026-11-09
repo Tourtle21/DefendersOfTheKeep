@@ -1,6 +1,6 @@
 extends CanvasLayer
 ## The chest card choice for a local split-screen player (players 2 to 4) who opened the chest: shown in their own view.
-## LB / RB move, A takes the card.
+## Left stick / d-pad move, A takes the card.
 
 const CARD_SCALE := 0.75
 
@@ -44,7 +44,7 @@ func setup(player: Node, viewport: SubViewport, slot_index: int) -> void:
 	t.add_theme_constant_override("outline_size", 4)
 	box.add_child(t)
 	var sub := Label.new()
-	sub.text = "LB / RB move   A take it"
+	sub.text = "Left stick / d-pad move   A take it"
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	sub.add_theme_font_size_override("font_size", 12)
 	sub.add_theme_color_override("font_color", Color(0.7, 0.75, 0.9))
@@ -67,8 +67,9 @@ func wants() -> bool:
 	return Game.draft_active and Game.draft_owner_slot == slot
 
 func poll(dev: int) -> void:
-	var lb := _edge("lb", Input.is_joy_button_pressed(dev, JOY_BUTTON_LEFT_SHOULDER) or Input.is_joy_button_pressed(dev, JOY_BUTTON_DPAD_LEFT))
-	var rb := _edge("rb", Input.is_joy_button_pressed(dev, JOY_BUTTON_RIGHT_SHOULDER) or Input.is_joy_button_pressed(dev, JOY_BUTTON_DPAD_RIGHT))
+	var stick_x: float = Input.get_joy_axis(dev, JOY_AXIS_LEFT_X)             # menus move with the left stick or the d-pad (the right stick aims, LB / RB are for the hand's cards)
+	var lb := _edge("lb", stick_x < -0.6 or Input.is_joy_button_pressed(dev, JOY_BUTTON_DPAD_LEFT))
+	var rb := _edge("rb", stick_x > 0.6 or Input.is_joy_button_pressed(dev, JOY_BUTTON_DPAD_RIGHT))
 	var a := _edge("a", Input.is_joy_button_pressed(dev, JOY_BUTTON_A))
 	if !wants():
 		if is_open:

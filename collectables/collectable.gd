@@ -49,7 +49,7 @@ func entry() -> String:
 	return Game.make_weapon_entry(item_type, bonus, twist)
 
 func _input(event: InputEvent) -> void:
-	if hovering and event.is_action_pressed("interact"):
+	if hovering and event.is_action_pressed("interact") and !Game.menu_open():
 		if item_info.items[item_type]["type"] == "resource":
 			# resources are carried and pooled in the keep (see core/game.gd)
 			Game.pick_up_resource(item_type)

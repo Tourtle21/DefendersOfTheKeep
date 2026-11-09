@@ -3,7 +3,7 @@ extends CanvasLayer
 ## map, and what their controller does inside a tower. It shows only while that player is inside a tower.
 ##   A leave   B / LT put the card back   LB / RB pick a card   RT place it (or jump to a lit tower)
 ##   X merge the picked card   d-pad up repair the keep   d-pad left / right choose an upgrade   d-pad down buy it
-## During a chest draft the same player can pick a card with LB / RB and A.
+## During a chest draft the same player can pick a card with the left stick / d-pad and A.
 
 const CURSOR_SPEED := 560.0
 
@@ -175,8 +175,11 @@ func poll(dev: int, delta: float) -> void:
 	var y := _edge("y", Input.is_joy_button_pressed(dev, JOY_BUTTON_Y))
 	if Game.draft_active and !Game.draft_options.is_empty():
 		var n := Game.draft_options.size()
-		if lb: draft_sel = wrapi(draft_sel - 1, 0, n)
-		if rb: draft_sel = wrapi(draft_sel + 1, 0, n)
+		var sx: float = Input.get_joy_axis(dev, JOY_AXIS_LEFT_X)          # the chest choice moves with the left stick or d-pad (the right stick aims)
+		var dl := _edge("dl", sx < -0.6 or Input.is_joy_button_pressed(dev, JOY_BUTTON_DPAD_LEFT))
+		var dr := _edge("dr", sx > 0.6 or Input.is_joy_button_pressed(dev, JOY_BUTTON_DPAD_RIGHT))
+		if dl: draft_sel = wrapi(draft_sel - 1, 0, n)
+		if dr: draft_sel = wrapi(draft_sel + 1, 0, n)
 		if a:
 			Game.take_draft_card(Game.draft_options[draft_sel])
 			draft_sel = 0
@@ -220,7 +223,7 @@ func _refresh_ui() -> void:
 	_mana.value = Game.mana
 	_mana_label.text = "Mana %d / %d" % [Game.mana, Game.max_mana()]
 	_draw_bar.value = Game.draw_progress()
-	_hint.text = "LB/RB card  RT place  A leave  X merge / reload  D-pad up/down pick  Y buy" if !Game.draft_active else "Chest draft!  LB/RB choose   A take it"
+	_hint.text = "LB/RB card  RT place  A leave  X merge / reload  D-pad up/down pick  Y buy" if !Game.draft_active else "Chest draft!  Left stick / d-pad choose   A take it"
 	_rebuild_upgrades()
 	var key := str(Game.hand) + "|" + str(sel) + "|" + str(Game.draft_options) + str(draft_sel) + str(Game.draft_active)
 	if key != _hand_key:

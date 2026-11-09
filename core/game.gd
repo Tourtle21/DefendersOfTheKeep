@@ -291,6 +291,14 @@ const MAX_PENDING := 12            # offers kept between runs until you unlock o
 func skill_cost(id: String) -> int:
 	return int(round(Skills.TREE[id].cost * pow(skill_level(id) + 1, SKILL_COST_CURVE) * SKILL_COST_SCALE))      # each level costs clearly more than the last
 
+## Is a full-screen menu (the Forge, the Card Fuser, the chest choice, the pause menu...) open? While one is, the interact
+## button belongs to the menu: on a controller A is both "select" and "interact", and the world must not also react to it.
+func menu_open() -> bool:
+	for m in get_tree().get_nodes_in_group("menu_pad"):
+		if is_instance_valid(m.root) and m.root.is_visible_in_tree():
+			return true
+	return false
+
 ## Is the player who uses the keyboard / pad's interact button (player 1, never a co-op avatar or a split-screen player 2 to 4)
 ## inside this area? Chests, the Forge, doors and pickups react to that button, so only player 1 standing there counts.
 func has_local_player(area: Area2D) -> bool:

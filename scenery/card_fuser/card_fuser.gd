@@ -20,7 +20,7 @@ func _ready() -> void:
 	z_index = 2
 
 func _input(event: InputEvent) -> void:
-	if hovering and event.is_action_pressed("interact") and !(Game.draft_active and Game.draft_owner_slot == 0):
+	if hovering and event.is_action_pressed("interact") and !(Game.draft_active and Game.draft_owner_slot == 0) and !Game.menu_open():
 		var ui = get_tree().get_first_node_in_group("card_fuse_ui")
 		if ui:
 			ui.open()

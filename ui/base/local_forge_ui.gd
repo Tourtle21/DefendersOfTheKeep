@@ -1,6 +1,6 @@
 extends CanvasLayer
 ## The forge for a local split-screen player (players 2 to 4). Stand at the anvil and press d-pad up. It shows the
-## weapons you hold and the ones stored in the forge, grouped by type. LB / RB move, A picks a weapon (two of them),
+## weapons you hold and the ones stored in the forge, grouped by type. Left stick / d-pad move, A picks a weapon (two of them),
 ## X forges (two different weapons fuse, two copies of the same one combine into the next tier), Y drops the weapon
 ## under the cursor into the forge or takes it out, B closes. Costs and unlocked tiers are the normal forge's.
 
@@ -59,7 +59,7 @@ func setup(player: Node, viewport: SubViewport) -> void:
 	_info.add_theme_font_size_override("font_size", 13)
 	v.add_child(_info)
 	_hint = Label.new()
-	_hint.text = "LB/RB move  A pick  X forge  Y drop in / take out  B close"
+	_hint.text = "Left stick move  A pick  X forge  Y drop in / take out  B close"
 	_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_hint.add_theme_font_size_override("font_size", 11)
 	_hint.add_theme_color_override("font_color", Color(0.7, 0.75, 0.9))
@@ -122,8 +122,9 @@ func open() -> void:
 ## Called every physics frame with this player's controller.
 func poll(dev: int) -> void:
 	var up := _edge("up", Input.is_joy_button_pressed(dev, JOY_BUTTON_DPAD_UP))
-	var lb := _edge("lb", Input.is_joy_button_pressed(dev, JOY_BUTTON_LEFT_SHOULDER) or Input.is_joy_button_pressed(dev, JOY_BUTTON_DPAD_LEFT))
-	var rb := _edge("rb", Input.is_joy_button_pressed(dev, JOY_BUTTON_RIGHT_SHOULDER) or Input.is_joy_button_pressed(dev, JOY_BUTTON_DPAD_RIGHT))
+	var stick_x: float = Input.get_joy_axis(dev, JOY_AXIS_LEFT_X)             # menus move with the left stick or the d-pad (the right stick aims, LB / RB are for the hand's cards)
+	var lb := _edge("lb", stick_x < -0.6 or Input.is_joy_button_pressed(dev, JOY_BUTTON_DPAD_LEFT))
+	var rb := _edge("rb", stick_x > 0.6 or Input.is_joy_button_pressed(dev, JOY_BUTTON_DPAD_RIGHT))
 	var a := _edge("a", Input.is_joy_button_pressed(dev, JOY_BUTTON_A))
 	var b := _edge("b", Input.is_joy_button_pressed(dev, JOY_BUTTON_B))
 	var x := _edge("x", Input.is_joy_button_pressed(dev, JOY_BUTTON_X))
