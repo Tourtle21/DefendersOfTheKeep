@@ -273,6 +273,7 @@ var carried := {"stone": 0, "stick": 0, "gold": 0}     # held by explorers until
 var hand: Array = []
 var deck := {}               # card id -> level, what this run can draw
 var draft_active := false
+var draft_owner_slot := 0        # split screen: which local player opened the chest (0 = player 1, whose screen the draft normally uses)
 var draft_options: Array = []
 const KEEP_BASE := 150.0
 var keep_hp := KEEP_BASE

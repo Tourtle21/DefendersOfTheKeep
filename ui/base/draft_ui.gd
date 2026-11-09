@@ -35,9 +35,11 @@ func _ready() -> void:
 	box.add_child(row)
 	preload("res://ui/cards/menu_pad.gd").attach(root_ctl, Callable(), "", row)     # any controller: d-pad / left stick to move, A to take
 	Game.draft_started.connect(_show)
-	Game.deck_changed.connect(func(): root_ctl.visible = Game.draft_active)
+	Game.deck_changed.connect(func(): root_ctl.visible = Game.draft_active and Game.draft_owner_slot == 0)
 
 func _show(options: Array) -> void:
+	if Game.draft_owner_slot > 0:
+		return                       # a local player 2 to 4 opened it: their own view shows it (ui/base/local_draft_ui.gd)
 	title.text = "Chest! Choose a card  (cards you own are upgraded)"
 	for c in row.get_children():
 		row.remove_child(c)

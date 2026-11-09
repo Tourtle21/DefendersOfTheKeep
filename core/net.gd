@@ -268,6 +268,7 @@ func _interact(pl) -> void:
 		return
 	for c in get_tree().get_nodes_in_group("chest"):
 		if is_instance_valid(c) and !c.opened and c.global_position.distance_to(pl.global_position) <= 30.0:
+			Game.draft_owner_slot = int(pl.get_meta("local_slot", 0))
 			c.open_now()
 			return
 	for g in get_tree().get_nodes_in_group("generator"):

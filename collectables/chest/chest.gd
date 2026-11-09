@@ -54,6 +54,7 @@ func _process(delta: float) -> void:
 
 func _input(event: InputEvent) -> void:
 	if hovering and !opened and event.is_action_pressed("interact"):
+		Game.draft_owner_slot = 0
 		if _open():
 			opened = true
 			queue_free()

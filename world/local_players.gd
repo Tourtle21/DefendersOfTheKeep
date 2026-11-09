@@ -9,6 +9,7 @@ const AIM_REACH := 70.0
 
 var avatars := {}                # slot (1..3) -> player node
 var forge_uis := {}              # slot -> LocalForgeUi
+var draft_uis := {}              # slot -> LocalDraftUi
 var fuser_uis := {}              # slot -> LocalFuserUi
 var keep_uis := {}               # slot -> LocalKeepUi (made by the split screen once the views exist)
 var _aim_dir := {}
@@ -79,6 +80,12 @@ func _physics_process(delta: float) -> void:
 			forge_uis[slot].poll(dev)
 			if forge_uis[slot].is_open:
 				# the forge is open: stand still, and the buttons belong to the forge screen
+				Net.apply_input_state(FIRST_ID + slot, pl, {"move": Vector2.ZERO, "aim": pl.global_position + _aim_dir[slot] * AIM_REACH, "attack": false, "ability": false, "dash": false, "ultimate": false})
+				_prev_btn[slot] = {"a": true, "x": true}
+				continue
+		if draft_uis.has(slot):
+			draft_uis[slot].poll(dev)
+			if draft_uis[slot].is_open:
 				Net.apply_input_state(FIRST_ID + slot, pl, {"move": Vector2.ZERO, "aim": pl.global_position + _aim_dir[slot] * AIM_REACH, "attack": false, "ability": false, "dash": false, "ultimate": false})
 				_prev_btn[slot] = {"a": true, "x": true}
 				continue
