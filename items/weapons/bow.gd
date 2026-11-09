@@ -72,9 +72,11 @@ func release_item() -> void:
 	WeaponProjectile.shoot(game_world(), player.global_position + aim * 8.0, aim, speed, dmg, col, 1.1, pierce, 80.0 + 60.0 * ratio)
 
 func dash_attack() -> void:
-	# Backflip Shot: hop away from the cursor while firing at it
-	player.dash(-aim, 46.0, 0.15)
-	WeaponProjectile.shoot(game_world(), player.global_position + aim * 8.0, aim, 300.0, 2.0, Color(1.0, 0.85, 0.4), 1.0, 0, 90.0)
+	# Roll Shot: dash the way you are moving (`aim` is the dash direction here) while firing at the cursor
+	var shot: Vector2 = player.aim_point() - player.global_position
+	shot = shot.normalized() if shot.length() > 1.0 else aim
+	player.dash(aim, 46.0, 0.15)
+	WeaponProjectile.shoot(game_world(), player.global_position + shot * 8.0, shot, 300.0, 2.0, Color(1.0, 0.85, 0.4), 1.0, 0, 90.0)
 	fx("line", player.global_position, Color(1, 1, 1), {"dir": -aim, "length": 30.0, "width": 4.0, "life": 0.2})
 
 func ability() -> void:
