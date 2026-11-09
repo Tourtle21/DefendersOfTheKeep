@@ -23,7 +23,9 @@ var weapons_label: Label
 var ability_hud: AbilityHud
 var _ended_label: Label
 var _draft_key := ""
-var _forge_sel: Array = []
+var _forge_sel: Array = []        # positions in the forge list (ForgeLayout.items) the player picked
+var _forge_key := ""
+const ForgeLayout = preload("res://ui/forge/forge_layout.gd")
 var _hand_key := ""
 var _in_base := false
 var _player_tgt := {}
@@ -327,37 +329,56 @@ func _update_loot_ui(snap: Dictionary) -> void:
 			view.setup(cid, Game.entry_tier(entry), "NEW" if !snap.deck.has(cid) else "+1 copy", Game.entry_twist(entry))
 			view.pressed_down.connect(func(_v): Net.net_command.rpc_id(1, {"cmd": "draft", "id": entry}))
 			draft_box.add_child(view)
-	# forge
+	# forge: exactly the split-screen player's forge (ui/forge/forge_layout.gd): held and stored weapons grouped by type;
+	# click two to fuse / combine them, or click one to drop it into the forge / take it out. The host does the work.
 	forge_box.visible = me.near_forge
 	if me.near_forge:
-		for c in forge_box.get_children():
-			forge_box.remove_child(c)
-			c.queue_free()
-		var t := Label.new()
-		t.text = "Forge: pick two weapons"
-		forge_box.add_child(t)
-		for i in me.slots.size():
-			var b := Button.new()
-			b.text = _weapon_label(me.slots[i]) + (" (selected)" if i in _forge_sel else "")
-			b.pressed.connect(func():
-				if i in _forge_sel:
-					_forge_sel.erase(i)
+		var list: Array = ForgeLayout.items(me.slots, snap.get("store", []))
+		var fkey := str(list.map(func(it): return it.entry)) + str(_forge_sel) + str(snap.get("resources", {}))
+		if fkey != _forge_key:
+			_forge_key = fkey
+			for c in forge_box.get_children():
+				forge_box.remove_child(c)
+				c.queue_free()
+			var t := Label.new()
+			t.text = "Forge: weapons you hold and weapons stored here, grouped by type"
+			forge_box.add_child(t)
+			var cards := HFlowContainer.new()
+			cards.custom_minimum_size = Vector2(640, 0)
+			cards.add_theme_constant_override("h_separation", 12)
+			forge_box.add_child(cards)
+			ForgeLayout.build(cards, list, _forge_sel, -1, Vector2(78, 108), func(pos: int):
+				if pos in _forge_sel:
+					_forge_sel.erase(pos)
+				elif _forge_sel.size() < 2:
+					_forge_sel.append(pos)
 				else:
-					_forge_sel.append(i)
-					if _forge_sel.size() == 2:
-						Net.net_command.rpc_id(1, {"cmd": "fuse", "a": _forge_sel[0], "b": _forge_sel[1]})
-						_forge_sel = [])
-			forge_box.add_child(b)
-		# two identical copies (same weapon, same tier) can be combined into one a tier higher
-		for i in me.slots.size():
-			for j in range(i + 1, me.slots.size()):
-				var result := Game.combine_weapons(me.slots[i], me.slots[j])
-				if result != "":
-					var cb := Button.new()
-					var cost: Dictionary = Game.combine_cost(me.slots[i])
-					cb.text = "Combine two %s into tier %d: %s" % [Fusion.display_name(Game.entry_id(me.slots[i])), Game.weapon_tier_of(me.slots[i]) + 1, ", ".join(cost.keys().map(func(k): return "%d %s" % [cost[k], k]))]
-					cb.pressed.connect(func(): Net.net_command.rpc_id(1, {"cmd": "combine", "a": i, "b": j}))
-					forge_box.add_child(cb)
+					_forge_sel = [_forge_sel[1], pos]
+				_forge_key = "")
+			var pv: Dictionary = ForgeLayout.preview(list, _forge_sel)
+			var info := Label.new()
+			info.text = pv.text
+			info.add_theme_color_override("font_color", Color(0.55, 1.0, 0.6) if pv.ok else Color(1, 0.8, 0.5))
+			forge_box.add_child(info)
+			var row := HBoxContainer.new()
+			forge_box.add_child(row)
+			var go := Button.new()
+			go.text = "Combine" if pv.kind == "combine" else "Fuse"
+			go.disabled = !pv.ok
+			go.pressed.connect(func():
+				Net.net_command.rpc_id(1, {"cmd": "forge_craft", "a_src": list[_forge_sel[0]].src, "a_idx": list[_forge_sel[0]].idx, "b_src": list[_forge_sel[1]].src, "b_idx": list[_forge_sel[1]].idx})
+				_forge_sel = []
+				_forge_key = "")
+			row.add_child(go)
+			var one: Dictionary = list[_forge_sel[0]] if _forge_sel.size() == 1 and _forge_sel[0] < list.size() else {}
+			var store_b := Button.new()
+			store_b.text = "Drop into forge" if one.get("src", "held") == "held" else "Take out"
+			store_b.disabled = one.is_empty() or (one.src == "held" and snap.get("store", []).size() >= Game.FORGE_STORE_MAX) or (one.src == "store" and me.slots.size() >= 3)
+			store_b.pressed.connect(func():
+				Net.net_command.rpc_id(1, {"cmd": "forge_store", "src": one.src, "idx": one.idx})
+				_forge_sel = []
+				_forge_key = "")
+			row.add_child(store_b)
 	else:
 		_forge_sel = []
 

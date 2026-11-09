@@ -317,6 +317,75 @@ func _combine(pl, a: int, b: int) -> void:
 	slots.remove_at(min(a, b))
 	give_weapon(pl, result)
 
+## --- The forge's storage, for avatars (LAN clients and local split-screen players use these same rules) ---
+
+## Take held weapons (by slot index) out of an avatar's hands and keep a sensible weapon equipped.
+func forge_remove_held(pl, indexes: Array) -> void:
+	var idx := indexes.duplicate()
+	idx.sort()
+	idx.reverse()
+	for i in idx:
+		pl.weapon_slots.remove_at(i)
+	if pl.weapon_slots.is_empty():
+		pl.clear_item()
+	else:
+		pl.active_slot = clampi(int(pl.active_slot), 0, pl.weapon_slots.size() - 1)
+		pl.equip_item(Game.weapon_info(pl.weapon_slots[pl.active_slot]))
+
+## Drop a held weapon into the forge ("held", slot) or take a stored one out ("store", index).
+func forge_toggle_store(pl, src: String, idx: int) -> void:
+	if pl == null or !is_instance_valid(pl) or pl.global_position.distance_to(FORGE_POS) > 50.0:
+		return
+	if src == "held":
+		if idx < 0 or idx >= pl.weapon_slots.size() or Game._forge_store.size() >= Game.FORGE_STORE_MAX:
+			return
+		var entry: String = pl.weapon_slots[idx]
+		forge_remove_held(pl, [idx])
+		Game._forge_store.append(entry)
+	elif idx >= 0 and idx < Game._forge_store.size() and pl.weapon_slots.size() < 3:
+		var e: String = Game._forge_store[idx]
+		Game._forge_store.remove_at(idx)
+		give_weapon(pl, e)
+
+func _forge_entry(pl, src: String, idx: int) -> String:
+	if src == "held":
+		return pl.weapon_slots[idx] if idx >= 0 and idx < pl.weapon_slots.size() else ""
+	return Game._forge_store[idx] if idx >= 0 and idx < Game._forge_store.size() else ""
+
+## Fuse or combine two weapons, each one held ("held", slot) or stored ("store", index). Any mix.
+func forge_craft(pl, a_src: String, a_idx: int, b_src: String, b_idx: int) -> void:
+	if pl == null or !is_instance_valid(pl) or pl.global_position.distance_to(FORGE_POS) > 50.0:
+		return
+	if a_src == b_src and a_idx == b_idx:
+		return
+	var ea := _forge_entry(pl, a_src, a_idx)
+	var eb := _forge_entry(pl, b_src, b_idx)
+	if ea == "" or eb == "":
+		return
+	var p: Dictionary = Game.forge_preview(ea, eb)
+	if !p.ok:
+		return
+	Game.pay(p.cost)
+	if p.kind == "fuse":
+		Game.note_recipe(p.key)
+	var held := []
+	var stored := []
+	for pair in [[a_src, a_idx], [b_src, b_idx]]:
+		if pair[0] == "held":
+			held.append(pair[1])
+		else:
+			stored.append(pair[1])
+	stored.sort()
+	stored.reverse()
+	for j in stored:
+		Game._forge_store.remove_at(j)
+	if !held.is_empty():
+		forge_remove_held(pl, held)
+	if pl.weapon_slots.size() < 3:
+		give_weapon(pl, p.result)
+	elif Game._forge_store.size() < Game.FORGE_STORE_MAX:
+		Game._forge_store.append(p.result)
+
 ## Commands that are not continuous input: enter/leave the keep, cast, repair, upgrade.
 @rpc("any_peer", "call_remote", "reliable")
 func net_command(cmd: Dictionary) -> void:
@@ -346,6 +415,10 @@ func net_command(cmd: Dictionary) -> void:
 		"cast":
 			if pl.is_in_tower:
 				Game.cast(cmd.card, cmd.pos, pl)
+		"forge_store":
+			forge_toggle_store(pl, str(cmd.src), int(cmd.idx))
+		"forge_craft":
+			forge_craft(pl, str(cmd.a_src), int(cmd.a_idx), str(cmd.b_src), int(cmd.b_idx))
 		"tower_tp":
 			if pl.is_in_tower:
 				Game.teleport_to_tower(pl, Game.tower_at(cmd.pos, 34.0, Game.current_tower(pl)), false)
@@ -421,7 +494,7 @@ func build_snapshot() -> Dictionary:
 		"max_mana": Game.max_mana(), "hand": Game.hand, "resources": Game.resources, "deck": Game.deck,
 		"upgrades": Game.upgrade_levels, "keep_max": Game.keep_max(),
 		"roster": roster(), "lobby": lobby, "draft": Game.draft_options, "forge": FORGE_POS,
-		"sectors": Game.sectors_unlocked, "t": Time.get_ticks_msec(),
+		"sectors": Game.sectors_unlocked, "store": Game._forge_store.duplicate(), "t": Time.get_ticks_msec(),
 	}
 
 var my_cd := {}                    # client: this player's weapon cooldowns (sent apart so snapshots stay under the packet size)
@@ -430,7 +503,7 @@ var my_cd := {}                    # client: this player's weapon cooldowns (sen
 func net_cooldowns(cd: Dictionary) -> void:
 	my_cd = cd
 
-const SLOW_SNAPSHOT_KEYS := ["hand", "resources", "deck", "upgrades", "roster", "lobby", "draft", "forge", "sectors", "max_mana", "keep_max"]
+const SLOW_SNAPSHOT_KEYS := ["hand", "resources", "deck", "upgrades", "roster", "lobby", "draft", "forge", "sectors", "max_mana", "keep_max", "store"]
 var _last_slow := {}
 var _slow_cache := {}              # client: the latest slow part, merged into every snapshot
 

@@ -47,10 +47,15 @@ tier odds by level, tiered drafts), `progression_sim.gd` (a new player over many
 of buildings with feeding bars). Delete stale `user://rep_host_*.json` before rep runs (the host test now does it itself).
 
 Night and waves: `night.gd` (clock, shroud, lights, night draws, dash direction), `wave_director.gd` (real director sped up: when each
-wave spawns), `token_flow.gd` (every order of flipping wave tokens ends with Start), `night_shots.gd` (window screenshots).
+wave spawns), `wave_draw.gd` (the automatic wave draw and the wave-start rules: no overlap, bosses asleep early, E key), `night_shots.gd` (window screenshots).
 
 Rewards: `legendary.gd` (reward counts, win reward, the six legendaries in play), `rewards_flip.gd` (window: the face-down reward
 screen and the flip sequence; pass `-- win` for a victory).
 
 Controller: `controller.gd` (injected pad events: left stick walks, right stick aims, RT/LT attack and ability, A/B/X/Y actions,
 mouse takes over again, pad off while a menu or the keep is up).
+
+Forge storage over LAN: `net_forge_host.gd` + `net_forge_client.gd` (run as a pair like `net_host.gd` / `net_client.gd`: the client drops a weapon
+into the forge and combines a held with a stored one; the host checks). The split-screen forge (grouped list, drop in / take out, combine with a
+stored weapon) is covered by the same rules in `Net.forge_*`.
+

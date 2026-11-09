@@ -4,8 +4,7 @@ extends CanvasLayer
 ## X forges (two different weapons fuse, two copies of the same one combine into the next tier), Y drops the weapon
 ## under the cursor into the forge or takes it out, B closes. Costs and unlocked tiers are the normal forge's.
 
-const TierCard = preload("res://ui/cards/tier_card.gd")
-const SHEETS := {"res://items/tools/sword/excalibur_.png": Vector2i(4, 4), "res://items/tools/pickaxe/pickaxe.png": Vector2i(2, 2)}
+const ForgeLayout = preload("res://ui/forge/forge_layout.gd")
 
 var pl: Node
 var vp: SubViewport
@@ -81,112 +80,27 @@ func _near_forge() -> bool:
 func _slots() -> Array:
 	return pl.weapon_slots
 
-func _icon(id: String) -> Texture2D:
-	var info: Dictionary = load("res://world/item_info.tres").items.get(id, {})
-	if !info.has("texture"):
-		return null
-	var tex: Texture2D = load(info.texture)
-	if SHEETS.has(info.texture):
-		var at := AtlasTexture.new()
-		at.atlas = tex
-		at.region = Rect2(0, 0, tex.get_width() / SHEETS[info.texture].x, tex.get_height() / SHEETS[info.texture].y)
-		return at
-	return tex
-
-func _cost_text(cost: Dictionary) -> String:
-	var parts := []
-	for k in cost:
-		parts.append("%d %s (have %d)" % [cost[k], k, Game.resources.get(k, 0)])
-	return ", ".join(parts)
-
-## Everything the forge can use, in display order (grouped by type, common first): held ones and stored ones.
+## Everything the forge can use, in display order (shared with the LAN client's forge screen).
 func _items() -> Array:
-	var out := []
-	for i in _slots().size():
-		out.append({"src": "held", "idx": i, "entry": _slots()[i], "id": Game.entry_id(_slots()[i])})
-	for j in Game._forge_store.size():
-		out.append({"src": "store", "idx": j, "entry": Game._forge_store[j], "id": Game.entry_id(Game._forge_store[j])})
-	out.sort_custom(func(a, b):
-		var ra: int = Game.weapon_rarity(a.id)
-		var rb: int = Game.weapon_rarity(b.id)
-		if ra != rb:
-			return ra < rb
-		if a.id != b.id:
-			return Fusion.display_name(a.id) < Fusion.display_name(b.id)
-		var ta: int = Game.weapon_tier_of(a.entry)
-		var tb: int = Game.weapon_tier_of(b.entry)
-		if ta != tb:
-			return ta > tb
-		return a.src == "held" and b.src != "held")
-	return out
+	return ForgeLayout.items(_slots(), Game._forge_store)
 
-## What forging the two picked weapons would do: {"text", "ok", "kind", "result", ...}.
 func preview() -> Dictionary:
-	var items := _items()
-	if picks.size() < 2 or picks[0] >= items.size() or picks[1] >= items.size():
-		return {"text": "Pick two weapons.", "ok": false, "kind": "", "result": ""}
-	var p: Dictionary = Game.forge_preview(items[picks[0]].entry, items[picks[1]].entry)
-	if p.has("cost"):
-		p["text"] = "%s\nCost: %s" % [p.text, _cost_text(p.cost)]
-	return p
+	return ForgeLayout.preview(_items(), picks)
 
 ## Drop the weapon under the cursor into the forge, or take it out (when a hand slot is free).
 func _toggle_store() -> void:
 	var items := _items()
 	if cur >= items.size():
 		return
-	var it: Dictionary = items[cur]
-	if it.src == "held":
-		if Game._forge_store.size() >= Game.FORGE_STORE_MAX:
-			return
-		_remove_held([it.idx])
-		Game._forge_store.append(it.entry)
-	elif _slots().size() < 3:
-		Game._forge_store.remove_at(it.idx)
-		Net.give_weapon(pl, it.entry)
+	Net.forge_toggle_store(pl, items[cur].src, items[cur].idx)
 	picks.clear()
 	cur = clampi(cur, 0, maxi(0, _items().size() - 1))
 
-## Take held weapons out of the hands by slot index and keep a sensible weapon equipped.
-func _remove_held(indexes: Array) -> void:
-	var idx := indexes.duplicate()
-	idx.sort()
-	idx.reverse()
-	for i in idx:
-		_slots().remove_at(i)
-	if _slots().is_empty():
-		pl.clear_item()
-	else:
-		pl.active_slot = clampi(int(pl.active_slot), 0, _slots().size() - 1)
-		pl.equip_item(Game.weapon_info(_slots()[pl.active_slot]))
-
 func _forge_picked() -> void:
 	var items := _items()
-	var p := preview()
-	if !p.ok:
+	if picks.size() != 2 or !preview().ok:
 		return
-	var a: Dictionary = items[picks[0]]
-	var b: Dictionary = items[picks[1]]
-	Game.pay(p.cost)
-	if p.kind == "fuse":
-		Game.note_recipe(p.key)
-	var held := []
-	var stored := []
-	for it in [a, b]:
-		if it.src == "held":
-			held.append(it.idx)
-		else:
-			stored.append(it.idx)
-	stored.sort()
-	stored.reverse()
-	for j in stored:
-		Game._forge_store.remove_at(j)
-	if !held.is_empty():
-		_remove_held(held)
-	if _slots().size() < 3:
-		Net.give_weapon(pl, p.result)
-	elif Game._forge_store.size() < Game.FORGE_STORE_MAX:
-		Game._forge_store.append(p.result)
+	Net.forge_craft(pl, items[picks[0]].src, items[picks[0]].idx, items[picks[1]].src, items[picks[1]].idx)
 	picks.clear()
 	cur = 0
 
@@ -240,37 +154,7 @@ func _refresh() -> void:
 	if key == _key:
 		return
 	_key = key
-	for c in _row.get_children():
-		_row.remove_child(c)
-		c.queue_free()
-	var last_id := ""
-	var group: HBoxContainer = null
-	for n in items.size():
-		var it: Dictionary = items[n]
-		if it.id != last_id:
-			last_id = it.id
-			var box := VBoxContainer.new()
-			var count := 0
-			for o in items:
-				if o.id == it.id:
-					count += 1
-			var head := Label.new()
-			head.text = "%s  x%d" % [Fusion.display_name(it.id), count]
-			head.add_theme_font_size_override("font_size", 12)
-			head.add_theme_color_override("font_color", Game.rarity_color(Game.weapon_rarity(it.id)))
-			box.add_child(head)
-			group = HBoxContainer.new()
-			group.add_theme_constant_override("separation", 4)
-			box.add_child(group)
-			_row.add_child(box)
-		var card := TierCard.new()
-		card.setup({"size": Vector2(78, 108), "title": "T%d" % Game.weapon_tier_of(it.entry), "icon": _icon(it.id), "tier": Game.weapon_tier_of(it.entry), "max_tier": 6,
-			"accent": Game.rarity_color(Game.weapon_rarity(it.id)), "footer": "PICKED" if n in picks else ("HELD" if it.src == "held" else "STORED"),
-			"footer_color": Color(0.5, 1, 0.55) if it.src == "held" else Color(0.6, 0.8, 1.0)})
-		card.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		card.focus_mode = Control.FOCUS_NONE
-		card.set_selected(n == cur)
-		group.add_child(card)
+	ForgeLayout.build(_row, items, picks, cur, Vector2(78, 108))
 	if items.is_empty():
 		var l := Label.new()
 		l.text = "No weapons held or stored."

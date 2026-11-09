@@ -58,7 +58,42 @@ end to end (including a throw-away new content type, `tools/tests/fixtures/new_t
 Night: `Game.night_level` is synced like every Game variable; the client view draws the same dark overlay and a light on your own
 player. Lights (torch, flare, glowing buildings) replicate as normal gameplay nodes; the shroud and what defences see is host-side.
 
+## Forge storage: LAN clients and split screen share ONE set of rules (keep them in sync)
+
+Weapons can be dropped into the forge (shared by the whole team) and fused or combined together with the ones you hold.
+LAN clients and local split-screen players must behave **exactly the same**, so both go through the same code:
+
+- **Rules (host side, `core/net.gd`)**: `Net.forge_toggle_store(pl, src, idx)` drops a held weapon into the forge or takes a
+  stored one out; `Net.forge_craft(pl, a_src, a_idx, b_src, b_idx)` fuses or combines any two (held `"held"` / stored `"store"`);
+  `Net.forge_remove_held` keeps a sensible weapon equipped. The costs and tier locks come from `Game.forge_preview(ea, eb)`.
+- **Layout (client side, `ui/forge/forge_layout.gd`)**: the list of held + stored weapons grouped by type (common first) and the
+  preview text. Used by `ui/base/local_forge_ui.gd` (split screen, controller) and `net/client_view.gd` (LAN, mouse).
+- **LAN wiring**: the client sends the commands `forge_store` and `forge_craft`; the stored weapons reach clients in the snapshot
+  key `store` (a slow key). **Send a copy** (`Game._forge_store.duplicate()`): the slow part is only resent when it differs from
+  the last one, and the same array edited in place never looks different.
+- **State**: `Game._forge_store` is host-only (leading underscore), cleared at the start of every run, at most `FORGE_STORE_MAX`.
+- **If you change the forge** (new action, new rule): change `Net.forge_*` / `Game.forge_preview` once, then check both the split-screen
+  screen and the LAN client screen. The player-1 forge (`ui/forge/forge_ui.gd`) has the same features but works on the HUD slots.
+- Test: `tools/tests/net_forge_host.gd` + `net_forge_client.gd` (LAN), and the split-screen forge checks listed in the README.
+
+## Local split screen (2 to 4 players)
+
+- Start from the main menu: **Local co-op**. The connect screen (`ui/base/local_lobby.gd`) assigns controllers to slots: A joins,
+  B leaves, Enter joins the keyboard (always player 1, it owns the mouse), Start begins. `Game._local_devices` = slot -> controller id.
+- `world/split_screen.gd`: one `SubViewport` per player sharing the world (`world_2d`), each with its own camera; the layout follows the
+  window. Player 1's HUD layers are pointed at player 1's view with `CanvasLayer.custom_viewport`; controls anchored to the window's edges
+  are re-pinned to the view's size (`_pin_all`).
+- `world/local_players.gd`: players 2 to 4 are co-op **avatars** (the same kind a LAN client gets), driven by their controller through
+  `Net.apply_input_state`. So everything that works for a LAN client works for them.
+- Their screens: `ui/base/local_keep_ui.gd` (hand, mana, cursor, cast, merge, repair, upgrades, chest draft) and
+  `ui/base/local_forge_ui.gd`. `core/pad.gd` keeps controller 0 (or the keyboard) for player 1 only while split (`Pad.enter_split`).
+- Only one player can be in a tower at a time (`Game.tower_taken`), for walking in, LAN, split screen and the tower jump.
+- Difficulty: `Game.team_scale(per)` counts every player (LAN and split screen). Waves use 0.75, bosses 0.8, shared mana regen 0.35.
+- Menus (pause, rewards, drafts) go through player 1; any controller can also drive them.
+
 ## Controller
-`core/pad.gd` (autoload `Pad`) covers moving and fighting only: sticks, RT/LT as attack/ability, A/B/X/Y as interact/dash/switch/ultimate.
-Menus, the keep and cards stay on the mouse. Gameplay code asks `Pad.world_mouse(self)` instead of `get_global_mouse_position()`, so a
-co-op client sends the stick-aimed point like any other aim.
+`core/pad.gd` (autoload `Pad`). Outside: sticks move and aim, RT attack, LT ability, A interact, B dash, X switch weapon, Y ultimate,
+Start pause. In a tower: A leaves, the right stick moves a cursor, LB / RB pick a card, RT places it (or jumps to a lit tower), LT / B
+put it back. Menus: d-pad + A / B, LB / RB switch tabs (`ui/cards/menu_pad.gd`; only the top-most menu reacts).
+Gameplay code asks `Pad.world_mouse(self)` instead of `get_global_mouse_position()` and `Pad.view_transform(vp)` instead of
+`vp.get_canvas_transform()`, so a co-op client (and a split-screen view) gets the stick-aimed point like any other aim.
