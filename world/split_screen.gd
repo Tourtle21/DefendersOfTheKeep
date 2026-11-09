@@ -215,7 +215,7 @@ func _process(_delta: float) -> void:
 		var cam: Camera2D = cameras[slot]
 		cam.global_position = pcam.global_position
 		cam.offset = pcam.offset
-		cam.zoom = pcam.zoom * sqrt(_scale[slot])          # closer than "same area as the full screen", so the smaller views are not tiny
+		cam.zoom = pcam.zoom * Game.ui_scale * sqrt(_scale[slot])          # (a sub-view gets no window content scaling, which the player's camera zoom already divides out) closer than "same area as the full screen", so the smaller views are not tiny
 		if slot > 0:
 			var c: Dictionary = _corner[slot]
 			c.hp.value = pl.remote_hp

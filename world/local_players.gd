@@ -64,7 +64,7 @@ func _physics_process(delta: float) -> void:
 		var dev: int = int(Game._local_devices[slot]) if slot < Game._local_devices.size() else slot       # the controller this player claimed in the lobby
 		if pl.is_in_tower:
 			# inside a tower the controller drives the keep screen instead of the avatar
-			Net.apply_input_state(FIRST_ID + slot, pl, {"move": Vector2.ZERO, "aim": pl.global_position, "attack": false, "ability": false, "dash": false, "ultimate": false})
+			Net.apply_input_state(FIRST_ID + slot, pl, {"move": Vector2.ZERO, "aim": pl.global_position + _aim_dir[slot] * AIM_REACH, "attack": false, "ability": false, "dash": false, "ultimate": false})
 			if keep_uis.has(slot):
 				keep_uis[slot].poll(dev, delta)
 			_prev_btn[slot] = {"a": true, "x": true}              # a press that was for the keep screen must not also be a walk-around press
@@ -75,13 +75,13 @@ func _physics_process(delta: float) -> void:
 			forge_uis[slot].poll(dev)
 			if forge_uis[slot].is_open:
 				# the forge is open: stand still, and the buttons belong to the forge screen
-				Net.apply_input_state(FIRST_ID + slot, pl, {"move": Vector2.ZERO, "aim": pl.global_position, "attack": false, "ability": false, "dash": false, "ultimate": false})
+				Net.apply_input_state(FIRST_ID + slot, pl, {"move": Vector2.ZERO, "aim": pl.global_position + _aim_dir[slot] * AIM_REACH, "attack": false, "ability": false, "dash": false, "ultimate": false})
 				_prev_btn[slot] = {"a": true, "x": true}
 				continue
 		if fuser_uis.has(slot):
 			fuser_uis[slot].poll(dev)
 			if fuser_uis[slot].is_open:
-				Net.apply_input_state(FIRST_ID + slot, pl, {"move": Vector2.ZERO, "aim": pl.global_position, "attack": false, "ability": false, "dash": false, "ultimate": false})
+				Net.apply_input_state(FIRST_ID + slot, pl, {"move": Vector2.ZERO, "aim": pl.global_position + _aim_dir[slot] * AIM_REACH, "attack": false, "ability": false, "dash": false, "ultimate": false})
 				_prev_btn[slot] = {"a": true, "x": true}
 				continue
 		var left := _stick(dev, JOY_AXIS_LEFT_X, JOY_AXIS_LEFT_Y)
