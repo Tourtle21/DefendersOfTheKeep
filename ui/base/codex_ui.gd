@@ -47,6 +47,9 @@ func _ready() -> void:
 	body.add_child(left)
 	grid_area = Control.new()                       # the cards are placed to exactly fill this area
 	grid_area.clip_contents = true
+	grid_area.resized.connect(func():              # the panel settles after first layout: redraw the grid at its real size
+		if root_ctl != null and root_ctl.visible:
+			_refresh.call_deferred())
 	left.add_child(grid_area)
 	var side := UiKit.panel(Color(0.08, 0.08, 0.14))
 	side.custom_minimum_size = Vector2(470, 0)
