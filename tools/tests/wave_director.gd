@@ -1,5 +1,5 @@
 extends SceneTree
-# The real wave director, sped up: a bot flips a token and presses Start each time the wave screen appears.
+# The real wave director, sped up (the wave draw plays itself now; the bot just clears each wave).
 # Logs the game-clock time of every wave, its kind and size, and how far apart they are.
 func _initialize() -> void:
 	var game = root.get_node("Game")
@@ -17,11 +17,6 @@ func _initialize() -> void:
 	while elapsed < 1000.0 and log.size() < 8:
 		await create_timer(0.05, true, false, true).timeout
 		elapsed += 0.05 * Engine.time_scale
-		if up.visible and !up.get_node("Control/Button").visible and !up.finished:
-			if first_screen < 0.0: first_screen = world.clock
-			up.pick_token(0)
-		if up.visible and up.get_node("Control/Button").visible:
-			up._on_button_pressed()
 		if game.run_stats.waves != last_waves:
 			last_waves = game.run_stats.waves
 			var n := 0
