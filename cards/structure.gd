@@ -15,7 +15,9 @@ var kind := "barricade"
 var radius := 16.0
 var hp := 24.0
 var max_hp := 24.0
-var life := 0.0             # seconds left (0 = permanent)
+var life := 0.0             # (unused: buildings are permanent)
+var _heal_budget := 0.0     # a healer can heal this much in total, then it is used up and goes away
+var _healed := 0.0
 var uses := 0
 var _tick := 0.0
 var flash := 0.0
@@ -41,7 +43,8 @@ func setup(card: Dictionary, pos: Vector2) -> void:
 	radius = card.radius
 	max_hp = card.get("hp", 20.0)
 	hp = max_hp
-	life = card.get("duration", 0.0)
+	life = 0.0                                   # buildings stay until enemies destroy them (only healers run out, below)
+	_heal_budget = float(card.get("heal_per_sec", 0.0)) * float(card.get("duration", 0.0))
 	uses = card.get("uses", 0)
 	light_radius = float(card.get("light", 0.0))
 
@@ -143,8 +146,7 @@ func promote() -> void:
 			_glow.texture_scale = maxf(0.1, light_radius * 2.0 / 128.0)
 	max_hp = data.get("hp", max_hp)
 	hp = max_hp
-	if data.get("duration", 0.0) > 0.0:
-		life = data.duration
+	_heal_budget = float(data.get("heal_per_sec", 0.0)) * float(data.get("duration", 0.0))
 	uses = int(data.get("uses", uses))
 	flash = 0.4
 	WeaponFx.spawn(get_parent(), "ring", global_position, Color(1.0, 0.85, 0.3), {"radius": radius + 10.0, "life": 0.4})
@@ -266,6 +268,10 @@ func _physics_process(delta: float) -> void:
 			for p in get_tree().get_nodes_in_group("player"):
 				if is_instance_valid(p) and p.global_position.distance_to(global_position) <= radius:
 					p.heal(data.heal_per_sec * delta)
+					_healed += data.heal_per_sec * delta
+			if _heal_budget > 0.0 and _healed >= _heal_budget:
+				_expire()                                    # it has healed all it had
+				return
 		"totem":
 			for e in _near_enemies(radius):
 				e.apply_slow(data.slow, 0.3)
@@ -351,8 +357,6 @@ func _draw() -> void:
 			draw_circle(Vector2(0, -5), 4.5, col)
 			if shot_t > 0.0:
 				draw_line(Vector2(0, -5), shot_to - global_position, Color(col.lightened(0.5), 0.9), 2.0)
-			if life > 0.0:
-				draw_arc(Vector2(0, -5), 8.0, -PI / 2.0, -PI / 2.0 + TAU * clamp(life / max(data.duration, 1.0), 0.0, 1.0), 20, Color(1, 1, 1, 0.5), 1.0)
 		"torch":
 			var flick := 0.8 + 0.2 * sin(_age * 11.0) + 0.1 * sin(_age * 17.0)
 			draw_rect(Rect2(-1.5, -2, 3, 11), Color.BLACK)

@@ -45,8 +45,8 @@ const CARDS := {
 	"flare": {
 		"element": "fire", "night": true,
 		"name": "Flare", "mana": 20, "res": {"stick": 1}, "kind": "flare", "art": "flare",
-		"radius": 85.0, "duration": 12.0, "dps": 1.0, "speed": 220.0, "color": Color(1.0, 0.9, 0.5),
-		"desc": "A bright burst of light for a while. Enemies inside lose their shroud at night and burn a little.",
+		"radius": 85.0, "duration": 20.0, "dps": 1.0, "speed": 220.0, "color": Color(1.0, 0.9, 0.5),
+		"desc": "A bright light at the spot you aim at, for 20 seconds. Enemies inside lose their shroud at night and burn a little.",
 	},
 	"meteor_shower": {
 		"element": "fire", "night": true, "legendary": true,
