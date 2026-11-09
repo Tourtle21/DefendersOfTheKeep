@@ -9,7 +9,7 @@ class_name NavBuilder
 ## Why a baked polygon and not a navigation tile per cell: one region instead of thousands,
 ## and a rebuild costs a few milliseconds whatever the map size.
 
-const RADIUS := 1500.0        # walkable disk: covers the yard and all six sectors
+const YARD_RADIUS := 130.0     # the keep yard (players stop at 120)
 const AGENT_RADIUS := 6.0     # obstacles are grown by this much (enemies are small)
 
 var region: NavigationRegion2D
@@ -25,6 +25,7 @@ func _ready() -> void:
 	Game.nav_changed.connect(func():
 		_dirty = true
 		_timer = 0.4)
+	Game.sector_unlocked.connect(func(_id): rebuild_now())          # a new sector joins the walkable map
 	rebuild_now()
 
 func _process(delta: float) -> void:
@@ -34,12 +35,34 @@ func _process(delta: float) -> void:
 			_dirty = false
 			_bake_async()
 
+## The playable ground, and only that: the keep yard plus the cone of every sector that is open. The grey locked ground is
+## not part of the map, so no enemy ever plans a route across it (see Game.in_playable for the same area).
+func _walkable() -> Array:
+	var yard := PackedVector2Array()
+	for i in 32:
+		yard.append(Vector2.from_angle(i * TAU / 32.0) * YARD_RADIUS)
+	var areas: Array = [yard]
+	for id in Game.sectors_unlocked:
+		var rot := deg_to_rad(Game.SECTOR_ANGLES[id] - 90.0)
+		var cone := PackedVector2Array()
+		for p in Game.SECTOR_OUTLINE:
+			cone.append(p.rotated(rot))
+		var merged: Array = []
+		var current: PackedVector2Array = cone
+		for a in areas:
+			var u := Geometry2D.merge_polygons(a, current)
+			if u.size() == 1:
+				current = u[0]                       # overlapping: one bigger area
+			else:
+				merged.append(a)                     # separate: keep it as it is
+		merged.append(current)
+		areas = merged
+	return areas
+
 func _source() -> NavigationMeshSourceGeometryData2D:
 	var src := NavigationMeshSourceGeometryData2D.new()
-	var disk := PackedVector2Array()
-	for i in 48:
-		disk.append(Vector2.from_angle(i * TAU / 48.0) * RADIUS)
-	src.add_traversable_outline(disk)
+	for area in _walkable():
+		src.add_traversable_outline(area)
 	for n in get_tree().get_nodes_in_group("nav_obstacle"):
 		if !is_instance_valid(n) or n.is_queued_for_deletion() or n.is_in_group("puppet"):
 			continue
