@@ -85,6 +85,10 @@ func setup(count: int, local: Node) -> void:
 		add_child(kui)
 		kui.setup(local.avatars[slot], viewports[slot], slot)
 		local.keep_uis[slot] = kui
+		var fui := preload("res://ui/base/local_forge_ui.gd").new()
+		add_child(fui)
+		fui.setup(local.avatars[slot], viewports[slot])
+		local.forge_uis[slot] = fui
 	Pad.enter_split(containers[0], viewports[0], int(Game._local_devices[0]) if !Game._local_devices.is_empty() else -1)
 	get_viewport().size_changed.connect(_relayout)         # the window maximizes right after the game starts, and can be resized
 	_relayout.call_deferred()
@@ -117,6 +121,8 @@ func _pin_all() -> void:
 		var kui = _keep_ui(slot)
 		if kui != null:
 			kui.fit(Vector2(viewports[slot].size))
+		if _local != null and _local.forge_uis.has(slot):
+			_local.forge_uis[slot].fit(Vector2(viewports[slot].size))
 
 func _keep_ui(slot: int):
 	return _local.keep_uis.get(slot) if _local != null else null

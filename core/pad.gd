@@ -210,6 +210,9 @@ func _input(event: InputEvent) -> void:
 		if event.device != INJECTED and using_pad and event.pressed:
 			_set_using(false)
 		return
+	if event is InputEventJoypadButton and event.pressed and event.button_index == JOY_BUTTON_START and _split_box != null and event.device != _dev:
+		_key(KEY_P)                                  # split screen: Start on ANY controller opens the pause menu
+		return
 	if (event is InputEventJoypadMotion or event is InputEventJoypadButton) and _split_box != null and event.device != _dev:
 		return                                       # split screen: that controller belongs to another player
 	if event is InputEventJoypadMotion:

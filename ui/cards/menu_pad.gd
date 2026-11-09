@@ -10,7 +10,24 @@ var tab_id := ""
 var focus_root: Control          # where to look for the first control to focus (default: the whole menu)
 var first_focus: Control         # focus this one first if given
 
+## Only the menu on top reacts: a screen opened over another (the connect screen, the collection) must not have the
+## menu underneath grab focus or press its buttons.
+func _is_top() -> bool:
+	var mine := _layer_of(root)
+	for m in get_tree().get_nodes_in_group("menu_pad"):
+		if m != self and is_instance_valid(m.root) and m.root.is_visible_in_tree() and _layer_of(m.root) > mine:
+			return false
+	for n in get_tree().get_nodes_in_group("menu_overlay"):
+		if n is Control and n.is_visible_in_tree() and _layer_of(n) > mine:
+			return false
+	return true
+
+func _layer_of(n: Node) -> int:
+	var p := n.get_parent()
+	return p.layer if p is CanvasLayer else 0
+
 func _ready() -> void:
+	add_to_group("menu_pad")
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	root.visibility_changed.connect(func():
 		if root.visible:
@@ -20,7 +37,7 @@ func _ready() -> void:
 
 func _grab() -> void:
 	await get_tree().create_timer(0.1, true, false, true).timeout       # let the screen build its cards first
-	if !is_inside_tree() or !root.is_visible_in_tree():
+	if !is_inside_tree() or !root.is_visible_in_tree() or !_is_top():
 		return
 	var owner = root.get_viewport().gui_get_focus_owner()
 	if owner != null and is_instance_valid(owner) and root.is_ancestor_of(owner) and owner.is_visible_in_tree():
@@ -43,7 +60,7 @@ func _first_focusable(n: Node) -> Control:
 	return null
 
 func _unhandled_input(event: InputEvent) -> void:
-	if root == null or !root.is_visible_in_tree():
+	if root == null or !root.is_visible_in_tree() or !_is_top():
 		return
 	if root.get_viewport().gui_get_focus_owner() == null and (event.is_action_pressed("ui_down") or event.is_action_pressed("ui_up") \
 			or event.is_action_pressed("ui_left") or event.is_action_pressed("ui_right") or event.is_action_pressed("ui_accept")):

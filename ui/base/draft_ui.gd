@@ -33,6 +33,7 @@ func _ready() -> void:
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_theme_constant_override("separation", 24)
 	box.add_child(row)
+	preload("res://ui/cards/menu_pad.gd").attach(root_ctl, Callable(), "", row)     # any controller: d-pad / left stick to move, A to take
 	Game.draft_started.connect(_show)
 	Game.deck_changed.connect(func(): root_ctl.visible = Game.draft_active)
 
@@ -50,6 +51,7 @@ func _show(options: Array) -> void:
 		var view := CardView.new()
 		view.setup(id, Game.entry_tier(entry), "NEW" if owned == 0 else "+1 copy", Game.entry_twist(entry))
 		view.scale = Vector2(1.5, 1.5)
+		view.focus_mode = Control.FOCUS_ALL
 		view.pressed_down.connect(func(v): Game.take_draft_card(entry))
 		wrap.add_child(view)
 		row.add_child(wrap)

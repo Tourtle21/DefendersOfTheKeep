@@ -8,6 +8,7 @@ const DEAD := 0.25
 const AIM_REACH := 70.0
 
 var avatars := {}                # slot (1..3) -> player node
+var forge_uis := {}              # slot -> LocalForgeUi
 var keep_uis := {}               # slot -> LocalKeepUi (made by the split screen once the views exist)
 var _aim_dir := {}
 var _last_aim_ms := {}
@@ -69,6 +70,13 @@ func _physics_process(delta: float) -> void:
 			continue
 		elif keep_uis.has(slot):
 			keep_uis[slot].poll(dev, delta)                       # hides the keep screen again
+		if forge_uis.has(slot):
+			forge_uis[slot].poll(dev)
+			if forge_uis[slot].is_open:
+				# the forge is open: stand still, and the buttons belong to the forge screen
+				Net.apply_input_state(FIRST_ID + slot, pl, {"move": Vector2.ZERO, "aim": pl.global_position, "attack": false, "ability": false, "dash": false, "ultimate": false})
+				_prev_btn[slot] = {"a": true, "x": true}
+				continue
 		var left := _stick(dev, JOY_AXIS_LEFT_X, JOY_AXIS_LEFT_Y)
 		var right := _stick(dev, JOY_AXIS_RIGHT_X, JOY_AXIS_RIGHT_Y)
 		var now := Time.get_ticks_msec()

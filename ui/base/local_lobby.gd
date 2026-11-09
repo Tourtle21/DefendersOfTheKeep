@@ -16,6 +16,7 @@ var _start: Button
 var _members: Array = []            # joined devices in join order (-1 = keyboard)
 var _prev := {}                     # device -> {a, b, start}
 var _msg: Label
+var fake_connected = null                   # tests: an Array of controller ids to treat as connected (null = ask the system)
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -25,6 +26,7 @@ func _ready() -> void:
 	root_ctl.mouse_filter = Control.MOUSE_FILTER_STOP
 	root_ctl.theme = UiKit.make_theme()
 	root_ctl.visible = false
+	root_ctl.add_to_group("menu_overlay")           # menus underneath stay quiet while this is up
 	add_child(root_ctl)
 	var dim := ColorRect.new()
 	dim.color = UiKit.BG
@@ -101,10 +103,16 @@ func _ready() -> void:
 func open() -> void:
 	_members.clear()
 	_prev.clear()
+	var held = get_viewport().gui_get_focus_owner()
+	if held != null:
+		held.release_focus()               # the menu under this screen must not also react to A (it would press "Play game")
 	root_ctl.visible = true
 	_refresh()
 
 func close() -> void:
+	var held = get_viewport().gui_get_focus_owner()
+	if held != null:
+		held.release_focus()
 	root_ctl.visible = false
 	closed.emit()
 
@@ -119,7 +127,10 @@ func devices() -> Array:
 	return out
 
 func _name_of(d: int) -> String:
-	return "Keyboard + mouse" if d == -1 else "%s (controller %d)" % [Input.get_joy_name(d), d + 1]
+	if d == -1:
+		return "Keyboard + mouse"
+	var nm: String = Input.get_joy_name(d) if d in Input.get_connected_joypads() else ""         # (asking about a controller that is not there can crash)
+	return ("%s (controller %d)" % [nm, d + 1]) if nm != "" else "Controller %d" % (d + 1)
 
 func _refresh() -> void:
 	var devs := devices()
@@ -142,7 +153,7 @@ func _process(_delta: float) -> void:
 	if !root_ctl.visible:
 		return
 	var changed := false
-	var connected := Input.get_connected_joypads()
+	var connected: Array = fake_connected if fake_connected != null else Input.get_connected_joypads()
 	for d in _members.duplicate():
 		if d != -1 and !(d in connected):
 			_members.erase(d)                 # unplugged

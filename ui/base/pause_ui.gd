@@ -119,8 +119,18 @@ func _process(_delta: float) -> void:
 			Net.join_failed.connect(func(): Game.announce.emit("Could not connect to %s" % addr), CONNECT_ONE_SHOT)
 			Net.join_game(addr, h.port))
 
+## Is the main menu, the connect screen or another full-screen menu up? Then Start / P must not pause behind it.
+func _menu_up() -> bool:
+	for m in get_tree().get_nodes_in_group("menu_pad"):
+		if is_instance_valid(m.root) and m.root != root_ctl and m.root.is_visible_in_tree() and m.root.get_parent() is CanvasLayer and m.root.get_parent().layer >= 20:
+			return true
+	for n in get_tree().get_nodes_in_group("menu_overlay"):
+		if n is Control and n.is_visible_in_tree():
+			return true
+	return false
+
 func open() -> void:
-	if Game.run_over:
+	if Game.run_over or _menu_up():
 		return
 	Net.start_lan_scan()
 	_was_paused = get_tree().paused
