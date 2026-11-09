@@ -17,7 +17,7 @@ func _ready() -> void:
 	layer = 22
 	var sc := UiKit.screen(self, "Drawn Cards", func():
 		root_ctl.visible = false
-		closed.emit(), "Everything you have drawn or found, common first. The number is how many times.")
+		closed.emit(), "Drawn or found, not used yet. A card or weapon leaves this list once you use it.")
 	root_ctl = sc.root
 	stats_label = sc.right
 	var panel := UiKit.panel()
@@ -30,7 +30,7 @@ func _ready() -> void:
 			_refresh.call_deferred())
 	panel.add_child(grid_area)
 	empty_label = Label.new()
-	empty_label.text = "Nothing drawn yet.\nSurvive past wave 1, then flip your reward cards at the end of the run."
+	empty_label.text = "Nothing waiting.\nEverything you have drawn has been used."
 	empty_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	empty_label.add_theme_font_size_override("font_size", 20)
 	empty_label.add_theme_color_override("font_color", Color(0.65, 0.7, 0.85))
@@ -54,7 +54,7 @@ func _refresh() -> void:
 	var total := 0
 	for h in items:
 		total += int(h.count)
-	stats_label.text = "%d draws   %d different" % [total, items.size()]
+	stats_label.text = "%d waiting   %d different" % [total, items.size()]
 	empty_label.visible = items.is_empty()
 	if items.is_empty():
 		return

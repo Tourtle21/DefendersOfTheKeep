@@ -521,9 +521,6 @@ func fix_meta() -> void:
 			meta[k] = []
 	if !meta.has("draw_history"):
 		meta["draw_history"] = {}
-	for tool_id in ["sword", "pickaxe"]:                  # the free starting tools are always on the Drawn Cards screen
-		if !meta.draw_history.has("weapon:" + tool_id):
-			meta.draw_history["weapon:" + tool_id] = {"kind": "weapon", "id": tool_id, "count": 1, "tier": 1}
 	if !meta.get("history_backfilled", false):
 		meta["history_backfilled"] = true
 		_backfill_history()            # "card:fireball" / "weapon:spear" -> {kind, id, count, tier}: every reward you have drawn
@@ -564,7 +561,12 @@ func _backfill_history() -> void:
 		if !meta.draw_history.has(key):
 			meta.draw_history[key] = {"kind": pair[0], "id": pair[1], "count": 1, "tier": 1}
 
-## Remember a reward draw for the Drawn Cards screen.
+## The Drawn Cards screen lists what you have drawn but not used yet: using a card or weapon removes it.
+func mark_used(kind: String, id: String) -> void:
+	fix_meta()
+	meta.draw_history.erase("%s:%s" % [kind, id])
+
+## Remember a draw for the Drawn Cards screen (it stays until you use it).
 func record_draw(entry: Dictionary) -> void:
 	fix_meta()
 	var key := "%s:%s" % [entry.kind, entry.id]
@@ -1000,6 +1002,7 @@ func cast(card_id: String, pos: Vector2, caster: Node = null) -> bool:
 	world.add_child(spell)
 	mana_changed.emit()
 	hand_changed.emit()
+	mark_used("card", entry_id(card_id))
 	return true
 
 ## --- towers: while you are inside one you can jump to any other lit tower ---
@@ -1604,7 +1607,8 @@ func make_rewards(won := false) -> Array:
 			else:
 				meta.pending.append(entry)
 		meta.shards += entry.shards
-		record_draw(entry)
+		if entry.result != "converted":              # a card turned into Shards is gone, not waiting
+			record_draw(entry)
 		out.append(entry)
 	if won:
 		out.append(grant_legendary())              # beating the whole game always unlocks a legendary
