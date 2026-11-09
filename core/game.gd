@@ -559,6 +559,9 @@ func fix_meta() -> void:
 		meta["skills"] = {}
 	if !meta.has("pending"):
 		meta["pending"] = []
+	for i in range(meta.pending.size() - 1, -1, -1):
+		if !(str(meta.pending[i].get("result", "offer")) in ["offer", "spare"]):
+			meta.pending.remove_at(i)             # leftovers of offers already unlocked or sold (an old bug kept them forever)
 	if !meta.has("card_tiers"):
 		meta["card_tiers"] = {}
 	for k in ["weapons", "fusion_tiers", "seen"]:
@@ -682,7 +685,8 @@ func buy_weapon(id: String) -> bool:
 
 func _forget_pending(kind: String, id: String) -> void:
 	for i in range(meta.pending.size() - 1, -1, -1):
-		if meta.pending[i].kind == kind and meta.pending[i].id == id and meta.pending[i].get("result", "offer") == "offer":
+		# (the entry being acted on has already been marked "unlocked" / "converted" by now, so match on any state)
+		if meta.pending[i].kind == kind and meta.pending[i].id == id and str(meta.pending[i].get("result", "offer")) in ["offer", "unlocked", "converted"]:
 			meta.pending.remove_at(i)
 
 func _drop_pending(entry: Dictionary) -> void:
