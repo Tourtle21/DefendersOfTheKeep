@@ -205,7 +205,7 @@ func _spawn_position_raw() -> Vector2:
 
 ## The wave the player picked, made harder by how far into the run we are:
 ## more enemies, higher levels, a spread across every unlocked sector, and new
-## enemy types (brutes every third wave, runners from wave 4, spitters from wave 5, splitters from wave 6).
+## enemy types (brutes every third wave, runners from wave 6, spitters from wave 5, splitters from wave 6).
 func wave_plan(picked: Array) -> Array:
 	var w: int = Game.run_stats.waves
 	var factor := WAVE_SIZE * Game.team_scale(Game.WAVE_TEAM_SCALE) * early_size_mult(w)        # every group grows with the number of players (LAN and split screen)
@@ -219,8 +219,8 @@ func wave_plan(picked: Array) -> Array:
 		plan.append({"name": e.name, "amount": int(ceil((e.amount + bonus) * factor)), "level": e.level + level_bonus})
 	if w >= 3 and w % 3 == 0:
 		plan.append({"name": "brute", "amount": int(ceil(int(w / 3.0) * factor)), "level": 1})
-	if w >= 4:
-		plan.append({"name": "runner", "amount": int(ceil(int(w / 2.0) * factor)), "level": 1})
+	if w >= 6:                         # the fast runners start later and come in small groups (about 2 at wave 6, 3 by wave 10)
+		plan.append({"name": "runner", "amount": int(ceil(ceil((w - 3) / 4.0) * factor)), "level": 1})
 	if w >= 5:
 		plan.append({"name": "spitter", "amount": int(ceil(int(w / 4.0) * factor)), "level": 1})
 	if w >= 6:
