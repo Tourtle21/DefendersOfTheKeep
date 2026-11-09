@@ -22,7 +22,7 @@ func _initialize() -> void:
 	p.process_movement(0.016)
 	var carry_speed: float = p.velocity.length()
 	Input.action_release("move_right")
-	print("  walking %.1f, carrying the crystal %.1f (a blobbert walks at 10)" % [free_speed, carry_speed])
-	ok("carrying the crystal is slower than a blobbert", carry_speed < 10.0 and carry_speed > 0.0 and free_speed > 50.0)
+	print("  walking %.1f, carrying the crystal %.1f (blobberts walk at 10 and up)" % [free_speed, carry_speed])
+	ok("carrying the crystal makes you slow (%.0f of %.0f), but not a crawl" % [carry_speed, free_speed], carry_speed > 15.0 and carry_speed < 40.0 and free_speed > 50.0)
 	p.has_crystal = false
 	quit()

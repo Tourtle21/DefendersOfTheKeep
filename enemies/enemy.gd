@@ -461,20 +461,15 @@ func _target_player():
 	return best
 
 func make_path() -> void:
-	var target = _target_player()
-	if target == null:
-		return
-	var player_position = target.global_position
+	# The objective is the crystal. Enemies only turn on a player when they have been hit by one or walk close to one
+	# (see start_aggro / provoke); the old rule that sent them after any player standing between them and the keep
+	# meant they were almost always chasing a player instead.
 	if has_crystal:
 		nav_agent.set_target_position(crystal.exit_point)
 		if global_position.distance_to(crystal.exit_point) <= 26.0:
 			Game.end_run("The crystal was stolen")
-	elif crystal.state == "dropped":
-		nav_agent.set_target_position(crystal.global_position)
-	elif target.is_in_tower:
-		nav_agent.set_target_position(center)
-	elif player_position.distance_to(center) < global_position.distance_to(center) or crystal.state == "player":
-		nav_agent.set_target_position(target.global_position)
+	elif crystal.state == "dropped" or crystal.state == "player":
+		nav_agent.set_target_position(crystal.global_position)        # loose, or a player is carrying it: go and take it
 	else:
 		nav_agent.set_target_position(center)
 	

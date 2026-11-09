@@ -23,7 +23,7 @@ var respawn_left := 0.0
 var _saved_layers := [0, 0]
 var carried = {}                 # co-op avatars: resources they hold until they reach a tower
 signal hurt                     # a co-op avatar was hit (its view flashes red)
-const CRYSTAL_CARRY_SPEED := 6.0
+const CRYSTAL_CARRY_SPEED := 26.0
 var has_crystal := false          # carrying the keep's crystal back to the Well
 var weapon_slots: Array = []     # co-op avatars: weapon ids they carry (max 3)
 var active_slot = 0
@@ -264,7 +264,7 @@ func process_movement(delta):
 	else:
 		velocity = input_direction * speed * speed_mult * Hazard.slow_at(get_tree(), global_position)
 		if has_crystal:
-			velocity = velocity.limit_length(CRYSTAL_CARRY_SPEED)       # the crystal is heavy: slower than even a blobbert (10 and up)
+			velocity = velocity.limit_length(CRYSTAL_CARRY_SPEED)       # the crystal is heavy: you drop to 26, a fraction of your normal 100 (blobberts walk at 10 and up)
 	var new_position = position + velocity * delta
 	# Stay inside the keep circle except through gates opened by defeating bosses.
 	if CENTER.distance_to(new_position) > MAX_RADIUS:
