@@ -31,6 +31,7 @@ var slow_mult := 1.0
 var slow_time := 0.0
 var dead := false
 var awake := false
+var dormant := false            # not arrived yet: not in the world (see set_dormant)
 var enraged := false
 var is_taking_damage := false
 var armor := 0.0
@@ -54,8 +55,20 @@ var _unstick := Unstick.new()
 
 ## The first boss stays out of the world until the wave director calls this (wave 3), then it appears and hunts you.
 func arrive() -> void:
-	visible = true
-	process_mode = Node.PROCESS_MODE_INHERIT
+	set_dormant(false)
+
+## A boss that has not arrived yet is not in the world at all: hidden, switched off, no hitbox, and not an enemy (so no
+## weapon, spell or area attack can find or hurt it).
+func set_dormant(on: bool) -> void:
+	dormant = on
+	visible = !on
+	process_mode = Node.PROCESS_MODE_DISABLED if on else Node.PROCESS_MODE_INHERIT
+	collision_layer = 0 if on else 2
+	collision_mask = 0 if on else (1 | 4)
+	if on:
+		remove_from_group("enemy")
+	else:
+		add_to_group("enemy")
 
 func setup(p: Dictionary) -> void:
 	for k in p:
@@ -102,6 +115,8 @@ func _path_dir(to_player: Vector2, delta: float) -> Vector2:
 # ---------- hit API shared with normal enemies ----------
 
 func take_damage(_origin: Vector2) -> void:      # legacy sword/pickaxe hitboxes
+	if dormant:
+		return
 	if is_taking_damage:
 		return
 	is_taking_damage = true              # the sword hitbox hits every frame it overlaps: one hit per swing window instead
@@ -109,6 +124,8 @@ func take_damage(_origin: Vector2) -> void:      # legacy sword/pickaxe hitboxes
 	spell_damage(1.0)
 
 func spell_damage(amount: float, element := "", _aoe := false) -> void:
+	if dormant:
+		return                                   # a boss that has not arrived cannot be hurt
 	if dead:
 		return
 	var raw := amount

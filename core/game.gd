@@ -1024,6 +1024,23 @@ func player_count() -> int:
 
 ## 1.0 for one player, growing by `per` for every extra player (LAN or split screen). Waves, bosses and the shared
 ## mana pool all use it, so a team of four faces roughly four players' worth of enemies.
+# --- the countdown to the next wave (set by world.gd once a second; shown on every player's HUD) ---
+var wave_eta_s := -1                # seconds until the next wave, -1 if unknown
+var wave_next_kind := "Day"        # "Day" or "Night"
+var wave_next_number := 1
+var wave_waiting := false           # the timer is up but the last wave is still alive: the next one starts when it is beaten
+var wave_boss_next := false         # the next wave is the sector's last: its boss arrives with it
+
+func wave_timer_text() -> String:
+	if wave_eta_s < 0:
+		return ""
+	var what := "%s wave %d" % [wave_next_kind, wave_next_number]
+	if wave_boss_next:
+		what += " (the boss arrives)"
+	if wave_waiting:
+		return "%s: starts when the last wave is beaten (%d s at most)" % [what, wave_eta_s]
+	return "%s in %d:%02d" % [what, wave_eta_s / 60, wave_eta_s % 60]
+
 const WAVE_TEAM_SCALE := 0.45       # extra enemies per wave for every player beyond the first (2 players: x1.45, 3: x1.9, 4: x2.35)
 const BOSS_HP_TEAM_SCALE := 0.5     # extra boss health per extra player
 const BOSS_PACE_TEAM_SCALE := 0.1   # how much sooner a boss attacks again per extra player

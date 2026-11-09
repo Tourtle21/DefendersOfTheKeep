@@ -44,6 +44,15 @@ func _initialize() -> void:
 	await wait(0.6)
 	ok("walking within 80 units, an enemy notices you", near.aggro_left > 0.0)
 	near.queue_free()
+	var rear = spawn(world, "blobbert", P + Vector2(50, 0))
+	rear.facing = Vector2.RIGHT                                # facing away from the player, who is behind it
+	rear.set_physics_process(false)
+	rear._aggro_scan = 0.0
+	rear._update_aggro(0.3)
+	ok("an enemy does not notice a player behind its back", rear.aggro_left <= 0.0)
+	rear.spell_damage(0.1)
+	ok("but a hit from behind still turns it on you", rear.aggro_left > 2.5)
+	rear.queue_free()
 	var far = spawn(world, "blobbert", P + Vector2(200, 0))
 	await wait(0.6)
 	ok("at 200 units it does not", far.aggro_left <= 0.0)

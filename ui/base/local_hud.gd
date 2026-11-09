@@ -13,6 +13,7 @@ var keep_bar: ProgressBar
 var keep_lbl: Label
 var hp_fill: ColorRect
 var banner: Label
+var wave_label: Label
 var flash: ColorRect
 
 func setup(player: Node, viewport: SubViewport, slot_index: int) -> void:
@@ -79,6 +80,15 @@ func setup(player: Node, viewport: SubViewport, slot_index: int) -> void:
 	tag.add_theme_color_override("font_outline_color", Color.BLACK)
 	tag.add_theme_constant_override("outline_size", 4)
 	root.add_child(tag)
+	wave_label = Label.new()
+	wave_label.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
+	wave_label.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	wave_label.add_theme_font_size_override("font_size", 14)
+	wave_label.add_theme_color_override("font_color", Color(1.0, 0.9, 0.6))
+	wave_label.add_theme_color_override("font_outline_color", Color.BLACK)
+	wave_label.add_theme_constant_override("outline_size", 4)
+	wave_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(wave_label)
 	banner = Label.new()
 	banner.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
 	banner.offset_top = 70
@@ -110,10 +120,12 @@ func fit(area: Vector2) -> void:
 	info.custom_minimum_size.x = (area.x - 280.0) if narrow else 0.0
 	info.reset_size()                                   # (a wrapping label keeps its old height until it is told to resize)
 	keep_bar.offset_top = 52.0 if narrow else 38.0
+	wave_label.position.y = 74.0 if narrow else 62.0
 	keep_bar.offset_bottom = 70.0 if narrow else 58.0
 	banner.offset_top = 80.0 if narrow else 70.0
 
 func _process(_delta: float) -> void:
+	wave_label.text = Game.wave_timer_text()
 	if !is_instance_valid(pl):
 		return
 	var carry := []

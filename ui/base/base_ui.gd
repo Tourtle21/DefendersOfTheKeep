@@ -7,6 +7,7 @@ var dragging := -1          # index being dragged from the hand
 var ghost: CardView
 var info_label: Label
 var hint_label: Label
+var wave_label: Label
 var mana_bar: ProgressBar
 var mana_label: Label
 var draw_bar: ProgressBar
@@ -109,10 +110,19 @@ func _ready() -> void:
 	reticle.draw.connect(_draw_reticle)
 	base_panel.add_child(reticle)
 
+	wave_label = Label.new()                       # the countdown to the next wave, so there is time to prepare
+	wave_label.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
+	wave_label.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	wave_label.position.y = 62
+	wave_label.add_theme_font_size_override("font_size", 16)
+	wave_label.add_theme_color_override("font_color", Color(1.0, 0.9, 0.6))
+	wave_label.add_theme_color_override("font_outline_color", Color.BLACK)
+	wave_label.add_theme_constant_override("outline_size", 5)
+	ui.add_child(wave_label)
 	hint_label = Label.new()
 	hint_label.set_anchors_preset(Control.PRESET_CENTER_TOP)
 	hint_label.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	hint_label.position.y = 66      # under the keep integrity bar
+	hint_label.position.y = 88      # under the keep integrity bar and the wave timer
 	hint_label.add_theme_font_size_override("font_size", 15)
 	base_panel.add_child(hint_label)
 
@@ -183,6 +193,7 @@ func _ready() -> void:
 		hud.get_node("Control3").visible = false
 
 func _process(_delta: float) -> void:
+	wave_label.text = Game.wave_timer_text()
 	_update_ability_label()
 	if base_panel.visible:
 		draw_bar.value = Game.draw_progress()

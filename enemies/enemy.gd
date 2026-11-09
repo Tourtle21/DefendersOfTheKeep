@@ -30,7 +30,8 @@ var _unstick := Unstick.new()
 
 # --- fighting back: enemies notice you, turn on you when hit, and have a move of their own ---
 const AGGRO_TIME := 3.0           # how long an enemy stays on you once it has noticed or been hit by you
-const AGGRO_RANGE := 80.0         # walk this close and it notices you
+const AGGRO_RANGE := 90.0         # walk this close IN FRONT of it and it notices you (it does not notice you behind its back)
+const FRONT_DOT := 0.3            # in front = within about 70 degrees of the way it is facing
 const AGGRO_COOLDOWN := 2.5       # after losing interest it ignores you for this long (so nobody can be dragged around forever)
 const TURN_RATE := 3.5            # how fast it turns to face something (radians per second, roughly): a slow turn is the flanking window
 const BACKSTAB := 1.3             # damage multiplier for a hit from behind
@@ -204,12 +205,14 @@ func is_behind(from: Vector2) -> bool:
 func _valid_target(p) -> bool:
 	return p != null and is_instance_valid(p) and !p.get("downed") and !p.get("is_in_tower")
 
-func _nearest_player(max_dist: float):
+func _nearest_player(max_dist: float, front_only := false):
 	var best = null
 	var best_d := max_dist
 	for p in get_tree().get_nodes_in_group("player"):
 		if _valid_target(p):
 			var d: float = p.global_position.distance_to(global_position)
+			if front_only and d > 1.0 and facing.dot((p.global_position - global_position) / d) < FRONT_DOT:
+				continue
 			if d <= best_d:
 				best = p
 				best_d = d
@@ -252,7 +255,7 @@ func _update_aggro(delta: float) -> void:
 	_aggro_scan -= delta
 	if _aggro_scan <= 0.0:
 		_aggro_scan = 0.25
-		var p = _nearest_player(AGGRO_RANGE)
+		var p = _nearest_player(AGGRO_RANGE, true)
 		if p != null:
 			start_aggro(p)
 

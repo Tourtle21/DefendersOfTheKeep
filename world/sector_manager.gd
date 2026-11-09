@@ -88,9 +88,7 @@ func _build(id: String) -> void:
 	boss.position = Vector2(0, 1050).rotated(rot)
 	boss.defeated.connect(_on_boss_defeated.bind(id))
 	add_child(boss)
-	if true:               # the first boss waits for wave 3 (world.gd calls arrive()); the others wait for their sector
-		boss.visible = false
-		boss.process_mode = Node.PROCESS_MODE_DISABLED
+	boss.set_dormant(true)         # every boss waits for its sector's fifth wave (world.gd calls arrive()); until then it is not in the world
 	_bosses[id] = boss
 
 ## One resource generator per biome, somewhere in the sector (different every game: you have to find it).
@@ -220,9 +218,7 @@ func _wake(id: String) -> void:
 	if _containers.has(id):
 		_containers[id].visible = true
 		_containers[id].process_mode = Node.PROCESS_MODE_INHERIT
-	if _bosses.has(id) and is_instance_valid(_bosses[id]):
-		_bosses[id].visible = true
-		_bosses[id].process_mode = Node.PROCESS_MODE_INHERIT
+	# (its boss stays away until the sector's fifth wave starts: world.gd _boss_arrives)
 
 func _on_boss_defeated(_boss, id: String) -> void:
 	var nxt: String = NEXT[id]

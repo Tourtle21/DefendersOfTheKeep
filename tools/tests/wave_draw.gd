@@ -52,10 +52,11 @@ func _initialize() -> void:
 	player.global_position = boss.global_position + Vector2(0, -100)
 	await wait(0.5)
 	check(!boss.awake, "King Blobbert stays asleep early in the run (wave %d)" % game.run_stats.waves)
-	game.run_stats.waves = 2
-	world.spawn_enemies([], [])                      # wave 3 really starts (the boss arrives with it)
+	game.run_stats.waves = 4
+	world.waves_in_sector = 4
+	world.spawn_enemies([], [])                      # the fifth wave of the sector really starts (the boss arrives with it)
 	await wait(0.5)
-	check(boss.awake, "and wakes once wave 3 has begun")
+	check(boss.awake, "and wakes once the sector's fifth wave has begun")
 	# 5. keys
 	var key_ok := false
 	for e in InputMap.action_get_events("interact"):

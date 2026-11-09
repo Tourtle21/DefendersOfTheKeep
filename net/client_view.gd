@@ -26,6 +26,7 @@ var _draft_key := ""
 var _forge_sel: Array = []        # positions in the forge list (ForgeLayout.items) the player picked
 var _forge_key := ""
 var fuser_box: VBoxContainer
+var wave_label: Label
 var keep_bar: ProgressBar
 var keep_lbl: Label
 var hp_fill: ColorRect
@@ -156,6 +157,15 @@ func _ready() -> void:
 	keep_lbl.add_theme_font_size_override("font_size", 13)
 	keep_bar.add_child(keep_lbl)
 	layer.add_child(keep_bar)
+	wave_label = Label.new()
+	wave_label.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
+	wave_label.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	wave_label.position.y = 62
+	wave_label.add_theme_font_size_override("font_size", 16)
+	wave_label.add_theme_color_override("font_color", Color(1.0, 0.9, 0.6))
+	wave_label.add_theme_color_override("font_outline_color", Color.BLACK)
+	wave_label.add_theme_constant_override("outline_size", 5)
+	layer.add_child(wave_label)
 	var hp_frame := ColorRect.new()
 	hp_frame.color = Color.BLACK
 	hp_frame.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
@@ -388,6 +398,7 @@ func _update_loot_ui(snap: Dictionary) -> void:
 	keep_bar.max_value = snap.get("keep_max", 150.0)
 	keep_bar.value = snap.get("keep", 0.0)
 	keep_lbl.text = "Keep %d / %d" % [snap.get("keep", 0), snap.get("keep_max", 0)]
+	wave_label.text = Game.wave_timer_text()
 	ability_hud.remote_cd = Net.my_cd
 	var load_parts := []
 	for k in me.carried:

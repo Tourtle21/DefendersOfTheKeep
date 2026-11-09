@@ -61,6 +61,7 @@ func _ready() -> void:
 	add_child(preload("res://scenery/card_fuser/card_fuser.gd").new())
 	add_child(preload("res://world/chest_spawner.gd").new())
 	start_split_screen()
+	Game.sector_unlocked.connect(func(_id): waves_in_sector = 0)         # a new sector starts its own count of waves
 	DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_MAXIMIZED)
 	Input.set_custom_mouse_cursor(cursor_path, 0, Vector2(16, 16))
 	$Player/PointLight2D.energy = 0
@@ -92,7 +93,8 @@ func start_split_screen() -> void:
 # night, well apart, so there is time to set up. The clock only runs while the game is not paused.
 const NIGHT_DARKNESS := 1.0        # how much of the day the night takes away (1 = pitch black); lights add back the same amount
 const WAVE_SIZE := 2.0             # waves come about three times less often than they used to, so each one is bigger
-const FIRST_BOSS_WAVE := 3          # King Blobbert shows up when this wave starts
+const WAVES_PER_SECTOR := 5         # each sector lasts this many waves; its boss arrives when the last one starts
+var waves_in_sector := 0            # waves started since the front sector opened
 const CYCLE := 210.0
 const FIRST_WAVE_AT := 40.0        # setup time before the first wave, in seconds
 const DAY_WAVE_AT := 28.0          # when in the cycle (seconds) each wave spawns
@@ -125,7 +127,17 @@ func seconds_until(event_at: float) -> float:
 func wave_title() -> String:
 	return "%s wave %d" % ["Night" if night_wave else "Day", Game.run_stats.waves + 1]
 
+## The countdown the HUDs show.
+func _update_wave_timer() -> void:
+	Game.wave_next_kind = "Night" if night_wave else "Day"
+	Game.wave_next_number = Game.run_stats.waves + 1
+	Game.wave_boss_next = waves_in_sector + 1 == WAVES_PER_SECTOR
+	if !$SpawnTimer.is_stopped():
+		Game.wave_eta_s = int(ceil($SpawnTimer.time_left))
+		Game.wave_waiting = false
+
 func _process(delta: float) -> void:
+	_update_wave_timer()
 	clock += delta
 	var t := fposmod(clock, CYCLE)
 	Game.night_level = night_for(clock)
@@ -188,7 +200,7 @@ func _spawn_position() -> Vector2:
 ## enemy types (brutes every third wave, runners from wave 4, spitters from wave 5, splitters from wave 6).
 func wave_plan(picked: Array) -> Array:
 	var w: int = Game.run_stats.waves
-	var factor := WAVE_SIZE * Game.team_scale(Game.WAVE_TEAM_SCALE)        # every group grows with the number of players (LAN and split screen)
+	var factor := WAVE_SIZE * Game.team_scale(Game.WAVE_TEAM_SCALE) * early_size_mult(w)        # every group grows with the number of players (LAN and split screen)
 	var bonus := int(w * 0.5) + (Game.sectors_unlocked.size() - 1)
 	var level_bonus := int(w / 3.0)
 	var plan := []
@@ -234,12 +246,25 @@ func _wave_alive() -> int:
 			n += 1
 	return n
 
+## The boss of the front sector (the newest one that is open) shows up when its fifth wave starts.
+func _boss_arrives() -> void:
+	var front: String = Game.sectors_unlocked.back()
+	for b in get_tree().get_nodes_in_group("boss"):
+		if b.sector_id == front and !b.awake and !b.dead:
+			b.arrive()
+
+## How strong the early waves' enemies are: the first wave is a lot easier, and by wave 5 everything is at full strength.
+static func early_health_mult(wave: int) -> float:
+	return clampf(0.5 + 0.125 * float(wave - 1), 0.5, 1.0)
+
+static func early_size_mult(wave: int) -> float:
+	return 0.4 if wave <= 1 else (0.7 if wave == 2 else 1.0)
+
 func spawn_enemies(enemies, draw_lines := []) -> void:
 	Game.run_stats.waves += 1
-	if Game.run_stats.waves == FIRST_BOSS_WAVE:
-		for b in get_tree().get_nodes_in_group("boss"):
-			if b.sector_id == "s" and !b.awake:
-				b.arrive()
+	waves_in_sector += 1
+	if waves_in_sector == WAVES_PER_SECTOR:
+		_boss_arrives()
 	var plan := wave_plan(enemies)
 	var total := 0
 	for e in plan:
@@ -260,6 +285,8 @@ func spawn_enemies(enemies, draw_lines := []) -> void:
 			enemy_scene.level = enemy.level
 			enemy_scene.position = _spawn_position()
 			$Enemies.add_child(enemy_scene)
+			enemy_scene.max_health *= early_health_mult(Game.run_stats.waves)          # weaker enemies in the first waves
+			enemy_scene.health = enemy_scene.max_health
 			if enemy_scene.has_method("apply_affix") and randf() < elite_chance:
 				enemy_scene.apply_affix(ELITE_AFFIXES.pick_random())
 	
@@ -270,8 +297,11 @@ func spawn_enemies(enemies, draw_lines := []) -> void:
 	# never start the next wave on top of the last one: wait for it to be beaten (up to a limit)
 	var waited := 0.0
 	while is_inside_tree() and waited < CLEAR_PATIENCE and _wave_alive() > 0:
+		Game.wave_waiting = true
+		Game.wave_eta_s = int(CLEAR_PATIENCE - waited)
 		await get_tree().create_timer(1.0).timeout
 		waited += 1.0
+	Game.wave_waiting = false
 	if !is_inside_tree() or Game.run_over:
 		return
 	if waited >= CLEAR_PATIENCE:
