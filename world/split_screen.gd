@@ -200,6 +200,12 @@ func _make_corner(slot: int) -> void:
 	hp.show_percentage = false
 	hp.modulate = Color(1.0, 0.35, 0.3)
 	box.add_child(hp)
+	var carry := Label.new()                            # what this player has collected and not yet deposited in a tower
+	carry.add_theme_font_size_override("font_size", 13)
+	carry.add_theme_color_override("font_color", Color(1.0, 0.92, 0.6))
+	carry.add_theme_color_override("font_outline_color", Color.BLACK)
+	carry.add_theme_constant_override("outline_size", 4)
+	box.add_child(carry)
 	var weapon := Label.new()
 	weapon.add_theme_font_size_override("font_size", 14)
 	weapon.add_theme_color_override("font_outline_color", Color.BLACK)
@@ -269,7 +275,7 @@ func _make_corner(slot: int) -> void:
 		aimer.draw_arc(at, 12.0, 0, TAU, 28, col, 2.0)
 		for d in [Vector2.UP, Vector2.DOWN, Vector2.LEFT, Vector2.RIGHT]:
 			aimer.draw_line(at + d * 16.0, at + d * 22.0, col, 2.0))
-	_corner[slot] = {"hp": hp, "weapon": weapon, "down": down, "aimer": aimer, "slots": slots_ctl}
+	_corner[slot] = {"hp": hp, "weapon": weapon, "carry": carry, "down": down, "aimer": aimer, "slots": slots_ctl}
 
 func _process(_delta: float) -> void:
 	var screen := get_viewport().get_visible_rect().size
@@ -289,6 +295,11 @@ func _process(_delta: float) -> void:
 			c.hp.value = pl.remote_hp
 			var item = pl.item
 			c.weapon.text = "%s  T%d" % [Fusion.display_name(str(item.get("weapon_id")) if item != null and item.get("weapon_id") != null and str(item.get("weapon_id")) != "" else (item._id() if item != null and item.has_method("_id") else "")), Game.weapon_tier_of(str(pl.weapon_slots[pl.active_slot]))] if item != null and !pl.weapon_slots.is_empty() else "no weapon"
+			var parts := []
+			for k in pl.carried:
+				if int(pl.carried[k]) > 0:
+					parts.append("%d %s" % [int(pl.carried[k]), k])
+			c.carry.text = "Carrying: " + (", ".join(parts) if !parts.is_empty() else "nothing")
 			c.aimer.queue_redraw()
 			c.slots.queue_redraw()
 			c.down.visible = pl.downed

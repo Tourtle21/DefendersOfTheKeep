@@ -220,7 +220,7 @@ func _make_face(opt: Dictionary) -> Control:
 	var icon := TextureRect.new()
 	var info = load("res://world/item_info.tres").items.get(str(opt.id), {})
 	if info.has("texture"):
-		icon.texture = load(info.texture)
+		icon.texture = UiKit.weapon_icon(str(info.texture))          # (the pickaxe and sword are sprite sheets)
 	icon.position = Vector2(24, 22)
 	icon.size = Vector2(48, 48)
 	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE

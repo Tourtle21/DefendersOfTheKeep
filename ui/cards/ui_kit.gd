@@ -148,3 +148,15 @@ static func fit_cards(n: int, area: Vector2, aspect := 0.72, gap := 8.0, max_w :
 			best_w = w
 			best = {"cols": cols, "size": Vector2(w, w / aspect).floor()}
 	return best
+
+## The sword and pickaxe textures are sprite sheets: show their first frame, not the whole sheet.
+const WEAPON_SHEETS := {"res://items/tools/sword/excalibur_.png": Vector2i(4, 4), "res://items/tools/pickaxe/pickaxe.png": Vector2i(2, 2)}
+
+static func weapon_icon(path: String) -> Texture2D:
+	var tex: Texture2D = load(path)
+	if WEAPON_SHEETS.has(path):
+		var at := AtlasTexture.new()
+		at.atlas = tex
+		at.region = Rect2(0, 0, tex.get_width() / WEAPON_SHEETS[path].x, tex.get_height() / WEAPON_SHEETS[path].y)
+		return at
+	return tex
