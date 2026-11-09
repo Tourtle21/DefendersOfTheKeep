@@ -5,6 +5,7 @@ class_name SkillTreeUi
 ## highlighted), click to buy a level.
 
 const UiKit = preload("res://ui/cards/ui_kit.gd")
+var tab_id := "skills"
 const TierCard = preload("res://ui/cards/tier_card.gd")
 const TOP := 40.0
 var NODE := Vector2(138, 70)       # recomputed to fit the screen
@@ -24,9 +25,10 @@ var _hover := ""
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	layer = 22
+	add_to_group("tab_screen")
 	var sc := UiKit.screen(self, "Skill Tree", func():
 		root_ctl.visible = false
-		closed.emit(), "Click a card to buy a level. Gold frame = you can afford it.")
+		closed.emit(), "Click a card to buy a level. Gold frame = you can afford it.", "skills")
 	root_ctl = sc.root
 	shards_label = sc.right
 	var area := UiKit.panel(UiKit.PANEL, UiKit.BORDER, 8.0)

@@ -51,7 +51,7 @@ static func heading(text: String, size := 18) -> Label:
 
 ## A full-screen shell: dark backdrop, title bar (title, optional right-hand text, Back button) and an empty body area.
 ## Returns {"root": Control, "body": VBoxContainer, "right": Label}.
-const TABS := [["cards", "Cards"], ["weapons", "Weapons"], ["draws", "Drawn"]]
+const TABS := [["cards", "Cards"], ["weapons", "Weapons"], ["draws", "Drawn"], ["skills", "Skills"]]
 
 ## Jump from one tab screen (Cards / Weapons / Drawn) to another without going back to the menu.
 static func switch_tab(from_root: Control, to_id: String) -> void:
@@ -89,23 +89,6 @@ static func screen(parent: Node, title: String, on_back: Callable, hint := "", t
 	var t := heading(title, 28)
 	t.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(t)
-	if tab_id != "":                      # tabs: Cards | Weapons | Drawn, the current one highlighted
-		for tb in TABS:
-			var b := Button.new()
-			b.text = tb[1]
-			b.custom_minimum_size = Vector2(110, 36)
-			if tb[0] == tab_id:
-				var cur := style(Color(0.45, 0.36, 0.12), GOLD, 6.0)
-				for st in ["normal", "hover", "pressed", "disabled", "focus"]:
-					b.add_theme_stylebox_override(st, cur)
-				b.add_theme_color_override("font_color", Color.WHITE)
-				b.add_theme_color_override("font_hover_color", Color.WHITE)
-				b.add_theme_color_override("font_pressed_color", Color.WHITE)
-				b.focus_mode = Control.FOCUS_NONE
-			else:
-				var id: String = tb[0]
-				b.pressed.connect(func(): switch_tab(root, id))
-			row.add_child(b)
 	var right := Label.new()
 	right.add_theme_font_size_override("font_size", 20)
 	right.add_theme_color_override("font_color", Color("8fd8ff"))
@@ -127,6 +110,29 @@ static func screen(parent: Node, title: String, on_back: Callable, hint := "", t
 	var body := VBoxContainer.new()
 	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	outer.add_child(body)
+	if tab_id != "":                      # tab bar along the bottom: Cards | Weapons | Drawn | Skills, the current one highlighted
+		var tabs_bar := panel(Color(0.12, 0.10, 0.06), BORDER, 8.0)
+		outer.add_child(tabs_bar)
+		var trow := HBoxContainer.new()
+		trow.alignment = BoxContainer.ALIGNMENT_CENTER
+		trow.add_theme_constant_override("separation", 14)
+		tabs_bar.add_child(trow)
+		for tb in TABS:
+			var b := Button.new()
+			b.text = tb[1]
+			b.custom_minimum_size = Vector2(150, 40)
+			if tb[0] == tab_id:
+				var cur := style(Color(0.45, 0.36, 0.12), GOLD, 6.0)
+				for st in ["normal", "hover", "pressed", "disabled", "focus"]:
+					b.add_theme_stylebox_override(st, cur)
+				b.add_theme_color_override("font_color", Color.WHITE)
+				b.add_theme_color_override("font_hover_color", Color.WHITE)
+				b.add_theme_color_override("font_pressed_color", Color.WHITE)
+				b.focus_mode = Control.FOCUS_NONE
+			else:
+				var id: String = tb[0]
+				b.pressed.connect(func(): switch_tab(root, id))
+			trow.add_child(b)
 	return {"root": root, "body": body, "right": right}
 
 ## Biggest card size (keeping `aspect` = width / height) that fits n cards in `area`. Returns {"cols", "size"}.

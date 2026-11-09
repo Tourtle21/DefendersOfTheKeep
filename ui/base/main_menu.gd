@@ -73,10 +73,7 @@ func _ready() -> void:
 	add_child(codex)
 	draws = DrawsUi.new()
 	add_child(draws)
-	_button(box, "Card collection (unlocks and upgrades)", func(): collection.open())
-	_button(box, "Weapon codex", func(): codex.open())
-	_button(box, "Drawn cards (waiting to unlock or upgrade)", func(): draws.open())
-	_button(box, "Skill tree (permanent upgrades)", func(): skills.open())
+	_button(box, "Collection", func(): collection.open())      # tabs along the bottom switch between them
 	_button(box, "Quit", func():
 		Game.save_meta()
 		get_tree().quit())
