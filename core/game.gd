@@ -760,6 +760,42 @@ func spare_sell(entry: Dictionary) -> int:
 	save_meta()
 	return int(entry.shards)
 
+## --- Starting cards: a run begins with two spells and two buildings you choose from the cards you own; every other card
+## has to be found in the run (chests). meta.start_cards holds the four ids.
+const START_CARD_DEFAULTS := ["fireball", "frost_ring", "barricade", "torch"]      # (the torch: night comes in the first run)
+
+## The cards you own that could start a run: spells (build = false) or buildings (build = true).
+func start_card_options(build: bool) -> Array:
+	fix_meta()
+	var out := []
+	for id in CARDS:
+		if id in meta.unlocked and !CARDS[id].get("fused", false) and is_build(id) == build:
+			out.append(id)
+	return out
+
+## The two spells and two buildings this run starts with (your choice, completed with defaults if one is no longer valid).
+func start_cards() -> Array:
+	fix_meta()
+	var out := []
+	for build in [false, true]:
+		var options: Array = start_card_options(build)
+		var picked := []
+		for id in meta.get("start_cards", START_CARD_DEFAULTS):
+			if id in options and !(id in picked) and picked.size() < 2:
+				picked.append(id)
+		for id in START_CARD_DEFAULTS + options:           # fill up from the defaults, then from anything you own
+			if picked.size() >= 2:
+				break
+			if id in options and !(id in picked):
+				picked.append(id)
+		out.append_array(picked)
+	return out
+
+func set_start_cards(spells: Array, builds: Array) -> void:
+	fix_meta()
+	meta["start_cards"] = spells.slice(0, 2) + builds.slice(0, 2)
+	save_meta()
+
 func set_start_weapon(id: String) -> void:
 	fix_meta()
 	if id in start_weapon_options():
@@ -968,9 +1004,8 @@ func start_run() -> void:
 	players_in_base = []
 	fix_meta()
 	deck = {}
-	for id in STARTER_CARDS:
-		if id in meta.unlocked:
-			deck[id] = 1                       # every card starts a run at tier 1 and grows toward its unlocked tier
+	for id in start_cards():
+		deck[id] = 1                           # two spells and two buildings of your choice, tier 1 (they grow toward the unlocked tier); the rest come from chests
 	draft_active = false
 	hand = []
 	for i in 3:

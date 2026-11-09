@@ -59,6 +59,12 @@ func _ready() -> void:
 	start_opt.selected = maxi(0, options.find(Game.meta.start_weapon))
 	start_opt.item_selected.connect(func(i: int): Game.set_start_weapon(options[i]))
 	start_row.add_child(start_opt)
+	var cards_label := Label.new()
+	cards_label.text = "Start with two spells and two buildings (the rest you find in chests):"
+	cards_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	cards_label.add_theme_font_size_override("font_size", 14)
+	box.add_child(cards_label)
+	_card_pickers(box)
 	var play := Button.new()
 	play.text = "Play game"
 	play.custom_minimum_size = Vector2(0, 56)
@@ -94,6 +100,45 @@ func _ready() -> void:
 	box.add_child(hint)
 	preload("res://ui/cards/menu_pad.gd").attach(root_ctl, Callable(), "", null, play)       # controller: Play is focused first
 	_refresh()
+
+var _pickers: Array = []            # four OptionButtons: spell, spell, building, building
+
+## Four dropdowns of the cards you own. Choosing a card another dropdown has already taken swaps them.
+func _card_pickers(parent: Node) -> void:
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 8)
+	parent.add_child(row)
+	var chosen: Array = Game.start_cards()
+	_pickers.clear()
+	for k in 4:
+		var build: bool = k >= 2
+		var options: Array = Game.start_card_options(build)
+		var pick := OptionButton.new()
+		pick.tooltip_text = "Building" if build else "Spell"
+		pick.custom_minimum_size = Vector2(120, 0)
+		for id in options:
+			pick.add_item(str(Game.CARDS[id].name))
+			pick.set_item_metadata(pick.item_count - 1, id)
+		pick.selected = maxi(0, options.find(chosen[k]))
+		pick.item_selected.connect(func(_i): _card_picked(k))
+		row.add_child(pick)
+		_pickers.append(pick)
+
+func _picker_id(pick: OptionButton) -> String:
+	return str(pick.get_item_metadata(pick.selected)) if pick.selected >= 0 else ""
+
+func _card_picked(changed: int) -> void:
+	var pair: Array = [0, 1] if changed < 2 else [2, 3]
+	var other: int = pair[1] if pair[0] == changed else pair[0]
+	if _picker_id(_pickers[other]) == _picker_id(_pickers[changed]):
+		# the same card twice would be one card: move the other dropdown to a different one
+		var taken := _picker_id(_pickers[changed])
+		for i in _pickers[other].item_count:
+			if str(_pickers[other].get_item_metadata(i)) != taken:
+				_pickers[other].selected = i
+				break
+	Game.set_start_cards([_picker_id(_pickers[0]), _picker_id(_pickers[1])], [_picker_id(_pickers[2]), _picker_id(_pickers[3])])
 
 func _button(parent: Node, text: String, cb: Callable) -> void:
 	var b := Button.new()
