@@ -29,11 +29,16 @@ func _id() -> String:
 func area() -> float:
 	return 1.0 + 0.12 * (tier - 1)
 
+## Whoever carries the keep's crystal can use every ability, locked or not.
+func _holds_crystal() -> bool:
+	var holder = get_parent().get_parent() if get_parent() != null else null
+	return holder != null and holder.get("has_crystal") == true
+
 func ability_unlocked() -> bool:
-	return tier >= 2
+	return tier >= 2 or _holds_crystal()
 
 func ultimate_unlocked() -> bool:
-	return tier >= 3
+	return tier >= 3 or _holds_crystal()
 
 func _locked_note(what: String, need: int) -> void:
 	if Time.get_ticks_msec() - _lock_note_ms > 1500:
