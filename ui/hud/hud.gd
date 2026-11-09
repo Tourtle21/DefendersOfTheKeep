@@ -46,6 +46,8 @@ func swap_active(new_item):
 
 func equip_item(item) -> bool:
 	var equippable = false
+	if item.has("id"):
+		Game.mark_seen(str(item.id))               # a weapon you have held counts as met
 	if item.type == "item":
 		var i = 0
 		for item_slot in item_slots.get_children():

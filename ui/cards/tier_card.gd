@@ -139,6 +139,12 @@ func _draw() -> void:
 			_gem(Vector2(gx + i * gr * 2.2, gy), gr, gc, oc, owned)
 	if locked:
 		draw_rect(Rect2(0, 0, w, h), Color(0, 0, 0, 0.25))
+	if data.get("lock", false):                        # a padlock over the art window
+		var c := art.get_center() + Vector2(0, art.size.y * 0.08)
+		var k := minf(art.size.x, art.size.y) * 0.22
+		draw_arc(c + Vector2(0, -k * 0.55), k * 0.62, PI, TAU, 14, Color(0.85, 0.85, 0.9), maxf(2.0, k * 0.28))
+		draw_rect(Rect2(c + Vector2(-k, -k * 0.55), Vector2(k * 2.0, k * 1.5)), Color(0.85, 0.7, 0.3))
+		draw_rect(Rect2(c + Vector2(-k * 0.14, -k * 0.05), Vector2(k * 0.28, k * 0.5)), Color(0.15, 0.12, 0.05))
 	if _hover:
 		draw_rect(Rect2(0, 0, w, h), Color(1, 1, 1, 0.07))
 	if has_focus():

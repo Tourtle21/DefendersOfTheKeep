@@ -542,8 +542,13 @@ func _refresh_extras() -> void:
 			continue                      # sector weapons are unlocked in the weapon codex or from reward draws
 		var owned: bool = id in Game.meta.weapons
 		var price: int = Game.WEAPON_UNLOCK_COSTS[id]
-		var can: bool = !owned and Game.meta.shards >= price
+		var seen: bool = Game.is_seen(id)
+		var can: bool = !owned and seen and Game.meta.shards >= price
 		var c := TierCard.new()
+		if !seen:
+			c.setup({"size": Vector2(92, 130), "title": "???", "glyph": "?", "accent": Color(0.4, 0.4, 0.5), "locked": true, "footer": "not found", "footer_color": Color(0.6, 0.6, 0.65)})
+			extras_row.add_child(c)
+			continue
 		c.setup({"size": Vector2(92, 130), "title": Fusion.display_name(id), "icon": load(items[id].texture), "tier": 1 if owned else 0, "max_tier": 6,
 			"accent": Game.rarity_color(Game.weapon_rarity(id)), "locked": !owned and !can,
 			"footer": "OWNED" if owned else "%d shards" % price, "footer_color": Color(0.5, 1, 0.55) if owned else (Color(1, 0.9, 0.5) if can else Color(1, 0.55, 0.45)),

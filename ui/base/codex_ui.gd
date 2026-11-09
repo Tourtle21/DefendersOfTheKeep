@@ -12,6 +12,8 @@ var root_ctl: Control
 var grid_area: Control
 var detail: RichTextLabel
 var selected := "spear"
+var viewed_tier := -1             # the tier whose stats are shown (-1 = the weapon's own first tier)
+var tier_row: HBoxContainer
 var action_row: HBoxContainer
 var shards_label: Label
 var _info: ItemInfo
@@ -47,13 +49,17 @@ func _ready() -> void:
 	grid_area.clip_contents = true
 	left.add_child(grid_area)
 	var side := UiKit.panel(Color(0.08, 0.08, 0.14))
-	side.custom_minimum_size = Vector2(400, 0)
+	side.custom_minimum_size = Vector2(470, 0)
+	side.size_flags_horizontal = Control.SIZE_SHRINK_END
 	side.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	body.add_child(side)
 	var sv := VBoxContainer.new()
 	sv.add_theme_constant_override("separation", 10)
 	side.add_child(sv)
-	sv.add_child(UiKit.heading("Details"))
+	sv.add_child(UiKit.heading("Tiers  (click one to see it)"))
+	tier_row = HBoxContainer.new()
+	tier_row.add_theme_constant_override("separation", 6)
+	sv.add_child(tier_row)
 	detail = RichTextLabel.new()
 	detail.bbcode_enabled = true
 	detail.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -79,7 +85,7 @@ func _weapon_ids() -> Array:
 ## Known = in the chest pool, a sector weapon, or a recipe you have discovered.
 func _known(id: String) -> bool:
 	if Fusion.tier_of(id) == 1:
-		return true                    # basic weapons are always listed (locked ones can be unlocked here)
+		return Game.weapon_unlocked(id) or Game.is_seen(id)      # a weapon is a "?" until you have been offered or held it
 	return Game.weapon_known(id)       # a recipe is shown only once you have unlocked both ingredients
 
 func _refresh() -> void:
@@ -112,6 +118,7 @@ func _refresh() -> void:
 		card.set_selected(id == selected)
 		card.pressed.connect(func(_c):
 			selected = id
+			viewed_tier = -1
 			_refresh())
 		grid_area.add_child(card)
 	_show_detail(selected)
@@ -146,37 +153,65 @@ func _cost_text(cost: Dictionary) -> String:
 		parts.append("%d %s" % [cost[k], k])
 	return ", ".join(parts)
 
+func _tier_unlocked(id: String, t: int) -> bool:
+	var owned: bool = Game.weapon_unlocked(id) if Fusion.tier_of(id) == 1 else Game.fusion_tier_unlocked(Fusion.tier_of(id))
+	return owned and t <= Game.weapon_tier_cap()
+
 func _show_detail(id: String) -> void:
 	for c in action_row.get_children():
 		action_row.remove_child(c)
 		c.queue_free()
-	if Game.WEAPON_UNLOCK_COSTS.has(id) and !Game.weapon_unlocked(id):
+	for c in tier_row.get_children():
+		tier_row.remove_child(c)
+		c.queue_free()
+	if Game.WEAPON_UNLOCK_COSTS.has(id) and !Game.weapon_unlocked(id) and Game.is_seen(id):
 		var b := Button.new()
-		b.text = "Unlock %s (%d Shards, you have %d)" % [Fusion.display_name(id), Game.WEAPON_UNLOCK_COSTS[id], Game.meta.shards]
+		b.text = "Unlock for %d Shards  (you have %d)" % [Game.WEAPON_UNLOCK_COSTS[id], Game.meta.shards]
 		b.disabled = Game.meta.shards < Game.WEAPON_UNLOCK_COSTS[id]
 		b.pressed.connect(func():
 			if Game.buy_weapon(id):
 				_refresh())
 		action_row.add_child(b)
 	if !_known(id):
-		detail.text = "[b]???[/b]\nFuse the right two weapons at the Forge to discover this recipe."
+		detail.text = "[b]???[/b]\nNot found yet.\n" + ("Get it as a reward at the end of a run." if Fusion.tier_of(id) == 1 else "Fuse the right two weapons at the Forge to discover it.")
 		return
+	var base := Fusion.tier_of(id)
+	if viewed_tier < base or viewed_tier > 6:
+		viewed_tier = base
+	for t in range(base, 7):
+		var ok := _tier_unlocked(id, t)
+		var tc := TierCard.new()
+		tc.setup({"size": Vector2(62, 76), "title": "T%d" % t, "glyph": "" if !ok else "T%d" % t, "lock": !ok, "locked": !ok,
+			"accent": Game.rarity_color(Game.weapon_rarity(id)), "footer": "", "tooltip": "Tier %d%s" % [t, "" if ok else " (locked)"]})
+		tc.set_selected(t == viewed_tier)
+		tc.pressed.connect(func(_c):
+			viewed_tier = t
+			_show_detail(id))
+		tier_row.add_child(tc)
 	var info: Dictionary = _info.items[id]
 	var inst = load(info.path).instantiate()
-	var t := "[b]%s[/b]   tier [color=#ffd23a][b]%d[/b][/color] of 6\n" % [Fusion.display_name(id), Fusion.tier_of(id)]
-	t += "[color=#c9d3f2]%s[/color]\n\n" % _where(id)
-	t += "[b]Element[/b]  %s\n[color=#c9d3f2]%s[/color]\n\n" % [String(inst.element).capitalize() if inst.element != "" else "Physical", ELEMENT_NOTE.get(inst.element, "")]
+	var t := viewed_tier
+	var bonus := t - base
+	var fz: float = pow(0.95, base - 1) * pow(0.92, bonus)
+	var tier_ok := _tier_unlocked(id, t)
+	var txt := "[b]%s[/b]   tier [color=#ffd23a][b]%d[/b][/color]%s\n" % [Fusion.display_name(id), t, "" if tier_ok else "   [color=#ff9a7a](locked)[/color]"]
+	txt += "[color=#c9d3f2]%s[/color]\n\n" % _where(id)
+	txt += "[b]Element[/b]  %s\n" % (String(inst.element).capitalize() if inst.element != "" else "Physical")
+	txt += "Damage  [color=#ffd23a][b]x%.1f[/b][/color]\n\n" % Game.weapon_power(id, bonus)
 	var moves := [["Left click", inst.attack_name, inst.attack_cooldown, 1], ["Shift", inst.dash_name, inst.dash_cooldown, 1],
 		["Right click", inst.ability_name, inst.ability_cooldown, 2], ["Space", inst.ultimate_name, inst.ultimate_cooldown, 3]]
 	for m in moves:
 		if m[1] == "":
 			continue
-		var gate := "" if Fusion.tier_of(id) >= m[3] else "  [color=#ff9a7a](needs tier %d)[/color]" % m[3]
-		t += "%s: %s  [color=#ffd23a][b]%.2fs[/b][/color] cooldown%s\n" % [m[0], m[1], m[2], gate]
+		if t >= m[3]:
+			txt += "%s: %s  [color=#ffd23a][b]%.2fs[/b][/color]\n" % [m[0], m[1], m[2] * fz]
+		else:
+			txt += "[color=#7a7f95]%s: %s  (unlocks at tier %d)[/color]\n" % [m[0], m[1], m[3]]
 	inst.free()
-	t += "\n[b]Awakening[/b] (Forge): each level +20% damage, -8% cooldowns, up to tier 6.\n"
-	var tier := Fusion.tier_of(id)
-	while tier < 6:
-		t += "T%d -> T%d: %s\n" % [tier, tier + 1, _cost_text(Fusion.AWAKEN_COSTS[tier])]
-		tier += 1
-	detail.text = t
+	var tw: String = Game.weapon_twist(id, t)
+	if tw != "" and Game.TWISTS.has(tw):
+		txt += "\n[b]Twist[/b]  [color=#ffd23a]%s[/color]: %s\n" % [Game.TWISTS[tw][0], Game.TWISTS[tw][1]]
+	txt += "\n[color=#c9d3f2]%s[/color]\n" % Fusion.TIER_TEXT.get(t, "")
+	if t > base:
+		txt += "To reach it: %s\n" % _cost_text(Fusion.AWAKEN_COSTS[t - 1])
+	detail.text = txt

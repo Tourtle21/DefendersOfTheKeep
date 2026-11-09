@@ -516,7 +516,7 @@ func fix_meta() -> void:
 		meta["pending"] = []
 	if !meta.has("card_tiers"):
 		meta["card_tiers"] = {}
-	for k in ["weapons", "fusion_tiers"]:
+	for k in ["weapons", "fusion_tiers", "seen"]:
 		if !meta.has(k):
 			meta[k] = []
 	if !meta.has("start_weapon"):
@@ -525,6 +525,22 @@ func fix_meta() -> void:
 		for id in STARTER_CARDS:
 			if !(id in meta.unlocked):
 				meta.unlocked.append(id)          # a save from before a starter card existed still gets it
+
+## Have you met this card or weapon? Owned ones, anything offered at the end of a run (even if you converted it)
+## and anything you picked up count. Unmet ones show as "?" and cannot be bought.
+func is_seen(id: String) -> bool:
+	fix_meta()
+	if id in meta.seen or id in meta.weapons or ("unlocked" in meta and id in meta.unlocked) or id in ["sword", "pickaxe"]:
+		return true
+	for pe in meta.pending:
+		if str(pe.get("id", "")) == id:
+			return true
+	return false
+
+func mark_seen(id: String) -> void:
+	fix_meta()
+	if !(id in meta.seen):
+		meta.seen.append(id)
 
 func start_weapon_id() -> String:
 	fix_meta()
@@ -588,7 +604,7 @@ func _add_weapon(id: String) -> void:
 
 func buy_weapon(id: String) -> bool:
 	fix_meta()
-	if id in meta.weapons or !WEAPON_UNLOCK_COSTS.has(id) or meta.shards < WEAPON_UNLOCK_COSTS[id]:
+	if id in meta.weapons or !WEAPON_UNLOCK_COSTS.has(id) or meta.shards < WEAPON_UNLOCK_COSTS[id] or !is_seen(id):
 		return false
 	meta.shards -= WEAPON_UNLOCK_COSTS[id]
 	_add_weapon(id)
@@ -768,7 +784,7 @@ func unlock_price(id: String) -> int:
 ## reached its realm (in any run); otherwise it only comes from reward draws.
 func can_buy_card(id: String) -> bool:
 	fix_meta()
-	return !owns_card(id) and !is_legendary_card(id) and card_level(id) <= int(meta.get("best_level", 1))
+	return !owns_card(id) and !is_legendary_card(id) and is_seen(id)
 
 func buy_unlock(id: String) -> bool:
 	if !can_buy_card(id) or meta.shards < unlock_price(id):
@@ -1369,6 +1385,7 @@ func grant_legendary() -> Dictionary:
 		meta.shards += 80
 		return {"kind": "card", "id": LEGENDARY_CARDS.pick_random(), "tier": 1, "realm": 6, "result": "converted", "shards": 80, "legendary": true}
 	var pick: Dictionary = left.pick_random()
+	mark_seen(str(pick.id))
 	var entry := {"kind": pick.kind, "id": pick.id, "tier": 1, "realm": 6, "result": "offer", "shards": 0, "legendary": true, "cost": LEGENDARY_PRICE}
 	meta.pending.append(entry)                  # kept for good: it does not count against the vault limit
 	return entry
@@ -1445,6 +1462,7 @@ func make_rewards(won := false) -> Array:
 			else:
 				meta.pending.append(entry)
 		if entry.result == "offer":
+			mark_seen(str(entry.id))
 			entry.cost = unlock_cost(entry)
 			if meta.pending.size() >= MAX_PENDING:
 				entry.result = "converted"               # the vault is full: this one turns into Shards

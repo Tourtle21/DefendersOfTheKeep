@@ -13,7 +13,10 @@ var selected := ""
 signal closed
 
 const UiKit = preload("res://ui/cards/ui_kit.gd")
+const TierCard = preload("res://ui/cards/tier_card.gd")
 var grid_area: Control
+var tier_row: HBoxContainer
+var viewed_tier := -1
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -35,13 +38,17 @@ func _ready() -> void:
 	grid_area.clip_contents = true
 	left.add_child(grid_area)
 	var side := UiKit.panel(Color(0.08, 0.08, 0.14))
-	side.custom_minimum_size = Vector2(380, 0)
+	side.custom_minimum_size = Vector2(470, 0)
+	side.size_flags_horizontal = Control.SIZE_SHRINK_END
 	side.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	body.add_child(side)
 	var sv := VBoxContainer.new()
 	sv.add_theme_constant_override("separation", 10)
 	side.add_child(sv)
-	sv.add_child(UiKit.heading("Selected card"))
+	sv.add_child(UiKit.heading("Tiers  (click one to see it)"))
+	tier_row = HBoxContainer.new()
+	tier_row.add_theme_constant_override("separation", 6)
+	sv.add_child(tier_row)
 	detail = RichTextLabel.new()
 	detail.bbcode_enabled = true
 	detail.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -77,17 +84,30 @@ func _refresh() -> void:
 		var id: String = ids[n]
 		var owned: bool = Game.owns_card(id)
 		var tier: int = Game.card_tier(id) if owned else 0
-		var view := CardView.new()
-		view.setup(id, maxi(tier, 1))
-		view.scale = Vector2(k, k)
+		var seen: bool = Game.is_seen(id)
+		var view: Control
+		if seen:
+			view = CardView.new()
+			view.setup(id, maxi(tier, 1))
+			view.scale = Vector2(k, k)
+			view.pressed_down.connect(func(_v):
+				selected = id
+				viewed_tier = -1
+				_refresh())
+		else:
+			view = TierCard.new()                      # not met yet: a "?" card
+			view.setup({"size": csize, "title": "???", "glyph": "?", "accent": Color(0.4, 0.4, 0.5), "locked": true})
+			view.pressed.connect(func(_c):
+				selected = id
+				viewed_tier = -1
+				_refresh())
 		var holder := Control.new()
 		holder.custom_minimum_size = cell
 		holder.size = cell
 		holder.position = Vector2(off_x + (n % cols) * (cell.x + 6.0), (n / cols) * (cell.y + 6.0))
 		holder.add_child(view)
-		view.modulate = Color.WHITE if owned else Color(0.4, 0.4, 0.45)
 		var gems := Label.new()
-		gems.text = "◆".repeat(tier) + "◇".repeat(Game.MAX_LEVEL - tier)
+		gems.text = ("◆".repeat(tier) + "◇".repeat(Game.MAX_LEVEL - tier)) if seen else ""
 		gems.position = Vector2(0, csize.y)
 		gems.size = Vector2(csize.x, gem_h)
 		gems.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -102,10 +122,9 @@ func _refresh() -> void:
 			frame.size = csize
 			frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			holder.add_child(frame)
-		view.pressed_down.connect(func(_v):
-			selected = id
-			_refresh())
 		grid_area.add_child(holder)
+		if view is CardView:
+			view.set_state(false, owned)               # the card keeps its own dimming on hover (it resets modulate itself)
 	_show_detail()
 
 func _num_block(id: String, tier: int, next_tier: int) -> String:
@@ -124,28 +143,49 @@ func _show_detail() -> void:
 	for c in action_row.get_children():
 		action_row.remove_child(c)
 		c.queue_free()
+	for c in tier_row.get_children():
+		tier_row.remove_child(c)
+		c.queue_free()
 	var id := selected
 	var c: Dictionary = Game.CARDS[id]
 	var owned: bool = Game.owns_card(id)
-	var tier := Game.card_tier(id) if owned else 1
-	var t := "[b]%s[/b]\n" % c.name
-	t += "[color=#c9d3f2]%s[/color]\n\n" % c.desc
-	if owned:
-		t += "Tier [color=#ffd23a][b]%d[/b][/color] of %d" % [tier, Game.MAX_LEVEL]
-		t += "\n\n" + _num_block(id, tier, tier + 1)
-	else:
-		t += "[color=#ff9a7a]Not unlocked.[/color] Tier 1 shown.\n\n" + _num_block(id, 1, 1)
-	detail.text = t
+	if !Game.is_seen(id):
+		detail.text = "[b]???[/b]\nNot found yet.\nGet it as a reward at the end of a run."
+		return
+	var owned_tier: int = Game.card_tier(id) if owned else 0
+	if viewed_tier < 1 or viewed_tier > Game.MAX_LEVEL:
+		viewed_tier = maxi(1, owned_tier)
+	for t in range(1, Game.MAX_LEVEL + 1):
+		var ok := t <= owned_tier
+		var tc := TierCard.new()
+		tc.setup({"size": Vector2(62, 76), "title": "T%d" % t, "glyph": "T%d" % t if ok else "", "lock": !ok, "locked": !ok,
+			"accent": Game.rarity_color(Game.card_rarity(id)), "tooltip": "Tier %d%s" % [t, "" if ok else " (locked)"]})
+		tc.set_selected(t == viewed_tier)
+		tc.pressed.connect(func(_c):
+			viewed_tier = t
+			_show_detail())
+		tier_row.add_child(tc)
+	var t := viewed_tier
+	var txt := "[b]%s[/b]   tier [color=#ffd23a][b]%d[/b][/color]%s\n" % [c.name, t, "" if t <= owned_tier else "   [color=#ff9a7a](locked)[/color]"]
+	txt += "[color=#c9d3f2]%s[/color]\n" % c.desc
+	var tw: String = Game.twist_for(id, t)
+	if tw != "" and Game.TWISTS.has(tw):
+		txt += "\n[b]Twist[/b]  [color=#ffd23a]%s[/color]: %s\n" % [Game.TWISTS[tw][0], Game.TWISTS[tw][1]]
+	txt += "\n" + _num_block(id, t, t + 1)
+	if !owned:
+		txt += "\n\n[color=#ff9a7a]Not unlocked yet.[/color]"
+	detail.text = txt
 	if owned:
 		var up := Button.new()
-		if tier >= Game.MAX_LEVEL:
+		if owned_tier >= Game.MAX_LEVEL:
 			up.text = "Max tier"
 			up.disabled = true
 		else:
-			up.text = "Upgrade to tier %d  (%d shards)" % [tier + 1, Game.card_upgrade_cost(id)]
+			up.text = "Upgrade to tier %d  (%d shards)" % [owned_tier + 1, Game.card_upgrade_cost(id)]
 			up.disabled = Game.meta.shards < Game.card_upgrade_cost(id)
 			up.pressed.connect(func():
 				if Game.upgrade_card(id):
+					viewed_tier = -1
 					_refresh())
 		action_row.add_child(up)
 	else:
@@ -157,9 +197,9 @@ func _show_detail() -> void:
 				if Game.buy_unlock(id):
 					_refresh())
 		elif Game.is_legendary_card(id):
-			buy.text = "Legendary: beat the whole game to unlock one"
+			buy.text = "Legendary: beat the whole game"
 			buy.disabled = true
 		else:
-			buy.text = "Reach level %d, or find it in a reward draw" % Game.card_level(id)
+			buy.text = "Found: unlock it for shards"
 			buy.disabled = true
 		action_row.add_child(buy)
