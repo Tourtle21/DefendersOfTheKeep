@@ -209,7 +209,7 @@ func net_input(state: Dictionary) -> void:
 	pl.remote_input = {"move": state.move, "aim": state.aim}
 	var prev: Dictionary = _prev.get(id, {})
 	var item = pl.item
-	if item != null:
+	if item != null and !pl.has_crystal:            # whoever carries the crystal cannot fight
 		if state.attack and !prev.get("attack", false) and item.has_method("use_item"):
 			item.use_item()
 		elif !state.attack and prev.get("attack", false) and item.has_method("release_item"):

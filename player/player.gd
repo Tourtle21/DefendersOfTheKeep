@@ -156,7 +156,15 @@ func aim_time(slot: String) -> float:
 	return (Time.get_ticks_msec() - _aim_start_ms[slot]) / 1000.0
 
 func _can_cast() -> bool:
-	return !downed and item != null and !Game.local_in_base() and !Game.draft_active
+	return !downed and item != null and !Game.local_in_base() and !Game.draft_active and !has_crystal
+
+var _crystal_note_ms := 0
+
+## Carrying the crystal: both hands are full. Say so (not on every click).
+func _crystal_busy_note() -> void:
+	if Time.get_ticks_msec() - _crystal_note_ms > 2500:
+		_crystal_note_ms = Time.get_ticks_msec()
+		Game.announce.emit("You are carrying the crystal: no weapons or abilities. Get it to the Well!")
 
 func _release_cast(slot: String) -> void:
 	if !_aim_start_ms.has(slot):
@@ -181,6 +189,8 @@ func _input(event):
 	if remote_controlled:
 		return
 	# Hold a key to aim, release to cast. A quick tap casts right away at the cursor.
+	if has_crystal and (event.is_action_pressed("dash") or event.is_action_pressed("ultimate") or (event is InputEventMouseButton and event.pressed and event.button_index in [MOUSE_BUTTON_LEFT, MOUSE_BUTTON_RIGHT])):
+		_crystal_busy_note()
 	if event.is_action_pressed("dash") and _can_cast():
 		_aim_start_ms["dash"] = Time.get_ticks_msec()
 	elif event.is_action_released("dash"):
@@ -206,7 +216,7 @@ func _input(event):
 			_release_cast("ability")
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and !event.pressed and item != null and item.has_method("release_item"):
 		item.release_item()
-	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed and item != null and !Game.local_in_base() and !Game.draft_active:
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed and item != null and !Game.local_in_base() and !Game.draft_active and !has_crystal:
 		item.use_item()
 		is_using_item = true
 	

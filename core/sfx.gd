@@ -23,6 +23,7 @@ func _ready() -> void:
 	streams["chest"] = _make(440.0, 880.0, 0.3, "sine", 0.0, 0.5)
 	streams["hurt"] = _make(330.0, 110.0, 0.25, "saw", 0.15, 0.6)
 	streams["boss_roar"] = _make(90.0, 55.0, 0.7, "saw", 0.25, 0.8)
+	streams["wave_horn"] = _make(150.0, 110.0, 0.9, "saw", 0.08, 0.7)
 	streams["ultimate"] = _make(120.0, 700.0, 0.5, "saw", 0.2, 0.7)
 	streams["unlock"] = _make(330.0, 990.0, 0.6, "sine", 0.0, 0.5)
 	streams["whoosh"] = _make(500.0, 200.0, 0.12, "sine", 0.7, 0.35)
