@@ -2,7 +2,9 @@ extends CanvasLayer
 ## Forge screen: pick two weapons you carry, see the result, pay gold, fuse.
 
 var root_ctl: Control
-var list_box: HBoxContainer
+var list_box: Container
+var store_btn: Button
+var take_btn: Button
 var info_label: Label
 var fuse_button: Button
 var awaken_button: Button
@@ -32,9 +34,10 @@ func _ready() -> void:
 	var lv := VBoxContainer.new()
 	lv.add_theme_constant_override("separation", 8)
 	left.add_child(lv)
-	lv.add_child(UiKit.heading("1. Your weapons"))
-	list_box = HBoxContainer.new()
-	list_box.add_theme_constant_override("separation", 12)
+	lv.add_child(UiKit.heading("1. Weapons: held and stored, grouped by type"))
+	list_box = HFlowContainer.new()
+	list_box.add_theme_constant_override("h_separation", 14)
+	list_box.add_theme_constant_override("v_separation", 8)
 	lv.add_child(list_box)
 	var right := UiKit.panel(Color(0.08, 0.08, 0.14))
 	right.custom_minimum_size = Vector2(430, 0)
@@ -66,6 +69,17 @@ func _ready() -> void:
 	fuse_button.custom_minimum_size = Vector2(150, 44)
 	fuse_button.pressed.connect(fuse)
 	row.add_child(fuse_button)
+	store_btn = Button.new()
+	store_btn.text = "Drop into forge"
+	store_btn.custom_minimum_size = Vector2(160, 44)
+	store_btn.tooltip_text = "Leave the picked weapon in the forge so you do not have to carry it. Take it out or fuse it any time."
+	store_btn.pressed.connect(_store_selected)
+	row.add_child(store_btn)
+	take_btn = Button.new()
+	take_btn.text = "Take out"
+	take_btn.custom_minimum_size = Vector2(130, 44)
+	take_btn.pressed.connect(_take_selected)
+	row.add_child(take_btn)
 	awaken_button = Button.new()
 	awaken_button.text = "Combine copies"
 	awaken_button.custom_minimum_size = Vector2(200, 44)
@@ -109,41 +123,79 @@ func open() -> void:
 	_refresh()
 	root_ctl.visible = true
 
+## Everything the forge can use: the weapons you hold (key 0-2) and the ones stored in the forge (key 100 and up).
+func _all_items() -> Array:
+	var out := []
+	var slots = _hud().item_slots.get_children()
+	for i in slots.size():
+		if slots[i].has_item:
+			out.append({"key": i, "entry": _entry_of(slots[i].current_item), "id": _item_id(slots[i].current_item), "held": true})
+	for j in Game._forge_store.size():
+		out.append({"key": 100 + j, "entry": Game._forge_store[j], "id": Game.entry_id(Game._forge_store[j]), "held": false})
+	return out
+
+func _item_for(key: int) -> Dictionary:
+	for it in _all_items():
+		if it.key == key:
+			return it
+	return {}
+
 func _refresh() -> void:
 	for c in list_box.get_children():
 		list_box.remove_child(c)
 		c.queue_free()
 	_slot_cards.clear()
-	var slots = _hud().item_slots.get_children()
-	for i in slots.size():
-		if !slots[i].has_item:
-			continue
-		var id: String = _item_id(slots[i].current_item)
-		var entry: String = _entry_of(slots[i].current_item)
-		var tw: String = Game.entry_twist(entry)
-		var b := TierCard.new()
-		var lines := []
-		if tw != "" and Game.TWISTS.has(tw):
-			lines.append("* " + Game.TWISTS[tw][0])
-		b.setup({"size": Vector2(150, 210), "title": Fusion.display_name(id), "icon": _icon_of(slots[i].current_item.texture),
-			"tier": Game.weapon_tier_of(entry), "max_tier": 6, "lines": lines,
-			"accent": Game.rarity_color(Game.weapon_rarity(id)), "footer": "PICKED" if i in selected else ""})
-		b.set_selected(i in selected)
-		b.pressed.connect(func(_c): _toggle(i))
-		b.focus_entered.connect(func(): _focus_slot = i)
-		_slot_cards[i] = b
-		list_box.add_child(b)
+	var groups := {}
+	for it in _all_items():
+		if !groups.has(it.id):
+			groups[it.id] = []
+		groups[it.id].append(it)
+	var ids: Array = groups.keys()
+	ids.sort_custom(func(a, b):                      # common first, like every other screen
+		var ra: int = Game.weapon_rarity(a)
+		var rb: int = Game.weapon_rarity(b)
+		return ra < rb or (ra == rb and Fusion.display_name(a) < Fusion.display_name(b)))
+	for id in ids:
+		var copies: Array = groups[id]
+		copies.sort_custom(func(a, b): return Game.weapon_tier_of(a.entry) > Game.weapon_tier_of(b.entry) or (Game.weapon_tier_of(a.entry) == Game.weapon_tier_of(b.entry) and a.held and !b.held))
+		var box := VBoxContainer.new()
+		box.add_theme_constant_override("separation", 4)
+		var head := Label.new()
+		head.text = "%s  x%d" % [Fusion.display_name(id), copies.size()]
+		head.add_theme_font_size_override("font_size", 15)
+		head.add_theme_color_override("font_color", Game.rarity_color(Game.weapon_rarity(id)))
+		box.add_child(head)
+		var cards := HBoxContainer.new()
+		cards.add_theme_constant_override("separation", 6)
+		box.add_child(cards)
+		for it in copies:
+			var key: int = it.key
+			var entry: String = it.entry
+			var tw: String = Game.entry_twist(entry)
+			var lines := []
+			if tw != "" and Game.TWISTS.has(tw):
+				lines.append("* " + Game.TWISTS[tw][0])
+			var foot := "PICKED" if key in selected else ("HELD" if it.held else "STORED")
+			var b := TierCard.new()
+			b.setup({"size": Vector2(100, 140), "title": "T%d" % Game.weapon_tier_of(entry), "icon": _icon_for(id),
+				"tier": Game.weapon_tier_of(entry), "max_tier": 6, "lines": lines,
+				"accent": Game.rarity_color(Game.weapon_rarity(id)), "footer": foot, "footer_color": Color(0.5, 1, 0.55) if it.held else Color(0.6, 0.8, 1.0)})
+			b.set_selected(key in selected)
+			b.pressed.connect(func(_c): _toggle(key))
+			b.focus_entered.connect(func(): _focus_slot = key)
+			_slot_cards[key] = b
+			cards.add_child(b)
+		list_box.add_child(box)
 	_refresh_recipes()
 	_update_info()
 	if _focus_slot >= 0 and _slot_cards.has(_focus_slot) and root_ctl.visible and get_viewport().gui_get_focus_owner() == null:
 		_slot_cards[_focus_slot].grab_focus.call_deferred()      # keep the controller's place after the cards rebuild
 
-## slot index of a carried weapon by id, skipping `not_slot`
-func _slot_of(id: String, not_slot := -1) -> int:
-	var slots = _hud().item_slots.get_children()
-	for i in slots.size():
-		if i != not_slot and slots[i].has_item and _item_id(slots[i].current_item) == id:
-			return i
+## key of a weapon by id among everything the forge can use (held or stored), skipping `not_key`
+func _slot_of(id: String, not_key := -1) -> int:
+	for it in _all_items():
+		if it.key != not_key and it.id == id:
+			return it.key
 	return -1
 
 func _icon_for(id: String) -> Texture2D:
@@ -152,13 +204,12 @@ func _icon_for(id: String) -> Texture2D:
 		return _icon_of(items[id].texture)
 	return null
 
-## highest tier of a carried copy of this weapon, 0 if you do not carry it
+## highest tier of a copy of this weapon you hold or have stored, 0 if none
 func _carried_tier(id: String) -> int:
 	var best := 0
-	var slots = _hud().item_slots.get_children()
-	for i in slots.size():
-		if slots[i].has_item and _item_id(slots[i].current_item) == id:
-			best = maxi(best, Game.weapon_tier_of(_entry_of(slots[i].current_item)))
+	for it in _all_items():
+		if it.id == id:
+			best = maxi(best, Game.weapon_tier_of(it.entry))
 	return best
 
 func _chip(id: String, tier_text: String) -> Control:
@@ -181,23 +232,22 @@ func _chip(id: String, tier_text: String) -> Control:
 	v.add_child(l)
 	return v
 
-## One card per carried weapon: two copies of the same tier combine into the next tier (T1 + T1 = T2).
+## One card per weapon you hold or have stored: two copies of the same tier combine into the next tier (T1 + T1 = T2).
 func _add_combines() -> void:
-	var slots = _hud().item_slots.get_children()
+	var all := _all_items()
 	var seen := {}
-	for i in slots.size():
-		if !slots[i].has_item:
-			continue
-		var e: String = _entry_of(slots[i].current_item)
-		var id := Game.entry_id(e)
+	for it in all:
+		var e: String = it.entry
+		var id: String = it.id
+		var i: int = it.key
 		var k := "%s:%d" % [id, Game.weapon_bonus(e)]
 		if seen.has(k):
 			continue
 		seen[k] = true
 		var j := -1
-		for m in slots.size():
-			if m != i and slots[m].has_item and _item_id(slots[m].current_item) == id and Game.weapon_bonus(_entry_of(slots[m].current_item)) == Game.weapon_bonus(e):
-				j = m
+		for other in all:
+			if other.key != i and other.id == id and Game.weapon_bonus(other.entry) == Game.weapon_bonus(e):
+				j = other.key
 				break
 		var t := Game.weapon_tier_of(e)
 		var res := Game.combine_weapons(e, e)
@@ -306,18 +356,97 @@ func _toggle(i: int) -> void:
 	_refresh()
 
 func _selected_ids() -> Array:
-	var slots = _hud().item_slots.get_children()
 	var ids := []
-	for i in selected:
-		ids.append(_item_id(slots[i].current_item))
+	for k in selected:
+		ids.append(_item_for(k).get("id", ""))
 	return ids
 
 func _entries() -> Array:
-	var slots = _hud().item_slots.get_children()
 	var out := []
-	for i in selected:
-		out.append(_entry_of(slots[i].current_item))
+	for k in selected:
+		out.append(_item_for(k).get("entry", ""))
 	return out
+
+## Take the picked weapons away (held ones leave the slots, stored ones leave the forge).
+## Returns true if one of them was the weapon in your hand.
+func _consume_selected() -> bool:
+	var hud = _hud()
+	var was_active := false
+	var held := []
+	var stored := []
+	for k in selected:
+		if k >= 100:
+			stored.append(k - 100)
+		else:
+			held.append(k)
+	stored.sort()
+	stored.reverse()
+	for j in stored:
+		Game._forge_store.remove_at(j)
+	held.sort()
+	held.reverse()                 # remove the higher slot first so the other index stays valid
+	var slots = hud.item_slots.get_children()
+	for i in held:
+		if slots[i].is_active:
+			was_active = true
+		hud.remove_slot(i)
+	return was_active
+
+## The new weapon goes into your hands if there is room, otherwise it waits in the forge.
+func _place_result(entry: String, was_active: bool) -> void:
+	var hud = _hud()
+	var player = get_tree().get_first_node_in_group("player")
+	var info := Game.weapon_info(entry)
+	if hud.equip_item(info):
+		player.equip_item(info)
+	else:
+		if Game._forge_store.size() < Game.FORGE_STORE_MAX:
+			Game._forge_store.append(entry)
+		if was_active:
+			_equip_any()
+
+## After the weapon in your hand left, pick up another one you still hold (or none).
+func _equip_any() -> void:
+	var hud = _hud()
+	var player = get_tree().get_first_node_in_group("player")
+	var slots = hud.item_slots.get_children()
+	for i in slots.size():
+		if slots[i].has_item:
+			if hud.active_item_slot != -1 and hud.active_item_slot != i:
+				slots[hud.active_item_slot].toggle_active()
+			if !slots[i].is_active:
+				slots[i].toggle_active()
+			hud.active_item_slot = i
+			player.equip_item(slots[i].current_item)
+			return
+	player.clear_item()
+
+func _store_selected() -> void:
+	if selected.size() != 1 or selected[0] >= 100 or Game._forge_store.size() >= Game.FORGE_STORE_MAX:
+		return
+	var it := _item_for(selected[0])
+	var was_active := _consume_selected()
+	Game._forge_store.append(it.entry)
+	if was_active:
+		_equip_any()
+	Sfx.play("unlock", 0.0)
+	selected = []
+	_refresh()
+
+func _take_selected() -> void:
+	if selected.size() != 1 or selected[0] < 100:
+		return
+	var it := _item_for(selected[0])
+	var hud = _hud()
+	var player = get_tree().get_first_node_in_group("player")
+	var info := Game.weapon_info(it.entry)
+	Game._forge_store.remove_at(selected[0] - 100)
+	if hud.equip_item(info):
+		player.equip_item(info)
+	else:
+		Game._forge_store.append(it.entry)          # no free hand slot: it stays in the forge
+	selected = []
+	_refresh()
 
 func _cost_text(cost: Dictionary) -> String:
 	var parts := []
@@ -326,6 +455,12 @@ func _cost_text(cost: Dictionary) -> String:
 	return ", ".join(parts)
 
 func _update_info() -> void:
+	store_btn.disabled = !(selected.size() == 1 and selected[0] < 100 and Game._forge_store.size() < Game.FORGE_STORE_MAX)
+	var free := false
+	for sl in _hud().item_slots.get_children():
+		if !sl.has_item:
+			free = true
+	take_btn.disabled = !(selected.size() == 1 and selected[0] >= 100 and free)
 	numbers.text = ""
 	fuse_button.disabled = true
 	awaken_button.disabled = true
@@ -408,16 +543,8 @@ func awaken() -> void:
 	if result == "" or !Game.can_afford(cost):
 		return
 	Game.pay(cost)
-	var hud = _hud()
-	var picked := selected.duplicate()
-	picked.sort()
-	picked.reverse()
-	for i in picked:
-		hud.remove_slot(i)
-	var new_info := Game.weapon_info(result)
-	var player = get_tree().get_first_node_in_group("player")
-	if hud.equip_item(new_info):
-		player.equip_item(new_info)
+	var was_active := _consume_selected()
+	_place_result(result, was_active)
 	Sfx.play("unlock", 0.0)
 	selected = []
 	_refresh()
@@ -433,19 +560,10 @@ func fuse() -> void:
 	if !Game.fusion_tier_unlocked(r.tier) or !Game.can_afford(cost):
 		return
 	Game.pay(cost)
-	var hud = _hud()
-	var gone := selected.duplicate()
-	gone.sort()
-	gone.reverse()                 # remove the higher slot first so the other index stays valid
-	for i in gone:
-		hud.remove_slot(i)
-	var new_info := Game.weapon_info(Game.make_weapon_entry(r.id, 0, Game.weapon_twist(r.id, r.tier)))
-	var player = get_tree().get_first_node_in_group("player")
-	if hud.equip_item(new_info):
-		player.equip_item(new_info)
+	var was_active := _consume_selected()
+	_place_result(Game.make_weapon_entry(r.id, 0, Game.weapon_twist(r.id, r.tier)), was_active)
 	root_ctl.visible = false
 	selected = []
-
 
 ## Tools like the sword and pickaxe use sprite sheets: show just the first frame.
 const SHEETS := {"res://items/tools/sword/excalibur_.png": Vector2i(4, 4), "res://items/tools/pickaxe/pickaxe.png": Vector2i(2, 2)}

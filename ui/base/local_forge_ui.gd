@@ -1,7 +1,8 @@
 extends CanvasLayer
-## The forge for a local split-screen player (players 2 to 4). Stand at the anvil and press d-pad up: LB / RB move,
-## A picks a weapon (two of them), X forges (two different weapons fuse, two copies of the same one combine into the
-## next tier), B closes. The costs and the unlocked tiers are exactly the ones the normal forge screen uses.
+## The forge for a local split-screen player (players 2 to 4). Stand at the anvil and press d-pad up. It shows the
+## weapons you hold and the ones stored in the forge, grouped by type. LB / RB move, A picks a weapon (two of them),
+## X forges (two different weapons fuse, two copies of the same one combine into the next tier), Y drops the weapon
+## under the cursor into the forge or takes it out, B closes. Costs and unlocked tiers are the normal forge's.
 
 const TierCard = preload("res://ui/cards/tier_card.gd")
 const SHEETS := {"res://items/tools/sword/excalibur_.png": Vector2i(4, 4), "res://items/tools/pickaxe/pickaxe.png": Vector2i(2, 2)}
@@ -60,7 +61,7 @@ func setup(player: Node, viewport: SubViewport) -> void:
 	_info.add_theme_font_size_override("font_size", 13)
 	v.add_child(_info)
 	_hint = Label.new()
-	_hint.text = "LB/RB move   A pick   X forge   B close"
+	_hint.text = "LB/RB move  A pick  X forge  Y drop in / take out  B close"
 	_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_hint.add_theme_font_size_override("font_size", 11)
 	_hint.add_theme_color_override("font_color", Color(0.7, 0.75, 0.9))
@@ -98,30 +99,96 @@ func _cost_text(cost: Dictionary) -> String:
 		parts.append("%d %s (have %d)" % [cost[k], k, Game.resources.get(k, 0)])
 	return ", ".join(parts)
 
-## What forging the two picked weapons would do: {"text", "ok", "kind": "fuse" | "combine"}.
+## Everything the forge can use, in display order (grouped by type, common first): held ones and stored ones.
+func _items() -> Array:
+	var out := []
+	for i in _slots().size():
+		out.append({"src": "held", "idx": i, "entry": _slots()[i], "id": Game.entry_id(_slots()[i])})
+	for j in Game._forge_store.size():
+		out.append({"src": "store", "idx": j, "entry": Game._forge_store[j], "id": Game.entry_id(Game._forge_store[j])})
+	out.sort_custom(func(a, b):
+		var ra: int = Game.weapon_rarity(a.id)
+		var rb: int = Game.weapon_rarity(b.id)
+		if ra != rb:
+			return ra < rb
+		if a.id != b.id:
+			return Fusion.display_name(a.id) < Fusion.display_name(b.id)
+		var ta: int = Game.weapon_tier_of(a.entry)
+		var tb: int = Game.weapon_tier_of(b.entry)
+		if ta != tb:
+			return ta > tb
+		return a.src == "held" and b.src != "held")
+	return out
+
+## What forging the two picked weapons would do: {"text", "ok", "kind", "result", ...}.
 func preview() -> Dictionary:
-	var slots := _slots()
-	if picks.size() < 2:
-		return {"text": "Pick two weapons.", "ok": false, "kind": ""}
-	var ea: String = slots[picks[0]]
-	var eb: String = slots[picks[1]]
-	var ida := Game.entry_id(ea)
-	var idb := Game.entry_id(eb)
-	if ida == idb:
-		var res := Game.combine_weapons(ea, eb)
-		if res == "":
-			if Game.combine_locked_by_draw(ea):
-				return {"text": "Tier %d is locked. Draw it at the end of a run." % (Game.weapon_tier_of(ea) + 1), "ok": false, "kind": "combine"}
-			return {"text": "These cannot combine.", "ok": false, "kind": "combine"}
-		var cost: Dictionary = Game.combine_cost(ea)
-		return {"text": "%s: tier %d -> %d\\nCost: %s" % [Fusion.display_name(ida), Game.weapon_tier_of(ea), Game.weapon_tier_of(ea) + 1, _cost_text(cost)], "ok": Game.can_afford(cost), "kind": "combine"}
-	var r := Fusion.recipe(ida, idb)
-	if r.is_empty():
-		return {"text": "These two do not fuse.", "ok": false, "kind": "fuse"}
-	if !Game.fusion_tier_unlocked(r.tier):
-		return {"text": "%s: locked (buy Tier %d fusions)." % [Fusion.display_name(r.id), r.tier], "ok": false, "kind": "fuse"}
-	var fcost: Dictionary = Fusion.cost(r.tier)
-	return {"text": "%s (Tier %d)\\nCost: %s" % [Fusion.display_name(r.id), r.tier, _cost_text(fcost)], "ok": Game.can_afford(fcost), "kind": "fuse"}
+	var items := _items()
+	if picks.size() < 2 or picks[0] >= items.size() or picks[1] >= items.size():
+		return {"text": "Pick two weapons.", "ok": false, "kind": "", "result": ""}
+	var p: Dictionary = Game.forge_preview(items[picks[0]].entry, items[picks[1]].entry)
+	if p.has("cost"):
+		p["text"] = "%s\nCost: %s" % [p.text, _cost_text(p.cost)]
+	return p
+
+## Drop the weapon under the cursor into the forge, or take it out (when a hand slot is free).
+func _toggle_store() -> void:
+	var items := _items()
+	if cur >= items.size():
+		return
+	var it: Dictionary = items[cur]
+	if it.src == "held":
+		if Game._forge_store.size() >= Game.FORGE_STORE_MAX:
+			return
+		_remove_held([it.idx])
+		Game._forge_store.append(it.entry)
+	elif _slots().size() < 3:
+		Game._forge_store.remove_at(it.idx)
+		Net.give_weapon(pl, it.entry)
+	picks.clear()
+	cur = clampi(cur, 0, maxi(0, _items().size() - 1))
+
+## Take held weapons out of the hands by slot index and keep a sensible weapon equipped.
+func _remove_held(indexes: Array) -> void:
+	var idx := indexes.duplicate()
+	idx.sort()
+	idx.reverse()
+	for i in idx:
+		_slots().remove_at(i)
+	if _slots().is_empty():
+		pl.clear_item()
+	else:
+		pl.active_slot = clampi(int(pl.active_slot), 0, _slots().size() - 1)
+		pl.equip_item(Game.weapon_info(_slots()[pl.active_slot]))
+
+func _forge_picked() -> void:
+	var items := _items()
+	var p := preview()
+	if !p.ok:
+		return
+	var a: Dictionary = items[picks[0]]
+	var b: Dictionary = items[picks[1]]
+	Game.pay(p.cost)
+	if p.kind == "fuse":
+		Game.note_recipe(p.key)
+	var held := []
+	var stored := []
+	for it in [a, b]:
+		if it.src == "held":
+			held.append(it.idx)
+		else:
+			stored.append(it.idx)
+	stored.sort()
+	stored.reverse()
+	for j in stored:
+		Game._forge_store.remove_at(j)
+	if !held.is_empty():
+		_remove_held(held)
+	if _slots().size() < 3:
+		Net.give_weapon(pl, p.result)
+	elif Game._forge_store.size() < Game.FORGE_STORE_MAX:
+		Game._forge_store.append(p.result)
+	picks.clear()
+	cur = 0
 
 func close() -> void:
 	is_open = false
@@ -136,6 +203,7 @@ func poll(dev: int) -> void:
 	var a := _edge("a", Input.is_joy_button_pressed(dev, JOY_BUTTON_A))
 	var b := _edge("b", Input.is_joy_button_pressed(dev, JOY_BUTTON_B))
 	var x := _edge("x", Input.is_joy_button_pressed(dev, JOY_BUTTON_X))
+	var y := _edge("y", Input.is_joy_button_pressed(dev, JOY_BUTTON_Y))
 	if !is_open:
 		if up and _near_forge() and !pl.is_in_tower and !pl.downed:
 			is_open = true
@@ -148,7 +216,7 @@ func poll(dev: int) -> void:
 	if !_near_forge() or pl.downed or pl.is_in_tower:
 		close()
 		return
-	var n := _slots().size()
+	var n := _items().size()
 	if n > 0:
 		if lb: cur = wrapi(cur - 1, 0, n)
 		if rb: cur = wrapi(cur + 1, 0, n)
@@ -157,41 +225,55 @@ func poll(dev: int) -> void:
 			picks.erase(cur)
 		elif picks.size() < 2:
 			picks.append(cur)
+	if y:
+		_toggle_store()
 	if x and picks.size() == 2:
-		var p := preview()
-		if p.ok:
-			if p.kind == "combine":
-				Net._combine(pl, picks[0], picks[1])
-			else:
-				Net._fuse(pl, picks[0], picks[1])
-			picks.clear()
-			cur = 0
+		_forge_picked()
 	if b:
 		close()
 		return
 	_refresh()
 
 func _refresh() -> void:
-	var slots := _slots()
-	var key := str(slots) + str(cur) + str(picks) + str(Game.resources)
+	var items := _items()
+	var key := str(items.map(func(it): return it.entry)) + str(cur) + str(picks) + str(Game.resources)
 	if key == _key:
 		return
 	_key = key
 	for c in _row.get_children():
 		_row.remove_child(c)
 		c.queue_free()
-	for i in slots.size():
-		var id := Game.entry_id(slots[i])
+	var last_id := ""
+	var group: HBoxContainer = null
+	for n in items.size():
+		var it: Dictionary = items[n]
+		if it.id != last_id:
+			last_id = it.id
+			var box := VBoxContainer.new()
+			var count := 0
+			for o in items:
+				if o.id == it.id:
+					count += 1
+			var head := Label.new()
+			head.text = "%s  x%d" % [Fusion.display_name(it.id), count]
+			head.add_theme_font_size_override("font_size", 12)
+			head.add_theme_color_override("font_color", Game.rarity_color(Game.weapon_rarity(it.id)))
+			box.add_child(head)
+			group = HBoxContainer.new()
+			group.add_theme_constant_override("separation", 4)
+			box.add_child(group)
+			_row.add_child(box)
 		var card := TierCard.new()
-		card.setup({"size": Vector2(96, 134), "title": Fusion.display_name(id), "icon": _icon(id), "tier": Game.weapon_tier_of(slots[i]), "max_tier": 6,
-			"accent": Game.rarity_color(Game.weapon_rarity(id)), "footer": "PICKED" if i in picks else ""})
+		card.setup({"size": Vector2(78, 108), "title": "T%d" % Game.weapon_tier_of(it.entry), "icon": _icon(it.id), "tier": Game.weapon_tier_of(it.entry), "max_tier": 6,
+			"accent": Game.rarity_color(Game.weapon_rarity(it.id)), "footer": "PICKED" if n in picks else ("HELD" if it.src == "held" else "STORED"),
+			"footer_color": Color(0.5, 1, 0.55) if it.src == "held" else Color(0.6, 0.8, 1.0)})
 		card.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		card.focus_mode = Control.FOCUS_NONE
-		card.set_selected(i == cur)
-		_row.add_child(card)
-	if slots.is_empty():
+		card.set_selected(n == cur)
+		group.add_child(card)
+	if items.is_empty():
 		var l := Label.new()
-		l.text = "You carry no weapons."
+		l.text = "No weapons held or stored."
 		_row.add_child(l)
 	var p := preview()
 	_info.text = p.text

@@ -797,6 +797,27 @@ func combine_locked_by_draw(a: String) -> bool:
 	var t := Fusion.tier_of(id) + weapon_bonus(a) + 1
 	return t <= mini(6, weapon_tier_cap()) and t > weapon_tier_unlocked(id)
 
+## What forging two weapon entries would do: {"text", "ok", "kind": "fuse" | "combine" | "", "result": the new entry}.
+func forge_preview(ea: String, eb: String) -> Dictionary:
+	var ida := entry_id(ea)
+	var idb := entry_id(eb)
+	if ida == idb:
+		var res := combine_weapons(ea, eb)
+		if res == "":
+			if combine_locked_by_draw(ea):
+				return {"text": "Tier %d is locked. Draw it at the end of a run." % (weapon_tier_of(ea) + 1), "ok": false, "kind": "combine", "result": ""}
+			return {"text": "These cannot combine.", "ok": false, "kind": "combine", "result": ""}
+		var cost: Dictionary = combine_cost(ea)
+		return {"text": "%s: tier %d -> %d" % [Fusion.display_name(ida), weapon_tier_of(ea), weapon_tier_of(ea) + 1], "ok": can_afford(cost), "kind": "combine", "result": res, "cost": cost}
+	var r := Fusion.recipe(ida, idb)
+	if r.is_empty():
+		return {"text": "These two do not fuse.", "ok": false, "kind": "fuse", "result": ""}
+	if !fusion_tier_unlocked(r.tier):
+		return {"text": "%s: locked (buy Tier %d fusions)." % [Fusion.display_name(r.id), r.tier], "ok": false, "kind": "fuse", "result": ""}
+	var fcost: Dictionary = Fusion.cost(r.tier)
+	return {"text": "%s (Tier %d)" % [Fusion.display_name(r.id), r.tier], "ok": can_afford(fcost), "kind": "fuse", "cost": fcost,
+		"result": make_weapon_entry(r.id, 0, weapon_twist(r.id, r.tier)), "key": Fusion.key(ida, idb)}
+
 func combine_cost(a: String) -> Dictionary:
 	return Fusion.AWAKEN_COSTS[clampi(weapon_tier_of(a), 1, 5)]
 
@@ -838,6 +859,8 @@ func buy_unlock(id: String) -> bool:
 	return true
 
 var _menu_done := false             # the start screen shows once per launch
+var _forge_store: Array = []        # weapon entries dropped into the forge: the whole team can use them there (host side)
+const FORGE_STORE_MAX := 9
 var _local_devices: Array = []      # split screen: slot -> controller id (-1 = keyboard and mouse); empty = a normal single-player game
 
 func restart_run() -> void:
@@ -863,6 +886,7 @@ func draw_interval() -> float:
 	return max(1.5, (6.0 - 0.8 * upgrade_levels.get("draw", 0)) * (1.0 - bonus("draw_speed")))
 
 func start_run() -> void:
+	_forge_store = []
 	recipe_log = []
 	keep_hp = keep_max()
 	run_over = false

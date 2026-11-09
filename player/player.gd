@@ -271,6 +271,13 @@ func process_movement(delta):
 
 	move_and_slide()
 
+## Put the weapon away completely (it was dropped into the forge).
+func clear_item() -> void:
+	if item != null:
+		item.queue_free()
+	item = null
+	item_animation_player = null
+
 func equip_item(new_item) -> void:
 	if (item != null):
 		item.queue_free()
