@@ -118,9 +118,9 @@ func _initialize() -> void:
 	print("--- towers and cards")
 	var t1 = game.all_towers()[1]
 	var t2 = game.all_towers()[2]
-	p1.global_position = t1.global_position + Vector2(0, 22)
+	p1.global_position = t1.global_position + Vector2(0, 14)
 	t1.get_node("EnterArea").open = true
-	p2.global_position = t2.global_position + Vector2(0, 22)
+	p2.global_position = t2.global_position + Vector2(0, 14)
 	await wait(0.4)
 	await tap(1, JOY_BUTTON_A)
 	await wait(0.3)
@@ -157,7 +157,11 @@ func _initialize() -> void:
 	await tap(2, JOY_BUTTON_A)
 	await wait(0.3)
 	ok("A leaves the tower for player 2", !p2.is_in_tower)
-	p2.global_position = t1.global_position + Vector2(0, 30)
+	p2.global_position = t1.global_position + Vector2(0, 28)
+	await wait(0.3)
+	await tap(2, JOY_BUTTON_A)
+	ok("two steps away from the tower, A does not enter it", !p2.is_in_tower)
+	p2.global_position = t1.global_position + Vector2(0, 14)
 	await wait(0.3)
 	await tap(2, JOY_BUTTON_A)
 	await wait(0.3)

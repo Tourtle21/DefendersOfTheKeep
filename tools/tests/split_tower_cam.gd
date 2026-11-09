@@ -27,7 +27,7 @@ func _initialize() -> void:
 	var p1 = world.get_node("Player")
 	var p2 = lp.avatars[1]
 	var t = game.all_towers()[0]
-	p2.global_position = t.global_position + Vector2(0, 25)
+	p2.global_position = t.global_position + Vector2(0, 14)
 	await wait(0.3)
 	var maxoff := [0.0, 0.0]
 	var zoom0: Array = [split.cameras[0].zoom, split.cameras[1].zoom]

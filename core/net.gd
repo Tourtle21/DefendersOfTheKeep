@@ -440,12 +440,12 @@ func net_command(cmd: Dictionary) -> void:
 			if pl.is_in_tower:
 				Game.buy_upgrade(cmd.id)
 
-## The tower whose door you are standing at (player 1's 52 x 27 door area plus the width of a player), so only the tower next to you can be entered.
+## The tower whose door you are standing at (exactly where player 1's body touches the 52 x 27 door area: half-extents 26 + 5.5 and 13.4 + 3.4), so only the tower next to you can be entered.
 func _tower_at_door(pos: Vector2):
 	for c in Game.world.get_children():
 		if c is StaticBody2D and c.name.begins_with("Tower"):
 			var d: Vector2 = pos - c.global_position
-			if absf(d.x) <= 34.0 and absf(d.y) <= 32.0:
+			if absf(d.x) <= 31.6 and absf(d.y) <= 16.8:
 				return c
 	return null
 
