@@ -217,42 +217,9 @@ func _make_corner(slot: int) -> void:
 	abilities.key_labels = ["RT", "X", "LT", "Y"]
 	add_child(abilities)
 	abilities.custom_viewport = viewports[slot]
-	var slots_ctl := Control.new()                      # the weapon slots: what you carry, the one in hand lit (X switches)
-	slots_ctl.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	slots_ctl.set_anchors_preset(Control.PRESET_FULL_RECT)
+	var slots_ctl := Control.new()                      # the weapon slots: what you carry, the one in hand tinted (ui/hud/weapon_slots.gd)
+	slots_ctl.set_script(preload("res://ui/hud/weapon_slots.gd"))
 	holder.add_child(slots_ctl)
-	var frame_tex: Texture2D = load("res://ui/hud/inventory.png")
-	var icon_cache := {}
-	slots_ctl.draw.connect(func():
-		# the same three stacked frames player 1 has: the weapon's icon, a tier badge, the one in hand tinted blue
-		var pl = _players[slot]
-		if !is_instance_valid(pl):
-			return
-		var font := ThemeDB.fallback_font
-		var k := clampf(float(viewports[slot].size.y) / 1000.0 * 1.1, 0.4, 0.6)
-		var step := 133.0 * k
-		var frame := 128.0 * k
-		for i in 3:
-			var top := float(viewports[slot].size.y) - 12.0 - frame - i * step
-			var rect := Rect2(Vector2(10.0, top), Vector2(frame, frame))
-			var active: bool = i == pl.active_slot and i < pl.weapon_slots.size()
-			slots_ctl.draw_texture_rect(frame_tex, rect, false, Color(0.3, 0.3, 1.0) if active else Color.WHITE)
-			if i >= pl.weapon_slots.size():
-				continue
-			var entry: String = pl.weapon_slots[i]
-			var info: Dictionary = Game.weapon_info(entry)
-			var path: String = info.get("texture", "")
-			if path != "":
-				if !icon_cache.has(path):
-					icon_cache[path] = load(path)
-				var tex: Texture2D = icon_cache[path]
-				var isz := 112.0 * k
-				slots_ctl.draw_texture_rect_region(tex, Rect2(rect.position + (rect.size - Vector2(isz, isz)) / 2.0, Vector2(isz, isz)), Rect2(0, 0, 32, 32))
-			var fs := int(20.0 * k * 1.6)
-			var label := "T%d" % Game.weapon_tier_of(entry)
-			var at := rect.position + Vector2(6.0 * k, frame - 6.0 * k)
-			slots_ctl.draw_string_outline(font, at, label, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, 5, Color.BLACK)
-			slots_ctl.draw_string(font, at, label, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(1, 0.9, 0.3)))
 	var aimer := Control.new()                          # the yellow aimer of this player, drawn in their view only (like player 1's cursor)
 	aimer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	aimer.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -285,7 +252,8 @@ func _process(_delta: float) -> void:
 		if slot > 0:
 			var c: Dictionary = _corner[slot]
 			c.aimer.queue_redraw()
-			c.slots.queue_redraw()
+			c.slots.slots = pl.weapon_slots
+			c.slots.active = pl.active_slot
 			c.down.visible = pl.downed
 			c.down.text = "You fell!  Back in %d" % ceili(pl.respawn_left)
 			var light = pl.get_node_or_null("PointLight2D")

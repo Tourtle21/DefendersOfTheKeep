@@ -15,7 +15,7 @@ var base_box: VBoxContainer
 var hand_row: HBoxContainer
 var mana_bar: ProgressBar
 var res_label: Label
-var extras: VBoxContainer
+var extras: HBoxContainer
 var selected := -1
 var draft_box: HBoxContainer
 var forge_box: VBoxContainer
@@ -26,6 +26,12 @@ var _draft_key := ""
 var _forge_sel: Array = []        # positions in the forge list (ForgeLayout.items) the player picked
 var _forge_key := ""
 var fuser_box: VBoxContainer
+var keep_bar: ProgressBar
+var keep_lbl: Label
+var hp_fill: ColorRect
+var slots_ctl: Control
+var _extras_key := ""
+const TierCard = preload("res://ui/cards/tier_card.gd")
 var _fuse_sel: Array = []        # hand positions picked at the Card Fuser
 var _fuse_key := ""
 const ForgeLayout = preload("res://ui/forge/forge_layout.gd")
@@ -83,9 +89,10 @@ func _ready() -> void:
 	_down_label.add_theme_constant_override("outline_size", 8)
 	_down_label.visible = false
 	layer.add_child(_down_label)
-	info = Label.new()
-	info.position = Vector2(12, 8)
-	info.add_theme_font_size_override("font_size", 16)
+	info = Label.new()                        # connection / lobby status and a few numbers: small, under the resource line
+	info.position = Vector2(12, 40)
+	info.add_theme_font_size_override("font_size", 12)
+	info.add_theme_color_override("font_color", Color(0.8, 0.85, 1.0, 0.8))
 	layer.add_child(info)
 	DisplayServer.window_set_title("Defenders of the Keep (co-op client)")
 	_ended_label = Label.new()
@@ -125,16 +132,48 @@ func _ready() -> void:
 	hand_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	hand_row.add_theme_constant_override("separation", 8)
 	base_box.add_child(hand_row)
-	hp_bar = ProgressBar.new()
-	hp_bar.position = Vector2(12, 62)
-	hp_bar.custom_minimum_size = Vector2(220, 14)
+	hp_bar = ProgressBar.new()                # (kept for tests that read it; the visible bar is the frame below)
 	hp_bar.max_value = 1.0
-	hp_bar.show_percentage = false
-	hp_bar.modulate = Color(1.0, 0.45, 0.4)
+	hp_bar.visible = false
 	layer.add_child(hp_bar)
+	# the same HUD layout as player 1's and the split-screen players' (ui/base/local_hud.gd): resources top-left, the keep bar
+	# top-centre, the health bar top-right, the weapon slots bottom-left
 	carry_label = Label.new()
-	carry_label.position = Vector2(12, 80)
+	carry_label.position = Vector2(12, 10)
+	carry_label.add_theme_font_size_override("font_size", 18)
 	layer.add_child(carry_label)
+	keep_bar = ProgressBar.new()
+	keep_bar.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
+	keep_bar.offset_left = -170
+	keep_bar.offset_right = 170
+	keep_bar.offset_top = 38
+	keep_bar.offset_bottom = 58
+	keep_bar.show_percentage = false
+	keep_bar.modulate = Color(1.0, 0.55, 0.45)
+	keep_lbl = Label.new()
+	keep_lbl.set_anchors_preset(Control.PRESET_FULL_RECT)
+	keep_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	keep_lbl.add_theme_font_size_override("font_size", 13)
+	keep_bar.add_child(keep_lbl)
+	layer.add_child(keep_bar)
+	var hp_frame := ColorRect.new()
+	hp_frame.color = Color.BLACK
+	hp_frame.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
+	hp_frame.offset_left = -250
+	hp_frame.offset_right = -16
+	hp_frame.offset_top = 16
+	hp_frame.offset_bottom = 43
+	hp_frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	layer.add_child(hp_frame)
+	hp_fill = ColorRect.new()
+	hp_fill.color = Color(1, 0.14902, 0, 1)
+	hp_fill.position = Vector2(3, 3)
+	hp_fill.size = Vector2(228, 21)
+	hp_fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hp_frame.add_child(hp_fill)
+	slots_ctl = Control.new()
+	slots_ctl.set_script(preload("res://ui/hud/weapon_slots.gd"))
+	layer.add_child(slots_ctl)
 	radar = Control.new()
 	radar.set_script(preload("res://net/client_minimap.gd"))
 	radar.view = self
@@ -142,10 +181,10 @@ func _ready() -> void:
 	radar.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
 	radar.offset_left = -236
 	radar.offset_right = -16
-	radar.offset_top = 16
-	radar.offset_bottom = 236
-	weapons_label = Label.new()
-	weapons_label.position = Vector2(12, 34)
+	radar.offset_top = 70
+	radar.offset_bottom = 290
+	weapons_label = Label.new()               # (kept for tests; the weapon slots on the left show it)
+	weapons_label.visible = false
 	layer.add_child(weapons_label)
 	draft_box = HBoxContainer.new()
 	draft_box.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
@@ -164,8 +203,9 @@ func _ready() -> void:
 	ability_hud = AbilityHud.new()
 	add_child(ability_hud)
 	add_child(CrystalAlert.new())
-	extras = VBoxContainer.new()
-	extras.position = Vector2(12, 190)
+	extras = HBoxContainer.new()               # Repair and the upgrades as the same small cards player 1 has
+	extras.position = Vector2(12, 74)
+	extras.add_theme_constant_override("separation", 8)
 	layer.add_child(extras)
 
 ## Take a new snapshot into the target tables.
@@ -294,17 +334,36 @@ func _update_keep_ui(snap: Dictionary) -> void:
 			hand_row.add_child(view)
 	for i in hand_row.get_child_count():
 		hand_row.get_child(i).set_state(i == selected, true)
-	# repair / upgrades
-	if extras.get_child_count() == 0:
-		var rb := Button.new()
-		rb.text = "Repair keep (3 stone)"
-		rb.pressed.connect(func(): Net.net_command.rpc_id(1, {"cmd": "repair"}))
-		extras.add_child(rb)
+	# repair / upgrades, as player 1's small cards (a green frame means you can buy it now)
+	var ekey := str(Game.upgrade_levels) + str(snap.resources) + str(snap.get("keep", 0))
+	if ekey != _extras_key:
+		_extras_key = ekey
+		for c in extras.get_children():
+			extras.remove_child(c)
+			c.queue_free()
+		var can_repair: bool = snap.get("keep", 0) < snap.get("keep_max", 1) and snap.resources.get("stone", 0) >= 3
+		var rc := TierCard.new()
+		rc.setup({"size": Vector2(92, 128), "title": "Repair", "glyph": "+", "lines": ["+30 keep"], "footer": "3 stone", "accent": Color(0.9, 0.5, 0.4), "locked": !can_repair})
+		rc.set_selected(can_repair)
+		rc.pressed.connect(func(_c): Net.net_command.rpc_id(1, {"cmd": "repair"}))
+		extras.add_child(rc)
+		var glyphs := {"max_mana": "M", "regen": "R", "draw": "D"}
 		for id in Game.UPGRADES:
-			var b := Button.new()
-			b.text = "%s: %s" % [Game.UPGRADES[id].name, Game.UPGRADES[id].desc]
-			b.pressed.connect(func(): Net.net_command.rpc_id(1, {"cmd": "upgrade", "id": id}))
-			extras.add_child(b)
+			var u: Dictionary = Game.UPGRADES[id]
+			var cost := Game.upgrade_cost(id)
+			var lvl: int = Game.upgrade_levels.get(id, 0)
+			var cost_parts := []
+			var can := true
+			for t in cost:
+				cost_parts.append("%d %s" % [cost[t], t])
+				if snap.resources.get(t, 0) < cost[t]:
+					can = false
+			var c := TierCard.new()
+			c.setup({"size": Vector2(92, 128), "title": u.name, "glyph": glyphs.get(id, "+"), "tier": mini(lvl, 6), "max_tier": 6, "badge": "Lv %d" % lvl,
+				"lines": [u.desc], "footer": " ".join(cost_parts), "accent": Color(0.5, 0.75, 1.0), "locked": !can})
+			c.set_selected(can)
+			c.pressed.connect(func(_c): Net.net_command.rpc_id(1, {"cmd": "upgrade", "id": id}))
+			extras.add_child(c)
 
 ## Weapons carried, the chest draft, and the Forge (when standing next to it).
 func _update_loot_ui(snap: Dictionary) -> void:
@@ -317,14 +376,24 @@ func _update_loot_ui(snap: Dictionary) -> void:
 	var names := []
 	for i in me.slots.size():
 		names.append(("[%s]" if i == me.active else "%s") % _weapon_label(me.slots[i]))
-	weapons_label.text = "Weapons (Q switches): " + "  ".join(names)
+	weapons_label.text = "Weapons (Q switches): " + "  ".join(names)               # (hidden; the slots on the left show it)
 	hp_bar.value = me.hp
+	hp_fill.size.x = clampf(me.hp * 228.0, 0.0, 228.0)
+	slots_ctl.slots = me.slots
+	slots_ctl.active = me.active
+	var keep_pool := []
+	for k in snap.resources:
+		if snap.resources[k] > 0 or k in ["stone", "stick", "gold"]:
+			keep_pool.append("%d %s" % [snap.resources[k], k])
+	keep_bar.max_value = snap.get("keep_max", 150.0)
+	keep_bar.value = snap.get("keep", 0.0)
+	keep_lbl.text = "Keep %d / %d" % [snap.get("keep", 0), snap.get("keep_max", 0)]
 	ability_hud.remote_cd = Net.my_cd
 	var load_parts := []
 	for k in me.carried:
 		if me.carried[k] > 0:
 			load_parts.append("%d %s" % [me.carried[k], k])
-	carry_label.text = "Carrying: " + (", ".join(load_parts) if load_parts.size() > 0 else "nothing") + "   (enter a tower to deposit)"
+	carry_label.text = "Carrying: " + (", ".join(load_parts) if load_parts.size() > 0 else "nothing") + "     Keep: " + ", ".join(keep_pool)
 	# chest draft
 	var key := str(snap.draft)
 	draft_box.visible = snap.draft.size() > 0

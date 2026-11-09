@@ -100,3 +100,6 @@ Gameplay code asks `Pad.world_mouse(self)` instead of `get_global_mouse_position
 
 ## Card Fuser
 The Card Fuser (`Net.CARD_FUSER_POS`, across the keep from the Forge) fuses two cards of the shared hand. The rules are `Game.fuse_preview` / `Game.fuse_hand`; clients send `card_fuse {a, b}` (hand positions) and the host checks they stand within 50 px. The snapshot carries `near_fuser` per player and `fuser` (slow key); the client screen is `fuser_box` in `net/client_view.gd`. Local split-screen players 2-4 open their own screen with d-pad up (`ui/base/local_fuser_ui.gd`, same rules through `Net.card_fuse`).
+
+## HUD parity
+The LAN client's HUD (`net/client_view.gd`), player 1's and the split-screen players' (`ui/base/local_hud.gd`, `ui/base/local_keep_ui.gd`) share one layout: the resource line top-left, the keep bar top-centre, the health bar top-right, the weapon slots bottom-left (`ui/hud/weapon_slots.gd`), the ability panel bottom-right, and Repair / upgrade cards in the keep. Change one, change the others.
