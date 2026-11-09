@@ -12,6 +12,8 @@ var forge_uis := {}              # slot -> LocalForgeUi
 var fuser_uis := {}              # slot -> LocalFuserUi
 var keep_uis := {}               # slot -> LocalKeepUi (made by the split screen once the views exist)
 var _aim_dir := {}
+var _aimers := {}                # slot -> the aimer drawn in the world for that player
+const AIM_COLORS := [Color(1, 0.85, 0.3), Color(0.5, 0.85, 1.0), Color(0.6, 1.0, 0.5), Color(1.0, 0.6, 0.9)]
 var _last_aim_ms := {}
 var _prev_btn := {}
 
@@ -35,10 +37,29 @@ func _spawn(slot: int) -> void:
 	Net.names[id] = "Player %d" % (slot + 1)
 	avatars[slot] = pl
 	_aim_dir[slot] = Vector2.RIGHT
+	var mark := Node2D.new()                         # the aimer: a ring and four ticks where this player's right stick points
+	mark.z_index = 50
+	mark.set_script(preload("res://world/aim_mark.gd"))
+	mark.color = AIM_COLORS[slot]
+	Game.world.add_child(mark)
+	_aimers[slot] = mark
 	_last_aim_ms[slot] = -100000
 	_prev_btn[slot] = {}
 
+func _process(_delta: float) -> void:
+	for slot in _aimers:
+		var pl = avatars.get(slot)
+		var mark: Node2D = _aimers[slot]
+		if pl == null or !is_instance_valid(pl):
+			mark.visible = false
+			continue
+		mark.visible = !pl.downed and !pl.is_in_tower
+		mark.global_position = pl.global_position + _aim_dir[slot] * AIM_REACH
+
 func _exit_tree() -> void:
+	for slot in _aimers:
+		if is_instance_valid(_aimers[slot]):
+			_aimers[slot].queue_free()
 	for slot in avatars:
 		Net.remote_players.erase(FIRST_ID + slot)
 		Net._prev.erase(FIRST_ID + slot)
