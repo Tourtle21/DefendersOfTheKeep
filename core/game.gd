@@ -1041,6 +1041,13 @@ func wave_timer_text() -> String:
 		return "%s: starts when the last wave is beaten (%d s at most)" % [what, wave_eta_s]
 	return "%s in %d:%02d" % [what, wave_eta_s / 60, wave_eta_s % 60]
 
+## Enemy health: a low start, and only a little more each time you beat a level (a boss), never because of the wave number.
+const ENEMY_HP_START := 0.6         # of the base health
+const ENEMY_HP_PER_LEVEL := 0.1     # +10% of the start for every boss beaten (sectors opened beyond the first)
+
+func enemy_health_mult() -> float:
+	return ENEMY_HP_START * (1.0 + ENEMY_HP_PER_LEVEL * float(maxi(0, sectors_unlocked.size() - 1)))
+
 const WAVE_TEAM_SCALE := 0.45       # extra enemies per wave for every player beyond the first (2 players: x1.45, 3: x1.9, 4: x2.35)
 const BOSS_HP_TEAM_SCALE := 0.5     # extra boss health per extra player
 const BOSS_PACE_TEAM_SCALE := 0.1   # how much sooner a boss attacks again per extra player

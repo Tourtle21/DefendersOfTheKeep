@@ -110,7 +110,7 @@ func _ready():
 	$AnimationPlayer.play("walking")
 	nav_agent.path_desired_distance = 5.0       # the defaults (20 / 10) cut corners and bump into obstacles
 	nav_agent.target_desired_distance = 7.0
-	max_health += level * 2
+	max_health *= Game.enemy_health_mult()          # (not the wave's level: only the bosses you have beaten make them tougher)
 	speed += level * 2
 	
 	health = max_health

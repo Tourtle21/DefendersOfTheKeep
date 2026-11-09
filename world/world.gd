@@ -92,7 +92,7 @@ func start_split_screen() -> void:
 # One cycle is 5 minutes: a long day, a slow dusk, a night, a dawn. There is one wave in the day and one in the
 # night, well apart, so there is time to set up. The clock only runs while the game is not paused.
 const NIGHT_DARKNESS := 1.0        # how much of the day the night takes away (1 = pitch black); lights add back the same amount
-const WAVE_SIZE := 2.0             # waves come about three times less often than they used to, so each one is bigger
+const WAVE_SIZE := 1.3             # waves come about three times less often than they used to, so each one is bigger
 const WAVES_PER_SECTOR := 5         # each sector lasts this many waves; its boss arrives when the last one starts
 var waves_in_sector := 0            # waves started since the front sector opened
 const CYCLE := 120.0
@@ -209,11 +209,11 @@ func _spawn_position_raw() -> Vector2:
 func wave_plan(picked: Array) -> Array:
 	var w: int = Game.run_stats.waves
 	var factor := WAVE_SIZE * Game.team_scale(Game.WAVE_TEAM_SCALE) * early_size_mult(w)        # every group grows with the number of players (LAN and split screen)
-	var bonus := int(w * 0.5) + (Game.sectors_unlocked.size() - 1)
+	var bonus := int(w * 0.4) + (Game.sectors_unlocked.size() - 1)
 	var level_bonus := int(w / 3.0)
 	var plan := []
 	if night_wave:
-		factor *= 1.5                  # a night wave is a bigger one
+		factor *= 1.3                  # a night wave is a bigger one
 		level_bonus += 1
 	for e in picked:
 		plan.append({"name": e.name, "amount": int(ceil((e.amount + bonus) * factor)), "level": e.level + level_bonus})
@@ -261,10 +261,6 @@ func _boss_arrives() -> void:
 		if b.sector_id == front and !b.awake and !b.dead:
 			b.arrive()
 
-## How strong the early waves' enemies are: 80% health in wave 1, 90% in wave 2, full strength from wave 3 (the first waves are also much smaller, see early_size_mult).
-static func early_health_mult(wave: int) -> float:
-	return clampf(0.8 + 0.1 * float(wave - 1), 0.8, 1.0)
-
 static func early_size_mult(wave: int) -> float:
 	return 0.4 if wave <= 1 else (0.7 if wave == 2 else 1.0)
 
@@ -293,8 +289,6 @@ func spawn_enemies(enemies, draw_lines := []) -> void:
 			enemy_scene.level = enemy.level
 			enemy_scene.position = _spawn_position()
 			$Enemies.add_child(enemy_scene)
-			enemy_scene.max_health *= early_health_mult(Game.run_stats.waves)          # weaker enemies in the first waves
-			enemy_scene.health = enemy_scene.max_health
 			if enemy_scene.has_method("apply_affix") and randf() < elite_chance:
 				enemy_scene.apply_affix(ELITE_AFFIXES.pick_random())
 	
