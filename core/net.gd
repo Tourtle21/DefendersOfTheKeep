@@ -203,7 +203,11 @@ func net_input(state: Dictionary) -> void:
 	if !is_host:
 		return
 	var id := multiplayer.get_remote_sender_id()
-	var pl = remote_players.get(id)
+	apply_input_state(id, remote_players.get(id), state)
+
+## Drive an avatar from one input state: {move, aim (a world point), attack, ability, dash, ultimate}.
+## Used for network clients and for local split-screen players alike.
+func apply_input_state(id: int, pl, state: Dictionary) -> void:
 	if pl == null or !is_instance_valid(pl):
 		return
 	pl.remote_input = {"move": state.move, "aim": state.aim}
@@ -223,6 +227,12 @@ func net_input(state: Dictionary) -> void:
 		if state.ultimate and !prev.get("ultimate", false) and item.has_method("use_ultimate"):
 			item.use_ultimate()
 	_prev[id] = state
+
+## Next weapon slot for an avatar.
+func switch_weapon(pl) -> void:
+	if pl.weapon_slots.size() > 1:
+		pl.active_slot = (pl.active_slot + 1) % pl.weapon_slots.size()
+		pl.equip_item(Game.weapon_info(pl.weapon_slots[pl.active_slot]))
 
 const FORGE_POS := Vector2(-62, 22)
 
@@ -322,9 +332,7 @@ func net_command(cmd: Dictionary) -> void:
 		"interact":
 			_interact(pl)
 		"switch":
-			if pl.weapon_slots.size() > 1:
-				pl.active_slot = (pl.active_slot + 1) % pl.weapon_slots.size()
-				pl.equip_item(Game.weapon_info(pl.weapon_slots[pl.active_slot]))
+			switch_weapon(pl)
 		"draft":
 			if Game.draft_active and cmd.id in Game.draft_options:
 				Game.take_draft_card(cmd.id)

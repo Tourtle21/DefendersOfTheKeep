@@ -35,6 +35,9 @@ var _bound := true
 var _last_aim_ms := -100000
 var _scan_clock := 0.0
 var _art: Control
+var _split_box: Control            # split screen: player 1's view (the container and its viewport)
+var _split_vp: SubViewport
+var _dev := -1                     # -1: any controller; 0 in split screen (player 1 only)
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -81,16 +84,21 @@ func _bind(action: String, ev: InputEvent) -> void:
 
 func _axis_event(axis: int, value: float) -> InputEventJoypadMotion:
 	var e := InputEventJoypadMotion.new()
+	e.device = _dev
 	e.axis = axis
 	e.axis_value = value
 	return e
 
 func _button_event(index: int) -> InputEventJoypadButton:
 	var e := InputEventJoypadButton.new()
+	e.device = _dev
 	e.button_index = index
 	return e
 
 func _register() -> void:
+	_register_actions()
+
+func _register_actions() -> void:
 	_bind("move_left", _axis_event(JOY_AXIS_LEFT_X, -1.0))
 	_bind("move_right", _axis_event(JOY_AXIS_LEFT_X, 1.0))
 	_bind("move_up", _axis_event(JOY_AXIS_LEFT_Y, -1.0))
@@ -104,6 +112,40 @@ func _register() -> void:
 	# menus: A presses the focused control, B goes back (the project's ui actions only had the keyboard)
 	InputMap.action_add_event("ui_accept", _button_event(JOY_BUTTON_A))
 	InputMap.action_add_event("ui_cancel", _button_event(JOY_BUTTON_B))
+
+## Split screen: only controller 0 and the keyboard / mouse drive player 1; the other controllers drive players 2 to 4.
+func enter_split(box: Control, vp: SubViewport, p1_device := -1) -> void:
+	_split_box = box
+	_split_vp = vp
+	_dev = p1_device if p1_device >= 0 else 99            # keyboard and mouse: no controller drives player 1
+	for action in _pad_events:
+		for e in _pad_events[action]:
+			InputMap.action_erase_event(action, e)
+	_pad_events.clear()
+	var keep_mode := mode
+	mode = "all"
+	_bound = true
+	_register_actions()
+	_set_mode(keep_mode if keep_mode != "all" else "none")
+	_set_mode("all")
+	cursor = vp.size / 2.0
+
+func leave_split() -> void:
+	_split_box = null
+	_split_vp = null
+	_dev = -1
+	for action in _pad_events:
+		for e in _pad_events[action]:
+			InputMap.action_erase_event(action, e)
+	_pad_events.clear()
+	_register_actions()
+
+## The canvas transform and size of the view player 1 sees (their own SubViewport when split).
+func view_transform(vp: Viewport) -> Transform2D:
+	return _split_vp.get_canvas_transform() if _split_vp != null else vp.get_canvas_transform()
+
+func view_size(vp: Viewport) -> Vector2:
+	return Vector2(_split_vp.size) if _split_vp != null else vp.get_visible_rect().size
 
 ## Which pad buttons act as game actions: all of them outside, only A (interact) in the keep, none behind a menu.
 func _set_mode(m: String) -> void:
@@ -143,10 +185,16 @@ func _release_triggers() -> void:
 
 ## Pointer position in viewport pixels (the OS mouse, or the pad's aim point).
 func screen_mouse(vp: Viewport) -> Vector2:
-	return cursor if using_pad else vp.get_mouse_position()
+	if using_pad:
+		return cursor
+	if _split_box != null:
+		return get_viewport().get_mouse_position() - _split_box.global_position      # inside player 1's view
+	return vp.get_mouse_position()
 
 ## Pointer position in the world the node draws in.
 func world_mouse(n: CanvasItem) -> Vector2:
+	if _split_vp != null:
+		return _split_vp.get_canvas_transform().affine_inverse() * screen_mouse(n.get_viewport())
 	if !using_pad:
 		return n.get_global_mouse_position()
 	return n.get_canvas_transform().affine_inverse() * cursor
@@ -162,6 +210,8 @@ func _input(event: InputEvent) -> void:
 		if event.device != INJECTED and using_pad and event.pressed:
 			_set_using(false)
 		return
+	if (event is InputEventJoypadMotion or event is InputEventJoypadButton) and _split_box != null and event.device != _dev:
+		return                                       # split screen: that controller belongs to another player
 	if event is InputEventJoypadMotion:
 		_axes[event.axis] = event.axis_value
 		if mode == "none":
@@ -248,10 +298,11 @@ func _process(delta: float) -> void:
 	if !using_pad or mode == "none":
 		return
 	var vp := get_viewport()
+	var vsize := view_size(vp)
 	if mode == "keep":
 		# a free cursor over the map: the right stick (or the left) moves it
 		var v := _stick(JOY_AXIS_RIGHT_X, JOY_AXIS_RIGHT_Y) + _stick(JOY_AXIS_LEFT_X, JOY_AXIS_LEFT_Y)
-		cursor = (cursor + v.limit_length(1.0) * KEEP_CURSOR_SPEED * delta).clamp(Vector2.ZERO, vp.get_visible_rect().size)
+		cursor = (cursor + v.limit_length(1.0) * KEEP_CURSOR_SPEED * delta).clamp(Vector2.ZERO, vsize)
 		_art.queue_redraw()
 		return
 	var right := _stick(JOY_AXIS_RIGHT_X, JOY_AXIS_RIGHT_Y)
@@ -262,8 +313,8 @@ func _process(delta: float) -> void:
 		_last_aim_ms = now
 	elif left != Vector2.ZERO and now - _last_aim_ms > 1500:
 		aim_dir = left.normalized()           # hands-free: face where you walk
-	var xf := vp.get_canvas_transform()
-	var origin := vp.get_visible_rect().size / 2.0
+	var xf := view_transform(vp)
+	var origin := vsize / 2.0
 	var p := _local_player()
 	if p != null:
 		origin = xf * p.global_position
@@ -303,7 +354,7 @@ func _scan_blocked() -> void:
 	if m == "none":
 		_set_using(false)               # a menu: give the mouse back (the menus have their own d-pad navigation)
 	elif m == "keep" and using_pad:
-		cursor = get_viewport().get_visible_rect().size / 2.0       # the cursor starts in the middle of the map view
+		cursor = view_size(get_viewport()) / 2.0       # the cursor starts in the middle of the map view
 	if was_keep and m == "all":
 		_release_triggers()
 

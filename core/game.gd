@@ -838,6 +838,7 @@ func buy_unlock(id: String) -> bool:
 	return true
 
 var _menu_done := false             # the start screen shows once per launch
+var _local_devices: Array = []      # split screen: slot -> controller id (-1 = keyboard and mouse); empty = a normal single-player game
 
 func restart_run() -> void:
 	get_tree().paused = false

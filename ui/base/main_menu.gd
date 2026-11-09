@@ -4,11 +4,13 @@ class_name MainMenu
 ## Shown once per launch; restarting a run goes straight back into the game.
 
 const UiKit = preload("res://ui/cards/ui_kit.gd")
+const LocalLobby = preload("res://ui/base/local_lobby.gd")
 const DrawsUi = preload("res://ui/base/draws_ui.gd")
 var root_ctl: Control
 var skills: SkillTreeUi
 var codex: CodexUi
 var collection: CollectionUi
+var lobby
 var draws
 var stats_label: Label
 
@@ -61,7 +63,9 @@ func _ready() -> void:
 	play.text = "Play game"
 	play.custom_minimum_size = Vector2(0, 56)
 	play.add_theme_font_size_override("font_size", 24)
-	play.pressed.connect(_play)
+	play.pressed.connect(func():
+		Game._local_devices = []                  # a normal single-player game
+		_play())
 	box.add_child(play)
 	collection = CollectionUi.new()
 	add_child(collection)
@@ -73,6 +77,10 @@ func _ready() -> void:
 	add_child(codex)
 	draws = DrawsUi.new()
 	add_child(draws)
+	lobby = LocalLobby.new()
+	add_child(lobby)
+	lobby.started.connect(_play)
+	_button(box, "Local co-op (2-4 players, split screen)", func(): lobby.open())
 	_button(box, "Collection", func(): collection.open())      # tabs along the bottom switch between them
 	_button(box, "Quit", func():
 		Game.save_meta()

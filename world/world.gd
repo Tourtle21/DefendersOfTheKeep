@@ -58,6 +58,13 @@ func _ready() -> void:
 	add_child(preload("res://ui/forge/forge_ui.gd").new())
 	add_child(preload("res://scenery/forge/forge.gd").new())
 	add_child(preload("res://world/chest_spawner.gd").new())
+	if Game._local_devices.size() >= 2 and !Net.active:          # local split screen: the players chose their controllers in the lobby
+		var lp := preload("res://world/local_players.gd").new()
+		add_child(lp)
+		lp.setup(Game._local_devices.size())
+		var split := preload("res://world/split_screen.gd").new()
+		add_child(split)
+		split.setup(Game._local_devices.size(), lp)
 	DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_MAXIMIZED)
 	Input.set_custom_mouse_cursor(cursor_path, 0, Vector2(16, 16))
 	$Player/PointLight2D.energy = 0
