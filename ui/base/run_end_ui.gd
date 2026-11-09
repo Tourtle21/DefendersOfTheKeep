@@ -134,8 +134,10 @@ func _refresh(earned: int = -1) -> void:
 				is_new = true
 		if !is_new:
 			kept.append(pe)
-	var shown: Array = _rewards + kept
-	reward_head.text = "Flip your reward cards  (level %d)%s" % [Game.level_reached(), (" + %d kept" % kept.size()) if kept.size() > 0 else ""]
+	var shown: Array = _rewards                 # only what this run earned; older unclaimed ones wait in Drawn Cards
+	kept = []
+	var waiting: int = Game.waiting_draws().size()
+	reward_head.text = "Flip your reward cards  (level %d)%s" % [Game.level_reached(), ("   -   %d more waiting in Drawn Cards" % maxi(0, waiting - _rewards.size())) if waiting > _rewards.size() else ""]
 	if _rewards.is_empty():
 		reward_head.text = "No rewards this time. Survive wave 1 to earn cards."
 	recipe_label.text = "\n".join(Game.recipe_log)
