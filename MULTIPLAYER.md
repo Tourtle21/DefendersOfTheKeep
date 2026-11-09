@@ -97,3 +97,6 @@ Start pause. In a tower: A leaves, the right stick moves a cursor, LB / RB pick 
 put it back. Menus: d-pad + A / B, LB / RB switch tabs (`ui/cards/menu_pad.gd`; only the top-most menu reacts).
 Gameplay code asks `Pad.world_mouse(self)` instead of `get_global_mouse_position()` and `Pad.view_transform(vp)` instead of
 `vp.get_canvas_transform()`, so a co-op client (and a split-screen view) gets the stick-aimed point like any other aim.
+
+## Card Fuser
+The Card Fuser (`Net.CARD_FUSER_POS`, across the keep from the Forge) fuses two cards of the shared hand. The rules are `Game.fuse_preview` / `Game.fuse_hand`; clients send `card_fuse {a, b}` (hand positions) and the host checks they stand within 50 px. The snapshot carries `near_fuser` per player and `fuser` (slow key); the client screen is `fuser_box` in `net/client_view.gd`. Local split-screen players 2-4 do not have their own screen yet (menus go through player 1).

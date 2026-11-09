@@ -247,6 +247,14 @@ Every weapon has the same four slots, each with its own cooldown:
   Earthshaker (Bulwark Maul + Quake Pick), Starfall (Spellblade + Tempest Lash).
 - Tier 4: Worldbreaker (Earthshaker + Juggernaut), costs gold, iron and gems. Tier 5+: not built.
 
+## The Card Fuser
+- A second station on the other side of the keep from the Forge (x +62, the Forge is at -62). Interact to open it.
+- Pick two different cards in your hand of the same tier; pay 4 gold per tier; get one hybrid card of that tier with a fixed twist.
+  Recipes (Game.FUSE_RECIPES): Fireball+Frost Ring = Frostfire, Fireball+Flare = Solar Burst, Barricade+Spike Trap = Spiked Wall,
+  Sentry+Spike Trap = Spiked Sentry, Sentry+Torch = Beacon Turret, Mender+Torch = Healing Lantern, Barricade+Torch = Bonfire Wall.
+- Fused cards live in Game.CARDS with "fused": true and are never drawn, offered as rewards or unlocked; they exist only in the hand.
+- Not built: art of their own (they reuse a parent's frame), a split-screen screen for players 2-4.
+
 ## Quadrants and progression within a run
 The world is split into quadrants around the Keep, each locked at the start.
 - Each quadrant is a distinct **environment**: its own ground, props, lighting and
@@ -476,7 +484,7 @@ mind (see Networking) but not built yet.
     Fire damage and glowing-weapon hits light the enemy for 2 to 2.5 s. New: Torch (free starter building card, light radius by tier,
     twists wide field / blaze), Flare (spell, realm 1), Torch (weapon, 16 Shards, Flare / Flame Dash / Sunburst). Cards with "night": true
     are drawn 3x as often at night. Dash goes the way you move (falls back to the cursor standing still). Co-op clients see the night.
-    Tests: night.gd, wave_director.gd, token_flow.gd, night_shots.gd (window).
+    Tests: night.gd, wave_director.gd, wave_draw.gd, night_shots.gd (window).
 
 46. **Rewards, rarity and legendaries** (core/game.gd, ui/base/run_end_ui.gd): reward cards need a run that got past the first wave
     (waves >= 2); then 1/3/5/6/7/8 cards for the realms opened (REWARD_COUNT) and 10 + a legendary for winning (win_run ->

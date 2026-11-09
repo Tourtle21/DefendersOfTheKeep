@@ -208,6 +208,49 @@ const CARDS := {
 		"radius": 60.0, "heal_per_sec": 14.0, "duration": 60.0, "speed": 260.0, "color": Color(0.4, 1.0, 0.6),
 		"desc": "Moss and gem: a wide, strong healing field.",
 	},
+	# --- fused cards: only made at the Card Fuser (FUSE_RECIPES), never drawn, offered or unlocked ---
+	"frostfire": {
+		"fused": true, "element": "fire", "night": true,
+		"name": "Frostfire", "mana": 35, "res": {}, "kind": "fireball", "art": "fireball",
+		"radius": 55.0, "damage": 7.5, "speed": 160.0, "color": Color(0.7, 0.85, 1.0),
+		"desc": "Fireball and Frost Ring fused: a bigger blast that leaves a lingering patch.",
+	},
+	"solar_burst": {
+		"fused": true, "element": "fire", "night": true,
+		"name": "Solar Burst", "mana": 40, "res": {}, "kind": "fireball", "art": "fireball",
+		"radius": 70.0, "damage": 6.0, "speed": 170.0, "color": Color(1.0, 0.9, 0.5),
+		"desc": "Fireball and Flare fused: a bright blast that bursts into fragments.",
+	},
+	"spiked_wall": {
+		"fused": true,
+		"name": "Spiked Wall", "mana": 0, "res": {"stone": 3, "stick": 2}, "kind": "build", "build": "barricade", "art": "thorn_hedge",
+		"radius": 18.0, "hp": 45.0, "thorns": 3.0, "duration": 0.0, "speed": 260.0, "color": Color(0.75, 0.7, 0.6),
+		"desc": "Barricade and Spike Trap fused: a sturdy wall that bites back.",
+	},
+	"spiked_sentry": {
+		"fused": true,
+		"name": "Spiked Sentry", "mana": 0, "res": {"stone": 2, "stick": 3, "gold": 3}, "kind": "build", "build": "sentry", "art": "sentry",
+		"radius": 12.0, "range": 125.0, "damage": 2.4, "duration": 55.0, "speed": 260.0,
+		"desc": "Spike Trap and Sentry fused: a longer-lived sentry whose shots splash.",
+	},
+	"beacon_turret": {
+		"fused": true, "element": "fire", "night": true, "light": 75.0,
+		"name": "Beacon Turret", "mana": 0, "res": {"stone": 2, "stick": 3, "gold": 3}, "kind": "build", "build": "sentry", "art": "ember_turret",
+		"radius": 12.0, "range": 120.0, "damage": 2.2, "duration": 55.0, "speed": 260.0, "color": Color(1.0, 0.7, 0.25),
+		"desc": "Torch and Sentry fused: a sentry that lights its surroundings and fires at two targets.",
+	},
+	"healing_lantern": {
+		"fused": true, "night": true, "light": 70.0,
+		"name": "Healing Lantern", "mana": 0, "res": {"stone": 2, "stick": 2, "gold": 2}, "kind": "build", "build": "mender", "art": "mender",
+		"radius": 55.0, "heal_per_sec": 8.0, "duration": 70.0, "speed": 260.0, "color": Color(1.0, 0.85, 0.5),
+		"desc": "Mender Totem and Torch fused: heals faster, and the light keeps the dark away.",
+	},
+	"bonfire_wall": {
+		"fused": true, "element": "fire", "night": true, "light": 80.0,
+		"name": "Bonfire Wall", "mana": 0, "res": {"stone": 3, "stick": 2}, "kind": "build", "build": "barricade", "art": "magma_wall",
+		"radius": 18.0, "hp": 36.0, "thorns": 1.5, "duration": 0.0, "speed": 260.0, "color": Color(1.0, 0.55, 0.2),
+		"desc": "Barricade and Torch fused: a wall that burns bright and mends itself.",
+	},
 }
 
 const UPGRADES := {
@@ -1199,6 +1242,56 @@ func stats_of(entry: String) -> Dictionary:
 	c.twist = entry_twist(entry)
 	return c
 
+## Card Fuser recipes: two different cards of the same tier become one fused card of that tier, which comes with a fixed twist.
+## key = the two card ids sorted and joined with "+"; the cost is gold.
+const FUSE_RECIPES := {
+	"fireball+frost_ring": {"result": "frostfire", "twist": "aftermath"},
+	"fireball+flare": {"result": "solar_burst", "twist": "shrapnel"},
+	"barricade+spike_trap": {"result": "spiked_wall", "twist": "thorned"},
+	"sentry+spike_trap": {"result": "spiked_sentry", "twist": "blast_shot"},
+	"sentry+torch": {"result": "beacon_turret", "twist": "twin_shot"},
+	"mender+torch": {"result": "healing_lantern", "twist": "swift_heal"},
+	"barricade+torch": {"result": "bonfire_wall", "twist": "regrow"},
+}
+
+static func fuse_key(a: String, b: String) -> String:
+	var x := entry_id(a)
+	var y := entry_id(b)
+	return "%s+%s" % ([x, y] if x < y else [y, x])
+
+func fuse_cost(tier: int) -> Dictionary:
+	return {"gold": 4 * tier}
+
+## What fusing hand cards i and j would do: {ok, reason, result (entry), cost}. "reason" says why not when ok is false.
+## `cards` and `have` default to this machine's hand and resources; a LAN client passes the ones from the snapshot.
+func fuse_preview(i: int, j: int, cards: Array = hand, have: Dictionary = resources) -> Dictionary:
+	if i == j or i < 0 or j < 0 or i >= cards.size() or j >= cards.size():
+		return {"ok": false, "reason": "Pick two different cards."}
+	var r: Dictionary = FUSE_RECIPES.get(fuse_key(cards[i], cards[j]), {})
+	if r.is_empty():
+		return {"ok": false, "reason": "These two do not fuse."}
+	if entry_tier(cards[i]) != entry_tier(cards[j]):
+		return {"ok": false, "reason": "Both cards must be the same tier."}
+	var t := entry_tier(cards[i])
+	var cost := fuse_cost(t)
+	var out := {"ok": true, "reason": "", "result": make_entry(r.result, t, r.twist), "cost": cost}
+	if int(have.get("gold", 0)) < int(cost.gold):
+		out.ok = false
+		out.reason = "Needs %d gold in the keep." % cost.gold
+	return out
+
+func fuse_hand(i: int, j: int) -> bool:
+	var p := fuse_preview(i, j)
+	if !p.ok:
+		return false
+	pay(p.cost)
+	hand.remove_at(maxi(i, j))
+	hand.remove_at(mini(i, j))
+	add_to_hand(p.result)
+	Sfx.play("unlock", 0.0)
+	hand_changed.emit()
+	return true
+
 ## Two identical cards (same card, same tier) combine into one of the next tier, as far as
 ## the tier you have unlocked for that card.
 func can_merge(i: int, j: int) -> bool:
@@ -1586,7 +1679,7 @@ func make_rewards(won := false) -> Array:
 		else:
 			var bag := []
 			for id in CARDS:
-				if id in used or (is_legendary_card(id) and !owns_card(id)):
+				if id in used or CARDS[id].get("fused", false) or (is_legendary_card(id) and !owns_card(id)):
 					continue                       # a legendary card cannot be offered before you have won
 				var cl := card_level(id)
 				if cl > top:
@@ -1602,7 +1695,7 @@ func make_rewards(won := false) -> Array:
 				# nothing new and nothing to raise at this level: a spare is turned into Shards
 				var shallow := []
 				for id in CARDS:
-					if card_level(id) <= top and !(is_legendary_card(id) and !owns_card(id)):
+					if card_level(id) <= top and !CARDS[id].get("fused", false) and !(is_legendary_card(id) and !owns_card(id)):
 						shallow.append(id)
 				entry.id = shallow.pick_random()
 				entry.realm = card_level(entry.id)

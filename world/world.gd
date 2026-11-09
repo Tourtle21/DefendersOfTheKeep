@@ -57,6 +57,8 @@ func _ready() -> void:
 		add_child(CritterSpawner.new())
 	add_child(preload("res://ui/forge/forge_ui.gd").new())
 	add_child(preload("res://scenery/forge/forge.gd").new())
+	add_child(preload("res://ui/forge/card_fuse_ui.gd").new())
+	add_child(preload("res://scenery/card_fuser/card_fuser.gd").new())
 	add_child(preload("res://world/chest_spawner.gd").new())
 	if Game._local_devices.size() >= 2 and !Net.active:          # local split screen: the players chose their controllers in the lobby
 		var lp := preload("res://world/local_players.gd").new()

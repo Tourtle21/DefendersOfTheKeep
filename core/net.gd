@@ -235,6 +235,7 @@ func switch_weapon(pl) -> void:
 		pl.equip_item(Game.weapon_info(pl.weapon_slots[pl.active_slot]))
 
 const FORGE_POS := Vector2(-62, 22)
+const CARD_FUSER_POS := Vector2(62, 22)        # the Card Fuser, across the keep from the Forge
 
 ## Give a co-op avatar a weapon: a free slot if there is one, otherwise swap with the
 ## active weapon (the old one is dropped as a pickup).
@@ -276,6 +277,12 @@ func _interact(pl) -> void:
 		if is_instance_valid(p) and p.global_position.distance_to(pl.global_position) <= 28.0:
 			p.pickup_by(pl)
 			return
+
+## A LAN client or split-screen player fuses two cards of the shared hand at the Card Fuser.
+func card_fuse(pl, a: int, b: int) -> void:
+	if pl == null or !is_instance_valid(pl) or pl.global_position.distance_to(CARD_FUSER_POS) > 50.0:
+		return
+	Game.fuse_hand(a, b)
 
 func _fuse(pl, a: int, b: int) -> void:
 	if pl.global_position.distance_to(FORGE_POS) > 50.0:
@@ -415,6 +422,8 @@ func net_command(cmd: Dictionary) -> void:
 		"cast":
 			if pl.is_in_tower:
 				Game.cast(cmd.card, cmd.pos, pl)
+		"card_fuse":
+			card_fuse(pl, int(cmd.a), int(cmd.b))
 		"forge_store":
 			forge_toggle_store(pl, str(cmd.src), int(cmd.idx))
 		"forge_craft":
@@ -487,13 +496,13 @@ func build_snapshot() -> Dictionary:
 	var players := []
 	for p in get_tree().get_nodes_in_group("player"):
 		if is_instance_valid(p):
-			players.append({"id": p.get_meta("peer_id", 1), "pos": p.global_position, "hp": (p.remote_hp if p.remote_controlled else 228.0) / 228.0, "base": p.is_in_tower, "slots": p.weapon_slots, "active": p.active_slot, "near_forge": p.global_position.distance_to(FORGE_POS) <= 50.0, "down": (ceili(p.respawn_left) if p.downed else 0), "carried": (p.carried if p.remote_controlled else Game.carried)})
+			players.append({"id": p.get_meta("peer_id", 1), "pos": p.global_position, "hp": (p.remote_hp if p.remote_controlled else 228.0) / 228.0, "base": p.is_in_tower, "slots": p.weapon_slots, "active": p.active_slot, "near_forge": p.global_position.distance_to(FORGE_POS) <= 50.0, "near_fuser": p.global_position.distance_to(CARD_FUSER_POS) <= 50.0, "down": (ceili(p.respawn_left) if p.downed else 0), "carried": (p.carried if p.remote_controlled else Game.carried)})
 	return {
 		"players": players,
 		"keep": Game.keep_hp, "mana": Game.mana, "wave": Game.run_stats.waves,
 		"max_mana": Game.max_mana(), "hand": Game.hand, "resources": Game.resources, "deck": Game.deck,
 		"upgrades": Game.upgrade_levels, "keep_max": Game.keep_max(),
-		"roster": roster(), "lobby": lobby, "draft": Game.draft_options, "forge": FORGE_POS,
+		"roster": roster(), "lobby": lobby, "draft": Game.draft_options, "forge": FORGE_POS, "fuser": CARD_FUSER_POS,
 		"sectors": Game.sectors_unlocked, "store": Game._forge_store.duplicate(), "t": Time.get_ticks_msec(),
 	}
 
@@ -503,7 +512,7 @@ var my_cd := {}                    # client: this player's weapon cooldowns (sen
 func net_cooldowns(cd: Dictionary) -> void:
 	my_cd = cd
 
-const SLOW_SNAPSHOT_KEYS := ["hand", "resources", "deck", "upgrades", "roster", "lobby", "draft", "forge", "sectors", "max_mana", "keep_max", "store"]
+const SLOW_SNAPSHOT_KEYS := ["hand", "resources", "deck", "upgrades", "roster", "lobby", "draft", "forge", "fuser", "sectors", "max_mana", "keep_max", "store"]
 var _last_slow := {}
 var _slow_cache := {}              # client: the latest slow part, merged into every snapshot
 

@@ -25,6 +25,9 @@ var _ended_label: Label
 var _draft_key := ""
 var _forge_sel: Array = []        # positions in the forge list (ForgeLayout.items) the player picked
 var _forge_key := ""
+var fuser_box: VBoxContainer
+var _fuse_sel: Array = []        # hand positions picked at the Card Fuser
+var _fuse_key := ""
 const ForgeLayout = preload("res://ui/forge/forge_layout.gd")
 var _hand_key := ""
 var _in_base := false
@@ -154,6 +157,10 @@ func _ready() -> void:
 	forge_box.position = Vector2(12, 110)
 	forge_box.visible = false
 	layer.add_child(forge_box)
+	fuser_box = VBoxContainer.new()
+	fuser_box.position = Vector2(12, 110)
+	fuser_box.visible = false
+	layer.add_child(fuser_box)
 	ability_hud = AbilityHud.new()
 	add_child(ability_hud)
 	add_child(CrystalAlert.new())
@@ -232,6 +239,9 @@ func _draw() -> void:
 		return
 	draw_rect(Rect2(snap.forge - Vector2(8, 4), Vector2(16, 8)), Color(0.6, 0.65, 0.7))
 	draw_string(ThemeDB.fallback_font, snap.forge + Vector2(-10, 14), "forge", HORIZONTAL_ALIGNMENT_LEFT, -1, 7, Color.WHITE)
+	if snap.has("fuser"):
+		draw_rect(Rect2(snap.fuser - Vector2(8, 4), Vector2(16, 8)), Color(0.6, 0.55, 0.72))
+		draw_string(ThemeDB.fallback_font, snap.fuser + Vector2(-14, 14), "fuser", HORIZONTAL_ALIGNMENT_LEFT, -1, 7, Color.WHITE)
 	# enemies, bosses, chests, pickups, structures... are replicated puppets (Rep), drawn by themselves
 	for p in snap.players:
 		var mine: bool = p.id == multiplayer.get_unique_id()
@@ -381,6 +391,54 @@ func _update_loot_ui(snap: Dictionary) -> void:
 			row.add_child(store_b)
 	else:
 		_forge_sel = []
+	# Card Fuser: the shared hand, pick two cards and the host fuses them
+	fuser_box.visible = me.get("near_fuser", false)
+	if fuser_box.visible:
+		var hand: Array = snap.get("hand", [])
+		var res: Dictionary = snap.get("resources", {})
+		var ukey := str(hand) + str(_fuse_sel) + str(res.get("gold", 0))
+		if ukey != _fuse_key:
+			_fuse_key = ukey
+			for c in fuser_box.get_children():
+				fuser_box.remove_child(c)
+				c.queue_free()
+			var t := Label.new()
+			t.text = "Card Fuser: pick two cards of the same tier (costs gold)"
+			fuser_box.add_child(t)
+			var row := HBoxContainer.new()
+			row.add_theme_constant_override("separation", 8)
+			fuser_box.add_child(row)
+			for i in hand.size():
+				var v := CardView.new()
+				v.setup(Game.entry_id(hand[i]), Game.entry_tier(hand[i]), "", Game.entry_twist(hand[i]))
+				var pos := i
+				v.ready.connect(func(): v.set_state(pos in _fuse_sel, true))
+				v.pressed_down.connect(func(_v):
+					if pos in _fuse_sel:
+						_fuse_sel.erase(pos)
+					else:
+						_fuse_sel.append(pos)
+						if _fuse_sel.size() > 2:
+							_fuse_sel.pop_front()
+					_fuse_key = "")
+				row.add_child(v)
+			var pv: Dictionary = {"ok": false, "reason": "Pick two cards."}
+			if _fuse_sel.size() == 2:
+				pv = Game.fuse_preview(_fuse_sel[0], _fuse_sel[1], hand, res)
+			var info := Label.new()
+			info.text = ("Makes %s for %d gold." % [Game.CARDS[Game.entry_id(pv.result)].name, pv.cost.gold]) if pv.ok else pv.reason
+			info.add_theme_color_override("font_color", Color(0.55, 1.0, 0.6) if pv.ok else Color(1, 0.8, 0.5))
+			fuser_box.add_child(info)
+			var go := Button.new()
+			go.text = "Fuse"
+			go.disabled = !pv.ok
+			go.pressed.connect(func():
+				Net.net_command.rpc_id(1, {"cmd": "card_fuse", "a": _fuse_sel[0], "b": _fuse_sel[1]})
+				_fuse_sel = []
+				_fuse_key = "")
+			fuser_box.add_child(go)
+	else:
+		_fuse_sel = []
 
 func _unhandled_input(event: InputEvent) -> void:
 	if (event is InputEventKey and event.pressed and !event.echo and event.keycode == KEY_Q) or event.is_action_pressed("switch_items"):

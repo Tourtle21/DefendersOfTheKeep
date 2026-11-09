@@ -101,7 +101,7 @@ func _button(parent: Node, text: String, cb: Callable) -> void:
 	parent.add_child(b)
 
 func _refresh() -> void:
-	stats_label.text = "Shards: %d     Cards unlocked: %d / %d     Best wave: %d" % [Game.meta.shards, Game.meta.unlocked.size(), Game.CARDS.size(), Game.meta.best_wave]
+	stats_label.text = "Shards: %d     Cards unlocked: %d / %d     Best wave: %d" % [Game.meta.shards, Game.meta.unlocked.size(), Game.CARDS.keys().filter(func(id): return !Game.CARDS[id].get("fused", false)).size(), Game.meta.best_wave]
 
 func _play() -> void:
 	Game._menu_done = true

@@ -78,7 +78,7 @@ func _refresh() -> void:
 		grid_area.remove_child(c)
 		c.queue_free()
 	_views.clear()
-	var ids: Array = Game.CARDS.keys()
+	var ids: Array = Game.CARDS.keys().filter(func(id): return !Game.CARDS[id].get("fused", false))
 	var order := {}
 	for i in ids.size():
 		order[ids[i]] = i
