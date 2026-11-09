@@ -46,6 +46,10 @@ func attack() -> void:
 		_combo = 0
 
 func use_ability() -> void:
+	if !ability_unlocked():
+		if ability_name != "":
+			_locked_note("The ability", 2)
+		return
 	var now := Time.get_ticks_msec() / 1000.0
 	if _chain > 0 and now < _chain_until:
 		_fleche()

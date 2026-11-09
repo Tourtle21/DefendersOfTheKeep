@@ -38,6 +38,10 @@ func attack() -> void:
 			WeaponUtil.hit(e, 3.0, o, 140.0)
 
 func use_ability() -> void:
+	if !ability_unlocked():
+		if ability_name != "":
+			_locked_note("The ability", 2)
+		return
 	if _ability_cd > 0.0 or _charging:
 		return
 	_charging = true

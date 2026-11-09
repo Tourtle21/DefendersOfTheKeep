@@ -224,12 +224,16 @@ func _add_spare_rows(id: String) -> void:
 	for pe in Game.meta.pending:
 		if pe.get("result", "") == "spare" and str(pe.id) == id and !by_tier.has(int(pe.tier)):
 			by_tier[int(pe.tier)] = pe
-	if by_tier.is_empty():
-		return
 	var col := VBoxContainer.new()
 	col.add_theme_constant_override("separation", 4)
 	var head := UiKit.heading("Spare copies", 15)
 	col.add_child(head)
+	if by_tier.is_empty():
+		var none := Label.new()
+		none.text = "None yet. Duplicates you draw at the end of a run land here."
+		none.add_theme_font_size_override("font_size", 13)
+		none.add_theme_color_override("font_color", Color(0.65, 0.7, 0.85))
+		col.add_child(none)
 	for t in by_tier:
 		var entry: Dictionary = by_tier[t]
 		var n := 0

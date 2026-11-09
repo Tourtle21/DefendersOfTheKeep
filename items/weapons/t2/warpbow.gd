@@ -21,6 +21,10 @@ func _init() -> void:
 	preview_dash = 0.0
 
 func use_ability() -> void:
+	if !ability_unlocked():
+		if ability_name != "":
+			_locked_note("The ability", 2)
+		return
 	var now := Time.get_ticks_msec() / 1000.0
 	if _anchor_until > now:
 		_anchor_until = 0.0
