@@ -127,7 +127,7 @@ func _refresh() -> void:
 				lines.append(str(inst.attack_name).split(" (")[0])
 			inst.free()
 		card.setup({"size": csize, "title": Fusion.display_name(id) if known else "???", "icon": _icon_of(str(_info.items[id].texture)) if known else null,
-			"glyph": "?" if !known else "", "tier": Game.weapon_tier_unlocked(id) if known else 0, "max_tier": 6, "lines": lines, "locked": locked,
+			"glyph": "?" if !known else "", "tier": Game.weapon_tier_unlocked(id) if known else 0, "max_tier": 6 if known else 0, "lines": lines, "locked": locked,
 			"accent": Game.rarity_color(Game.weapon_rarity(id)) if known else Color(0.4, 0.4, 0.5),
 			"footer": ("%d shards" % Game.WEAPON_UNLOCK_COSTS[id]) if locked and Game.WEAPON_UNLOCK_COSTS.has(id) else ("" if !known else ("STARTER" if id in ["sword", "pickaxe"] else ("UNLOCKED" if Game.weapon_unlocked(id) or Fusion.tier_of(id) > 1 else "")))})
 		card.position = Vector2(off_x + (n % cols) * (csize.x + 8.0), (n / cols) * (csize.y + 8.0))

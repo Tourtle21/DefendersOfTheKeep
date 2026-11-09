@@ -8,6 +8,7 @@ func fresh_meta(game) -> void:
 	game.meta.card_tiers = {}
 	game.meta.weapons = []
 	game.meta.shards = 0
+	game.meta.pending = []          # (a full vault turns every reward into Shards, which would hide the offers)
 func _initialize() -> void:
 	var game = root.get_node("Game")
 	game.save_path = "user://test_save.json"
@@ -42,7 +43,7 @@ func _initialize() -> void:
 					var cur: int = before.get(e.id, 1) if owned else 0
 					if e.result == "offer" and (owned or e.tier != 1): skipped_tier += 1
 					if e.result == "upgrade" and (!owned or e.tier != cur + 1 or e.tier > lvl): skipped_tier += 1
-				elif e.kind == "weapon" and game.WEAPON_LEVEL[e.id] > lvl:
+				elif e.kind == "weapon" and game.WEAPON_LEVEL.get(e.id, 1) > lvl:
 					violations += 1
 		print("level ", lvl, ": count ok ", count_ok, ", realm violations ", violations, ", tier-skipping rewards ", skipped_tier, ", results ", counts)
 	# the economy
@@ -80,6 +81,9 @@ func _initialize() -> void:
 	game.meta.card_tiers["fireball"] = 4
 	game.start_run()
 	print("new run deck (every card starts at tier 1, ceiling is the unlocked tier ", game.card_tier("fireball"), "): ", game.deck, " fireball damage ", game.stats("fireball").damage)
+	if DisplayServer.get_name() == "headless":
+		quit()                         # the rest takes screenshots, which needs a real window
+		return
 	# screenshots of the run end screen and collection
 	fresh_meta(game)
 	game.run_stats = {"kills": 90, "gold": 200, "waves": 14, "bosses": 3}
