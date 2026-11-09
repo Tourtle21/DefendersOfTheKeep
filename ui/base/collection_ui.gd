@@ -144,6 +144,9 @@ func _num_block(id: String, tier: int, next_tier: int) -> String:
 	return "\n".join(lines)
 
 func _show_detail() -> void:
+	for old in get_tree().get_nodes_in_group("spare_rows"):
+		if is_instance_valid(old) and is_ancestor_of(old):
+			old.queue_free()
 	for c in action_row.get_children():
 		action_row.remove_child(c)
 		c.queue_free()
@@ -182,6 +185,7 @@ func _show_detail() -> void:
 		txt += "\n\n[color=#ff9a7a]Not unlocked yet.[/color]"
 	detail.text = txt
 	if owned:
+		_add_spare_rows(id)
 		var up := Button.new()
 		if owned_tier >= Game.MAX_LEVEL:
 			up.text = "Max tier"
@@ -213,3 +217,52 @@ func _show_detail() -> void:
 			buy.text = "Found: unlock it for shards"
 			buy.disabled = true
 		action_row.add_child(buy)
+
+## Spare copies of this card waiting in the vault (from reward draws): merge, combine or sell them here.
+func _add_spare_rows(id: String) -> void:
+	var by_tier := {}
+	for pe in Game.meta.pending:
+		if pe.get("result", "") == "spare" and str(pe.id) == id and !by_tier.has(int(pe.tier)):
+			by_tier[int(pe.tier)] = pe
+	if by_tier.is_empty():
+		return
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 4)
+	var head := UiKit.heading("Spare copies", 15)
+	col.add_child(head)
+	for t in by_tier:
+		var entry: Dictionary = by_tier[t]
+		var n := 0
+		for pe in Game.meta.pending:
+			if pe.get("result", "") == "spare" and str(pe.id) == id and int(pe.tier) == t:
+				n += 1
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 6)
+		var l := Label.new()
+		l.text = "T%d x%d" % [t, n]
+		row.add_child(l)
+		var merge := Button.new()
+		merge.text = "Merge -> T%d" % (t + 1)
+		merge.disabled = !Game.spare_can_merge(entry)
+		merge.pressed.connect(func():
+			if Game.spare_merge(entry):
+				viewed_tier = -1
+				_refresh())
+		row.add_child(merge)
+		if !Game.spare_pair(entry).is_empty() and t < Game.MAX_LEVEL:
+			var comb := Button.new()
+			comb.text = "Combine -> T%d" % (t + 1)
+			comb.pressed.connect(func():
+				if Game.spare_combine(entry):
+					_refresh())
+			row.add_child(comb)
+		var sell := Button.new()
+		sell.text = "Sell +%d" % Game.spare_sell_value(entry)
+		sell.pressed.connect(func():
+			Game.spare_sell(entry)
+			_refresh())
+		row.add_child(sell)
+		col.add_child(row)
+	action_row.get_parent().add_child(col)
+	action_row.get_parent().move_child(col, action_row.get_index())
+	col.add_to_group("spare_rows")
