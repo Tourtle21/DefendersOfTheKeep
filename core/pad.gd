@@ -349,7 +349,7 @@ func _scan_blocked() -> void:
 							and c.size.x >= size.x * 0.8 and c.size.y >= size.y * 0.8:
 						menu = true
 	var m := "all"
-	if menu or get_tree().paused or Game.draft_active:
+	if menu or get_tree().paused or (Game.draft_active and Game.draft_owner_slot == 0):       # (another local player's chest choice does not lock player 1)
 		m = "none"
 	elif Game.local_in_base():
 		m = "keep"
