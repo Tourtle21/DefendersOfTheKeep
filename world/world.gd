@@ -177,8 +177,7 @@ func _spawn_position() -> Vector2:
 ## enemy types (brutes every third wave, runners from wave 4, spitters from wave 5, splitters from wave 6).
 func wave_plan(picked: Array) -> Array:
 	var w: int = Game.run_stats.waves
-	var players: int = max(1, get_tree().get_nodes_in_group("player").size())
-	var factor := WAVE_SIZE * (1.0 + 0.6 * (players - 1))        # every group grows with the number of players
+	var factor := WAVE_SIZE * Game.team_scale(0.75)        # every group grows with the number of players (LAN and split screen)
 	var bonus := int(w * 0.5) + (Game.sectors_unlocked.size() - 1)
 	var level_bonus := int(w / 3.0)
 	var plan := []

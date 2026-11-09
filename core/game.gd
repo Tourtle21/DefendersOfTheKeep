@@ -847,8 +847,17 @@ func restart_run() -> void:
 func max_mana() -> float:
 	return 100.0 + 25.0 * upgrade_levels.get("max_mana", 0) + bonus("mana_max")
 
+## How many players are in this game: you, co-op friends over LAN and local split-screen players.
+func player_count() -> int:
+	return maxi(1, get_tree().get_nodes_in_group("player").size())
+
+## 1.0 for one player, growing by `per` for every extra player (LAN or split screen). Waves, bosses and the shared
+## mana pool all use it, so a team of four faces roughly four players' worth of enemies.
+func team_scale(per: float) -> float:
+	return 1.0 + per * float(player_count() - 1)
+
 func mana_regen() -> float:
-	return 3.0 + 1.5 * upgrade_levels.get("regen", 0) + bonus("mana_regen")
+	return (3.0 + 1.5 * upgrade_levels.get("regen", 0) + bonus("mana_regen")) * team_scale(0.35)      # one shared mana pool, more people casting from it
 
 func draw_interval() -> float:
 	return max(1.5, (6.0 - 0.8 * upgrade_levels.get("draw", 0)) * (1.0 - bonus("draw_speed")))
@@ -1019,6 +1028,18 @@ func tower_at(pos: Vector2, radius: float, skip: Node = null):
 			best = t
 	return best
 
+## The player inside this tower, or null. A tower holds one person at a time.
+func tower_occupant(tower: Node):
+	for p in get_tree().get_nodes_in_group("player"):
+		if is_instance_valid(p) and p.is_in_tower and current_tower(p) == tower:
+			return p
+	return null
+
+## Is someone other than `who` inside this tower?
+func tower_taken(tower: Node, who: Node) -> bool:
+	var occ = tower_occupant(tower)
+	return occ != null and occ != who
+
 func current_tower(player: Node):
 	var best = null
 	for t in all_towers():
@@ -1033,6 +1054,9 @@ func teleport_to_tower(player: Node, target: Node, visuals := true) -> bool:
 		return false
 	var cur = current_tower(player)
 	if cur == target:
+		return false
+	if tower_taken(target, player):
+		announce.emit("That tower is already in use.")
 		return false
 	if visuals:
 		if cur != null:

@@ -370,6 +370,9 @@ func _set_base(pl, on: bool) -> void:
 		var tower = _nearest_tower(pl.global_position, 60.0)
 		if tower == null:
 			return
+		if Game.tower_taken(tower, pl):
+			Game.announce.emit("That tower is already in use.")          # one person per tower
+			return
 		pl.is_in_tower = true
 		pl.global_position = tower.global_position - Vector2(0, 10)
 		Game.enter_base(pl)

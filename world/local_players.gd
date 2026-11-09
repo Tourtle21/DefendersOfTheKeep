@@ -8,6 +8,7 @@ const DEAD := 0.25
 const AIM_REACH := 70.0
 
 var avatars := {}                # slot (1..3) -> player node
+var keep_uis := {}               # slot -> LocalKeepUi (made by the split screen once the views exist)
 var _aim_dir := {}
 var _last_aim_ms := {}
 var _prev_btn := {}
@@ -51,7 +52,7 @@ func _stick(dev: int, ax: int, ay: int) -> Vector2:
 func _held(dev: int, b: int) -> bool:
 	return Input.is_joy_button_pressed(dev, b)
 
-func _physics_process(_delta: float) -> void:
+func _physics_process(delta: float) -> void:
 	if get_tree().paused:
 		return
 	for slot in avatars:
@@ -59,6 +60,15 @@ func _physics_process(_delta: float) -> void:
 		if !is_instance_valid(pl):
 			continue
 		var dev: int = int(Game._local_devices[slot]) if slot < Game._local_devices.size() else slot       # the controller this player claimed in the lobby
+		if pl.is_in_tower:
+			# inside a tower the controller drives the keep screen instead of the avatar
+			Net.apply_input_state(FIRST_ID + slot, pl, {"move": Vector2.ZERO, "aim": pl.global_position, "attack": false, "ability": false, "dash": false, "ultimate": false})
+			if keep_uis.has(slot):
+				keep_uis[slot].poll(dev, delta)
+			_prev_btn[slot] = {"a": true, "x": true}              # a press that was for the keep screen must not also be a walk-around press
+			continue
+		elif keep_uis.has(slot):
+			keep_uis[slot].poll(dev, delta)                       # hides the keep screen again
 		var left := _stick(dev, JOY_AXIS_LEFT_X, JOY_AXIS_LEFT_Y)
 		var right := _stick(dev, JOY_AXIS_RIGHT_X, JOY_AXIS_RIGHT_Y)
 		var now := Time.get_ticks_msec()

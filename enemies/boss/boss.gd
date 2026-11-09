@@ -157,9 +157,9 @@ func _physics_process(delta: float) -> void:
 	if !awake:
 		if true:                       # bosses do not sleep: it spawns with the run and comes for you
 			awake = true
-			var n: int = get_tree().get_nodes_in_group("player").size()
+			var n: int = Game.player_count()
 			if n > 1:
-				max_health *= 1.0 + 0.6 * (n - 1)       # more players, tougher boss
+				max_health *= Game.team_scale(0.8)      # more players, tougher boss
 				health = max_health
 			_state = "intro"
 			_intro = 1.3

@@ -4,6 +4,9 @@ var entered = false
 
 func _input(event: InputEvent) -> void:
 	if (open or entered) and event.is_action_pressed("interact"):
+		if !entered and Game.tower_taken(get_parent(), get_parent().get_parent().get_node("Player")):
+			Game.announce.emit("That tower is already in use.")          # one person per tower
+			return
 		entered = !entered
 		if entered:
 			get_parent().get_parent().get_node("Player").is_in_tower = true
