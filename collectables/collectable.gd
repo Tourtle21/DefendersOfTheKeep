@@ -38,10 +38,15 @@ func _input(event: InputEvent) -> void:
 			Game.pick_up_resource(item_type)
 			queue_free()
 			return
+		if _locked():
+			Game.announce.emit("%s is locked. Draw it at the end of a run to unlock it." % Fusion.display_name(item_type))
+			$AnimationPlayer.play("invalid")
+			return
 		var winfo: Dictionary = Game.weapon_info(entry())
 		if player.get_parent().get_node("Hud").equip_item(winfo):
 			if (item_info.items[item_type]["type"] == "item" and player.get_parent() != null):
 				player.equip_item(winfo)
+				_log_found()
 			queue_free()
 		else:
 			var info: Dictionary = winfo
@@ -50,6 +55,7 @@ func _input(event: InputEvent) -> void:
 				var old = player.get_parent().get_node("Hud").swap_active(info)
 				if old != null:
 					player.equip_item(info)
+					_log_found()
 					var old_entry: String = old.get("entry", "")
 					if old_entry == "":
 						var found = item_info.items.find_key(old)
@@ -66,13 +72,24 @@ func _input(event: InputEvent) -> void:
 					return
 			$AnimationPlayer.play("invalid")
 			
+## A weapon you have not unlocked cannot be picked up.
+func _locked() -> bool:
+	return item_info.items[item_type]["type"] == "item" and !Game.weapon_unlocked(item_type) and !Game.weapon_known(item_type)
+
+## A weapon picked up in a run counts on the Drawn Cards screen.
+func _log_found() -> void:
+	Game.record_draw({"kind": "weapon", "id": item_type, "tier": Game.weapon_tier_of(entry())})
+
 ## Pickup by a co-op avatar (the local keyboard path is _input above).
 func pickup_by(pl) -> bool:
+	if _locked():
+		return false
 	var info = item_info.items[item_type]
 	if info["type"] == "resource":
 		Game.pick_up_resource(item_type, pl)
 	else:
 		Net.give_weapon(pl, entry())
+		_log_found()
 	queue_free()
 	return true
 
@@ -92,7 +109,7 @@ func kit_text() -> String:
 	var right: String = str(kit[1]) if tier >= 2 else "%s (tier 2)" % kit[1]
 	var ult: String = str(kit[3]) if tier >= 3 else "%s (tier 3)" % kit[3]
 	var tw := ("\n* %s: %s" % [Game.TWISTS[twist][0], Game.TWISTS[twist][1]]) if twist != "" and Game.TWISTS.has(twist) else ""
-	_kit = "%s (Tier %d)%s\nLeft: %s\nRight: %s\nShift: %s\nSpace: %s\nEnter: take (swaps if full)" % [
+	_kit = "%s (Tier %d)%s\nLeft: %s\nRight: %s\nShift: %s\nSpace: %s\nE: take (swaps if full)" % [
 		Fusion.display_name(item_type) + " [" + Game.rarity_name(Game.weapon_rarity(item_type)) + "]", tier, tw, kit[0], right, kit[2], ult]
 	return _kit
 

@@ -82,7 +82,14 @@ func _weapon_ids() -> Array:
 	for id in _info.items:
 		if _info.items[id].type == "item" and !(id in ["sword", "pickaxe"]):
 			out.append(id)
-	out.sort_custom(func(a, b): return Fusion.tier_of(a) < Fusion.tier_of(b) or (Fusion.tier_of(a) == Fusion.tier_of(b) and a < b))
+	out.sort_custom(func(a, b):                    # common first, rare last
+		var ra: int = Game.weapon_rarity(a)
+		var rb: int = Game.weapon_rarity(b)
+		if ra != rb:
+			return ra < rb
+		if Fusion.tier_of(a) != Fusion.tier_of(b):
+			return Fusion.tier_of(a) < Fusion.tier_of(b)
+		return a < b)
 	return out
 
 ## Known = in the chest pool, a sector weapon, or a recipe you have discovered.

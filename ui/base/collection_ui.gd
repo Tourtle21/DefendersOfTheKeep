@@ -74,6 +74,13 @@ func _refresh() -> void:
 		grid_area.remove_child(c)
 		c.queue_free()
 	var ids: Array = Game.CARDS.keys()
+	var order := {}
+	for i in ids.size():
+		order[ids[i]] = i
+	ids.sort_custom(func(a, b):                    # common first, rare last, like the order they come up
+		var ra: int = Game.card_rarity(a)
+		var rb: int = Game.card_rarity(b)
+		return ra < rb or (ra == rb and order[a] < order[b]))
 	var area: Vector2 = grid_area.size if grid_area.size.x > 100 else get_viewport().get_visible_rect().size - Vector2(470, 190)
 	area.y -= 16.0 * ceili(sqrt(ids.size() / 1.6))      # room for the gem row under each card
 	var fit := UiKit.fit_cards(ids.size(), area, 0.6, 6.0, 132.0)

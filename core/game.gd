@@ -520,7 +520,10 @@ func fix_meta() -> void:
 		if !meta.has(k):
 			meta[k] = []
 	if !meta.has("draw_history"):
-		meta["draw_history"] = {}            # "card:fireball" / "weapon:spear" -> {kind, id, count, tier}: every reward you have drawn
+		meta["draw_history"] = {}
+	if !meta.get("history_backfilled", false):
+		meta["history_backfilled"] = true
+		_backfill_history()            # "card:fireball" / "weapon:spear" -> {kind, id, count, tier}: every reward you have drawn
 	if !meta.has("weapon_tiers"):
 		meta["weapon_tiers"] = {}            # weapon id -> the highest tier you have drawn or found (the Forge cannot go past it)
 	if !meta.has("tier_drawn"):
@@ -542,6 +545,21 @@ func is_seen(id: String) -> bool:
 		if str(pe.get("id", "")) == id:
 			return true
 	return false
+
+## A save from before the Drawn Cards screen: whatever it already owns or has met counts as drawn once.
+func _backfill_history() -> void:
+	var ids := []
+	for id in meta.get("weapons", []):
+		ids.append(["weapon", str(id)])
+	for id in meta.get("unlocked", []):
+		if !(id in STARTER_CARDS):
+			ids.append(["card", str(id)])
+	for id in meta.get("seen", []):
+		ids.append(["card" if CARDS.has(str(id)) else "weapon", str(id)])
+	for pair in ids:
+		var key := "%s:%s" % [pair[0], pair[1]]
+		if !meta.draw_history.has(key):
+			meta.draw_history[key] = {"kind": pair[0], "id": pair[1], "count": 1, "tier": 1}
 
 ## Remember a reward draw for the Drawn Cards screen.
 func record_draw(entry: Dictionary) -> void:
@@ -1211,6 +1229,7 @@ func draw_card() -> String:
 
 ## Add to the hand with spells first, then buildings.
 func add_to_hand(id: String) -> void:
+	record_draw({"kind": "card", "id": entry_id(id), "tier": entry_tier(id)})        # also counts for the Drawn Cards screen
 	hand.append(id)
 	var sorted := []
 	for id2 in hand:

@@ -17,7 +17,7 @@ func _ready() -> void:
 	layer = 22
 	var sc := UiKit.screen(self, "Drawn Cards", func():
 		root_ctl.visible = false
-		closed.emit(), "Everything you have drawn at the end of a run. The number is how many times.")
+		closed.emit(), "Everything you have drawn or found, common first. The number is how many times.")
 	root_ctl = sc.root
 	stats_label = sc.right
 	var panel := UiKit.panel()
@@ -58,7 +58,14 @@ func _refresh() -> void:
 	empty_label.visible = items.is_empty()
 	if items.is_empty():
 		return
-	items.sort_custom(func(a, b): return int(a.count) > int(b.count) or (int(a.count) == int(b.count) and str(a.id) < str(b.id)))
+	items.sort_custom(func(a, b):                  # the way they come up: common first, rare last
+		var ra: int = Game.rarity_of(str(a.kind), str(a.id))
+		var rb: int = Game.rarity_of(str(b.kind), str(b.id))
+		if ra != rb:
+			return ra < rb
+		if a.kind != b.kind:
+			return a.kind == "card"
+		return str(a.id) < str(b.id))
 	var area := grid_area.size if grid_area.size.x > 100 else get_viewport().get_visible_rect().size - Vector2(60, 200)
 	var gem_h := 18.0
 	area.y -= gem_h * ceilf(sqrt(items.size() / 1.6))
@@ -83,7 +90,7 @@ func _refresh() -> void:
 			holder.add_child(view)
 		elif info.has(id):
 			var wc := TierCard.new()
-			wc.setup({"size": csize, "title": Fusion.display_name(id), "icon": load(info[id].texture), "tier": int(h.tier), "max_tier": 6,
+			wc.setup({"size": csize, "title": Fusion.display_name(id), "icon": _icon_of(str(info[id].texture)), "tier": int(h.tier), "max_tier": 6,
 				"accent": Game.rarity_color(Game.weapon_rarity(id)), "footer": "WEAPON"})
 			wc.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			holder.add_child(wc)
@@ -96,3 +103,15 @@ func _refresh() -> void:
 		count.add_theme_color_override("font_color", Color(1, 0.88, 0.4))
 		holder.add_child(count)
 		grid_area.add_child(holder)
+
+## Sword and pickaxe use sprite sheets: show their first frame.
+const SHEETS := {"res://items/tools/sword/excalibur_.png": Vector2i(4, 4), "res://items/tools/pickaxe/pickaxe.png": Vector2i(2, 2)}
+
+func _icon_of(path: String) -> Texture2D:
+	var tex: Texture2D = load(path)
+	if SHEETS.has(path):
+		var at := AtlasTexture.new()
+		at.atlas = tex
+		at.region = Rect2(0, 0, tex.get_width() / SHEETS[path].x, tex.get_height() / SHEETS[path].y)
+		return at
+	return tex
