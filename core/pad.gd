@@ -1,12 +1,14 @@
 extends Node
-## Controller support for moving around and fighting (autoload "Pad"). Menus, the keep and cards stay
-## on the mouse.
+## Controller support (autoload "Pad").
 ##
-## Left stick walks, right stick aims (the aim point floats out from the player; hands-free it follows
-## where you walk), RT attacks, LT is the right-click ability, A interact, B dash, X switch weapon,
-## Y ultimate, Start pause. RT / LT arrive as the same mouse-button events a mouse sends, so weapons,
-## co-op clients and the rest need no changes. Touch the mouse, or open a menu or the keep, and the pad
-## steps aside and the normal cursor returns.
+## Outside (walking and fighting): left stick walks, right stick aims (the aim point floats out from the
+## player; hands-free it follows where you walk), RT attacks, LT is the right-click ability, A interact
+## (pick up, enter a tower, chests, forge), B dash, X switch weapon, Y ultimate, Start pause.
+## Inside a tower (the keep): A leaves the tower, the right stick moves a cursor over the map, LB / RB (or the
+## d-pad left / right) pick the previous / next card, RT places the picked card at the cursor, or jumps to a lit
+## tower if no card is picked, LT or B puts the card back. Menus use the d-pad and A (see ui/cards/menu_pad.gd).
+## RT / LT arrive as the same mouse-button events a mouse sends, so weapons, co-op clients and the rest need no
+## changes. Touch the mouse and the pad steps aside and the normal cursor returns.
 ## Anything that reads the pointer for gameplay asks Pad (world_mouse / screen_mouse).
 
 signal device_changed(using_pad: bool)
@@ -20,7 +22,10 @@ const INJECTED := 4242                # device id on events we synthesise, so we
 var using_pad := false
 var aim_dir := Vector2.RIGHT
 var cursor := Vector2(640, 360)       # aim point in viewport pixels
-var blocked := false                  # a menu, the keep or the token screen is up: mouse only
+var blocked := false                  # not walking and fighting: a menu is up, or you are in the keep
+var mode := "all"                     # "all" (outside), "keep" (inside a tower) or "none" (a menu, pause or a draft is up)
+var _keep_card := -1                  # which card LB / RB have picked in the keep
+const KEEP_CURSOR_SPEED := 700.0
 
 var _axes := {}                       # joypad axis -> value
 var _lt := false
@@ -97,20 +102,21 @@ func _register() -> void:
 	_bind("switch_items", _button_event(JOY_BUTTON_X))
 	_bind("ultimate", _button_event(JOY_BUTTON_Y))
 
-## While a menu is up the pad's gameplay buttons are off, so a stray press can't act behind it.
-func _set_bound(on: bool) -> void:
-	if on == _bound:
+## Which pad buttons act as game actions: all of them outside, only A (interact) in the keep, none behind a menu.
+func _set_mode(m: String) -> void:
+	if m == mode and _bound == (m == "all"):
 		return
-	_bound = on
+	mode = m
+	_bound = (m == "all")
 	for action in _pad_events:
 		for e in _pad_events[action]:
-			if on:
+			InputMap.action_erase_event(action, e)
+			if m == "all" or (m == "keep" and action == "interact"):
 				InputMap.action_add_event(action, e)
-			else:
-				InputMap.action_erase_event(action, e)
-	if !on:
+	if m != "all":
 		for a in _pad_events:
-			Input.action_release(a)
+			if !(m == "keep" and a == "interact"):
+				Input.action_release(a)
 
 # ---------- who is using what ----------
 
@@ -155,7 +161,7 @@ func _input(event: InputEvent) -> void:
 		return
 	if event is InputEventJoypadMotion:
 		_axes[event.axis] = event.axis_value
-		if blocked:
+		if mode == "none":
 			return
 		if event.axis == JOY_AXIS_TRIGGER_RIGHT or event.axis == JOY_AXIS_TRIGGER_LEFT:
 			_trigger(event.axis, event.axis_value)
@@ -165,8 +171,24 @@ func _input(event: InputEvent) -> void:
 	if event is InputEventJoypadButton and event.pressed:
 		if event.button_index == JOY_BUTTON_START:
 			_key(KEY_P)
-		elif !blocked:
+		elif mode == "keep":
 			_set_using(true)
+			match event.button_index:
+				JOY_BUTTON_LEFT_SHOULDER, JOY_BUTTON_DPAD_LEFT:
+					_pick_card(-1)
+				JOY_BUTTON_RIGHT_SHOULDER, JOY_BUTTON_DPAD_RIGHT:
+					_pick_card(1)
+				JOY_BUTTON_B:
+					_keep_card = -1
+					_key(KEY_ESCAPE)              # put the card back
+		elif mode == "all":
+			_set_using(true)
+
+## In the keep: LB / RB step through the hand (same as pressing the number keys).
+func _pick_card(step: int) -> void:
+	var n: int = maxi(1, mini(5, Game.hand.size()))
+	_keep_card = wrapi(_keep_card + step, 0, n)
+	_key(KEY_1 + _keep_card)
 
 func _trigger(axis: int, value: float) -> void:
 	if value > TRIGGER_ON:
@@ -220,7 +242,14 @@ func _process(delta: float) -> void:
 	if _scan_clock <= 0.0:
 		_scan_clock = 0.1
 		_scan_blocked()
-	if !using_pad or blocked:
+	if !using_pad or mode == "none":
+		return
+	var vp := get_viewport()
+	if mode == "keep":
+		# a free cursor over the map: the right stick (or the left) moves it
+		var v := _stick(JOY_AXIS_RIGHT_X, JOY_AXIS_RIGHT_Y) + _stick(JOY_AXIS_LEFT_X, JOY_AXIS_LEFT_Y)
+		cursor = (cursor + v.limit_length(1.0) * KEEP_CURSOR_SPEED * delta).clamp(Vector2.ZERO, vp.get_visible_rect().size)
+		_art.queue_redraw()
 		return
 	var right := _stick(JOY_AXIS_RIGHT_X, JOY_AXIS_RIGHT_Y)
 	var left := _stick(JOY_AXIS_LEFT_X, JOY_AXIS_LEFT_Y)
@@ -230,7 +259,6 @@ func _process(delta: float) -> void:
 		_last_aim_ms = now
 	elif left != Vector2.ZERO and now - _last_aim_ms > 1500:
 		aim_dir = left.normalized()           # hands-free: face where you walk
-	var vp := get_viewport()
 	var xf := vp.get_canvas_transform()
 	var origin := vp.get_visible_rect().size / 2.0
 	var p := _local_player()
@@ -258,13 +286,23 @@ func _scan_blocked() -> void:
 					if c is Control and c.visible and c.mouse_filter == Control.MOUSE_FILTER_STOP \
 							and c.size.x >= size.x * 0.8 and c.size.y >= size.y * 0.8:
 						menu = true
-	var now: bool = menu or get_tree().paused or Game.draft_active or Game.local_in_base()
-	if now == blocked:
+	var m := "all"
+	if menu or get_tree().paused or Game.draft_active:
+		m = "none"
+	elif Game.local_in_base():
+		m = "keep"
+	if m == mode:
 		return
-	blocked = now
-	_set_bound(!now)
-	if now:
-		_set_using(false)               # give the mouse back
+	var was_keep := mode == "keep"
+	_set_mode(m)
+	blocked = m != "all"
+	_keep_card = -1
+	if m == "none":
+		_set_using(false)               # a menu: give the mouse back (the menus have their own d-pad navigation)
+	elif m == "keep" and using_pad:
+		cursor = get_viewport().get_visible_rect().size / 2.0       # the cursor starts in the middle of the map view
+	if was_keep and m == "all":
+		_release_triggers()
 
 func _draw_cursor() -> void:
 	var col := Color(1.0, 0.92, 0.45)
