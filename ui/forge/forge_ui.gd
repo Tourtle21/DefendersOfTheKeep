@@ -211,7 +211,8 @@ func _add_combines() -> void:
 		var arrow := Label.new()
 		arrow.text = "->"
 		h.add_child(arrow)
-		h.add_child(_chip(id, ("Tier %d" % (t + 1)) if res != "" else "max for now"))
+		var by_draw: bool = res == "" and Game.combine_locked_by_draw(e)
+		h.add_child(_chip(id, ("Tier %d" % (t + 1)) if res != "" else ("Tier %d locked" % (t + 1) if by_draw else "max for now")))
 		rb.add_child(h)
 		if j >= 0:
 			rb.pressed.connect(func():
@@ -361,6 +362,8 @@ func _info_combine(a: String, b: String) -> void:
 	if result == "":
 		if t >= 6:
 			info_label.text = "Max tier."
+		elif Game.combine_locked_by_draw(a):
+			info_label.text = "Tier %d locked.\nDraw it at the end of a run." % (t + 1)
 		else:
 			info_label.text = "Tier %d is the limit for now." % t
 		return

@@ -158,7 +158,7 @@ func _cost_text(cost: Dictionary) -> String:
 
 func _tier_unlocked(id: String, t: int) -> bool:
 	var owned: bool = Game.weapon_unlocked(id) if Fusion.tier_of(id) == 1 else Game.fusion_tier_unlocked(Fusion.tier_of(id))
-	return owned and t <= Game.weapon_tier_cap()
+	return owned and t <= Game.weapon_tier_cap() and t <= Game.weapon_tier_unlocked(id)
 
 func _show_detail(id: String) -> void:
 	for c in action_row.get_children():

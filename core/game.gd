@@ -519,6 +519,8 @@ func fix_meta() -> void:
 	for k in ["weapons", "fusion_tiers", "seen"]:
 		if !meta.has(k):
 			meta[k] = []
+	if !meta.has("weapon_tiers"):
+		meta["weapon_tiers"] = {}            # weapon id -> the highest tier you have drawn or found (the Forge cannot go past it)
 	if !meta.has("tier_drawn"):
 		meta["tier_drawn"] = {}              # card id -> the highest tier you have drawn at the end of a run
 	if !meta.has("start_weapon"):
@@ -756,7 +758,25 @@ func combine_weapons(a: String, b: String) -> String:
 	var nb := weapon_bonus(a) + 1
 	if Fusion.tier_of(entry_id(a)) + nb > weapon_tier_cap() or Fusion.tier_of(entry_id(a)) + nb > 6:
 		return ""
+	if Fusion.tier_of(entry_id(a)) + nb > weapon_tier_unlocked(entry_id(a)):
+		return ""                       # that tier has not been drawn yet
 	return make_weapon_entry(entry_id(a), nb, weapon_twist(entry_id(a), Fusion.tier_of(entry_id(a)) + nb))
+
+## The highest tier of this weapon you have unlocked: by drawing it at the end of a run or finding that tier in a run.
+func weapon_tier_unlocked(id: String) -> int:
+	fix_meta()
+	return maxi(Fusion.tier_of(id), int(meta.weapon_tiers.get(id, 1)))
+
+func note_weapon_tier(id: String, tier: int) -> void:
+	fix_meta()
+	if tier > weapon_tier_unlocked(id):
+		meta.weapon_tiers[id] = mini(tier, 6)
+
+## Would this combine be allowed except that its tier has not been drawn yet?
+func combine_locked_by_draw(a: String) -> bool:
+	var id := entry_id(a)
+	var t := Fusion.tier_of(id) + weapon_bonus(a) + 1
+	return t <= mini(6, weapon_tier_cap()) and t > weapon_tier_unlocked(id)
 
 func combine_cost(a: String) -> Dictionary:
 	return Fusion.AWAKEN_COSTS[clampi(weapon_tier_of(a), 1, 5)]
@@ -1416,12 +1436,31 @@ func make_rewards(won := false) -> Array:
 		for w in WEAPON_UNLOCK_COSTS:
 			if !(w in meta.weapons) and !(("w:" + w) in used) and WEAPON_LEVEL[w] <= top:
 				weapons.append(w)
-		if weapons.size() > 0 and randf() < 0.2:
+		var tier_ups := []
+		var owned_ids: Array = meta.weapons + ["sword", "pickaxe"]
+		for key in Fusion.RECIPES:                          # fused weapons you can make also have higher tiers to draw
+			var rid: String = Fusion.RECIPES[key].id
+			if weapon_known(rid) and fusion_tier_unlocked(int(Fusion.RECIPES[key].tier)):
+				owned_ids.append(rid)
+		for w in owned_ids:
+			var nt := weapon_tier_unlocked(w) + 1
+			if nt <= 6 and nt <= top + 1 and !(("wt:" + w) in used):
+				tier_ups.append(w)
+		if (weapons.size() > 0 or tier_ups.size() > 0) and randf() < 0.3:
 			entry.kind = "weapon"
-			entry.id = weapons.pick_random()
-			entry.realm = WEAPON_LEVEL[entry.id]
-			entry.result = "offer"
-			used.append("w:" + entry.id)
+			var from_new: bool = weapons.size() > 0 and (tier_ups.is_empty() or randf() < 0.6)
+			if from_new:
+				entry.id = weapons.pick_random()
+				entry.realm = WEAPON_LEVEL[entry.id]
+				entry.result = "offer"
+				used.append("w:" + entry.id)
+			else:
+				entry.id = tier_ups.pick_random()
+				entry.realm = WEAPON_LEVEL.get(entry.id, 1)
+				entry.tier = weapon_tier_unlocked(entry.id) + 1
+				entry.result = "tierup"                 # a higher tier of a weapon you own: the Forge can now take it that far
+				note_weapon_tier(entry.id, int(entry.tier))
+				used.append("wt:" + entry.id)
 		else:
 			var bag := []
 			for id in CARDS:

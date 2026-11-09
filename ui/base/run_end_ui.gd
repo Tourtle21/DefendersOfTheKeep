@@ -257,7 +257,7 @@ func _make_face(opt: Dictionary) -> Control:
 	name_l.add_theme_font_size_override("font_size", 12)
 	panel.add_child(name_l)
 	var kind_l := Label.new()
-	kind_l.text = "WEAPON"
+	kind_l.text = ("TIER %d" % int(opt.tier)) if opt.get("result", "") == "tierup" else "WEAPON"
 	kind_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	kind_l.position = Vector2(4, 108)
 	kind_l.size = Vector2(88, 20)
@@ -469,6 +469,9 @@ func _fill_footer(footer: VBoxContainer, opt: Dictionary, holder: Control, is_ke
 		"unlocked":
 			tag.text = "LEGENDARY UNLOCKED!" if opt.get("legendary", false) else "UNLOCKED"
 			tag.add_theme_color_override("font_color", Color("ffd23a") if opt.get("legendary", false) else Color("6df08a"))
+		"tierup":
+			tag.text = "TIER %d UNLOCKED" % opt.tier
+			tag.add_theme_color_override("font_color", Color("ffd23a"))
 		"upgrade":
 			tag.text = "TIER %d DRAWN" % opt.tier
 			tag.add_theme_color_override("font_color", Color("ffd23a"))
