@@ -203,7 +203,21 @@ func _make_corner(slot: int) -> void:
 	down.visible = false
 	holder.add_child(down)
 	_corner.resize(maxi(_corner.size(), slot + 1))
-	_corner[slot] = {"hp": hp, "weapon": weapon, "down": down}
+	var aimer := Control.new()                          # the yellow aimer of this player, drawn in their view only (like player 1's cursor)
+	aimer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	aimer.set_anchors_preset(Control.PRESET_FULL_RECT)
+	holder.add_child(aimer)
+	aimer.draw.connect(func():
+		var pl = _players[slot]
+		if _local == null or !is_instance_valid(pl) or pl.downed or pl.is_in_tower or !_local.avatars.has(slot):
+			return
+		var at: Vector2 = viewports[slot].get_canvas_transform() * _local.aim_world_point(slot)
+		var col := Color(1.0, 0.92, 0.45)
+		aimer.draw_arc(at, 12.0, 0, TAU, 28, Color(0, 0, 0, 0.85), 4.0)
+		aimer.draw_arc(at, 12.0, 0, TAU, 28, col, 2.0)
+		for d in [Vector2.UP, Vector2.DOWN, Vector2.LEFT, Vector2.RIGHT]:
+			aimer.draw_line(at + d * 16.0, at + d * 22.0, col, 2.0))
+	_corner[slot] = {"hp": hp, "weapon": weapon, "down": down, "aimer": aimer}
 
 func _process(_delta: float) -> void:
 	var screen := get_viewport().get_visible_rect().size
@@ -221,6 +235,7 @@ func _process(_delta: float) -> void:
 			c.hp.value = pl.remote_hp
 			var item = pl.item
 			c.weapon.text = "%s  T%d" % [Fusion.display_name(str(item.get("weapon_id")) if item != null and item.get("weapon_id") != null and str(item.get("weapon_id")) != "" else (item._id() if item != null and item.has_method("_id") else "")), Game.weapon_tier_of(str(pl.weapon_slots[pl.active_slot]))] if item != null and !pl.weapon_slots.is_empty() else "no weapon"
+			c.aimer.queue_redraw()
 			c.down.visible = pl.downed
 			c.down.text = "You fell!  Back in %d" % ceili(pl.respawn_left)
 			var light = pl.get_node_or_null("PointLight2D")
