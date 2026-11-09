@@ -39,6 +39,7 @@ func _initialize() -> void:
 	await wait(3.0)
 	print("  while P2 chooses: tree paused %s, world clock advanced %.1f s, p1 can walk? p1 pos %s" % [paused, world.clock - clock0, world.get_node("Player").global_position])
 	ok("the game keeps running while player 2 chooses (not paused, clock moves)", !paused and world.clock - clock0 > 1.0)
+	ok("player 1 can still attack while player 2 chooses", world.get_node("Player")._can_cast() or world.get_node("Player").item == null)
 	await tap(1, JOY_BUTTON_A)
 	await wait(0.3)
 	ok("A takes a card and the choice closes", !game.draft_active and !dui.is_open)

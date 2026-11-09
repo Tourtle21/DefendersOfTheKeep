@@ -156,7 +156,7 @@ func aim_time(slot: String) -> float:
 	return (Time.get_ticks_msec() - _aim_start_ms[slot]) / 1000.0
 
 func _can_cast() -> bool:
-	return !downed and item != null and !Game.local_in_base() and !Game.draft_active and !has_crystal
+	return !downed and item != null and !Game.local_in_base() and !(Game.draft_active and Game.draft_owner_slot == 0) and !has_crystal
 
 var _crystal_note_ms := 0
 
@@ -216,7 +216,7 @@ func _input(event):
 			_release_cast("ability")
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and !event.pressed and item != null and item.has_method("release_item"):
 		item.release_item()
-	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed and item != null and !Game.local_in_base() and !Game.draft_active and !has_crystal:
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed and item != null and !Game.local_in_base() and !(Game.draft_active and Game.draft_owner_slot == 0) and !has_crystal:
 		item.use_item()
 		is_using_item = true
 	
