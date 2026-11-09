@@ -5,7 +5,7 @@ extends Node
 ## The cursor of player 1 (mouse or pad) is mapped into player 1's viewport by Pad.
 
 const SPLIT_LAYER := 3                     # above the world, below the HUD layers (5 and up) and the menus
-const HUD_SCRIPTS := ["ability_hud.gd", "base_ui.gd", "crystal_alert.gd", "respawn_ui.gd", "wave_banner.gd", "forge_ui.gd"]
+const HUD_SCRIPTS := ["ability_hud.gd", "base_ui.gd", "crystal_alert.gd", "respawn_ui.gd", "wave_banner.gd", "forge_ui.gd", "card_fuse_ui.gd", "draft_ui.gd"]
 
 var containers: Array = []
 var viewports: Array = []
