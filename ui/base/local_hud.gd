@@ -102,6 +102,16 @@ func setup(player: Node, viewport: SubViewport, slot_index: int) -> void:
 
 func fit(area: Vector2) -> void:
 	root.size = area
+	# a narrow view (a half or quarter of the window) cannot hold the resource line, the keep bar and the health bar side by side:
+	# the line wraps in the space left of the health bar and the keep bar moves down under it
+	var narrow: bool = area.x < 900.0
+	info.add_theme_font_size_override("font_size", 14 if narrow else 18)
+	info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART if narrow else TextServer.AUTOWRAP_OFF
+	info.custom_minimum_size.x = (area.x - 280.0) if narrow else 0.0
+	info.reset_size()                                   # (a wrapping label keeps its old height until it is told to resize)
+	keep_bar.offset_top = 52.0 if narrow else 38.0
+	keep_bar.offset_bottom = 70.0 if narrow else 58.0
+	banner.offset_top = 80.0 if narrow else 70.0
 
 func _process(_delta: float) -> void:
 	if !is_instance_valid(pl):
@@ -119,7 +129,10 @@ func _process(_delta: float) -> void:
 		var n: int = int(pl.carried.get(k, 0))
 		if n > 0 or k in ["stone", "stick", "gold"]:
 			carry.append("%d %s" % [n, k])
-	info.text = "Carrying: %s     Keep: %s" % [", ".join(carry), ", ".join(keep)]
+	var line := "Carrying: %s     Keep: %s" % [", ".join(carry), ", ".join(keep)]
+	if line != info.text:
+		info.text = line
+		info.reset_size()
 	keep_bar.max_value = Game.keep_max()
 	keep_bar.value = Game.keep_hp
 	keep_lbl.text = "Keep %d / %d" % [Game.keep_hp, Game.keep_max()]

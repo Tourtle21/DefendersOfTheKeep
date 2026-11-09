@@ -119,6 +119,11 @@ func fit(area: Vector2) -> void:
 	_radar.offset_right = -16.0
 	_radar.offset_top = 66.0
 	_radar.offset_bottom = 66.0 + r
+	_radar.custom_minimum_size = Vector2(r, r)                          # (the radar asks for 220 by itself, more than a small view has)
+	_upgrade_box.position.y = 96.0 if area.x < 900.0 else 74.0         # (under the keep bar, which sits lower in a narrow view)
+	_hint.offset_top = 74.0 if area.x < 900.0 else 62.0
+	_hint.custom_minimum_size.x = area.x - 24.0
+	_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_view_size = area
 
 func _world_pos() -> Vector2:

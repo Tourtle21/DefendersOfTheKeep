@@ -123,7 +123,7 @@ func _pin_all() -> void:
 	var s0 := Vector2(viewports[0].size)
 	for layer in _p1_layers:
 		var big: bool = str(layer.get_script().resource_path).get_file() in BIG_SCREENS
-		var f: float = clampf(minf(s0.x / 1100.0, s0.y / 640.0), 0.35, 1.0) if big else 1.0
+		var f: float = clampf(minf(s0.x / 1100.0, s0.y / 760.0), 0.35, 1.0) if big else 1.0
 		for c in layer.get_children():
 			if c is Control:
 				c.pivot_offset = Vector2.ZERO
