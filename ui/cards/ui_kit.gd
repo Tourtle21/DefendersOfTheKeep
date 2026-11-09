@@ -133,6 +133,7 @@ static func screen(parent: Node, title: String, on_back: Callable, hint := "", t
 				var id: String = tb[0]
 				b.pressed.connect(func(): switch_tab(root, id))
 			trow.add_child(b)
+	preload("res://ui/cards/menu_pad.gd").attach(root, on_back, tab_id, body)       # d-pad focus, B = back, LB / RB = tabs
 	return {"root": root, "body": body, "right": right}
 
 ## Biggest card size (keeping `aspect` = width / height) that fits n cards in `area`. Returns {"cols", "size"}.

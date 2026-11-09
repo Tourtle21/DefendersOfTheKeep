@@ -18,6 +18,7 @@ var _back: TextureRect
 var _selected := false
 var _affordable := true
 var _hover := false
+var _ring: ReferenceRect
 
 func setup(id: String, lvl := 1, badge_text := "", twist_id := "") -> void:
 	card_id = id
@@ -110,11 +111,24 @@ func _ready() -> void:
 	_back.visible = false
 	_body.add_child(_back)
 
+	_ring = ReferenceRect.new()                      # shown while the card has controller focus (menus opt in with focus_mode)
+	_ring.border_color = Color(0.5, 0.85, 1.0)
+	_ring.border_width = 3.0
+	_ring.editor_only = false
+	_ring.size = SIZE
+	_ring.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_ring.visible = false
+	_body.add_child(_ring)
+	focus_entered.connect(func(): _ring.visible = true)
+	focus_exited.connect(func(): _ring.visible = false)
 	mouse_entered.connect(func(): _hover = true; _apply())
 	mouse_exited.connect(func(): _hover = false; _apply())
 	gui_input.connect(_on_gui_input)
 
 func _on_gui_input(event: InputEvent) -> void:
+	if event.is_action_pressed("ui_accept") and focus_mode == Control.FOCUS_ALL:
+		pressed_down.emit(self)
+		return
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		pressed_down.emit(self)
 

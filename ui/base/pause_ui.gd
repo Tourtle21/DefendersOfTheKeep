@@ -76,6 +76,10 @@ func _ready() -> void:
 	_button(box, "Quit game", func():
 		Game.save_meta()
 		get_tree().quit())
+	_attach_pad()
+
+func _attach_pad() -> void:
+	preload("res://ui/cards/menu_pad.gd").attach(root_ctl, close)               # controller: d-pad + A, B closes the menu
 
 func _button(parent: Node, text: String, cb: Callable) -> void:
 	var b := Button.new()

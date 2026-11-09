@@ -101,6 +101,9 @@ func _register() -> void:
 	_bind("dash", _button_event(JOY_BUTTON_B))
 	_bind("switch_items", _button_event(JOY_BUTTON_X))
 	_bind("ultimate", _button_event(JOY_BUTTON_Y))
+	# menus: A presses the focused control, B goes back (the project's ui actions only had the keyboard)
+	InputMap.action_add_event("ui_accept", _button_event(JOY_BUTTON_A))
+	InputMap.action_add_event("ui_cancel", _button_event(JOY_BUTTON_B))
 
 ## Which pad buttons act as game actions: all of them outside, only A (interact) in the keep, none behind a menu.
 func _set_mode(m: String) -> void:

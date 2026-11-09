@@ -9,6 +9,8 @@ var awaken_button: Button
 var journal: Label
 var numbers: RichTextLabel
 var recipes_box: HFlowContainer
+var _focus_slot := -1
+var _slot_cards := {}
 var selected: Array = []        # slot indexes into the hud item slots
 
 const UiKit = preload("res://ui/cards/ui_kit.gd")
@@ -111,6 +113,7 @@ func _refresh() -> void:
 	for c in list_box.get_children():
 		list_box.remove_child(c)
 		c.queue_free()
+	_slot_cards.clear()
 	var slots = _hud().item_slots.get_children()
 	for i in slots.size():
 		if !slots[i].has_item:
@@ -127,9 +130,13 @@ func _refresh() -> void:
 			"accent": Game.rarity_color(Game.weapon_rarity(id)), "footer": "PICKED" if i in selected else ""})
 		b.set_selected(i in selected)
 		b.pressed.connect(func(_c): _toggle(i))
+		b.focus_entered.connect(func(): _focus_slot = i)
+		_slot_cards[i] = b
 		list_box.add_child(b)
 	_refresh_recipes()
 	_update_info()
+	if _focus_slot >= 0 and _slot_cards.has(_focus_slot) and root_ctl.visible and get_viewport().gui_get_focus_owner() == null:
+		_slot_cards[_focus_slot].grab_focus.call_deferred()      # keep the controller's place after the cards rebuild
 
 ## slot index of a carried weapon by id, skipping `not_slot`
 func _slot_of(id: String, not_slot := -1) -> int:

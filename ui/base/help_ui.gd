@@ -34,6 +34,12 @@ COUNTERS (every enemy has a weakness)
   Pips over enemies: filled dot = weak to that element, ring = resists it, grey square = armored,
   plus = fears slows. Orange numbers = weak to it, grey = resisted. Bosses have weaknesses too.
 
+CONTROLLER
+  Outside: left stick walk, right stick aim, RT attack, LT ability, A pick up / enter tower / interact,
+  B dash, X switch weapon, Y ultimate, Start pause.
+  In a tower: A leave, right stick moves the cursor, LB / RB pick a card, RT place it (or jump to a lit tower),
+  LT or B put it back.   Menus: d-pad move, A press, B back, LB / RB switch tabs.
+
 THE LOOP
   Gather stone and sticks, kill enemies for gold, open chests (cards or weapons).
   Resource generators (one per biome) make that biome's resource: E to activate with

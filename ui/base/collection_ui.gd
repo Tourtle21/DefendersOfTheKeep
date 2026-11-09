@@ -17,6 +17,8 @@ var tab_id := "cards"
 const TierCard = preload("res://ui/cards/tier_card.gd")
 var grid_area: Control
 var tier_row: HBoxContainer
+var _focus_id := ""
+var _views := {}
 var viewed_tier := -1
 
 func _ready() -> void:
@@ -75,6 +77,7 @@ func _refresh() -> void:
 	for c in grid_area.get_children():
 		grid_area.remove_child(c)
 		c.queue_free()
+	_views.clear()
 	var ids: Array = Game.CARDS.keys()
 	var order := {}
 	for i in ids.size():
@@ -102,6 +105,7 @@ func _refresh() -> void:
 			view = CardView.new()
 			view.setup(id, maxi(tier, 1))
 			view.scale = Vector2(k, k)
+			view.focus_mode = Control.FOCUS_ALL                  # controller: the d-pad moves between cards, A selects
 			view.pressed_down.connect(func(_v):
 				selected = id
 				viewed_tier = -1
@@ -138,10 +142,14 @@ func _refresh() -> void:
 			frame.size = csize
 			frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			holder.add_child(frame)
+		view.focus_entered.connect(func(): _focus_id = id)
+		_views[id] = view
 		grid_area.add_child(holder)
 		if view is CardView:
 			view.set_state(false, owned)               # the card keeps its own dimming on hover (it resets modulate itself)
 	_show_detail()
+	if _focus_id != "" and _views.has(_focus_id) and root_ctl.visible and get_viewport().gui_get_focus_owner() == null:
+		_views[_focus_id].grab_focus.call_deferred()      # the cards were rebuilt: keep the controller's place
 
 func _num_block(id: String, tier: int, next_tier: int) -> String:
 	var cur := Game.card_numbers(id, tier)

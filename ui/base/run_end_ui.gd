@@ -101,6 +101,7 @@ func _ready() -> void:
 		Game._menu_done = false
 		Game.restart_run())
 	box.add_child(again)
+	preload("res://ui/cards/menu_pad.gd").attach(root_ctl, Callable(), "", null, flip_all)       # controller: Flip all first, then Continue
 	Game.run_ended.connect(_show)
 
 func _show(info: Dictionary) -> void:

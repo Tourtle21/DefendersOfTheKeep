@@ -82,6 +82,7 @@ func _ready() -> void:
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	hint.add_theme_color_override("font_color", Color(0.65, 0.7, 0.85))
 	box.add_child(hint)
+	preload("res://ui/cards/menu_pad.gd").attach(root_ctl, Callable(), "", null, play)       # controller: Play is focused first
 	_refresh()
 
 func _button(parent: Node, text: String, cb: Callable) -> void:

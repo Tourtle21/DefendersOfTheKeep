@@ -15,6 +15,8 @@ var detail: RichTextLabel
 var selected := "spear"
 var viewed_tier := -1             # the tier whose stats are shown (-1 = the weapon's own first tier)
 var tier_row: HBoxContainer
+var _focus_id := ""
+var _cards := {}
 var action_row: HBoxContainer
 var shards_label: Label
 var _info: ItemInfo
@@ -105,6 +107,7 @@ func _refresh() -> void:
 	for c in grid_area.get_children():
 		grid_area.remove_child(c)
 		c.queue_free()
+	_cards.clear()
 	var ids := _weapon_ids()
 	var area := grid_area.size if grid_area.size.x > 100 else get_viewport().get_visible_rect().size - Vector2(480, 200)
 	var fit := UiKit.fit_cards(ids.size(), area, 0.72, 8.0, 130.0)
@@ -133,8 +136,12 @@ func _refresh() -> void:
 			selected = id
 			viewed_tier = -1
 			_refresh())
+		card.focus_entered.connect(func(): _focus_id = id)
+		_cards[id] = card
 		grid_area.add_child(card)
 	_show_detail(selected)
+	if _focus_id != "" and _cards.has(_focus_id) and root_ctl.visible and get_viewport().gui_get_focus_owner() == null:
+		_cards[_focus_id].grab_focus.call_deferred()       # the cards were rebuilt: keep the controller's place
 
 func _where(id: String) -> String:
 	if id in ["sword", "pickaxe"]:
