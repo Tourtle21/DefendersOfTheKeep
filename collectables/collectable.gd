@@ -27,6 +27,23 @@ func _ready() -> void:
 		var e := Game.roll_weapon_entry(item_type)             # sometimes a higher tier or with a twist
 		bonus = Game.weapon_bonus(e)
 		twist = Game.entry_twist(e)
+	if item_info.items[item_type]["type"] == "item" and owner == null:
+		_life = WEAPON_LIFETIME                    # made while the game runs (not placed in the scene): it will vanish
+
+## A weapon that lands on the ground (dropped, from a chest, a boss...) disappears if nobody picks it up, like coins
+## do: it blinks for the last few seconds. The one placed in the scene at the start never vanishes.
+const WEAPON_LIFETIME := 45.0
+const BLINK_FROM := 6.0
+var _life := -1.0
+
+func _tick_life(delta: float) -> void:
+	if _life < 0.0 or Rep.is_puppet(self):
+		return
+	_life -= delta
+	if _life <= 0.0:
+		queue_free()
+		return
+	$Sprite2D.visible = !(_life < BLINK_FROM and int(Time.get_ticks_msec() / 150.0) % 2 == 0)
 
 func entry() -> String:
 	return Game.make_weapon_entry(item_type, bonus, twist)
@@ -110,7 +127,8 @@ func kit_text() -> String:
 func _rarity() -> int:
 	return Game.weapon_rarity(item_type) if item_info.items[item_type]["type"] == "item" else 0
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
+	_tick_life(delta)
 	if _rarity() >= 1:
 		queue_redraw()
 
