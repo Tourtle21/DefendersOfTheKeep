@@ -5,8 +5,8 @@ extends Node
 ## The cursor of player 1 (mouse or pad) is mapped into player 1's viewport by Pad.
 
 const SPLIT_LAYER := 3                     # above the world, below the HUD layers (5 and up) and the menus
-const BIG_SCREENS := ["forge_ui.gd", "card_fuse_ui.gd", "draft_ui.gd"]
-const HUD_SCRIPTS := ["ability_hud.gd", "base_ui.gd", "crystal_alert.gd", "respawn_ui.gd", "wave_banner.gd", "forge_ui.gd", "card_fuse_ui.gd", "draft_ui.gd"]
+const BIG_SCREENS := ["forge_ui.gd", "card_fuse_ui.gd", "draft_ui.gd", "help_ui.gd"]
+const HUD_SCRIPTS := ["ability_hud.gd", "base_ui.gd", "crystal_alert.gd", "respawn_ui.gd", "wave_banner.gd", "forge_ui.gd", "card_fuse_ui.gd", "draft_ui.gd", "help_ui.gd"]
 
 var containers: Array = []
 var viewports: Array = []
@@ -123,7 +123,8 @@ func _pin_all() -> void:
 	var s0 := Vector2(viewports[0].size)
 	for layer in _p1_layers:
 		var big: bool = str(layer.get_script().resource_path).get_file() in BIG_SCREENS
-		var f: float = clampf(minf(s0.x / 1100.0, s0.y / 760.0), 0.35, 1.0) if big else 1.0
+		var design := Vector2(1060, 1260) if str(layer.get_script().resource_path).get_file() == "help_ui.gd" else Vector2(1100, 760)       # (about how big each screen is drawn)
+		var f: float = clampf(minf(s0.x / design.x, s0.y / design.y), 0.35, 1.0) if big else 1.0
 		for c in layer.get_children():
 			if c is Control:
 				c.pivot_offset = Vector2.ZERO

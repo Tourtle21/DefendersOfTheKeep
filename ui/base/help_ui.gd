@@ -70,6 +70,8 @@ func _ready() -> void:
 	var label := Label.new()
 	label.text = TEXT
 	label.add_theme_font_size_override("font_size", 15)
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART           # (the last paragraph is one very long line)
+	label.custom_minimum_size.x = 980.0
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	box.add_child(label)
 	await get_tree().create_timer(9.0).timeout

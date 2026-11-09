@@ -48,7 +48,8 @@ var _wind := 0.0                  # >0: winding up an attack (stands still, flas
 var _wind_kind := ""
 var _dash_left := 0.0
 var _dash_dir := Vector2.ZERO
-var _dash_speed := 300.0
+var _dash_speed := 280.0
+var _recover := 0.0               # stands still after a dash or lunge: the window to hit it
 var affix := ""                   # "shielded", "hasty" or "leeching": an elite with a modifier (see apply_affix)
 
 @onready var audio_take_damage = $TakeDamage
@@ -150,7 +151,10 @@ func _physics_process(delta):
 		$ColorRect/Health.size.x = ($ColorRect.size.x - 2) * clampf(health / max_health, 0.0, 1.0)
 	if aggro_left > 0.0 and aggro_target != null and charm_time <= 0.0:
 		var dist: float = global_position.distance_to(aggro_target.global_position)
-		if !_ability(delta, aggro_target, dist):
+		if _recover > 0.0:
+			_recover -= delta                          # winded after its move: it just stands there
+			velocity = Vector2.ZERO
+		elif !_ability(delta, aggro_target, dist):
 			_chase(delta)
 		_update_facing(delta, aggro_target.global_position - global_position)
 		if !has_crystal and global_position.distance_to(center) <= 14.0:
@@ -282,22 +286,24 @@ func _dashing(delta: float) -> bool:
 	_dash_left -= delta
 	velocity = _dash_dir * _dash_speed
 	move_and_slide()
+	if _dash_left <= 0.0:
+		_recover = 0.7                                 # and then it is open for a moment
 	return true
 
 func _lunge(delta: float, t, dist: float) -> bool:
 	if _wind > 0.0:
 		if _winding(delta, Color(1.0, 0.85, 0.3)):
 			return true
-		_dash_left = 0.22                              # the wind-up is over: it launches
+		_dash_left = 0.2                               # the wind-up is over: it launches (about 56 units)
 		return _dashing(delta)
 	if _dashing(delta):
 		return true
 	if ability_cd <= 0.0 and dist > 22.0 and dist < 80.0:
-		_wind = 0.45
-		ability_cd = 4.5
+		_wind = 0.7                                    # a long, clearly visible wind-up
+		ability_cd = 8.0                               # and a long pause before the next one
 		_dash_dir = (t.global_position - global_position).normalized()
-		_dash_speed = 300.0
-		WeaponFx.spawn(Game.world, "line", global_position, Color(1.0, 0.85, 0.3, 0.7), {"dir": _dash_dir, "length": 68.0, "width": 5.0, "life": 0.45})
+		_dash_speed = 280.0
+		WeaponFx.spawn(Game.world, "line", global_position, Color(1.0, 0.85, 0.3, 0.7), {"dir": _dash_dir, "length": 56.0, "width": 5.0, "life": 0.7})
 		return true
 	return false
 

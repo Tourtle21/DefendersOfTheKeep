@@ -77,10 +77,15 @@ func _initialize() -> void:
 	l.ability_cd = 0.0
 	l.start_aggro(p2)
 	await wait(0.25)
-	ok("a chasing enemy winds up a lunge first (wind %.2f)" % l._wind, l._wind > 0.0 or l._dash_left > 0.0)
+	ok("a chasing enemy winds up a lunge first (wind %.2f of 0.7)" % l._wind, l._wind > 0.3)
 	var before: Vector2 = l.global_position
-	await wait(0.7)
-	ok("then dashes (moved %.0f units)" % before.distance_to(l.global_position), before.distance_to(l.global_position) > 25.0)
+	await wait(0.6)
+	ok("then dashes about 56 units (moved %.0f)" % before.distance_to(l.global_position), before.distance_to(l.global_position) > 25.0 and before.distance_to(l.global_position) < 80.0)
+	await wait(0.1)
+	var at_rest: Vector2 = l.global_position
+	await wait(0.4)
+	ok("and stands still for a moment afterwards (moved %.1f in 0.4 s)" % at_rest.distance_to(l.global_position), l._recover > 0.0 or at_rest.distance_to(l.global_position) < 4.0)
+	ok("with a long pause before the next lunge (cooldown %.1f s left)" % l.ability_cd, l.ability_cd > 5.0)
 	l.queue_free()
 	# ---- the brute's slam hurts if you stay in the ring
 	p2.global_position = P
