@@ -290,6 +290,10 @@ const MAX_PENDING := 12            # offers kept between runs until you unlock o
 func skill_cost(id: String) -> int:
 	return int(round(Skills.TREE[id].cost * pow(skill_level(id) + 1, SKILL_COST_CURVE) * SKILL_COST_SCALE))      # each level costs clearly more than the last
 
+## Player health from the Vitality skill: damage and healing are divided by this, so the bar stays the same size.
+func hp_scale() -> float:
+	return 1.0 + bonus("player_hp")
+
 func skill_available(id: String) -> bool:
 	for r in Skills.TREE[id].req:
 		if skill_level(r) < 1:

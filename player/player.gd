@@ -298,6 +298,7 @@ func equip_item(new_item) -> void:
 func _remote_damage(damage := 30.0) -> void:
 	if is_taking_damage:
 		return
+	damage /= Game.hp_scale()
 	is_taking_damage = true
 	modulate = Color(1, 0, 0)
 	remote_hp -= damage
@@ -309,6 +310,7 @@ func _remote_damage(damage := 30.0) -> void:
 	is_taking_damage = false
 
 func heal(amount: float) -> void:
+	amount /= Game.hp_scale()               # (Vitality: the same healing is a smaller share of a bigger health pool)
 	if remote_controlled:
 		remote_hp = min(remote_hp + amount, 228.0)
 		return
@@ -334,7 +336,7 @@ func take_damage(damage_origin: Vector2, damage := 30.0):
 		var direction = (position - damage_origin).normalized()
 		apply_knockback(direction * knockback_strength)
 		var x_size = get_parent().get_node("Hud").get_node("Control2").get_node("ColorRect").get_node("Health").size.x
-		get_parent().get_node("Hud").get_node("Control2").get_node("ColorRect").get_node("Health").size.x = x_size - damage
+		get_parent().get_node("Hud").get_node("Control2").get_node("ColorRect").get_node("Health").size.x = x_size - damage / Game.hp_scale()
 		audio_take_damage.play()
 		if x_size <= 18:
 			fall()                      # no longer the end of the run: the keep fights on and you are back in 30 seconds
