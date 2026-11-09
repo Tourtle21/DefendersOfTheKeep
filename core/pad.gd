@@ -243,6 +243,18 @@ func _input(event: InputEvent) -> void:
 				JOY_BUTTON_B:
 					_keep_card = -1
 					_key(KEY_ESCAPE)              # put the card back
+				JOY_BUTTON_DPAD_UP:
+					Game._keep_sel = wrapi(Game._keep_sel - 1, 0, Game.keep_menu_items().size())      # move over Repair / the upgrades
+					Game.keep_sel_changed.emit()
+				JOY_BUTTON_DPAD_DOWN:
+					Game._keep_sel = wrapi(Game._keep_sel + 1, 0, Game.keep_menu_items().size())
+					Game.keep_sel_changed.emit()
+				JOY_BUTTON_Y:
+					Game.keep_menu_buy(Game._keep_sel)                                                 # buy the highlighted one
+				JOY_BUTTON_X:
+					var me := _local_player()
+					if me != null:
+						Game.reload_tower_of(me)                                                       # reload the tower you are in
 		elif mode == "all":
 			_set_using(true)
 

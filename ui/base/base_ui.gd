@@ -69,6 +69,7 @@ func _ready() -> void:
 	keep_lbl.add_theme_font_size_override("font_size", 13)
 	keep_bar.add_child(keep_lbl)
 	ui.add_child(keep_bar)
+	Game.keep_sel_changed.connect(func(): _rebuild_upgrades())
 	Game.keep_changed.connect(func():
 		keep_bar.value = Game.keep_hp
 		keep_lbl.text = "Keep %d / %d" % [Game.keep_hp, Game.keep_max()]
@@ -234,10 +235,14 @@ func _rebuild_upgrades() -> void:
 	rc.setup({"size": Vector2(92, 128), "title": "Repair", "glyph": "+", "lines": ["+30 keep"], "footer": "3 stone",
 		"accent": Color(0.9, 0.5, 0.4), "locked": !can_repair, "tooltip": "Repair the keep +30 (3 stone)"})
 	rc.set_selected(can_repair)
+	if Pad.using_pad and Game._keep_sel == 0:
+		rc.data["blink"] = true                       # the controller's highlight (D-pad up/down, Y buys)
 	rc.pressed.connect(func(_c): Game.repair_keep())
 	upgrade_box.add_child(rc)
 	var glyphs := {"max_mana": "M", "regen": "R", "draw": "D"}
+	var pick_n := 0
 	for id in Game.UPGRADES:
+		pick_n += 1
 		var u: Dictionary = Game.UPGRADES[id]
 		var cost := Game.upgrade_cost(id)
 		var lvl: int = Game.upgrade_levels.get(id, 0)
@@ -247,6 +252,8 @@ func _rebuild_upgrades() -> void:
 			"badge": "Lv %d" % lvl, "lines": [u.desc], "footer": _cost_short(cost), "accent": Color(0.5, 0.75, 1.0),
 			"locked": !can, "tooltip": "%s: %s" % [u.name, u.desc]})
 		c.set_selected(can)
+		if Pad.using_pad and Game._keep_sel == pick_n:
+			c.data["blink"] = true
 		c.pressed.connect(func(_c): Game.buy_upgrade(id))
 		upgrade_box.add_child(c)
 

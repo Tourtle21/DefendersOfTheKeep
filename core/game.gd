@@ -3,6 +3,7 @@ extends Node
 ## resources, the card hand, upgrades). Kept in one spot, and spells go through
 ## cast(), so this can later become host-authoritative for multiplayer.
 
+signal keep_sel_changed
 signal mana_changed
 signal resources_changed
 signal hand_changed
@@ -1874,6 +1875,31 @@ func crystal_position() -> Vector2:
 
 func flight_time(card_id: String, target: Vector2) -> float:
 	return crystal_position().distance_to(target) / CARDS[entry_id(card_id)].speed
+
+## The keep screen's items for the controller: Repair, then each upgrade. Both the d-pad scheme of player 1 (Pad) and of
+## players 2 to 4 (LocalKeepUi) move over this list and buy with Y.
+var _keep_sel := 0
+
+func keep_menu_items() -> Array:
+	return ["repair"] + UPGRADES.keys()
+
+func keep_menu_name(i: int) -> String:
+	var id: String = keep_menu_items()[i % keep_menu_items().size()]
+	return "Repair" if id == "repair" else str(UPGRADES[id].name)
+
+func keep_menu_buy(i: int) -> bool:
+	var id: String = keep_menu_items()[i % keep_menu_items().size()]
+	return repair_keep() if id == "repair" else buy_upgrade(id)
+
+## Reload the arrows of the tower this player is standing in.
+func reload_tower_of(player: Node) -> bool:
+	var tower = current_tower(player)
+	if tower == null:
+		return false
+	for c in tower.get_children():
+		if c.has_method("reload"):
+			return c.reload()
+	return false
 
 func upgrade_cost(id: String) -> Dictionary:
 	var level: int = upgrade_levels.get(id, 0)

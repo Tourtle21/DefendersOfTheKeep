@@ -132,12 +132,6 @@ func poll(dev: int, delta: float) -> void:
 	var rt := _edge("rt", Input.get_joy_axis(dev, JOY_AXIS_TRIGGER_RIGHT) > 0.5)
 	var lt := _edge("lt", Input.get_joy_axis(dev, JOY_AXIS_TRIGGER_LEFT) > 0.5)
 	var y := _edge("y", Input.is_joy_button_pressed(dev, JOY_BUTTON_Y))
-	if y:
-		var tower = Game.current_tower(pl)                 # Y reloads the arrows of the tower you are in (2 sticks from the keep)
-		if tower != null:
-			for c in tower.get_children():
-				if c.has_method("reload"):
-					c.reload()
 	if Game.draft_active and !Game.draft_options.is_empty():
 		var n := Game.draft_options.size()
 		if lb: draft_sel = wrapi(draft_sel - 1, 0, n)
@@ -169,22 +163,29 @@ func poll(dev: int, delta: float) -> void:
 				Game.merge_hand(sel, j)
 				sel = -1
 				break
+	elif x:
+		Game.reload_tower_of(pl)                           # X with no card in hand reloads the tower you are in
+	var n_items: int = Game.keep_menu_items().size()
 	if up:
-		Game.repair_keep()
-	var ids: Array = Game.UPGRADES.keys()
-	if lb and false:
-		pass
+		upg = wrapi(upg - 1, 0, n_items)                   # D-pad up/down move over Repair and the upgrades, Y buys
 	if down:
-		Game.buy_upgrade(ids[upg % ids.size()])
+		upg = wrapi(upg + 1, 0, n_items)
+	if y:
+		Game.keep_menu_buy(upg)
 	_refresh_ui()
 
 func _refresh_ui() -> void:
 	_mana.max_value = Game.max_mana()
 	_mana.value = Game.mana
-	var ids: Array = Game.UPGRADES.keys()
-	var u: String = ids[upg % ids.size()]
-	_info.text = "Keep %d/%d   %s   Upgrade: %s lv%d" % [Game.keep_hp, Game.keep_max(), _res_text(), Game.UPGRADES[u].name, Game.upgrade_levels.get(u, 0)]
-	_hint.text = "LB/RB card   RT place   X merge   A leave   Y reload tower   D-pad: up repair  down buy upgrade" if !Game.draft_active else "Chest draft!  LB/RB choose   A take it"
+	var item_id: String = Game.keep_menu_items()[upg % Game.keep_menu_items().size()]
+	var what: String
+	if item_id == "repair":
+		what = "Repair (3 stone)"
+	else:
+		var uc: Dictionary = Game.upgrade_cost(item_id)
+		what = "%s lv%d  (%s)" % [Game.UPGRADES[item_id].name, Game.upgrade_levels.get(item_id, 0), ", ".join(uc.keys().map(func(k): return "%d %s" % [uc[k], k]))]
+	_info.text = "Keep %d/%d   %s   > %s" % [Game.keep_hp, Game.keep_max(), _res_text(), what]
+	_hint.text = "LB/RB card  RT place  A leave  X merge / reload tower  D-pad up/down pick  Y buy" if !Game.draft_active else "Chest draft!  LB/RB choose   A take it"
 	var key := str(Game.hand) + "|" + str(sel) + "|" + str(Game.draft_options) + str(draft_sel) + str(Game.draft_active)
 	if key != _hand_key:
 		_hand_key = key
