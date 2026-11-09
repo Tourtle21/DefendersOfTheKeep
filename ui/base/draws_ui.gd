@@ -17,7 +17,7 @@ func _ready() -> void:
 	layer = 22
 	var sc := UiKit.screen(self, "Drawn Cards", func():
 		root_ctl.visible = false
-		closed.emit(), "Drawn or found, not used yet. A card or weapon leaves this list once you use it.")
+		closed.emit(), "Drawn but not used yet. A card leaves once you unlock it or apply its upgrade.")
 	root_ctl = sc.root
 	stats_label = sc.right
 	var panel := UiKit.panel()
@@ -30,7 +30,7 @@ func _ready() -> void:
 			_refresh.call_deferred())
 	panel.add_child(grid_area)
 	empty_label = Label.new()
-	empty_label.text = "Nothing waiting.\nEverything you have drawn has been used."
+	empty_label.text = "Nothing waiting.\nEverything you drew has been unlocked or upgraded."
 	empty_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	empty_label.add_theme_font_size_override("font_size", 20)
 	empty_label.add_theme_color_override("font_color", Color(0.65, 0.7, 0.85))
@@ -50,11 +50,11 @@ func _refresh() -> void:
 		if c != empty_label:
 			grid_area.remove_child(c)
 			c.queue_free()
-	var items: Array = Game.meta.draw_history.values()
+	var items: Array = Game.waiting_draws()
 	var total := 0
 	for h in items:
 		total += int(h.count)
-	stats_label.text = "%d waiting   %d different" % [total, items.size()]
+	stats_label.text = "%d waiting" % total
 	empty_label.visible = items.is_empty()
 	if items.is_empty():
 		return
@@ -65,7 +65,9 @@ func _refresh() -> void:
 			return ra < rb
 		if a.kind != b.kind:
 			return a.kind == "card"
-		return str(a.id) < str(b.id))
+		if a.id != b.id:
+			return str(a.id) < str(b.id)
+		return str(a.result) < str(b.result))
 	var area := grid_area.size if grid_area.size.x > 100 else get_viewport().get_visible_rect().size - Vector2(60, 200)
 	var gem_h := 18.0
 	area.y -= gem_h * ceilf(sqrt(items.size() / 1.6))
@@ -95,7 +97,8 @@ func _refresh() -> void:
 			wc.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			holder.add_child(wc)
 		var count := Label.new()
-		count.text = "x%d" % int(h.count)
+		var tag: String = {"offer": "Unlock", "spare": "Spare", "upgrade": "Upgrade T%d" % int(h.tier)}.get(str(h.result), "")
+		count.text = ("%s x%d" % [tag, int(h.count)]) if int(h.count) > 1 else tag
 		count.position = Vector2(0, csize.y)
 		count.size = Vector2(csize.x, gem_h)
 		count.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER

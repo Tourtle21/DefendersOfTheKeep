@@ -155,15 +155,6 @@ func aim_time(slot: String) -> float:
 		return 0.0
 	return (Time.get_ticks_msec() - _aim_start_ms[slot]) / 1000.0
 
-## Using a weapon takes it off the Drawn Cards screen (that screen lists what you have drawn but not used yet).
-func _note_weapon_used() -> void:
-	if item == null:
-		return
-	var wid = item.get("weapon_id")
-	var id: String = str(wid) if wid != null and str(wid) != "" else (item._id() if item.has_method("_id") else "")
-	if id != "":
-		Game.mark_used("weapon", id)
-
 func _can_cast() -> bool:
 	return !downed and item != null and !Game.local_in_base() and !Game.draft_active and !has_crystal
 
@@ -185,15 +176,12 @@ func _release_cast(slot: String) -> void:
 		"ability":
 			if item.has_method("use_ability"):
 				item.use_ability()
-				_note_weapon_used()
 		"dash":
 			if item.has_method("use_dash"):
 				item.use_dash()
-				_note_weapon_used()
 		"ultimate":
 			if item.has_method("use_ultimate"):
 				item.use_ultimate()
-				_note_weapon_used()
 
 func _input(event):
 	if downed:
@@ -219,7 +207,6 @@ func _input(event):
 			if event.pressed:
 				if _can_cast() and item.has_method("use_ability"):
 					item.use_ability()
-					_note_weapon_used()
 			elif item.has_method("release_ability"):
 				item.release_ability()
 		elif event.pressed:
@@ -231,7 +218,6 @@ func _input(event):
 		item.release_item()
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed and item != null and !Game.local_in_base() and !Game.draft_active and !has_crystal:
 		item.use_item()
-		_note_weapon_used()
 		is_using_item = true
 	
 var _last_move := Vector2.ZERO

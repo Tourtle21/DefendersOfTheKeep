@@ -110,7 +110,7 @@ static func fit_cards(n: int, area: Vector2, aspect := 0.72, gap := 8.0, max_w :
 		var rows := ceili(float(n) / cols)
 		var w := minf((area.x - gap * (cols - 1)) / cols, ((area.y - gap * (rows - 1)) / rows) * aspect)
 		w = minf(w, max_w)
-		if w > best_w:
+		if w >= best_w:                      # on a tie (cards at their size cap) prefer more columns: fewer rows
 			best_w = w
 			best = {"cols": cols, "size": Vector2(w, w / aspect).floor()}
 	return best

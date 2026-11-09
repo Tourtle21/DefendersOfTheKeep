@@ -519,21 +519,6 @@ func fix_meta() -> void:
 	for k in ["weapons", "fusion_tiers", "seen"]:
 		if !meta.has(k):
 			meta[k] = []
-	if !meta.has("used_ever"):
-		meta["used_ever"] = {}               # "card:fireball" / "weapon:sword": things you have used at least once
-	if !meta.has("draw_history"):
-		meta["draw_history"] = {}
-	if !meta.get("history_cleaned_v2", false):         # one-time: the starting tools and starter cards were used before use was tracked
-		meta["history_cleaned_v2"] = true
-		for gone in ["weapon:sword", "weapon:pickaxe"]:
-			meta.draw_history.erase(gone)
-			meta.used_ever[gone] = true
-		for id in STARTER_CARDS:
-			meta.draw_history.erase("card:" + id)
-			meta.used_ever["card:" + id] = true
-	if !meta.get("history_backfilled", false):
-		meta["history_backfilled"] = true
-		_backfill_history()            # "card:fireball" / "weapon:spear" -> {kind, id, count, tier}: every reward you have drawn
 	if !meta.has("weapon_tiers"):
 		meta["weapon_tiers"] = {}            # weapon id -> the highest tier you have drawn or found (the Forge cannot go past it)
 	if !meta.has("tier_drawn"):
@@ -556,37 +541,24 @@ func is_seen(id: String) -> bool:
 			return true
 	return false
 
-## A save from before the Drawn Cards screen: whatever it already owns or has met counts as drawn once.
-func _backfill_history() -> void:
-	var ids := []
-	for id in meta.get("weapons", []):
-		ids.append(["weapon", str(id)])
-	for id in meta.get("unlocked", []):
-		if !(id in STARTER_CARDS):
-			ids.append(["card", str(id)])
-	for id in meta.get("seen", []):
-		ids.append(["card" if CARDS.has(str(id)) else "weapon", str(id)])
-	for pair in ids:
-		var key := "%s:%s" % [pair[0], pair[1]]
-		if !meta.draw_history.has(key):
-			meta.draw_history[key] = {"kind": pair[0], "id": pair[1], "count": 1, "tier": 1}
-
-## The Drawn Cards screen lists what you have drawn but not used yet: using a card or weapon removes it.
-func mark_used(kind: String, id: String) -> void:
+## What you have drawn at the end of a run but not used yet, for the Drawn Cards screen: offers waiting to be
+## unlocked, spare copies waiting to be merged, and tier-ups waiting to be bought. Unlocking or upgrading removes them.
+func waiting_draws() -> Array:
 	fix_meta()
-	meta.draw_history.erase("%s:%s" % [kind, id])
-	meta.used_ever["%s:%s" % [kind, id]] = true
-
-## Remember a draw for the Drawn Cards screen (it stays until you use it).
-func record_draw(entry: Dictionary, force := false) -> void:
-	fix_meta()
-	var key := "%s:%s" % [entry.kind, entry.id]
-	if !force and meta.used_ever.has(key):
-		return                           # you have already used this one: drawing it again is not news
-	var h: Dictionary = meta.draw_history.get(key, {"kind": entry.kind, "id": str(entry.id), "count": 0, "tier": 1})
-	h.count = int(h.count) + 1
-	h.tier = maxi(int(h.tier), int(entry.get("tier", 1)))
-	meta.draw_history[key] = h
+	var groups := {}
+	for pe in meta.pending:
+		var res: String = str(pe.get("result", "offer"))
+		if res != "offer" and res != "spare":
+			continue
+		var key := "%s:%s:%s" % [pe.kind, pe.id, res]
+		var g: Dictionary = groups.get(key, {"kind": str(pe.kind), "id": str(pe.id), "tier": 1, "count": 0, "result": res})
+		g.count = int(g.count) + 1
+		g.tier = maxi(int(g.tier), int(pe.get("tier", 1)))
+		groups[key] = g
+	for id in CARDS:
+		if upgrade_available(id):
+			groups["card:%s:upgrade" % id] = {"kind": "card", "id": id, "tier": card_tier(id) + 1, "count": 1, "result": "upgrade"}
+	return groups.values()
 
 func mark_seen(id: String) -> void:
 	fix_meta()
@@ -1015,7 +987,6 @@ func cast(card_id: String, pos: Vector2, caster: Node = null) -> bool:
 	world.add_child(spell)
 	mana_changed.emit()
 	hand_changed.emit()
-	mark_used("card", entry_id(card_id))
 	return true
 
 ## --- towers: while you are inside one you can jump to any other lit tower ---
@@ -1248,7 +1219,6 @@ func draw_card() -> String:
 
 ## Add to the hand with spells first, then buildings.
 func add_to_hand(id: String) -> void:
-	record_draw({"kind": "card", "id": entry_id(id), "tier": entry_tier(id)})        # also counts for the Drawn Cards screen
 	hand.append(id)
 	var sorted := []
 	for id2 in hand:
@@ -1517,7 +1487,6 @@ func grant_legendary() -> Dictionary:
 	var pick: Dictionary = left.pick_random()
 	mark_seen(str(pick.id))
 	var entry := {"kind": pick.kind, "id": pick.id, "tier": 1, "realm": 6, "result": "offer", "shards": 0, "legendary": true, "cost": LEGENDARY_PRICE}
-	record_draw(entry, true)
 	meta.pending.append(entry)                  # kept for good: it does not count against the vault limit
 	return entry
 
@@ -1620,8 +1589,6 @@ func make_rewards(won := false) -> Array:
 			else:
 				meta.pending.append(entry)
 		meta.shards += entry.shards
-		if entry.result != "converted":              # a card turned into Shards is gone, not waiting
-			record_draw(entry, true)                 # reward draws always count: they are new offers, tier-ups and spares
 		out.append(entry)
 	if won:
 		out.append(grant_legendary())              # beating the whole game always unlocks a legendary

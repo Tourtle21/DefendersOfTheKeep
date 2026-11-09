@@ -46,7 +46,6 @@ func _input(event: InputEvent) -> void:
 		if player.get_parent().get_node("Hud").equip_item(winfo):
 			if (item_info.items[item_type]["type"] == "item" and player.get_parent() != null):
 				player.equip_item(winfo)
-				_log_found()
 			queue_free()
 		else:
 			var info: Dictionary = winfo
@@ -55,7 +54,6 @@ func _input(event: InputEvent) -> void:
 				var old = player.get_parent().get_node("Hud").swap_active(info)
 				if old != null:
 					player.equip_item(info)
-					_log_found()
 					var old_entry: String = old.get("entry", "")
 					if old_entry == "":
 						var found = item_info.items.find_key(old)
@@ -76,10 +74,6 @@ func _input(event: InputEvent) -> void:
 func _locked() -> bool:
 	return item_info.items[item_type]["type"] == "item" and !Game.weapon_unlocked(item_type) and !Game.weapon_known(item_type)
 
-## A weapon picked up in a run counts on the Drawn Cards screen.
-func _log_found() -> void:
-	Game.record_draw({"kind": "weapon", "id": item_type, "tier": Game.weapon_tier_of(entry())})
-
 ## Pickup by a co-op avatar (the local keyboard path is _input above).
 func pickup_by(pl) -> bool:
 	if _locked():
@@ -89,7 +83,6 @@ func pickup_by(pl) -> bool:
 		Game.pick_up_resource(item_type, pl)
 	else:
 		Net.give_weapon(pl, entry())
-		_log_found()
 	queue_free()
 	return true
 
