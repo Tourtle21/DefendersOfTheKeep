@@ -93,12 +93,12 @@ func start_split_screen() -> void:
 const NIGHT_DARKNESS := 1.0        # how much of the day the night takes away (1 = pitch black); lights add back the same amount
 const WAVE_SIZE := 2.0             # waves come about three times less often than they used to, so each one is bigger
 const FIRST_BOSS_WAVE := 3          # King Blobbert shows up when this wave starts
-const CYCLE := 260.0
+const CYCLE := 210.0
 const FIRST_WAVE_AT := 40.0        # setup time before the first wave, in seconds
-const DAY_WAVE_AT := 35.0          # when in the cycle (seconds) each wave spawns
-const NIGHT_WAVE_AT := 152.0
-const DUSK_AT := 130.0             # darkness starts to rise (over 44 s), full night from 174
-const DAWN_AT := 226.0             # and fades again (over 40 s)
+const DAY_WAVE_AT := 28.0          # when in the cycle (seconds) each wave spawns
+const NIGHT_WAVE_AT := 122.0
+const DUSK_AT := 104.0             # darkness starts to rise (over 35 s), full night from 139
+const DAWN_AT := 182.0             # and fades again (over 32 s)
 var clock := 0.0
 var _banner
 const GAME_SPEED := 0.8           # the whole game runs a little slower than real time (not in headless tests)
@@ -111,11 +111,11 @@ static func night_for(c: float) -> float:
 	var t := fposmod(c, CYCLE)
 	if t < DUSK_AT:
 		return 0.0
-	if t < DUSK_AT + 44.0:
-		return smoothstep(0.0, 1.0, (t - DUSK_AT) / 44.0)
+	if t < DUSK_AT + 35.0:
+		return smoothstep(0.0, 1.0, (t - DUSK_AT) / 35.0)
 	if t < DAWN_AT:
 		return 1.0
-	return 1.0 - smoothstep(0.0, 1.0, (t - DAWN_AT) / 40.0)
+	return 1.0 - smoothstep(0.0, 1.0, (t - DAWN_AT) / 32.0)
 
 ## Seconds until the clock next reaches `event_at`, never less than 40.
 func seconds_until(event_at: float) -> float:

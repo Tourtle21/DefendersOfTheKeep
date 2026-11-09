@@ -106,8 +106,10 @@ func _register_actions() -> void:
 	for a in ["move_left", "move_right", "move_up", "move_down"]:
 		InputMap.action_set_deadzone(a, STICK_DEAD)
 	_bind("interact", _button_event(JOY_BUTTON_A))
-	_bind("dash", _button_event(JOY_BUTTON_B))
-	_bind("switch_items", _button_event(JOY_BUTTON_X))
+	_bind("dash", _axis_event(JOY_AXIS_TRIGGER_LEFT, 1.0))             # left trigger dashes
+	InputMap.action_set_deadzone("dash", 0.5)
+	_bind("switch_items", _button_event(JOY_BUTTON_LEFT_SHOULDER))      # LB and RB switch weapon
+	_bind("switch_items", _button_event(JOY_BUTTON_RIGHT_SHOULDER))
 	_bind("ultimate", _button_event(JOY_BUTTON_Y))
 	# menus: A presses the focused control, B goes back (the project's ui actions only had the keyboard)
 	InputMap.action_add_event("ui_accept", _button_event(JOY_BUTTON_A))
@@ -224,6 +226,10 @@ func _input(event: InputEvent) -> void:
 		elif absf(event.axis_value) > 0.35:
 			_set_using(true)
 		return
+	if event is InputEventJoypadButton and event.button_index == JOY_BUTTON_X and mode == "all":
+		_set_using(true)
+		_click(MOUSE_BUTTON_RIGHT, event.pressed)           # X is the ability
+		return
 	if event is InputEventJoypadButton and event.pressed:
 		if event.button_index == JOY_BUTTON_START:
 			_key(KEY_P)
@@ -249,6 +255,8 @@ func _pick_card(step: int) -> void:
 func _trigger(axis: int, value: float) -> void:
 	if value > TRIGGER_ON:
 		_set_using(true)
+	if axis == JOY_AXIS_TRIGGER_LEFT:
+		return                       # the left trigger is the "dash" action now (bound in _register_actions)
 	var is_right := axis == JOY_AXIS_TRIGGER_RIGHT
 	var held: bool = _rt if is_right else _lt
 	var button := MOUSE_BUTTON_LEFT if is_right else MOUSE_BUTTON_RIGHT

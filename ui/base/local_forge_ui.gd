@@ -109,6 +109,17 @@ func close() -> void:
 	_root.visible = false
 	picks.clear()
 
+func open() -> void:
+	if pl.is_in_tower or pl.downed:
+		return
+	is_open = true
+	cur = 0
+	picks.clear()
+	_root.visible = true
+	_prev["a"] = true            # the press that is held now must not also pick a weapon
+	_key = ""
+	_refresh()
+
 ## Called every physics frame with this player's controller.
 func poll(dev: int) -> void:
 	var up := _edge("up", Input.is_joy_button_pressed(dev, JOY_BUTTON_DPAD_UP))
@@ -120,12 +131,7 @@ func poll(dev: int) -> void:
 	var y := _edge("y", Input.is_joy_button_pressed(dev, JOY_BUTTON_Y))
 	if !is_open:
 		if up and _near_forge() and !pl.is_in_tower and !pl.downed:
-			is_open = true
-			cur = 0
-			picks.clear()
-			_root.visible = true
-			_prev["a"] = true            # the press that is held now must not also pick a weapon
-			_refresh()
+			open()
 		return
 	if !_near_forge() or pl.downed or pl.is_in_tower:
 		close()

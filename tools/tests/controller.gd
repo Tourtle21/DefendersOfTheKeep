@@ -57,12 +57,18 @@ func _initialize() -> void:
 	check(!Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT), "releasing RT releases it")
 	axis(JOY_AXIS_TRIGGER_LEFT, 1.0)
 	await wait(0.1)
-	check(Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT), "LT holds the ability button")
+	check(Input.is_action_pressed("dash") and !Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT), "LT is the dash action (not the ability click)")
 	axis(JOY_AXIS_TRIGGER_LEFT, 0.0)
 	await wait(0.1)
-	check(!Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT), "releasing LT releases it")
+	check(!Input.is_action_pressed("dash"), "releasing LT releases dash")
+	button(JOY_BUTTON_X, true)
+	await wait(0.1)
+	check(Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT), "X holds the ability button")
+	button(JOY_BUTTON_X, false)
+	await wait(0.1)
+	check(!Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT), "releasing X releases it")
 	# buttons are the same actions as the keys
-	for pair in [[JOY_BUTTON_A, "interact"], [JOY_BUTTON_B, "dash"], [JOY_BUTTON_X, "switch_items"], [JOY_BUTTON_Y, "ultimate"]]:
+	for pair in [[JOY_BUTTON_A, "interact"], [JOY_BUTTON_LEFT_SHOULDER, "switch_items"], [JOY_BUTTON_RIGHT_SHOULDER, "switch_items"], [JOY_BUTTON_Y, "ultimate"]]:
 		button(pair[0], true)
 		await wait(0.05)
 		check(Input.is_action_pressed(pair[1]), "pad button -> %s" % pair[1])

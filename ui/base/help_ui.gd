@@ -35,10 +35,10 @@ COUNTERS (every enemy has a weakness)
   plus = fears slows. Orange numbers = weak to it, grey = resisted. Bosses have weaknesses too.
 
 CONTROLLER
-  Outside: left stick walk, right stick aim, RT attack, LT ability, A pick up / enter tower / interact,
-  B dash, X switch weapon, Y ultimate, Start pause.
+  Outside: left stick walk, right stick aim, RT attack, X ability, LT dash, Y ultimate, LB / RB switch weapon, A pick up / enter tower / interact,
+  Start pause.
   In a tower: A leave, right stick moves the cursor, LB / RB pick a card, RT place it (or jump to a lit tower),
-  LT or B put it back.   Menus: d-pad move, A press, B back, LB / RB switch tabs.
+  B put it back.   Menus: d-pad move, A press, B back, LB / RB switch tabs.
 
 THE LOOP
   Gather stone and sticks, kill enemies for gold, open chests (cards or weapons).

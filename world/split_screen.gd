@@ -216,7 +216,7 @@ func _make_corner(slot: int) -> void:
 	_corner.resize(maxi(_corner.size(), slot + 1))
 	var abilities := AbilityHud.new()                   # the same attack / ability / dash / ultimate panel player 1 has, for this avatar
 	abilities.target = _players[slot]
-	abilities.key_labels = ["RT", "LT", "B", "Y"]
+	abilities.key_labels = ["RT", "X", "LT", "Y"]
 	add_child(abilities)
 	abilities.custom_viewport = viewports[slot]
 	var slots_ctl := Control.new()                      # the weapon slots: what you carry, the one in hand lit (X switches)
@@ -279,7 +279,9 @@ func _process(_delta: float) -> void:
 			continue
 		var pcam: Camera2D = pl.get_node("Camera2D")      # the player keeps its own camera node up to date (position, shake, zoom)
 		var cam: Camera2D = cameras[slot]
-		cam.global_position = pcam.global_position
+		if slot > 0:
+			pl.base_zoom = 2.0 if pl.is_in_tower else 5.0               # inside a tower the view pulls back and sits lower, like player 1's
+		cam.global_position = pcam.global_position + (Vector2(0, 100) if slot > 0 and pl.is_in_tower else Vector2.ZERO)
 		cam.offset = pcam.offset
 		cam.zoom = pcam.zoom          # the same magnification as single player: a split view is a narrower window onto the same picture
 		if slot > 0:

@@ -103,16 +103,21 @@ func _physics_process(delta: float) -> void:
 			_last_aim_ms[slot] = now
 		var state := {
 			"move": left, "aim": pl.global_position + _aim_dir[slot] * AIM_REACH,
-			"attack": Input.get_joy_axis(dev, JOY_AXIS_TRIGGER_RIGHT) > 0.5, "ability": Input.get_joy_axis(dev, JOY_AXIS_TRIGGER_LEFT) > 0.5,
-			"dash": _held(dev, JOY_BUTTON_B), "ultimate": _held(dev, JOY_BUTTON_Y),
+			"attack": Input.get_joy_axis(dev, JOY_AXIS_TRIGGER_RIGHT) > 0.5, "ability": _held(dev, JOY_BUTTON_X),
+			"dash": Input.get_joy_axis(dev, JOY_AXIS_TRIGGER_LEFT) > 0.5, "ultimate": _held(dev, JOY_BUTTON_Y),
 		}
 		Net.apply_input_state(FIRST_ID + slot, pl, state)
 		# A interacts (pick up, tower in / out, chests, forge) and X switches weapon: on the press only
 		var prev: Dictionary = _prev_btn[slot]
 		var a_now := _held(dev, JOY_BUTTON_A)
-		var x_now := _held(dev, JOY_BUTTON_X)
+		var x_now := _held(dev, JOY_BUTTON_LEFT_SHOULDER) or _held(dev, JOY_BUTTON_RIGHT_SHOULDER)       # LB / RB switch weapon
 		if a_now and !prev.get("a", false):
-			Net._interact(pl)
+			if forge_uis.has(slot) and pl.global_position.distance_to(Net.FORGE_POS) <= 50.0 and !pl.downed:
+				forge_uis[slot].open()                    # A at the anvil opens the forge (d-pad up does too)
+			elif fuser_uis.has(slot) and pl.global_position.distance_to(Net.CARD_FUSER_POS) <= 50.0 and !pl.downed:
+				fuser_uis[slot].open()
+			else:
+				Net._interact(pl)
 		if x_now and !prev.get("x", false):
 			Net.switch_weapon(pl)
 		_prev_btn[slot] = {"a": a_now, "x": x_now}
