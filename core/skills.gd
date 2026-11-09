@@ -36,7 +36,7 @@ const TREE := {
 	"overclock": {"name": "Overclock", "branch": "economy", "pos": [1, 3], "req": ["deep_veins", "shard_bonus"], "max": 4, "cost": 9, "key": "gen_speed", "per": 0.15, "fmt": "p", "unit": " faster resource generators"},
 	"rare_draw": {"name": "Rare Draws", "branch": "magic", "pos": [1, 3], "req": ["draw_speed"], "max": 5, "cost": 10, "key": "rare_level", "per": 1.0, "fmt": "rare", "unit": ""},
 	"mana_kill": {"name": "Soul Siphon", "branch": "magic", "pos": [0, 3], "req": ["spell_power"], "max": 4, "cost": 9, "key": "mana_kill", "per": 0.5, "fmt": "n", "unit": " mana per kill"},
-	"vitality": {"name": "Vitality", "branch": "warrior", "pos": [0.5, 2], "req": ["move_speed"], "max": 5, "cost": 7, "key": "player_hp", "per": 0.1, "fmt": "p", "unit": " more player health"},
+	"vitality": {"name": "Vitality", "branch": "warrior", "pos": [0.5, 3], "req": ["move_speed"], "max": 5, "cost": 7, "key": "player_hp", "per": 0.1, "fmt": "p", "unit": " more player health"},
 	"dash_cd": {"name": "Nimble Dash", "branch": "warrior", "pos": [1, 2], "req": ["move_speed"], "max": 4, "cost": 7, "key": "dash_cd", "per": 0.07, "fmt": "p", "unit": " shorter dash cooldown"},
 	"turret_ammo": {"name": "Arsenal", "branch": "keep", "pos": [0.5, 2], "req": ["fortify", "repair"], "max": 4, "cost": 8, "key": "turret_ammo", "per": 4.0, "fmt": "n", "unit": " turret ammo"},
 	"build_hp": {"name": "Sturdy Builds", "branch": "builder", "pos": [0.5, 0], "req": [], "max": 5, "cost": 6, "key": "build_power", "per": 0.1, "fmt": "p", "unit": " structure health and damage"},

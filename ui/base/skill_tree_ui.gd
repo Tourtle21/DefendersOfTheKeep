@@ -38,6 +38,10 @@ func _ready() -> void:
 	tree.clip_contents = true
 	tree.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	tree.draw.connect(_draw_tree)
+	tree.resized.connect(func():                     # the window can change size after the tree was laid out
+		if root_ctl != null and root_ctl.visible:
+			_layout()
+			_refresh())
 	area.add_child(tree)
 	var dp := UiKit.panel(Color(0.08, 0.08, 0.14), UiKit.BORDER, 8.0)
 	sc.body.add_child(dp)
