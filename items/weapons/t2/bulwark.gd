@@ -40,6 +40,7 @@ func attack() -> void:
 	WeaponUtil.hit_breakables(get_tree(), o + aim * 16.0, 24.0, ["stone"])
 
 func use_ability() -> void:
+	_claim()
 	if !ability_unlocked():
 		if ability_name != "":
 			_locked_note("The ability", 2)
@@ -68,6 +69,7 @@ func _process(delta: float) -> void:
 			release_ability()
 
 func release_ability() -> void:
+	_claim()
 	if !_braced:
 		return
 	_braced = false

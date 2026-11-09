@@ -35,7 +35,7 @@ func _initialize() -> void:
 			var r: Array = game.make_rewards()
 			if r.size() != game.REWARD_COUNT[lvl]: count_ok = false
 			for e in r:
-				counts[e.result] += 1
+				counts[e.result] = counts.get(e.result, 0) + 1
 				if e.kind == "card":
 					if game.card_level(e.id) > lvl: violations += 1
 					var owned: bool = e.id in owned_before

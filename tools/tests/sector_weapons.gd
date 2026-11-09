@@ -78,7 +78,7 @@ func _initialize() -> void:
 			total += 10.0 - (e.health if is_instance_valid(e) else 0.0)
 		var patches := 0
 		for h in get_nodes_in_group("hazard"):
-			if h.lifetime > 0.0:
+			if "lifetime" in h and h.lifetime > 0.0:
 				patches += 1
 		print("%-12s ran all actions, dmg %5.1f, temporary ground patches alive %d | %s / %s / %s / %s" % [id, total, patches, w.attack_name, w.ability_name, w.dash_name, w.ultimate_name])
 		for h in get_nodes_in_group("hazard"):

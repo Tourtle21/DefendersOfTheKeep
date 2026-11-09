@@ -60,7 +60,16 @@ func _process(delta: float) -> void:
 	_dash_cd = max(0.0, _dash_cd - delta)
 	_ult_cd = max(0.0, _ult_cd - delta)
 
+var _util_power := 1.0
+
+func _claim() -> void:
+	WeaponUtil.power = _util_power          # (see Weapon._claim: the statics are shared by every player's weapon)
+	WeaponUtil.element = ""
+	WeaponUtil.twist = twist
+	WeaponUtil.lit = false
+
 func use_ability() -> void:
+	_claim()
 	if !ability_unlocked():
 		_locked_note("The ability", 2)
 		return
@@ -98,6 +107,7 @@ func ult_cd_left() -> float:
 	return _ult_cd
 
 func use_ultimate() -> void:
+	_claim()
 	if !ultimate_unlocked():
 		if ultimate_name != "":
 			_locked_note("The ultimate", 3)
@@ -126,6 +136,7 @@ func use_ultimate() -> void:
 			player.shake(6.0, 0.5)
 
 func use_dash() -> void:
+	_claim()
 	if _dash_cd > 0.0:
 		return
 	Sfx.play("whoosh", 0.05, 1.5)
@@ -166,6 +177,7 @@ func _ready() -> void:
 	WeaponUtil.lit = false
 	WeaponUtil.twist = twist
 	WeaponUtil.power = (1.0 + 0.2 * bonus_tier) * (1.0 + Game.bonus("weapon_dmg"))
+	_util_power = WeaponUtil.power
 	match _id():
 		"sword":
 			ability_name = "Whirlwind"

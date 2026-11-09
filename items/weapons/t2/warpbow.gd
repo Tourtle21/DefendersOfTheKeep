@@ -21,6 +21,7 @@ func _init() -> void:
 	preview_dash = 0.0
 
 func use_ability() -> void:
+	_claim()
 	if !ability_unlocked():
 		if ability_name != "":
 			_locked_note("The ability", 2)

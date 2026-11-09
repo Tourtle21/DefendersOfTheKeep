@@ -26,6 +26,7 @@ func _init() -> void:
 	reach = 9.0
 
 func use_item() -> void:
+	_claim()
 	if _attack_cd > 0.0 or _drawing:
 		return
 	_drawing = true
@@ -51,6 +52,7 @@ func _draw() -> void:
 	draw_line(Vector2(10, 0), Vector2(10 + 60.0 + 120.0 * ratio, 0), col, 1.0 + 1.5 * float(perfect))
 
 func release_item() -> void:
+	_claim()
 	if !_drawing:
 		return
 	_drawing = false

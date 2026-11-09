@@ -55,7 +55,7 @@ func _process(delta: float) -> void:
 	queue_redraw()
 
 func _input(event: InputEvent) -> void:
-	if hovering and event.is_action_pressed("interact") and !Game.draft_active:
+	if hovering and event.is_action_pressed("interact") and !(Game.draft_active and Game.draft_owner_slot == 0):
 		use()
 
 ## Activate, collect or upgrade, depending on the state. Returns what happened.
@@ -85,11 +85,11 @@ func use(who = null) -> String:
 
 func _hint() -> String:
 	if level == 0:
-		return "Enter: activate (%s)" % _cost_text(activate_cost())
+		return "E: activate (%s)" % _cost_text(activate_cost())
 	if stored > 0:
-		return "Enter: collect %d %s" % [stored, resource]
+		return "E: collect %d %s" % [stored, resource]
 	if level < MAX_LEVEL:
-		return "Enter: upgrade to %d (%s)" % [level + 1, _cost_text(upgrade_cost())]
+		return "E: upgrade to %d (%s)" % [level + 1, _cost_text(upgrade_cost())]
 	return "Fully upgraded"
 
 func _cost_text(cost: Dictionary) -> String:

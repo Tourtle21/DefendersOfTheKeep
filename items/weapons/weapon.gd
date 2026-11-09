@@ -61,6 +61,8 @@ func _ready() -> void:
 	if light_radius <= 0.0:
 		light_radius = float(LIGHT_WEAPONS.get(weapon_id, 0.0))
 	WeaponUtil.lit = light_radius > 0.0
+	_util_power = WeaponUtil.power
+	_util_lit = WeaponUtil.lit
 	if light_radius > 0.0:
 		GlowLight.attach(self, light_radius, Color(1.0, 0.85, 0.55), 0.8)
 	top_level = true
@@ -97,7 +99,19 @@ func _process(delta: float) -> void:
 				WeaponUtil.hit(e, _dash_dmg, player.global_position, _dash_knock)
 				_on_dash_hit(e)
 
+var _util_power := 1.0
+var _util_lit := false
+
+## WeaponUtil's damage multiplier, element, twist and glow are shared statics, so with several players (or a weapon swap)
+## the last weapon built would win. Every weapon puts its own values back before it acts.
+func _claim() -> void:
+	WeaponUtil.power = _util_power
+	WeaponUtil.element = element
+	WeaponUtil.twist = twist
+	WeaponUtil.lit = _util_lit
+
 func use_item() -> void:
+	_claim()
 	if _attack_cd > 0.0:
 		return
 	_attack_cd = attack_cooldown
@@ -118,6 +132,7 @@ func _locked_note(what: String, need: int) -> void:
 		Game.announce.emit("%s needs tier %d. Awaken or fuse this weapon at the Forge." % [what, need])
 
 func use_ability() -> void:
+	_claim()
 	if !ability_unlocked():
 		if ability_name != "":
 			_locked_note("The ability", 2)
@@ -147,6 +162,7 @@ func ult_cd_left() -> float:
 	return _ult_cd
 
 func use_ultimate() -> void:
+	_claim()
 	if !ultimate_unlocked():
 		if ultimate_name != "":
 			_locked_note("The ultimate", 3)
@@ -168,6 +184,7 @@ func rain(center: Vector2, radius: float, count: int, duration: float, dmg: floa
 	WeaponUtil.rain(get_tree(), game_world(), center, radius, count, duration, dmg, strike_r, color, stun)
 
 func use_dash() -> void:
+	_claim()
 	if _dash_cd > 0.0 or dash_name == "":
 		return
 	_dash_cd = dash_cooldown
@@ -216,9 +233,11 @@ func _draw() -> void:
 		draw_line(tip + Vector2(-3, 3), tip, Color(1, 1, 1, 0.3), 1.0)
 
 func release_item() -> void:
+	_claim()
 	pass
 
 func release_ability() -> void:
+	_claim()
 	pass
 
 func _on_dash_hit(_e) -> void:

@@ -41,6 +41,7 @@ func attack() -> void:
 	WeaponUtil.hit_breakables(get_tree(), c, 26.0, ["stone"])   # good at breaking rocks
 
 func use_ability() -> void:
+	_claim()
 	if !ability_unlocked():
 		if ability_name != "":
 			_locked_note("The ability", 2)
@@ -76,6 +77,7 @@ func dash_attack() -> void:
 	ground_strike(player.global_position + d.limit_length(70.0), 30.0, 0.22, 3.0, 260.0, Color(1.0, 0.5, 0.2), 0.5, ["stone"])
 
 func release_ability() -> void:
+	_claim()
 	if !_charging:
 		return
 	_charging = false

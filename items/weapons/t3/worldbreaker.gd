@@ -16,6 +16,7 @@ func _init() -> void:
 	ability_cooldown = 6.0
 
 func release_ability() -> void:
+	_claim()
 	var stored := _stored
 	var was := _braced
 	super()

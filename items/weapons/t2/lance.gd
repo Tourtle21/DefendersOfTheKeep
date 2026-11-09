@@ -38,6 +38,7 @@ func attack() -> void:
 			WeaponUtil.hit(e, 3.0, o, 140.0)
 
 func use_ability() -> void:
+	_claim()
 	if !ability_unlocked():
 		if ability_name != "":
 			_locked_note("The ability", 2)
@@ -63,6 +64,7 @@ func _draw() -> void:
 		draw_arc(Vector2(10 + dist, 0), 14.0 + 12.0 * ratio, 0, TAU, 24, col, 1.5)
 
 func release_ability() -> void:
+	_claim()
 	if !_charging:
 		return
 	_charging = false

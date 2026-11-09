@@ -1011,24 +1011,22 @@ func exit_base(player: Node) -> void:
 ## player uses the shared `carried` table. Either way it only reaches the keep's pool
 ## when that player enters a tower (see deposit).
 func pick_up_resource(type: String, who = null) -> void:
+	# whoever picked it up gets the pickup AND the skill-tree bonuses on it (co-op avatars carry their own load)
+	var load_table: Dictionary = who.carried if (who != null and who.remote_controlled) else carried
 	if type == "gold":
 		run_stats.gold += 1
 		Sfx.play("coin", 0.15)
 		if randf() < bonus("gold_chance"):
 			run_stats.gold += 1
-			carried["gold"] = carried.get("gold", 0) + 1
-	if who != null and who.remote_controlled:
-		who.carried[type] = who.carried.get(type, 0) + 1
-		return
-	carried[type] = carried.get(type, 0) + 1
+			load_table["gold"] = load_table.get("gold", 0) + 1
+	load_table[type] = load_table.get(type, 0) + 1
 	# skill tree: a chance of one extra unit (stone/sticks, or the deeper realm resources)
 	if type in ["stone", "stick"]:
 		if randf() < bonus("yield_basic"):
-			carried[type] += 1
+			load_table[type] += 1
 	elif type != "gold":
 		if randf() < bonus("yield_rare"):
-			carried[type] += 1
-	resources_changed.emit()
+			load_table[type] += 1
 
 func add_resource(type: String, amount: int) -> void:
 	if type == "gold":

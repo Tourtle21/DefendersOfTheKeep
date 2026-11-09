@@ -15,6 +15,7 @@ func _init() -> void:
 	preview_dash = 110.0
 
 func release_ability() -> void:
+	_claim()
 	var was := _charging
 	super()
 	if !was:
