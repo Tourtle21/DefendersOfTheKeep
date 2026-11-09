@@ -259,7 +259,7 @@ func _update_aggro(delta: float) -> void:
 func _chase(delta: float) -> void:
 	var dir: Vector2 = (aggro_target.global_position - global_position).normalized()
 	var go: float = speed * slow_mult * haste * 1.1
-	velocity = _unstick.steer(dir, go, delta)
+	velocity = Game.keep_on_map(global_position, _unstick.steer(dir, go, delta), delta)          # chasing you does not take it off the map
 	move_and_slide()
 	_unstick.after_move(self, dir, go, delta)
 
@@ -285,7 +285,7 @@ func _dashing(delta: float) -> bool:
 	if _dash_left <= 0.0:
 		return false
 	_dash_left -= delta
-	velocity = _dash_dir * _dash_speed
+	velocity = Game.keep_on_map(global_position, _dash_dir * _dash_speed, delta)
 	move_and_slide()
 	if _dash_left <= 0.0:
 		_recover = 0.7                                 # and then it is open for a moment

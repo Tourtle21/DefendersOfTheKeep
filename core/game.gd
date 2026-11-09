@@ -299,6 +299,33 @@ func menu_open() -> bool:
 			return true
 	return false
 
+const SECTOR_OUTLINE := [Vector2(-61, 106), Vector2(-750, 1299), Vector2(750, 1299), Vector2(61, 105),
+	Vector2(58, 107), Vector2(53, 110), Vector2(46, 113), Vector2(40, 115), Vector2(31, 118), Vector2(22, 120),
+	Vector2(14, 121), Vector2(3, 122), Vector2(-2, 122), Vector2(-16, 121), Vector2(-27, 119), Vector2(-41, 115),
+	Vector2(-53, 110)]     # the cone every sector is built from (the same polygon as world/sector_manager.gd OUTLINE, for the south sector)
+
+## Is this point on the map: the keep yard, or inside the cone of a sector that is open? Players and chasing enemies stop at the edge.
+func in_playable(pos: Vector2) -> bool:
+	if pos.length() <= 128.0:
+		return true
+	for id in sectors_unlocked:
+		var rot := deg_to_rad(SECTOR_ANGLES[id] - 90.0)
+		if Geometry2D.is_point_in_polygon(pos.rotated(-rot), SECTOR_OUTLINE):
+			return true
+	return false
+
+## `vel` (per second) cut down so that a step of `delta` seconds from `pos` stays on the map: it slides along an edge.
+func keep_on_map(pos: Vector2, vel: Vector2, delta: float) -> Vector2:
+	if in_playable(pos + vel * delta) or !in_playable(pos):
+		return vel
+	var vx := Vector2(vel.x, 0.0)
+	if in_playable(pos + vx * delta):
+		return vx
+	var vy := Vector2(0.0, vel.y)
+	if in_playable(pos + vy * delta):
+		return vy
+	return Vector2.ZERO
+
 ## Is the player who uses the keyboard / pad's interact button (player 1, never a co-op avatar or a split-screen player 2 to 4)
 ## inside this area? Chests, the Forge, doors and pickups react to that button, so only player 1 standing there counts.
 func has_local_player(area: Area2D) -> bool:

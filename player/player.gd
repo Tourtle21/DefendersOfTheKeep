@@ -265,6 +265,7 @@ func process_movement(delta):
 		velocity = input_direction * speed * speed_mult * Hazard.slow_at(get_tree(), global_position)
 		if has_crystal:
 			velocity = velocity.limit_length(CRYSTAL_CARRY_SPEED)       # the crystal is heavy: you drop to 26, a fraction of your normal 100 (blobberts walk at 10 and up)
+	velocity = Game.keep_on_map(position, velocity, delta)          # the edge of the map (the sector cones) stops you, and you slide along it
 	var new_position = position + velocity * delta
 	# Stay inside the keep circle except through gates opened by defeating bosses.
 	if CENTER.distance_to(new_position) > MAX_RADIUS:
