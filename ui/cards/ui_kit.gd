@@ -51,7 +51,17 @@ static func heading(text: String, size := 18) -> Label:
 
 ## A full-screen shell: dark backdrop, title bar (title, optional right-hand text, Back button) and an empty body area.
 ## Returns {"root": Control, "body": VBoxContainer, "right": Label}.
-static func screen(parent: Node, title: String, on_back: Callable, hint := "") -> Dictionary:
+const TABS := [["cards", "Cards"], ["weapons", "Weapons"], ["draws", "Drawn"]]
+
+## Jump from one tab screen (Cards / Weapons / Drawn) to another without going back to the menu.
+static func switch_tab(from_root: Control, to_id: String) -> void:
+	for n in from_root.get_tree().get_nodes_in_group("tab_screen"):
+		if n.get("tab_id") == to_id:
+			from_root.visible = false
+			n.open()
+			return
+
+static func screen(parent: Node, title: String, on_back: Callable, hint := "", tab_id := "") -> Dictionary:
 	var root := Control.new()
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -79,6 +89,23 @@ static func screen(parent: Node, title: String, on_back: Callable, hint := "") -
 	var t := heading(title, 28)
 	t.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(t)
+	if tab_id != "":                      # tabs: Cards | Weapons | Drawn, the current one highlighted
+		for tb in TABS:
+			var b := Button.new()
+			b.text = tb[1]
+			b.custom_minimum_size = Vector2(110, 36)
+			if tb[0] == tab_id:
+				var cur := style(Color(0.45, 0.36, 0.12), GOLD, 6.0)
+				for st in ["normal", "hover", "pressed", "disabled", "focus"]:
+					b.add_theme_stylebox_override(st, cur)
+				b.add_theme_color_override("font_color", Color.WHITE)
+				b.add_theme_color_override("font_hover_color", Color.WHITE)
+				b.add_theme_color_override("font_pressed_color", Color.WHITE)
+				b.focus_mode = Control.FOCUS_NONE
+			else:
+				var id: String = tb[0]
+				b.pressed.connect(func(): switch_tab(root, id))
+			row.add_child(b)
 	var right := Label.new()
 	right.add_theme_font_size_override("font_size", 20)
 	right.add_theme_color_override("font_color", Color("8fd8ff"))

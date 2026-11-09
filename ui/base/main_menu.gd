@@ -43,6 +43,20 @@ func _ready() -> void:
 	stats_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	stats_label.add_theme_font_size_override("font_size", 16)
 	box.add_child(stats_label)
+	var start_row := HBoxContainer.new()                    # which weapon the next run starts with
+	start_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	start_row.add_theme_constant_override("separation", 10)
+	box.add_child(start_row)
+	var start_label := Label.new()
+	start_label.text = "Start with:"
+	start_row.add_child(start_label)
+	var start_opt := OptionButton.new()
+	var options: Array = Game.start_weapon_options()
+	for o in options:
+		start_opt.add_item(Fusion.display_name(String(o)))
+	start_opt.selected = maxi(0, options.find(Game.meta.start_weapon))
+	start_opt.item_selected.connect(func(i: int): Game.set_start_weapon(options[i]))
+	start_row.add_child(start_opt)
 	var play := Button.new()
 	play.text = "Play game"
 	play.custom_minimum_size = Vector2(0, 56)
@@ -61,7 +75,7 @@ func _ready() -> void:
 	add_child(draws)
 	_button(box, "Card collection (unlocks and upgrades)", func(): collection.open())
 	_button(box, "Weapon codex", func(): codex.open())
-	_button(box, "Drawn cards (everything you have drawn)", func(): draws.open())
+	_button(box, "Drawn cards (waiting to unlock or upgrade)", func(): draws.open())
 	_button(box, "Skill tree (permanent upgrades)", func(): skills.open())
 	_button(box, "Quit", func():
 		Game.save_meta()

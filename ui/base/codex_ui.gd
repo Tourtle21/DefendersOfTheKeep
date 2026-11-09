@@ -5,6 +5,7 @@ class_name CodexUi
 ## adds. Weapons you have not met yet show as ???.
 
 const UiKit = preload("res://ui/cards/ui_kit.gd")
+var tab_id := "weapons"
 const TierCard = preload("res://ui/cards/tier_card.gd")
 signal closed
 
@@ -31,10 +32,11 @@ const ELEMENT_NOTE := {
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	layer = 22
+	add_to_group("tab_screen")
 	_info = load("res://world/item_info.tres")
 	var sc := UiKit.screen(self, "Weapon Codex", func():
 		root_ctl.visible = false
-		closed.emit(), "Click a weapon. Grey = locked.")
+		closed.emit(), "Click a weapon. Grey = locked.", "weapons")
 	root_ctl = sc.root
 	shards_label = sc.right
 	var body := HBoxContainer.new()

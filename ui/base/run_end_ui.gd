@@ -88,51 +88,18 @@ func _ready() -> void:
 	recipe_label.add_theme_font_size_override("font_size", 15)
 	box.add_child(recipe_label)
 	box.add_child(shop_row)                      # wraps onto more rows: no scrolling
-	box.add_child(UiKit.heading("Unlock with Shards", 16))
 	extras_row = HFlowContainer.new()                  # wraps onto more lines instead of running off the screen
 	extras_row.alignment = FlowContainer.ALIGNMENT_CENTER
 	extras_row.custom_minimum_size = Vector2(1000, 0)
 	extras_row.add_theme_constant_override("h_separation", 10)
 	extras_row.add_theme_constant_override("v_separation", 6)
-	box.add_child(extras_row)
-	collection = CollectionUi.new()
-	add_child(collection)
-	collection.closed.connect(func(): _refresh())
-	skills = SkillTreeUi.new()
-	add_child(skills)
-	skills.closed.connect(func(): _refresh())
-	codex = CodexUi.new()
-	add_child(codex)
-	var draws = DrawsUi.new()
-	add_child(draws)
-	var menu_row := HBoxContainer.new()
-	menu_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	menu_row.add_theme_constant_override("separation", 10)
-	box.add_child(menu_row)
-	var codex_btn := Button.new()
-	codex_btn.text = "Weapons"
-	codex_btn.custom_minimum_size = Vector2(150, 40)
-	codex_btn.pressed.connect(func(): codex.open())
-	menu_row.add_child(codex_btn)
-	var skill_btn := Button.new()
-	skill_btn.text = "Skills"
-	skill_btn.custom_minimum_size = Vector2(150, 40)
-	skill_btn.pressed.connect(func(): skills.open())
-	menu_row.add_child(skill_btn)
-	var coll_btn := Button.new()
-	coll_btn.text = "Cards"
-	coll_btn.custom_minimum_size = Vector2(150, 40)
-	coll_btn.pressed.connect(func(): collection.open())
-	menu_row.add_child(coll_btn)
-	var draws_btn := Button.new()
-	draws_btn.text = "Drawn"
-	draws_btn.custom_minimum_size = Vector2(150, 40)
-	draws_btn.pressed.connect(func(): draws.open())
-	menu_row.add_child(draws_btn)
 	var again := Button.new()
-	again.text = "Play again"
-	again.custom_minimum_size = Vector2(200, 48)
-	again.pressed.connect(func(): Game.restart_run())
+	again.text = "Continue"
+	again.custom_minimum_size = Vector2(240, 52)
+	again.add_theme_font_size_override("font_size", 22)
+	again.pressed.connect(func():                   # back to the main menu (cards, weapons, skills and unlocks live there)
+		Game._menu_done = false
+		Game.restart_run())
 	box.add_child(again)
 	Game.run_ended.connect(_show)
 
@@ -553,6 +520,7 @@ func _flip_all() -> void:
 
 ## Weapon unlocks, fusion tiers and the starting weapon, as compact buttons.
 func _refresh_extras() -> void:
+	return                      # the unlock shop moved to the main menu
 	Game.fix_meta()
 
 	for c in extras_row.get_children():

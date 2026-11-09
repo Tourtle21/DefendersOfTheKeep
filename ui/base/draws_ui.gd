@@ -3,6 +3,7 @@ extends CanvasLayer
 ## with how many times each came up. Opens from the start menu and the end-of-run screen.
 
 const UiKit = preload("res://ui/cards/ui_kit.gd")
+var tab_id := "draws"
 const TierCard = preload("res://ui/cards/tier_card.gd")
 
 signal closed
@@ -15,9 +16,10 @@ var empty_label: Label
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	layer = 22
+	add_to_group("tab_screen")
 	var sc := UiKit.screen(self, "Drawn Cards", func():
 		root_ctl.visible = false
-		closed.emit(), "Drawn but not used yet. A card leaves once you unlock it or apply its upgrade.")
+		closed.emit(), "Drawn but not used yet. A card leaves once you unlock it or apply its upgrade.", "draws")
 	root_ctl = sc.root
 	stats_label = sc.right
 	var panel := UiKit.panel()

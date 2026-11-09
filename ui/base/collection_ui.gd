@@ -13,6 +13,7 @@ var selected := ""
 signal closed
 
 const UiKit = preload("res://ui/cards/ui_kit.gd")
+var tab_id := "cards"
 const TierCard = preload("res://ui/cards/tier_card.gd")
 var grid_area: Control
 var tier_row: HBoxContainer
@@ -21,9 +22,10 @@ var viewed_tier := -1
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	layer = 22
+	add_to_group("tab_screen")
 	var sc := UiKit.screen(self, "Card Collection", func():
 		root_ctl.visible = false
-		closed.emit(), "Click a card. Dark = locked. Gems = your tier.")
+		closed.emit(), "Click a card. Dark = locked. Gems = your tier.", "cards")
 	root_ctl = sc.root
 	shards_label = sc.right
 	var body := HBoxContainer.new()
