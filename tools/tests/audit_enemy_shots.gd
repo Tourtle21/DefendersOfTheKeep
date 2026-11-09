@@ -14,6 +14,10 @@ func spawn(world, name: String, pos: Vector2):
 	world.get_node("Enemies").add_child(e)
 	return e
 func _initialize() -> void:
+	if DisplayServer.get_name() == "headless":
+		print("needs a window (screenshots); skipping")
+		quit()
+		return
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("out="): OUT = a.substr(4)
 	var game = root.get_node("Game")

@@ -10,6 +10,10 @@ func shot(name: String) -> void:
 	img.save_png("%s/%s.png" % [OUT, name])
 	print("saved ", name)
 func _initialize() -> void:
+	if DisplayServer.get_name() == "headless":
+		print("needs a window (screenshots); skipping")
+		quit()
+		return
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("out="): OUT = a.substr(4)
 	var game = root.get_node("Game")

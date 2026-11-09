@@ -15,6 +15,10 @@ func scripted(world, f: String):
 		if c.get_script() and str(c.get_script().resource_path).ends_with(f): return c
 	return null
 func _initialize() -> void:
+	if DisplayServer.get_name() == "headless":
+		print("needs a window (screenshots); skipping")
+		quit()
+		return
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("out="): OUT = a.substr(4)
 	var game = root.get_node("Game")
