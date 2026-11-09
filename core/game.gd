@@ -291,6 +291,14 @@ const MAX_PENDING := 12            # offers kept between runs until you unlock o
 func skill_cost(id: String) -> int:
 	return int(round(Skills.TREE[id].cost * pow(skill_level(id) + 1, SKILL_COST_CURVE) * SKILL_COST_SCALE))      # each level costs clearly more than the last
 
+## Is the player who uses the keyboard / pad's interact button (player 1, never a co-op avatar or a split-screen player 2 to 4)
+## inside this area? Chests, the Forge, doors and pickups react to that button, so only player 1 standing there counts.
+func has_local_player(area: Area2D) -> bool:
+	for b in area.get_overlapping_bodies():
+		if b.is_in_group("player") and !b.get("remote_controlled"):
+			return true
+	return false
+
 ## Player health from the Vitality skill: damage and healing are divided by this, so the bar stays the same size.
 func hp_scale() -> float:
 	return 1.0 + bonus("player_hp")

@@ -149,12 +149,16 @@ func _draw() -> void:
 		draw_string(ThemeDB.fallback_font, Vector2(-43, -55 + i * 8), lines[i], HORIZONTAL_ALIGNMENT_LEFT, 88, 6, Color(1, 0.95, 0.7) if i == 0 else Color(0.85, 0.9, 1.0))
 
 func _on_body_entered(body: Node2D) -> void:
+	if body.get("remote_controlled"):
+		return                    # a co-op avatar or split-screen player 2 to 4 walking past must not make player 1's button pick this up
 	hovering = true
 	player = body
 	modulate = Color(1.5, 1.5, 0.5)
 	queue_redraw()
 
 func _on_body_exited(body: Node2D) -> void:
+	if Game.has_local_player(self):
+		return
 	hovering = false
 	modulate = Color.WHITE
 	queue_redraw()

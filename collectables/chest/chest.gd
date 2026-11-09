@@ -41,8 +41,8 @@ func _ready() -> void:
 	circle.radius = 16.0
 	shape.shape = circle
 	add_child(shape)
-	body_entered.connect(func(b): if b.is_in_group("player"): hovering = true)
-	body_exited.connect(func(b): if b.is_in_group("player"): hovering = false)
+	body_entered.connect(func(b): if b.is_in_group("player") and !b.get("remote_controlled"): hovering = true)
+	body_exited.connect(func(_b): hovering = Game.has_local_player(self))
 	z_index = 3
 
 func _process(delta: float) -> void:

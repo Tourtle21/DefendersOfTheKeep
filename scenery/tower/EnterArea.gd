@@ -48,10 +48,16 @@ func _show_interior(on: bool) -> void:
 
 func _on_body_entered(body):
 	if body.is_in_group("player"):
-		open = true
+		if !body.get("remote_controlled"):
+			open = true                           # only player 1's interact button works the door (see Game.has_local_player)
 		get_parent().get_node("AnimationPlayer").play("open_door")
 
 func _on_body_exited(body):
 	if body.is_in_group("player"):
-		open = false
-		get_parent().get_node("AnimationPlayer").play_backwards("open_door")
+		open = Game.has_local_player(self)
+		var anyone := false
+		for b in get_overlapping_bodies():
+			if b.is_in_group("player"):
+				anyone = true
+		if !anyone:
+			get_parent().get_node("AnimationPlayer").play_backwards("open_door")
