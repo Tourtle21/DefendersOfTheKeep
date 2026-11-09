@@ -17,6 +17,10 @@ var color := Color(0.8, 0.5, 0.2)
 var body_radius := 22.0
 var attacks: Array = ["slam", "charge", "summon"]
 var gold_drop := 12
+var dmg_mult := 1.0                # grows with the sector: the sixth boss hits more than twice as hard as the first
+var sprite_path := ""
+var _sprite: Sprite2D
+const ATTACKS_SCRIPT := preload("res://enemies/boss/boss_attacks.gd")
 var wake_distance := 240.0
 var wake_wave := 3                 # stays asleep until this wave has started, so a run cannot be ended by wandering off
 var _warned := false
@@ -69,6 +73,14 @@ func _ready() -> void:
 	shape.shape = circle
 	add_child(shape)
 	z_index = 3
+	if sprite_path != "" and ResourceLoader.exists(sprite_path):
+		_sprite = Sprite2D.new()
+		_sprite.texture = load(sprite_path)
+		_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		var k := body_radius * 2.7 / float(_sprite.texture.get_height())
+		_sprite.scale = Vector2(k, k)
+		_sprite.position = Vector2(0, -body_radius * 0.12)
+		add_child(_sprite)
 	_nav = NavigationAgent2D.new()
 	_nav.path_desired_distance = 8.0
 	_nav.target_desired_distance = 12.0
@@ -199,7 +211,7 @@ func _physics_process(delta: float) -> void:
 ## Boss hits are much heavier than a normal enemy's 30: a body slam costs a fifth of your health, a slam or
 ## charge about a third, and an enraged boss hits 30% harder.
 func _dmg(base: float) -> float:
-	return base * (1.3 if enraged else 1.0)
+	return base * dmg_mult * (1.3 if enraged else 1.0)
 
 func _contact_damage(extra: float, base := 45.0) -> void:
 	if _hit_cd <= 0.0 and _player != null and _player.global_position.distance_to(global_position) < body_radius + extra:
@@ -236,7 +248,10 @@ func _do_attack() -> void:
 		"quake":
 			_quake()
 		_:
-			_end_attack()
+			if ATTACKS_SCRIPT.has(_attack):
+				ATTACKS_SCRIPT.run(self, _attack)           # a signature attack (enemies/boss/boss_attacks.gd)
+			else:
+				_end_attack()
 
 func _quake() -> void:
 	_state = "recover"
@@ -311,18 +326,28 @@ func _draw() -> void:
 		c = c.darkened(0.35)
 	var r := body_radius
 	draw_circle(Vector2(0, r * 0.7), r * 0.9, Color(0, 0, 0, 0.25))             # shadow
-	draw_circle(Vector2.ZERO, r + 2.0, Color.BLACK)
-	draw_circle(Vector2.ZERO, r, c)
-	draw_circle(Vector2(-r * 0.3, -r * 0.35), r * 0.45, c.lightened(0.25))
-	# face
-	var eye := Color(1, 0.9, 0.3) if awake else Color(0.3, 0.3, 0.3)
-	draw_circle(Vector2(-r * 0.35, -r * 0.1), r * 0.16, eye)
-	draw_circle(Vector2(r * 0.35, -r * 0.1), r * 0.16, eye)
-	draw_line(Vector2(-r * 0.35, r * 0.35), Vector2(r * 0.35, r * 0.35), Color.BLACK, 2.0)
-	# crown spikes
-	for i in 5:
-		var x := -r * 0.6 + i * r * 0.3
-		draw_colored_polygon(PackedVector2Array([Vector2(x - 3, -r + 1), Vector2(x, -r - 8), Vector2(x + 3, -r + 1)]), Color("e8c040"))
+	if _sprite != null:
+		var tint := Color.WHITE
+		if enraged:
+			tint = Color(1.25, 0.7, 0.65)
+		if _flash > 0.0:
+			tint = Color(1.9, 1.9, 1.9)
+		if !awake:
+			tint = Color(0.6, 0.6, 0.65)
+		_sprite.modulate = tint
+		_sprite.flip_h = velocity.x < -1.0 if absf(velocity.x) > 1.0 else _sprite.flip_h
+		_sprite.position.y = -r * 0.12 + (sin(Time.get_ticks_msec() / 260.0) * 1.2 if _state == "chase" else 0.0)
+	else:
+		draw_circle(Vector2.ZERO, r + 2.0, Color.BLACK)
+		draw_circle(Vector2.ZERO, r, c)
+		draw_circle(Vector2(-r * 0.3, -r * 0.35), r * 0.45, c.lightened(0.25))
+		var eye := Color(1, 0.9, 0.3) if awake else Color(0.3, 0.3, 0.3)         # face
+		draw_circle(Vector2(-r * 0.35, -r * 0.1), r * 0.16, eye)
+		draw_circle(Vector2(r * 0.35, -r * 0.1), r * 0.16, eye)
+		draw_line(Vector2(-r * 0.35, r * 0.35), Vector2(r * 0.35, r * 0.35), Color.BLACK, 2.0)
+		for i in 5:                                                               # crown spikes
+			var x := -r * 0.6 + i * r * 0.3
+			draw_colored_polygon(PackedVector2Array([Vector2(x - 3, -r + 1), Vector2(x, -r - 8), Vector2(x + 3, -r + 1)]), Color("e8c040"))
 	# telegraphs
 	if _state == "intro":
 		draw_arc(Vector2.ZERO, r * (1.5 + 3.0 * (1.0 - _intro / 1.3)), 0, TAU, 40, Color(1, 0.9, 0.5, _intro / 1.3), 3.0)
@@ -342,6 +367,10 @@ func _draw() -> void:
 				draw_line(dv * (r + 4.0), dv * (r + 14.0 + 16.0 * t), Color(0.6, 1.0, 0.3, 0.9), 2.0)
 		elif _attack == "quake":
 			draw_arc(Vector2.ZERO, r * 1.8, 0, TAU, 32, Color(1.0, 0.6, 0.2, 0.5 + 0.4 * t), 2.0)
+		elif ATTACKS_SCRIPT.has(_attack):                       # a signature attack: say its name, gather power
+			draw_arc(Vector2.ZERO, r + 6.0 + 10.0 * (1.0 - t), 0, TAU * maxf(t, 0.05), 28, Color(color.lightened(0.4), 0.9), 3.0)
+			var label: String = ATTACKS_SCRIPT.label(_attack)
+			draw_string(ThemeDB.fallback_font, Vector2(-60, -r - 14), label, HORIZONTAL_ALIGNMENT_CENTER, 120, 13, Color(1, 0.95, 0.6))
 			draw_arc(Vector2.ZERO, r * 4.0, 0, TAU, 40, Color(1.0, 0.6, 0.2, 0.25), 1.0)
 	# weakness pips next to the name: filled = weak to it, ring = resists it
 	if awake:

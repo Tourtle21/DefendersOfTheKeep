@@ -16,17 +16,17 @@ const NEXT := {"s": "se", "se": "ne", "ne": "n", "n": "nw", "nw": "sw", "sw": "f
 
 const SECTORS := {
 	"s": {"name": "Grassland", "resource": "", "tint": Color.WHITE,
-		"boss": {"boss_name": "King Blobbert", "max_health": 40.0, "speed": 24.0, "color": Color(0.3, 0.8, 0.35), "body_radius": 20.0, "attacks": ["slam", "summon"], "gold_drop": 10}},
+		"boss": {"boss_name": "King Blobbert", "max_health": 40.0, "speed": 24.0, "color": Color(0.3, 0.8, 0.35), "body_radius": 20.0, "attacks": ["bounce", "bramble", "vine_sweep"], "dmg_mult": 1.0, "gold_drop": 10}},
 	"se": {"tree_shift": [-70.0, 0.55, 1.0], "natives": [["golem", 2], ["scarab", 3], ["spitter", 1]], "hazard": {"kind": "slow", "factor": 0.5, "color": Color(0.75, 0.6, 0.3, 0.55), "count": 8, "radius": 36.0}, "name": "Scorched Desert", "resource": "iron", "ground": Color(0.93, 0.8, 0.5), "speckle": Color(0.82, 0.66, 0.36), "tint": Color(1.0, 0.88, 0.55), "native": Color(1.0, 0.75, 0.3),
-		"boss": {"resist": {"ice": 1.6, "earth": 0.4}, "boss_name": "Sand Colossus", "max_health": 70.0, "speed": 26.0, "color": Color(0.85, 0.65, 0.3), "body_radius": 24.0, "attacks": ["slam", "charge", "summon", "quake"], "gold_drop": 14}},
+		"boss": {"resist": {"ice": 1.6, "earth": 0.4}, "boss_name": "Sand Colossus", "max_health": 70.0, "speed": 26.0, "color": Color(0.85, 0.65, 0.3), "body_radius": 24.0, "attacks": ["sand_spiral", "quicksand", "scarab_fan"], "dmg_mult": 1.2, "gold_drop": 14}},
 	"ne": {"tree_shift": [95.0, 0.3, 1.15], "natives": [["frost_imp", 3], ["splitter", 2], ["runner", 1]], "hazard": {"kind": "slow", "factor": 0.6, "color": Color(0.9, 0.95, 1.0, 0.5), "count": 8, "radius": 34.0}, "name": "Frozen Tundra", "resource": "frost", "ground": Color(0.88, 0.94, 1.0), "speckle": Color(0.68, 0.8, 0.95), "tint": Color(0.8, 0.92, 1.1), "native": Color(0.6, 0.85, 1.2),
-		"boss": {"resist": {"fire": 1.6, "ice": 0.4}, "boss_name": "Frost Wyrm", "max_health": 95.0, "speed": 30.0, "color": Color(0.55, 0.8, 1.0), "body_radius": 24.0, "attacks": ["charge", "slam", "volley"], "gold_drop": 16}},
+		"boss": {"resist": {"fire": 1.6, "ice": 0.4}, "boss_name": "Frost Wyrm", "max_health": 95.0, "speed": 30.0, "color": Color(0.55, 0.8, 1.0), "body_radius": 24.0, "attacks": ["ice_lance", "blizzard", "frost_nova"], "dmg_mult": 1.4, "gold_drop": 16}},
 	"n": {"tree_shift": [-95.0, 0.35, 0.55], "natives": [["ember_imp", 3], ["brute", 2], ["scarab", 2]], "hazard": {"kind": "burn", "color": Color(1.0, 0.3, 0.1, 0.5), "count": 7, "radius": 30.0}, "name": "Ember Wastes", "resource": "ember", "ground": Color(0.24, 0.11, 0.1), "speckle": Color(0.65, 0.2, 0.1), "tint": Color(1.0, 0.55, 0.4), "native": Color(1.3, 0.5, 0.3),
-		"boss": {"resist": {"ice": 1.6, "fire": 0.4}, "boss_name": "Magma Titan", "max_health": 125.0, "speed": 26.0, "color": Color(0.9, 0.35, 0.15), "body_radius": 28.0, "attacks": ["slam", "quake", "summon", "volley"], "gold_drop": 18}},
+		"boss": {"resist": {"ice": 1.6, "fire": 0.4}, "boss_name": "Magma Titan", "max_health": 125.0, "speed": 26.0, "color": Color(0.9, 0.35, 0.15), "body_radius": 28.0, "attacks": ["meteor_rain", "lava_spokes", "fire_wave"], "dmg_mult": 1.65, "gold_drop": 18}},
 	"nw": {"tree_shift": [25.0, 0.6, 0.65], "natives": [["bog_lurker", 2], ["spitter", 3], ["splitter", 1]], "hazard": {"kind": "slow", "factor": 0.45, "color": Color(0.25, 0.3, 0.15, 0.6), "count": 9, "radius": 38.0}, "name": "Murky Swamp", "resource": "moss", "ground": Color(0.2, 0.3, 0.2), "speckle": Color(0.13, 0.2, 0.11), "tint": Color(0.6, 0.8, 0.5), "native": Color(0.6, 0.9, 0.5),
-		"boss": {"resist": {"fire": 1.6, "poison": 0.3}, "boss_name": "Bog Mother", "max_health": 150.0, "speed": 24.0, "color": Color(0.4, 0.55, 0.25), "body_radius": 26.0, "attacks": ["summon", "volley", "slam"], "gold_drop": 20}},
+		"boss": {"resist": {"fire": 1.6, "poison": 0.3}, "boss_name": "Bog Mother", "max_health": 150.0, "speed": 24.0, "color": Color(0.4, 0.55, 0.25), "body_radius": 26.0, "attacks": ["poison_pools", "tongue_lash", "mire_grasp"], "dmg_mult": 1.9, "gold_drop": 20}},
 	"sw": {"tree_shift": [125.0, 0.7, 0.95], "natives": [["crystal_guard", 2], ["runner", 2], ["spitter", 2], ["brute", 1]], "hazard": {"kind": "heal", "color": Color(0.7, 0.5, 1.0, 0.45), "count": 5, "radius": 30.0}, "name": "Crystal Caverns", "resource": "gem", "ground": Color(0.27, 0.2, 0.4), "speckle": Color(0.5, 0.35, 0.7), "tint": Color(0.85, 0.7, 1.1), "native": Color(0.9, 0.6, 1.2),
-		"boss": {"armor": 1.5, "resist": {"earth": 1.6}, "boss_name": "Crystal Warden", "max_health": 180.0, "speed": 28.0, "color": Color(0.6, 0.4, 0.9), "body_radius": 28.0, "attacks": ["slam", "charge", "summon", "volley", "quake"], "gold_drop": 22}},
+		"boss": {"armor": 1.5, "resist": {"earth": 1.6}, "boss_name": "Crystal Warden", "max_health": 180.0, "speed": 28.0, "color": Color(0.6, 0.4, 0.9), "body_radius": 28.0, "attacks": ["prism_beams", "shard_trail", "facet_burst"], "dmg_mult": 2.2, "gold_drop": 22}},
 }
 
 var world: Node
@@ -81,6 +81,7 @@ func _build(id: String) -> void:
 	var boss := Boss.new()
 	var params: Dictionary = def.boss.duplicate()
 	params["sector_id"] = id
+	params["sprite_path"] = "res://enemies/boss/art/%s.png" % id
 	boss.setup(params)
 	boss.position = Vector2(0, 1050).rotated(rot)
 	boss.defeated.connect(_on_boss_defeated.bind(id))
@@ -214,7 +215,7 @@ func _spawn_final_boss() -> void:
 	var boss := Boss.new()
 	boss.setup({"boss_name": "The Devourer", "sector_id": "final", "max_health": 260.0, "speed": 32.0,
 		"color": Color(0.35, 0.1, 0.45), "body_radius": 34.0, "attacks": ["slam", "charge", "summon", "volley", "quake"],
-		"gold_drop": 30, "wake_distance": 9999.0, "wake_wave": 0})
+		"gold_drop": 30, "wake_distance": 9999.0, "wake_wave": 0, "dmg_mult": 2.6, "sprite_path": "res://enemies/boss/art/final.png"})
 	boss.position = Vector2(0, -70)
 	boss.defeated.connect(func(_b): Game.win_run())
 	add_child.call_deferred(boss)
