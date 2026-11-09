@@ -4,10 +4,12 @@ class_name MainMenu
 ## Shown once per launch; restarting a run goes straight back into the game.
 
 const UiKit = preload("res://ui/cards/ui_kit.gd")
+const DrawsUi = preload("res://ui/base/draws_ui.gd")
 var root_ctl: Control
 var skills: SkillTreeUi
 var codex: CodexUi
 var collection: CollectionUi
+var draws
 var stats_label: Label
 
 func _ready() -> void:
@@ -55,8 +57,11 @@ func _ready() -> void:
 	skills.closed.connect(_refresh)
 	codex = CodexUi.new()
 	add_child(codex)
+	draws = DrawsUi.new()
+	add_child(draws)
 	_button(box, "Card collection (unlocks and upgrades)", func(): collection.open())
 	_button(box, "Weapon codex", func(): codex.open())
+	_button(box, "Drawn cards (everything you have drawn)", func(): draws.open())
 	_button(box, "Skill tree (permanent upgrades)", func(): skills.open())
 	_button(box, "Quit", func():
 		Game.save_meta()

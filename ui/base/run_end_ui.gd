@@ -3,6 +3,7 @@ extends CanvasLayer
 ## the Shard shop that permanently unlocks cards, and Play again.
 
 const UiKit = preload("res://ui/cards/ui_kit.gd")
+const DrawsUi = preload("res://ui/base/draws_ui.gd")
 const TierCard = preload("res://ui/cards/tier_card.gd")
 var root_ctl: Control
 var title: Label
@@ -102,6 +103,8 @@ func _ready() -> void:
 	skills.closed.connect(func(): _refresh())
 	codex = CodexUi.new()
 	add_child(codex)
+	var draws = DrawsUi.new()
+	add_child(draws)
 	var menu_row := HBoxContainer.new()
 	menu_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	menu_row.add_theme_constant_override("separation", 10)
@@ -121,6 +124,11 @@ func _ready() -> void:
 	coll_btn.custom_minimum_size = Vector2(150, 40)
 	coll_btn.pressed.connect(func(): collection.open())
 	menu_row.add_child(coll_btn)
+	var draws_btn := Button.new()
+	draws_btn.text = "Drawn"
+	draws_btn.custom_minimum_size = Vector2(150, 40)
+	draws_btn.pressed.connect(func(): draws.open())
+	menu_row.add_child(draws_btn)
 	var again := Button.new()
 	again.text = "Play again"
 	again.custom_minimum_size = Vector2(200, 48)

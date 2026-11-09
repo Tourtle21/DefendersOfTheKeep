@@ -519,6 +519,8 @@ func fix_meta() -> void:
 	for k in ["weapons", "fusion_tiers", "seen"]:
 		if !meta.has(k):
 			meta[k] = []
+	if !meta.has("draw_history"):
+		meta["draw_history"] = {}            # "card:fireball" / "weapon:spear" -> {kind, id, count, tier}: every reward you have drawn
 	if !meta.has("weapon_tiers"):
 		meta["weapon_tiers"] = {}            # weapon id -> the highest tier you have drawn or found (the Forge cannot go past it)
 	if !meta.has("tier_drawn"):
@@ -540,6 +542,15 @@ func is_seen(id: String) -> bool:
 		if str(pe.get("id", "")) == id:
 			return true
 	return false
+
+## Remember a reward draw for the Drawn Cards screen.
+func record_draw(entry: Dictionary) -> void:
+	fix_meta()
+	var key := "%s:%s" % [entry.kind, entry.id]
+	var h: Dictionary = meta.draw_history.get(key, {"kind": entry.kind, "id": str(entry.id), "count": 0, "tier": 1})
+	h.count = int(h.count) + 1
+	h.tier = maxi(int(h.tier), int(entry.get("tier", 1)))
+	meta.draw_history[key] = h
 
 func mark_seen(id: String) -> void:
 	fix_meta()
@@ -1468,6 +1479,7 @@ func grant_legendary() -> Dictionary:
 	var pick: Dictionary = left.pick_random()
 	mark_seen(str(pick.id))
 	var entry := {"kind": pick.kind, "id": pick.id, "tier": 1, "realm": 6, "result": "offer", "shards": 0, "legendary": true, "cost": LEGENDARY_PRICE}
+	record_draw(entry)
 	meta.pending.append(entry)                  # kept for good: it does not count against the vault limit
 	return entry
 
@@ -1570,6 +1582,7 @@ func make_rewards(won := false) -> Array:
 			else:
 				meta.pending.append(entry)
 		meta.shards += entry.shards
+		record_draw(entry)
 		out.append(entry)
 	if won:
 		out.append(grant_legendary())              # beating the whole game always unlocks a legendary
