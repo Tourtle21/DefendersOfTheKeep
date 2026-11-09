@@ -521,6 +521,12 @@ func fix_meta() -> void:
 			meta[k] = []
 	if !meta.has("draw_history"):
 		meta["draw_history"] = {}
+	if !meta.get("history_cleaned_v2", false):         # one-time: the starting tools and starter cards were used before use was tracked
+		meta["history_cleaned_v2"] = true
+		for gone in ["weapon:sword", "weapon:pickaxe"]:
+			meta.draw_history.erase(gone)
+		for id in STARTER_CARDS:
+			meta.draw_history.erase("card:" + id)
 	if !meta.get("history_backfilled", false):
 		meta["history_backfilled"] = true
 		_backfill_history()            # "card:fireball" / "weapon:spear" -> {kind, id, count, tier}: every reward you have drawn
