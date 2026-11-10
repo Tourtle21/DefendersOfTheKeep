@@ -199,8 +199,7 @@ func _physics_process(delta: float) -> void:
 			velocity = Vector2.ZERO
 		"chase":
 			var dir := _path_dir(to_player, delta)
-			velocity = _unstick.steer(dir, speed * slow_mult, delta)
-			move_and_slide()
+			Game.move_on_map(self, _unstick.steer(dir, speed * slow_mult, delta), delta)
 			_unstick.after_move(self, dir, speed * slow_mult, delta)
 			_timer -= delta
 			if _timer <= 0.0:
@@ -213,8 +212,7 @@ func _physics_process(delta: float) -> void:
 			if _windup <= 0.0:
 				_do_attack()
 		"charging":
-			velocity = _dir * 230.0 * slow_mult
-			move_and_slide()
+			Game.move_on_map(self, _dir * 230.0 * slow_mult, delta)
 			_windup -= delta
 			_contact_damage(10.0, 70.0)         # a charge hits hardest
 			if get_slide_collision_count() > 0 and _windup < 0.45:

@@ -361,6 +361,4 @@ func take_damage(damage_origin: Vector2, damage := 30.0):
 		modulate = Color(1, 1, 1)
 		is_taking_damage = false
 func apply_knockback(knockback_velocity: Vector2):
-	velocity = knockback_velocity
-	# Apply knockback while respecting collisions
-	move_and_slide()
+	Game.move_on_map(self, knockback_velocity, get_physics_process_delta_time())     # respects walls and the map edge

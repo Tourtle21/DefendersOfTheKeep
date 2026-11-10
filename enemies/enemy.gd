@@ -148,8 +148,7 @@ func _physics_process(delta):
 				modulate = Color(1, 1, 1)
 	if knock_time > 0:
 		knock_time -= delta
-		velocity = Game.keep_on_map(global_position, knock_vel, delta)
-		move_and_slide()
+		Game.move_on_map(self, knock_vel, delta)
 		return
 	_edge_cd -= delta
 	if _edge_cd <= 0.0:
@@ -185,8 +184,7 @@ func _physics_process(delta):
 				next_pos = nav_agent.target_position      # no path (outside the navmesh): go straight
 			var dir = to_local(next_pos).normalized()
 			var go: float = speed * slow_mult * haste * (0.8 if has_crystal else 1.0)
-			velocity = _unstick.steer(dir, go, delta)
-			move_and_slide()
+			Game.move_on_map(self, _unstick.steer(dir, go, delta), delta)
 			_unstick.after_move(self, dir, go, delta)
 	
 	if !has_crystal and global_position.distance_to(center) <= 14.0:
@@ -272,8 +270,7 @@ func _update_aggro(delta: float) -> void:
 func _chase(delta: float) -> void:
 	var dir: Vector2 = (aggro_target.global_position - global_position).normalized()
 	var go: float = speed * slow_mult * haste * 1.1
-	velocity = Game.keep_on_map(global_position, _unstick.steer(dir, go, delta), delta)          # chasing you does not take it off the map
-	move_and_slide()
+	Game.move_on_map(self, _unstick.steer(dir, go, delta), delta)          # chasing you does not take it off the map
 	_unstick.after_move(self, dir, go, delta)
 
 ## Called each frame while it is fighting you. Return true if it moved this frame itself (a wind-up or a dash).
@@ -298,8 +295,7 @@ func _dashing(delta: float) -> bool:
 	if _dash_left <= 0.0:
 		return false
 	_dash_left -= delta
-	velocity = Game.keep_on_map(global_position, _dash_dir * _dash_speed, delta)
-	move_and_slide()
+	Game.move_on_map(self, _dash_dir * _dash_speed, delta)
 	if _dash_left <= 0.0:
 		_recover = 0.7                                 # and then it is open for a moment
 	return true
@@ -354,8 +350,7 @@ func _charmed(delta: float) -> void:
 		return
 	var to: Vector2 = best.global_position - global_position
 	if to.length() > 14.0:
-		velocity = to.normalized() * speed * 1.4
-		move_and_slide()
+		Game.move_on_map(self, to.normalized() * speed * 1.4, delta)
 	elif _charm_hit <= 0.0:
 		_charm_hit = 0.6
 		best.spell_damage(2.0 + level)
@@ -457,8 +452,7 @@ func attack():
 	$AnimationPlayer.play("attacking")
 
 func apply_knockback(knockback_velocity: Vector2):
-	velocity = knockback_velocity
-	move_and_slide()
+	Game.move_on_map(self, knockback_velocity, get_physics_process_delta_time())
 
 
 func _on_animation_player_animation_finished(anim_name: StringName) -> void:

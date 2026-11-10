@@ -109,8 +109,7 @@ func _physics_process(delta: float) -> void:
 	# stay inside the open part of the map
 	if global_position.length() > 1050.0 or !(Game.sector_at(global_position) in Game.sectors_unlocked):
 		_heading = (-global_position).normalized()
-	velocity = _unstick.steer(_heading, spd * slow_mult, delta)
-	move_and_slide()
+	Game.move_on_map(self, _unstick.steer(_heading, spd * slow_mult, delta), delta)
 	_unstick.after_move(self, _heading, spd * slow_mult, delta)
 	_update_visual()
 	queue_redraw()

@@ -326,6 +326,11 @@ func keep_on_map(pos: Vector2, vel: Vector2, delta: float) -> Vector2:
 		return vy
 	return Vector2.ZERO
 
+## Move a body by `vel` this physics step without leaving the map (slides along the edge). The one helper every mover uses.
+func move_on_map(body: CharacterBody2D, vel: Vector2, delta: float) -> void:
+	body.velocity = keep_on_map(body.global_position, vel, delta)
+	body.move_and_slide()
+
 ## Is the player who uses the keyboard / pad's interact button (player 1, never a co-op avatar or a split-screen player 2 to 4)
 ## inside this area? Chests, the Forge, doors and pickups react to that button, so only player 1 standing there counts.
 func has_local_player(area: Area2D) -> bool:
