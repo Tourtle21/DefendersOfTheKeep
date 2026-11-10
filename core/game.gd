@@ -1042,7 +1042,7 @@ func wave_timer_text() -> String:
 	return "%s in %d:%02d" % [what, wave_eta_s / 60, wave_eta_s % 60]
 
 ## Enemy health: a low start, and only a little more each time you beat a level (a boss), never because of the wave number.
-const ENEMY_HP_START := 0.6         # of the base health
+const ENEMY_HP_START := 0.69        # of the base health
 const ENEMY_HP_PER_LEVEL := 0.1     # +10% of the start for every boss beaten (sectors opened beyond the first)
 
 func enemy_health_mult() -> float:

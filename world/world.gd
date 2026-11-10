@@ -262,7 +262,7 @@ func _boss_arrives() -> void:
 			b.arrive()
 
 static func early_size_mult(wave: int) -> float:
-	return 0.4 if wave <= 1 else (0.7 if wave == 2 else 1.0)
+	return 0.6 if wave <= 1 else (0.85 if wave == 2 else 1.0)
 
 func spawn_enemies(enemies, draw_lines := []) -> void:
 	Game.run_stats.waves += 1
