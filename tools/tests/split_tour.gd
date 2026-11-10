@@ -47,6 +47,7 @@ func _initialize() -> void:
 	# a few cards, with a duplicate so the x2 shows on the chest screen
 	game.hand = [game.make_entry("fireball", 1, ""), game.make_entry("fireball", 1, ""), game.make_entry("flare", 1, ""), game.make_entry("sentry", 1, "")]
 	game.hand_changed.emit()
+	game.meta.card_tiers["fireball"] = 2                  # so the two Fireballs can combine on the chest screen
 	for s in range(1, N):
 		net.give_weapon(lp.avatars[s], "spear")
 	await stage("1. START: every player's HUD (health, keep, resources, weapon slots, ability panel, wave timer)", "1_start")

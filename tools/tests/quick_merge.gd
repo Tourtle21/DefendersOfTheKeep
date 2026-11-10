@@ -97,6 +97,16 @@ func _initialize() -> void:
 	ok("player 1 forge: stored cards sit in the storage area", forge.store_box.get_child_count() > 0 and forge.list_box.get_child_count() > 0)
 	forge.root_ctl.visible = false
 	game._forge_store = []
+	# ---- the forge lists only recipes you can make: no "Tier 2 locked" cards
+	var two_hammers: Array = layout.items(["hammer", "hammer"], [])
+	game.meta.weapon_tiers["hammer"] = 1
+	var shown_locked: Array = layout.recipes(two_hammers).filter(func(r): return r.a[0] == "hammer" and r.b[0] == "hammer")
+	ok("recipes: hammer + hammer is left out while tier 2 is not unlocked", shown_locked.is_empty())
+	game.meta.weapon_tiers["hammer"] = 2
+	shown_locked = layout.recipes(two_hammers).filter(func(r): return r.a[0] == "hammer" and r.b[0] == "hammer")
+	ok("recipes: it appears once tier 2 is unlocked", shown_locked.size() == 1)
+	var any_locked: bool = layout.recipes(two_hammers).any(func(r): return str(r.c[1]).find("locked") >= 0)
+	ok("recipes: nothing says locked", !any_locked)
 	# ---- cards: two different cards with a recipe fuse in the keep
 	game.hand = [game.make_entry("fireball", 1, ""), game.make_entry("flare", 1, "")]
 	game.resources.gold = 20

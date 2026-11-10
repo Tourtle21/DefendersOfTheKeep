@@ -67,7 +67,7 @@ static func numbers_text(info: Dictionary, bonus: int) -> String:
 	return "\n".join(lines)
 
 ## The recipes you know over the weapons in `list`: [{a: [id, text], b: [id, text], c: [id, text], state (0 grey, 1 yellow, 2 green),
-## pick: [a_pos, b_pos] or []}]. Matching pairs that combine into the next tier first, then every known fusion.
+## pick: [a_pos, b_pos] or []}]. Matching pairs that combine into the next tier first, then every known fusion. Anything locked (a tier you have not unlocked) is left out.
 static func recipes(list: Array) -> Array:
 	var out := []
 	var tier_of_id := func(id: String) -> int:
@@ -90,15 +90,16 @@ static func recipes(list: Array) -> Array:
 				break
 		var t := Game.weapon_tier_of(it.entry)
 		var res := Game.combine_weapons(it.entry, it.entry)
-		var ok: bool = j >= 0 and res != "" and Game.can_afford(Game.combine_cost(it.entry))
-		var by_draw: bool = res == "" and Game.combine_locked_by_draw(it.entry)
+		if res == "":
+			continue                       # the next tier is not unlocked yet (or this is the top tier): nothing to show
+		var ok: bool = j >= 0 and Game.can_afford(Game.combine_cost(it.entry))
 		out.append({"a": [it.id, "Tier %d" % t], "b": [it.id, "Tier %d%s" % [t, "" if j >= 0 else " (need a 2nd)"]],
-			"c": [it.id, ("Tier %d" % (t + 1)) if res != "" else ("Tier %d locked" % (t + 1) if by_draw else "max for now")],
+			"c": [it.id, "Tier %d" % (t + 1)],
 			"state": 2 if ok else (1 if j >= 0 else 0), "pick": [n, j] if j >= 0 else []})
 	for key in Fusion.RECIPES:
 		var r: Dictionary = Fusion.RECIPES[key]
-		if !Game.weapon_known(r.id):
-			continue
+		if !Game.weapon_known(r.id) or !Game.fusion_tier_unlocked(r.tier):
+			continue                       # only recipes you can actually make: known result, unlocked tier
 		var pr: PackedStringArray = key.split("+")
 		var a := -1
 		var b := -1
@@ -113,6 +114,6 @@ static func recipes(list: Array) -> Array:
 		var ta: int = tier_of_id.call(pr[0])
 		var tb: int = tier_of_id.call(pr[1])
 		out.append({"a": [pr[0], ("T%d carried" % ta) if ta > 0 else "not carried"], "b": [pr[1], ("T%d carried" % tb) if tb > 0 else "not carried"],
-			"c": [r.id, "Tier %d%s" % [r.tier, "" if Game.fusion_tier_unlocked(r.tier) else " (locked)"]],
+			"c": [r.id, "Tier %d" % r.tier],
 			"state": 2 if ok2 else (1 if carry else 0), "pick": [a, b] if carry else []})
 	return out
