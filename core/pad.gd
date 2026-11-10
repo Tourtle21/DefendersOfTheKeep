@@ -41,6 +41,11 @@ var _dev := -1                     # -1: any controller; 0 in split screen (play
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	if !InputMap.has_action("merge_weapons"):            # F: merge two weapons you hold (keyboard)
+		InputMap.add_action("merge_weapons", 0.2)
+		var fk := InputEventKey.new()
+		fk.physical_keycode = KEY_F
+		InputMap.action_add_event("merge_weapons", fk)
 	_register()
 	var layer := CanvasLayer.new()
 	layer.layer = 100
@@ -111,6 +116,7 @@ func _register_actions() -> void:
 	_bind("switch_items", _button_event(JOY_BUTTON_LEFT_SHOULDER))      # LB and RB switch weapon
 	_bind("switch_items", _button_event(JOY_BUTTON_RIGHT_SHOULDER))
 	_bind("ultimate", _button_event(JOY_BUTTON_Y))
+	_bind("merge_weapons", _button_event(JOY_BUTTON_DPAD_DOWN))       # merge two weapons you hold (no forge trip)
 	# menus: A presses the focused control, B goes back (the project's ui actions only had the keyboard)
 	InputMap.action_add_event("ui_accept", _button_event(JOY_BUTTON_A))
 	InputMap.action_add_event("ui_cancel", _button_event(JOY_BUTTON_B))

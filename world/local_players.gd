@@ -120,4 +120,7 @@ func _physics_process(delta: float) -> void:
 				Net._interact(pl)
 		if x_now and !prev.get("x", false):
 			Net.switch_weapon(pl)
-		_prev_btn[slot] = {"a": a_now, "x": x_now}
+		var d_now := _held(dev, JOY_BUTTON_DPAD_DOWN)
+		if d_now and !prev.get("down", false) and !pl.is_in_tower:
+			Net.merge_held(pl)                            # d-pad down: merge two weapons in hand, no forge trip
+		_prev_btn[slot] = {"a": a_now, "x": x_now, "down": d_now}

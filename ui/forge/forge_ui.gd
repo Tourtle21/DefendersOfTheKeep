@@ -2,7 +2,10 @@ extends CanvasLayer
 ## Forge screen: pick two weapons you carry, see the result, pay gold, fuse.
 
 var root_ctl: Control
-var list_box: Container
+var list_box: Container          # the weapons in your hands
+var store_box: Container         # the weapons stored in the forge
+var held_title: Label
+var store_title: Label
 var store_btn: Button
 var take_btn: Button
 var info_label: Label
@@ -21,6 +24,7 @@ const TierCard = preload("res://ui/cards/tier_card.gd")
 func _ready() -> void:
 	add_to_group("forge_ui")
 	layer = 8
+	_setup_merge_hint()
 	var sc := UiKit.screen(self, "Forge", func(): root_ctl.visible = false,
 		"Pick two weapons, then press the button.")
 	root_ctl = sc.root
@@ -34,11 +38,33 @@ func _ready() -> void:
 	var lv := VBoxContainer.new()
 	lv.add_theme_constant_override("separation", 8)
 	left.add_child(lv)
-	lv.add_child(UiKit.heading("1. Weapons: held and stored, grouped by type"))
+	lv.add_child(UiKit.heading("1. Pick two weapons"))
+	var held_panel := UiKit.panel(Color(0.07, 0.12, 0.09), Color(0.35, 0.7, 0.4), 8.0)      # what is in your hands
+	lv.add_child(held_panel)
+	var hv := VBoxContainer.new()
+	hv.add_theme_constant_override("separation", 4)
+	held_panel.add_child(hv)
+	held_title = Label.new()
+	held_title.add_theme_font_size_override("font_size", 16)
+	held_title.add_theme_color_override("font_color", Color(0.55, 1.0, 0.6))
+	hv.add_child(held_title)
 	list_box = HFlowContainer.new()
 	list_box.add_theme_constant_override("h_separation", 14)
 	list_box.add_theme_constant_override("v_separation", 8)
-	lv.add_child(list_box)
+	hv.add_child(list_box)
+	var store_panel := UiKit.panel(Color(0.07, 0.09, 0.15), Color(0.4, 0.55, 0.85), 8.0)    # what is stored in the forge
+	lv.add_child(store_panel)
+	var sv := VBoxContainer.new()
+	sv.add_theme_constant_override("separation", 4)
+	store_panel.add_child(sv)
+	store_title = Label.new()
+	store_title.add_theme_font_size_override("font_size", 16)
+	store_title.add_theme_color_override("font_color", Color(0.65, 0.8, 1.0))
+	sv.add_child(store_title)
+	store_box = HFlowContainer.new()
+	store_box.add_theme_constant_override("h_separation", 14)
+	store_box.add_theme_constant_override("v_separation", 8)
+	sv.add_child(store_box)
 	var right := UiKit.panel(Color(0.08, 0.08, 0.14))
 	right.custom_minimum_size = Vector2(430, 0)
 	top.add_child(right)
@@ -108,6 +134,88 @@ func _ready() -> void:
 func _hud():
 	return get_parent().get_node("Hud")
 
+## ---- Merge on the spot: two weapons in your hands that fuse or combine can be merged anywhere, no forge trip ----
+var _merge_hint: Label
+var _merge_clock := 0.0
+var _merge_now := {}
+
+func _setup_merge_hint() -> void:
+	if !InputMap.has_action("merge_weapons"):
+		InputMap.add_action("merge_weapons", 0.2)
+		var ev := InputEventKey.new()
+		ev.physical_keycode = KEY_F
+		InputMap.action_add_event("merge_weapons", ev)
+	_merge_hint = Label.new()
+	_merge_hint.add_theme_font_size_override("font_size", 15)
+	_merge_hint.add_theme_color_override("font_color", Color(0.6, 1.0, 0.65))
+	_merge_hint.add_theme_color_override("font_outline_color", Color.BLACK)
+	_merge_hint.add_theme_constant_override("outline_size", 6)
+	_merge_hint.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	_merge_hint.position = Vector2(170, -70)
+	_merge_hint.visible = false
+	_merge_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_merge_hint)
+
+## The weapons in your hands as entries, in slot order: [{slot, entry}]
+func _held_entries() -> Array:
+	var out := []
+	var slots = _hud().item_slots.get_children()
+	for i in slots.size():
+		if slots[i].has_item:
+			out.append({"slot": i, "entry": _entry_of(slots[i].current_item)})
+	return out
+
+func _merge_options() -> Dictionary:
+	var held := _held_entries()
+	var m := Game.held_merge(held.map(func(h): return h.entry))
+	if !m.is_empty():
+		m["slot_a"] = held[m.a].slot
+		m["slot_b"] = held[m.b].slot
+	return m
+
+func _process(delta: float) -> void:
+	if _merge_hint == null:
+		return
+	_merge_clock -= delta
+	if _merge_clock > 0.0:
+		return
+	_merge_clock = 0.2
+	var p = get_tree().get_first_node_in_group("player")
+	if p == null or root_ctl.visible or Game.menu_open() or Game.local_in_base() or p.get("is_in_tower"):
+		_merge_hint.visible = false
+		return
+	_merge_now = _merge_options()
+	_merge_hint.visible = !_merge_now.is_empty()
+	if _merge_hint.visible:
+		var key := "F" if !Pad.using_pad else "D-pad down"
+		var cost_bits := []
+		for k in _merge_now.cost:
+			cost_bits.append("%d %s" % [_merge_now.cost[k], k])
+		_merge_hint.text = "%s: merge  %s  [%s]" % [key, _merge_now.text, ", ".join(cost_bits)] + ("" if _merge_now.ok else "  (not enough in the keep)")
+		_merge_hint.add_theme_color_override("font_color", Color(0.6, 1.0, 0.65) if _merge_now.ok else Color(1.0, 0.8, 0.45))
+
+func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("merge_weapons") and !root_ctl.visible and !Game.menu_open():
+		quick_merge()
+
+## Merge the two held weapons the hint shows. Returns true if it happened.
+func quick_merge() -> bool:
+	var p = get_tree().get_first_node_in_group("player")
+	if p == null or Game.local_in_base() or p.get("is_in_tower"):
+		return false
+	var m := _merge_options()
+	if m.is_empty() or !m.ok:
+		return false
+	selected = [m.slot_a, m.slot_b]
+	var es := _entries()
+	if Game.entry_id(es[0]) == Game.entry_id(es[1]):
+		awaken()
+	else:
+		fuse()
+	selected = []
+	_merge_clock = 0.0
+	return true
+
 func _item_id(info: Dictionary) -> String:
 	if info.has("id"):
 		return info.id
@@ -141,12 +249,34 @@ func _item_for(key: int) -> Dictionary:
 	return {}
 
 func _refresh() -> void:
-	for c in list_box.get_children():
-		list_box.remove_child(c)
-		c.queue_free()
 	_slot_cards.clear()
-	var groups := {}
+	var held := []
+	var stored := []
 	for it in _all_items():
+		(held if it.held else stored).append(it)
+	held_title.text = "IN YOUR HANDS  (%d / 3)" % held.size()
+	store_title.text = "IN THE FORGE  (%d / %d)  -  stays here for the whole team" % [stored.size(), Game.FORGE_STORE_MAX]
+	_fill(list_box, held, "Nothing in your hands.")
+	_fill(store_box, stored, "Nothing stored. Pick a weapon and press \"Drop into forge\".")
+	_refresh_recipes()
+	_update_info()
+	if _focus_slot >= 0 and _slot_cards.has(_focus_slot) and root_ctl.visible and get_viewport().gui_get_focus_owner() == null:
+		_slot_cards[_focus_slot].grab_focus.call_deferred()      # keep the controller's place after the cards rebuild
+
+## One area of the forge screen: its weapons grouped by type, common first, a card per copy.
+func _fill(box_parent: Container, items: Array, empty_text: String) -> void:
+	for c in box_parent.get_children():
+		box_parent.remove_child(c)
+		c.queue_free()
+	if items.is_empty():
+		var l := Label.new()
+		l.text = empty_text
+		l.add_theme_font_size_override("font_size", 13)
+		l.add_theme_color_override("font_color", Color(0.7, 0.72, 0.8))
+		box_parent.add_child(l)
+		return
+	var groups := {}
+	for it in items:
 		if !groups.has(it.id):
 			groups[it.id] = []
 		groups[it.id].append(it)
@@ -157,7 +287,7 @@ func _refresh() -> void:
 		return ra < rb or (ra == rb and Fusion.display_name(a) < Fusion.display_name(b)))
 	for id in ids:
 		var copies: Array = groups[id]
-		copies.sort_custom(func(a, b): return Game.weapon_tier_of(a.entry) > Game.weapon_tier_of(b.entry) or (Game.weapon_tier_of(a.entry) == Game.weapon_tier_of(b.entry) and a.held and !b.held))
+		copies.sort_custom(func(a, b): return Game.weapon_tier_of(a.entry) > Game.weapon_tier_of(b.entry))
 		var box := VBoxContainer.new()
 		box.add_theme_constant_override("separation", 4)
 		var head := Label.new()
@@ -185,11 +315,8 @@ func _refresh() -> void:
 			b.focus_entered.connect(func(): _focus_slot = key)
 			_slot_cards[key] = b
 			cards.add_child(b)
-		list_box.add_child(box)
-	_refresh_recipes()
-	_update_info()
-	if _focus_slot >= 0 and _slot_cards.has(_focus_slot) and root_ctl.visible and get_viewport().gui_get_focus_owner() == null:
-		_slot_cards[_focus_slot].grab_focus.call_deferred()      # keep the controller's place after the cards rebuild
+		box_parent.add_child(box)
+
 
 ## key of a weapon by id among everything the forge can use (held or stored), skipping `not_key`
 func _slot_of(id: String, not_key := -1) -> int:

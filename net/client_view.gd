@@ -336,7 +336,7 @@ func _update_keep_ui(snap: Dictionary) -> void:
 			var view := CardView.new()
 			view.setup(Game.entry_id(snap.hand[i]), Game.entry_tier(snap.hand[i]), "", Game.entry_twist(snap.hand[i]))
 			view.pressed_down.connect(func(_v):
-				if selected >= 0 and selected != i and Game.can_merge(selected, i):
+				if selected >= 0 and selected != i and (Game.can_merge(selected, i) or Game.can_fuse_pair(selected, i)):
 					Net.net_command.rpc_id(1, {"cmd": "merge", "a": selected, "b": i})      # same card, same tier: combine
 					selected = -1
 				else:
@@ -391,6 +391,9 @@ func _update_loot_ui(snap: Dictionary) -> void:
 	hp_fill.size.x = clampf(me.hp * 228.0, 0.0, 228.0)
 	slots_ctl.slots = me.slots
 	slots_ctl.active = me.active
+	var mg: Dictionary = Game.held_merge(me.slots) if !_in_base else {}
+	slots_ctl.hint = "" if mg.is_empty() else "%s: merge  %s%s" % ["D-pad down" if Pad.using_pad else "F", mg.text, "" if mg.ok else "  (not enough in the keep)"]
+	slots_ctl.hint_ok = mg.get("ok", true)
 	var keep_pool := []
 	for k in snap.resources:
 		if snap.resources[k] > 0 or k in ["stone", "stick", "gold"]:
@@ -431,7 +434,7 @@ func _update_loot_ui(snap: Dictionary) -> void:
 				forge_box.remove_child(c)
 				c.queue_free()
 			var t := Label.new()
-			t.text = "Forge: weapons you hold and weapons stored here, grouped by type"
+			t.text = "Forge: your hands and the forge's storage"
 			forge_box.add_child(t)
 			var cards := HFlowContainer.new()
 			cards.custom_minimum_size = Vector2(640, 0)
@@ -523,6 +526,8 @@ func _update_loot_ui(snap: Dictionary) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if (event is InputEventKey and event.pressed and !event.echo and event.keycode == KEY_Q) or event.is_action_pressed("switch_items"):
 		Net.net_command.rpc_id(1, {"cmd": "switch"})
+	if event.is_action_pressed("merge_weapons") and !_in_base:
+		Net.net_command.rpc_id(1, {"cmd": "merge_held"})
 	if event.is_action_pressed("interact"):
 		Net.net_command.rpc_id(1, {"cmd": "interact"})      # tower, chest or pickup: the host decides what is in reach
 	elif _in_base and event is InputEventKey and event.pressed and !event.echo and event.keycode >= KEY_1 and event.keycode <= KEY_5:

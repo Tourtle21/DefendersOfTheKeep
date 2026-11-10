@@ -207,6 +207,12 @@ func poll(dev: int, delta: float) -> void:
 				Game.merge_hand(sel, j)
 				sel = -1
 				break
+		if sel >= 0:
+			for j in hand_n:
+				if j != sel and Game.can_fuse_pair(sel, j):          # a different card it fuses with: fused right here, no Card Fuser trip
+					Game.fuse_hand(sel, j)
+					sel = -1
+					break
 	elif x:
 		Game.reload_tower_of(pl)                           # X with no card in hand reloads the tower you are in
 	var n_items: int = Game.keep_menu_items().size()
@@ -223,7 +229,7 @@ func _refresh_ui() -> void:
 	_mana.value = Game.mana
 	_mana_label.text = "Mana %d / %d" % [Game.mana, Game.max_mana()]
 	_draw_bar.value = Game.draw_progress()
-	_hint.text = "LB/RB card  RT place  A leave  X merge / reload  D-pad up/down pick  Y buy" if !Game.draft_active else "Chest draft!  Left stick / d-pad choose   A take it"
+	_hint.text = "LB/RB card  RT place  A leave  X merge or fuse / reload  D-pad up/down pick  Y buy" if !Game.draft_active else "Chest draft!  Left stick / d-pad choose   A take it"
 	_rebuild_upgrades()
 	var key := str(Game.hand) + "|" + str(sel) + "|" + str(Game.draft_options) + str(draft_sel) + str(Game.draft_active)
 	if key != _hand_key:

@@ -301,6 +301,8 @@ func _refresh_hand_enabled() -> void:
 		var pick := dragging if dragging >= 0 else selected
 		if pick >= 0 and i != pick and Game.can_merge(pick, i):
 			kids[i].modulate = Color(0.7, 1.4, 0.8)
+		elif pick >= 0 and i != pick and Game.can_fuse_pair(pick, i):
+			kids[i].modulate = Color(0.7, 1.2, 1.5)          # a different card it fuses with (drop or click it: no trip to the Card Fuser)
 
 func select(i: int) -> void:
 	if i < 0 or i >= Game.hand.size():
@@ -364,6 +366,10 @@ func end_drag() -> void:
 		elif selected >= 0 and selected != i and Game.can_merge(selected, i):
 			Game.merge_hand(selected, i)
 			selected = -1
+		elif k >= 0 and k != i and Game.can_fuse_pair(i, k):
+			_fuse_cards(i, k)
+		elif selected >= 0 and selected != i and Game.can_fuse_pair(selected, i):
+			_fuse_cards(selected, i)
 		else:
 			selected = i
 	else:
@@ -372,6 +378,15 @@ func end_drag() -> void:
 		Game.cast(id, _world_mouse(), players[0] if players.size() > 0 else null)
 		selected = -1
 	_refresh_hand_enabled()
+
+## Fuse two different hand cards right here (the Card Fuser's recipes and cost, paid from the keep's gold).
+func _fuse_cards(i: int, j: int) -> void:
+	var pv := Game.fuse_preview(i, j)
+	if pv.ok:
+		Game.fuse_hand(i, j)
+	else:
+		Game.announce.emit(pv.reason)
+	selected = -1
 
 func _input(event: InputEvent) -> void:
 	if dragging >= 0 and event is InputEventMouseButton and !event.pressed and event.button_index == MOUSE_BUTTON_LEFT:

@@ -966,6 +966,22 @@ func forge_preview(ea: String, eb: String) -> Dictionary:
 	return {"text": "%s (Tier %d)" % [Fusion.display_name(r.id), r.tier], "ok": can_afford(fcost), "kind": "fuse", "cost": fcost,
 		"result": make_weapon_entry(r.id, 0, weapon_twist(r.id, r.tier)), "key": Fusion.key(ida, idb)}
 
+## The best merge among weapons you are holding (no forge needed): {a, b (positions in `entries`), ok, text, cost}.
+## Prefers a pair you can pay for; otherwise the first pair that would work if you could. Empty if nothing merges.
+func held_merge(entries: Array) -> Dictionary:
+	var fallback := {}
+	for i in entries.size():
+		for j in range(i + 1, entries.size()):
+			var pv := forge_preview(entries[i], entries[j])
+			if pv.result == "":
+				continue
+			var hit := {"a": i, "b": j, "ok": pv.ok, "text": pv.text, "cost": pv.get("cost", {})}
+			if pv.ok:
+				return hit
+			if fallback.is_empty():
+				fallback = hit
+	return fallback
+
 func combine_cost(a: String) -> Dictionary:
 	return Fusion.AWAKEN_COSTS[clampi(weapon_tier_of(a), 1, 5)]
 
@@ -1411,6 +1427,12 @@ func fuse_preview(i: int, j: int, cards: Array = hand, have: Dictionary = resour
 		out.ok = false
 		out.reason = "Needs %d gold in the keep." % cost.gold
 	return out
+
+## Do these two hand cards have a fuse recipe at the same tier (whether or not you can pay yet)?
+func can_fuse_pair(i: int, j: int) -> bool:
+	if i == j or i < 0 or j < 0 or i >= hand.size() or j >= hand.size():
+		return false
+	return FUSE_RECIPES.has(fuse_key(hand[i], hand[j])) and entry_tier(hand[i]) == entry_tier(hand[j])
 
 func fuse_hand(i: int, j: int) -> bool:
 	var p := fuse_preview(i, j)

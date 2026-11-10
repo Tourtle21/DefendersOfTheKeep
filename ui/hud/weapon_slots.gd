@@ -4,6 +4,8 @@ extends Control
 
 var slots: Array = []          # weapon entries, e.g. "spear" or "hammer:1:twin"
 var active := 0                # which of them is in hand
+var hint := ""                 # e.g. "D-pad down: merge Spear + Hammer" when two held weapons can merge
+var hint_ok := true
 var _icons := {}
 const FRAME_TEX := preload("res://ui/hud/inventory.png")
 
@@ -39,3 +41,9 @@ func _draw() -> void:
 		var at := rect.position + Vector2(6.0 * k, frame - 6.0 * k)
 		draw_string_outline(font, at, label, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, 5, Color.BLACK)
 		draw_string(font, at, label, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(1, 0.9, 0.3))
+	if hint != "":
+		var hs := int(20.0 * k * 1.3)
+		var at2 := Vector2(frame + 22.0, size.y - 12.0 - frame - 6.0)
+		var col := Color(0.6, 1.0, 0.65) if hint_ok else Color(1.0, 0.8, 0.45)
+		draw_string_outline(font, at2, hint, HORIZONTAL_ALIGNMENT_LEFT, size.x - at2.x - 8.0, hs, 5, Color.BLACK)
+		draw_string(font, at2, hint, HORIZONTAL_ALIGNMENT_LEFT, size.x - at2.x - 8.0, hs, col)

@@ -254,6 +254,9 @@ func _process(_delta: float) -> void:
 			c.aimer.queue_redraw()
 			c.slots.slots = pl.weapon_slots
 			c.slots.active = pl.active_slot
+			var mg: Dictionary = Game.held_merge(pl.weapon_slots) if !pl.is_in_tower and !pl.downed else {}
+			c.slots.hint = "" if mg.is_empty() else "D-pad down: merge  %s%s" % [mg.text, "" if mg.ok else "  (not enough in the keep)"]
+			c.slots.hint_ok = mg.get("ok", true)
 			c.down.visible = pl.downed
 			c.down.text = "You fell!  Back in %d" % ceili(pl.respawn_left)
 			var light = pl.get_node_or_null("PointLight2D")

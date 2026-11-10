@@ -365,15 +365,27 @@ func _forge_entry(pl, src: String, idx: int) -> String:
 func forge_craft(pl, a_src: String, a_idx: int, b_src: String, b_idx: int) -> void:
 	if pl == null or !is_instance_valid(pl) or pl.global_position.distance_to(FORGE_POS) > 50.0:
 		return
+	_craft(pl, a_src, a_idx, b_src, b_idx)
+
+## Merge two weapons you are holding, anywhere (no forge needed). Returns true if it happened.
+func merge_held(pl) -> bool:
+	if pl == null or !is_instance_valid(pl) or pl.downed or pl.is_in_tower:
+		return false
+	var m := Game.held_merge(pl.weapon_slots)
+	if m.is_empty() or !m.ok:
+		return false
+	return _craft(pl, "held", m.a, "held", m.b)
+
+func _craft(pl, a_src: String, a_idx: int, b_src: String, b_idx: int) -> bool:
 	if a_src == b_src and a_idx == b_idx:
-		return
+		return false
 	var ea := _forge_entry(pl, a_src, a_idx)
 	var eb := _forge_entry(pl, b_src, b_idx)
 	if ea == "" or eb == "":
-		return
+		return false
 	var p: Dictionary = Game.forge_preview(ea, eb)
 	if !p.ok:
-		return
+		return false
 	Game.pay(p.cost)
 	if p.kind == "fuse":
 		Game.note_recipe(p.key)
@@ -394,6 +406,8 @@ func forge_craft(pl, a_src: String, a_idx: int, b_src: String, b_idx: int) -> vo
 		give_weapon(pl, p.result)
 	elif Game._forge_store.size() < Game.FORGE_STORE_MAX:
 		Game._forge_store.append(p.result)
+	Sfx.play("unlock", 0.0)
+	return true
 
 ## Commands that are not continuous input: enter/leave the keep, cast, repair, upgrade.
 @rpc("any_peer", "call_remote", "reliable")
@@ -416,9 +430,14 @@ func net_command(cmd: Dictionary) -> void:
 				Game.take_draft_card(cmd.id)
 		"combine":
 			_combine(pl, int(cmd.a), int(cmd.b))
+		"merge_held":
+			merge_held(pl)
 		"merge":
 			if pl.is_in_tower:
-				Game.merge_hand(int(cmd.a), int(cmd.b))
+				if Game.can_fuse_pair(int(cmd.a), int(cmd.b)):
+					Game.fuse_hand(int(cmd.a), int(cmd.b))          # two different cards with a recipe: fuse them here
+				else:
+					Game.merge_hand(int(cmd.a), int(cmd.b))
 		"fuse":
 			_fuse(pl, int(cmd.a), int(cmd.b))
 		"cast":

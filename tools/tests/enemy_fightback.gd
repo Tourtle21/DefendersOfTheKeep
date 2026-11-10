@@ -19,6 +19,7 @@ func _initialize() -> void:
 	root.add_child(world)
 	await wait(1.2)
 	world.get_node("SpawnTimer").start(9999.0)
+	game.sectors_unlocked = ["s", "se", "ne", "n", "nw", "sw"]        # the open ground the test stands on (enemies walk home from outside it)
 	var lp = world.get_children().filter(func(c): return c.get_script() and str(c.get_script().resource_path).ends_with("local_players.gd"))[0]
 	var p1 = world.get_node("Player")
 	var p2 = lp.avatars[1]
