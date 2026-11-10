@@ -26,6 +26,8 @@ var _bar_hint: Label
 var _forge_heading: Label
 var _margin: MarginContainer
 var _outer: Control
+var _top: BoxContainer
+var _take_btn: Label
 var _pick_heading: Label
 var _result_heading: Label
 var _level := 0          # how much has been dropped to make the screen fit this view (0 = everything)
@@ -84,6 +86,12 @@ func setup(player: Node, viewport: SubViewport) -> void:
 	_bar_hint.add_theme_color_override("font_color", Color(0.8, 0.9, 1.0))
 	_bar_hint.visible = false
 	bar_row.add_child(_bar_hint)
+	var spacer := Control.new()
+	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	bar_row.add_child(spacer)
+	var back := _action_label("B   Back")
+	back.add_theme_font_size_override("font_size", 13)
+	bar_row.add_child(back)
 	var hint_panel := UiKit.panel(Color(0.07, 0.10, 0.16), Color(0.3, 0.5, 0.7), 6.0)
 	_hint_panel = hint_panel
 	outer.add_child(hint_panel)
@@ -93,8 +101,12 @@ func setup(player: Node, viewport: SubViewport) -> void:
 	_hint.add_theme_font_size_override("font_size", 13)
 	_hint.add_theme_color_override("font_color", Color(0.8, 0.9, 1.0))
 	hint_panel.add_child(_hint)
+	_top = BoxContainer.new()                       # weapons on the left, the result on the right (stacked in a narrow view)
+	_top.add_theme_constant_override("separation", 10)
+	outer.add_child(_top)
 	var weapons := UiKit.panel(UiKit.PANEL, UiKit.BORDER, 8.0)
-	outer.add_child(weapons)
+	weapons.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_top.add_child(weapons)
 	var wv := VBoxContainer.new()
 	wv.add_theme_constant_override("separation", 4)
 	weapons.add_child(wv)
@@ -104,7 +116,8 @@ func setup(player: Node, viewport: SubViewport) -> void:
 	_row.add_theme_constant_override("separation", 6)
 	wv.add_child(_row)
 	var result := UiKit.panel(Color(0.08, 0.08, 0.14), UiKit.BORDER, 8.0)
-	outer.add_child(result)
+	result.custom_minimum_size = Vector2(250, 0)
+	_top.add_child(result)
 	var rv := VBoxContainer.new()
 	rv.add_theme_constant_override("separation", 4)
 	result.add_child(rv)
@@ -124,13 +137,16 @@ func setup(player: Node, viewport: SubViewport) -> void:
 	rv.add_child(_numbers)
 	_forge_heading = UiKit.heading("3. Forge it", 16)
 	rv.add_child(_forge_heading)
-	var buttons := HBoxContainer.new()
-	buttons.add_theme_constant_override("separation", 10)
+	var buttons := HFlowContainer.new()
+	buttons.add_theme_constant_override("h_separation", 8)
+	buttons.add_theme_constant_override("v_separation", 6)
 	rv.add_child(buttons)
 	_fuse_btn = _action_label("X   Fuse")
 	buttons.add_child(_fuse_btn)
 	_store_btn = _action_label("Y   Drop into forge")
 	buttons.add_child(_store_btn)
+	_take_btn = _action_label("Y   Take out")
+	buttons.add_child(_take_btn)
 	var rec := UiKit.panel(UiKit.PANEL, UiKit.BORDER, 8.0)
 	rec.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	outer.add_child(rec)
@@ -153,14 +169,19 @@ func setup(player: Node, viewport: SubViewport) -> void:
 ## Fit to this player's view: start with everything, and let _check_fit drop pieces (recipes, numbers, hint line, card size)
 ## one step at a time until the screen no longer overflows.
 func fit(area: Vector2) -> void:
-	_root.size = area
+	var k := clampf(area.x / 1100.0, 0.5, 1.0)        # player 1's screen is drawn at this scale in a split view; this one matches it
+	_root.scale = Vector2(k, k)
+	_root.size = area / k
 	_level = 0
 	_apply_level()
 
 func _apply_level() -> void:
 	var area := _root.size
-	var roomy: bool = area.y >= 800.0 and _level == 0
-	_card_size = Vector2(78, 108) if roomy else Vector2(62, 86)
+	_top.vertical = area.x < 700.0
+	var roomy: bool = _level == 0                      # level 0 is player 1's own sizes (the scale in fit() shrinks them to the view)
+	_card_size = Vector2(100, 140) if roomy else Vector2(78, 108)
+	if _level >= 2:
+		_card_size = Vector2(62, 86)
 	if _level >= 3:
 		_card_size = Vector2(52, 72)
 	if _level >= 5:
@@ -169,9 +190,9 @@ func _apply_level() -> void:
 		_card_size = Vector2(38, 52)
 	_pick_heading.visible = _level < 6
 	_result_heading.visible = _level < 6
-	_recipe_size = Vector2(270, 84) if roomy else Vector2(214, 66)
-	_recipe_icon = 36.0 if roomy else 26.0
-	_recipe_font = 11 if roomy else 9
+	_recipe_size = Vector2(330, 100) if roomy else Vector2(270, 84)
+	_recipe_icon = 48.0 if roomy else 36.0
+	_recipe_font = 12 if roomy else 11
 	_recipes_panel.visible = _level < 1
 	_numbers.visible = _level < 2
 	_hint_panel.visible = _level < 4
@@ -293,8 +314,8 @@ func _refresh() -> void:
 	_fuse_btn.modulate = Color.WHITE if p.ok and picks.size() == 2 else Color(1, 1, 1, 0.45)
 	var on_held: bool = cur < items.size() and items[cur].src == "held"
 	var can_store: bool = cur < items.size() and ((on_held and Game._forge_store.size() < Game.FORGE_STORE_MAX) or (!on_held and _slots().size() < 3))
-	_store_btn.text = "Y   Drop into forge" if on_held or items.is_empty() else "Y   Take out"
-	_store_btn.modulate = Color.WHITE if can_store else Color(1, 1, 1, 0.45)
+	_store_btn.modulate = Color.WHITE if can_store and on_held else Color(1, 1, 1, 0.45)
+	_take_btn.modulate = Color.WHITE if can_store and !on_held else Color(1, 1, 1, 0.45)
 	if _recipes_panel.visible:
 		ForgeLayout.recipes(_recipes, items, _recipe_size, _recipe_icon, _recipe_font)
 	_check_fit.call_deferred()
