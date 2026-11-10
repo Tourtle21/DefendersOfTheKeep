@@ -13,6 +13,11 @@ func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 
+## Show the merge hint for Game.held_merge's result (empty: no hint). `key` is the button that merges ("F", "D-pad down").
+func set_merge(m: Dictionary, key: String) -> void:
+	hint = "" if m.is_empty() else "%s: merge  %s  [%s]%s" % [key, m.text, Game.cost_line(m.cost), "" if m.ok else "  (not enough in the keep)"]
+	hint_ok = m.get("ok", true)
+
 func _process(_delta: float) -> void:
 	queue_redraw()
 

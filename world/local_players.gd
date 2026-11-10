@@ -112,9 +112,9 @@ func _physics_process(delta: float) -> void:
 		var a_now := _held(dev, JOY_BUTTON_A)
 		var x_now := _held(dev, JOY_BUTTON_LEFT_SHOULDER) or _held(dev, JOY_BUTTON_RIGHT_SHOULDER)       # LB / RB switch weapon
 		if a_now and !prev.get("a", false):
-			if forge_uis.has(slot) and pl.global_position.distance_to(Net.FORGE_POS) <= 50.0 and !pl.downed:
+			if forge_uis.has(slot) and Net.near_station(pl, Net.FORGE_POS) and !pl.downed:
 				forge_uis[slot].open()                    # A at the anvil opens the forge (d-pad up does too)
-			elif fuser_uis.has(slot) and pl.global_position.distance_to(Net.CARD_FUSER_POS) <= 50.0 and !pl.downed:
+			elif fuser_uis.has(slot) and Net.near_station(pl, Net.CARD_FUSER_POS) and !pl.downed:
 				fuser_uis[slot].open()
 			else:
 				Net._interact(pl)

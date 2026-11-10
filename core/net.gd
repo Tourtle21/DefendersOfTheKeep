@@ -237,6 +237,11 @@ func switch_weapon(pl) -> void:
 
 const FORGE_POS := Vector2(-62, 22)
 const CARD_FUSER_POS := Vector2(62, 22)        # the Card Fuser, across the keep from the Forge
+const STATION_REACH := 50.0          # how close to the Forge / Card Fuser a player must stand to use it
+
+## Is this player standing at the station (Net.FORGE_POS / Net.CARD_FUSER_POS)? The one reach check for every front-end.
+static func near_station(pl, station: Vector2) -> bool:
+	return pl != null and is_instance_valid(pl) and pl.global_position.distance_to(station) <= STATION_REACH
 
 ## Give a co-op avatar a weapon: a free slot if there is one, otherwise swap with the
 ## active weapon (the old one is dropped as a pickup).
@@ -282,49 +287,9 @@ func _interact(pl) -> void:
 
 ## A LAN client or split-screen player fuses two cards of the shared hand at the Card Fuser.
 func card_fuse(pl, a: int, b: int) -> void:
-	if pl == null or !is_instance_valid(pl) or pl.global_position.distance_to(CARD_FUSER_POS) > 50.0:
+	if !near_station(pl, CARD_FUSER_POS):
 		return
 	Game.fuse_hand(a, b)
-
-func _fuse(pl, a: int, b: int) -> void:
-	if pl.global_position.distance_to(FORGE_POS) > 50.0:
-		return
-	var slots: Array = pl.weapon_slots
-	if a == b or a < 0 or b < 0 or a >= slots.size() or b >= slots.size():
-		return
-	var ida := Game.entry_id(slots[a])
-	var idb := Game.entry_id(slots[b])
-	var r: Dictionary = Fusion.recipe(ida, idb)
-	if r.is_empty():
-		return
-	var cost: Dictionary = Fusion.cost(r.tier)
-	if !Game.fusion_tier_unlocked(r.tier) or !Game.can_afford(cost):
-		return
-	Game.pay(cost)
-	Game.note_recipe(Fusion.key(ida, idb))
-	var hi: int = max(a, b)
-	var lo: int = min(a, b)
-	slots.remove_at(hi)
-	slots.remove_at(lo)
-	give_weapon(pl, Game.make_weapon_entry(r.id, 0, Game.weapon_twist(r.id, r.tier)))
-
-## Two identical copies (same weapon and tier) combine into one a tier higher.
-func _combine(pl, a: int, b: int) -> void:
-	if pl.global_position.distance_to(FORGE_POS) > 50.0:
-		return
-	var slots: Array = pl.weapon_slots
-	if a == b or a < 0 or b < 0 or a >= slots.size() or b >= slots.size():
-		return
-	var result := Game.combine_weapons(slots[a], slots[b])
-	if result == "":
-		return
-	var cost: Dictionary = Game.combine_cost(slots[a])
-	if !Game.can_afford(cost):
-		return
-	Game.pay(cost)
-	slots.remove_at(max(a, b))
-	slots.remove_at(min(a, b))
-	give_weapon(pl, result)
 
 ## --- The forge's storage, for avatars (LAN clients and local split-screen players use these same rules) ---
 
@@ -343,7 +308,7 @@ func forge_remove_held(pl, indexes: Array) -> void:
 
 ## Drop a held weapon into the forge ("held", slot) or take a stored one out ("store", index).
 func forge_toggle_store(pl, src: String, idx: int) -> void:
-	if pl == null or !is_instance_valid(pl) or pl.global_position.distance_to(FORGE_POS) > 50.0:
+	if !near_station(pl, FORGE_POS):
 		return
 	if src == "held":
 		if idx < 0 or idx >= pl.weapon_slots.size() or Game._forge_store.size() >= Game.FORGE_STORE_MAX:
@@ -363,7 +328,7 @@ func _forge_entry(pl, src: String, idx: int) -> String:
 
 ## Fuse or combine two weapons, each one held ("held", slot) or stored ("store", index). Any mix.
 func forge_craft(pl, a_src: String, a_idx: int, b_src: String, b_idx: int) -> void:
-	if pl == null or !is_instance_valid(pl) or pl.global_position.distance_to(FORGE_POS) > 50.0:
+	if !near_station(pl, FORGE_POS):
 		return
 	_craft(pl, a_src, a_idx, b_src, b_idx)
 
@@ -428,8 +393,11 @@ func net_command(cmd: Dictionary) -> void:
 		"draft":
 			if Game.draft_active and cmd.id in Game.draft_options:
 				Game.take_draft_card(cmd.id)
-		"combine":
-			_combine(pl, int(cmd.a), int(cmd.b))
+		"draft_merge":                      # two copies in the hand combined from the chest choice (like player 1's Combine button)
+			if Game.draft_active and Game.can_merge(int(cmd.a), int(cmd.b)):
+				Game.merge_hand(int(cmd.a), int(cmd.b))
+		"combine", "fuse":                  # (older commands: two held weapons; the same rule as forge_craft)
+			forge_craft(pl, "held", int(cmd.a), "held", int(cmd.b))
 		"merge_held":
 			merge_held(pl)
 		"merge":
@@ -438,8 +406,6 @@ func net_command(cmd: Dictionary) -> void:
 					Game.fuse_hand(int(cmd.a), int(cmd.b))          # two different cards with a recipe: fuse them here
 				else:
 					Game.merge_hand(int(cmd.a), int(cmd.b))
-		"fuse":
-			_fuse(pl, int(cmd.a), int(cmd.b))
 		"cast":
 			if pl.is_in_tower:
 				Game.cast(cmd.card, cmd.pos, pl)
@@ -526,7 +492,7 @@ func build_snapshot() -> Dictionary:
 	var players := []
 	for p in get_tree().get_nodes_in_group("player"):
 		if is_instance_valid(p):
-			players.append({"id": p.get_meta("peer_id", 1), "pos": p.global_position, "hp": (p.remote_hp if p.remote_controlled else 228.0) / 228.0, "base": p.is_in_tower, "slots": p.weapon_slots, "active": p.active_slot, "near_forge": p.global_position.distance_to(FORGE_POS) <= 50.0, "near_fuser": p.global_position.distance_to(CARD_FUSER_POS) <= 50.0, "down": (ceili(p.respawn_left) if p.downed else 0), "carried": (p.carried if p.remote_controlled else Game.carried)})
+			players.append({"id": p.get_meta("peer_id", 1), "pos": p.global_position, "hp": (p.remote_hp if p.remote_controlled else 228.0) / 228.0, "base": p.is_in_tower, "slots": p.weapon_slots, "active": p.active_slot, "near_forge": near_station(p, FORGE_POS), "near_fuser": near_station(p, CARD_FUSER_POS), "down": (ceili(p.respawn_left) if p.downed else 0), "carried": (p.carried if p.remote_controlled else Game.carried)})
 	return {
 		"players": players,
 		"keep": Game.keep_hp, "mana": Game.mana, "wave": Game.run_stats.waves,
