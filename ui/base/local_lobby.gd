@@ -41,21 +41,21 @@ func _ready() -> void:
 	var outer := VBoxContainer.new()
 	outer.add_theme_constant_override("separation", 16)
 	margin.add_child(outer)
-	var head := UiKit.heading("Local co-op: connect your controllers", 30)
+	var head := UiKit.heading("Local co-op: connect your controllers", UiKit.FONT_TITLE)
 	head.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	outer.add_child(head)
 	var hint := Label.new()
 	hint.text = "Press A on your controller to join.  B leaves.  Keyboard: press Enter (the keyboard is always player 1)."
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	hint.add_theme_font_size_override("font_size", 16)
-	hint.add_theme_color_override("font_color", Color(0.8, 0.9, 1.0))
+	hint.add_theme_font_size_override("font_size", UiKit.FONT_BODY)
+	hint.add_theme_color_override("font_color", UiKit.TEXT_HINT)
 	outer.add_child(hint)
 	var row := HBoxContainer.new()
 	row.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	row.add_theme_constant_override("separation", 16)
 	outer.add_child(row)
 	for i in 4:
-		var panel := UiKit.panel(Color(0.08, 0.08, 0.14), COLORS[i].darkened(0.3), 14.0)
+		var panel := UiKit.panel(UiKit.RESULT_BG, COLORS[i].darkened(0.3), 14.0)
 		panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		row.add_child(panel)
@@ -66,23 +66,23 @@ func _ready() -> void:
 		var title := Label.new()
 		title.text = "PLAYER %d" % (i + 1)
 		title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		title.add_theme_font_size_override("font_size", 30)
+		title.add_theme_font_size_override("font_size", UiKit.FONT_TITLE)
 		title.add_theme_color_override("font_color", COLORS[i])
 		v.add_child(title)
 		var dev := Label.new()
 		dev.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		dev.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		dev.add_theme_font_size_override("font_size", 18)
+		dev.add_theme_font_size_override("font_size", UiKit.FONT_HEAD)
 		v.add_child(dev)
 		var state := Label.new()
 		state.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		state.add_theme_font_size_override("font_size", 22)
+		state.add_theme_font_size_override("font_size", UiKit.FONT_BIG)
 		v.add_child(state)
 		_cards.append({"panel": panel, "dev": dev, "state": state})
 	_msg = Label.new()
 	_msg.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_msg.add_theme_font_size_override("font_size", 16)
-	_msg.add_theme_color_override("font_color", Color(1, 0.8, 0.5))
+	_msg.add_theme_font_size_override("font_size", UiKit.FONT_BODY)
+	_msg.add_theme_color_override("font_color", UiKit.WARN)
 	outer.add_child(_msg)
 	var bottom := HBoxContainer.new()
 	bottom.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -95,7 +95,7 @@ func _ready() -> void:
 	bottom.add_child(back)
 	_start = Button.new()
 	_start.custom_minimum_size = Vector2(300, 52)
-	_start.add_theme_font_size_override("font_size", 22)
+	_start.add_theme_font_size_override("font_size", UiKit.FONT_BIG)
 	_start.pressed.connect(_begin)
 	bottom.add_child(_start)
 	_refresh()
@@ -139,13 +139,13 @@ func _refresh() -> void:
 		if i < devs.size():
 			c.dev.text = _name_of(devs[i])
 			c.state.text = "READY"
-			c.state.add_theme_color_override("font_color", Color(0.5, 1.0, 0.55))
-			c.panel.modulate = Color.WHITE
+			c.state.add_theme_color_override("font_color", UiKit.GOOD)
+			c.panel.modulate = UiKit.WHITE
 		else:
 			c.dev.text = "Waiting for a player..."
 			c.state.text = "Press A to join"
-			c.state.add_theme_color_override("font_color", Color(0.65, 0.7, 0.85))
-			c.panel.modulate = Color(0.7, 0.7, 0.78)
+			c.state.add_theme_color_override("font_color", UiKit.TEXT_DIM)
+			c.panel.modulate = UiKit.TEXT_DIM
 	_start.disabled = devs.size() < 2
 	_start.text = "Start  (%d players)" % devs.size() if devs.size() >= 2 else "Need 2 or more players"
 
