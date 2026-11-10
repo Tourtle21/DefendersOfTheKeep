@@ -2,27 +2,28 @@
 
 Everything here is open to change. Nothing existing is sacred.
 
-## Look (design language)
-
-Derived from the original hand-built game (commit 7f980d9: `ui/hud/hud.tscn`, `ui/hud/inventory.png`, the pixel sprites).
-The values live in `ui/cards/ui_kit.gd`; screens take them from there, never as literals.
-
-- **Pixel art** drawn at 4x (`UiKit.PIXEL`) with nearest filtering; icons are the item sprites, not drawn shapes.
-- **Frames**: the inventory frame, a 1 px white edge on a translucent black fill (`FRAME_EDGE`, `FRAME_FILL`).
-- **Bars** look like the original health bar: a 3 px black frame and a flat fill, square corners (`UiKit.style_bar`;
-  health `HP_RED`, keep `KEEP_FILL`, mana `MANA_FILL`).
-- **Text** is Godot's default font. Text over the world always has a black outline (`OUTLINE`, 3-6 px).
-- **Menus** (added later, kept as approved: Forge, Card Fuser, chest choice): dark navy panels with a gold edge
-  (`BG`, `PANEL`, `BORDER`, `GOLD`), a title bar, a blue "what to do" line, green for your hands, blue for storage.
-- **Font sizes** at full scale: title 28, heading 18, body 15, small 13, tiny 11. Split views scale the whole screen by
-  view width / 1100 instead of picking smaller fonts.
-- **Weapon frames**: the compact frames (`ui/hud/weapon_slots.gd`) for every player.
-
-
+## Pitch
 A roguelike co-op tower-defense / exploration game for 1 to 4 players (online).
 Everyone has the same character. The **Keep** is a station: whoever stands inside
 it runs the base. The others go out, explore, fight and gather. You will not get
 far on your first run; each run unlocks more stuff and you get further.
+
+## Look (design language)
+
+ONE look for menus and HUD alike. Values live in `ui/cards/ui_kit.gd` (constants and `make_theme()`); screens use them,
+never literals (`tools/tests/single_source.gd` enforces it).
+
+- **Surfaces**: dark navy panels with a gold edge (`BG`, `PANEL`, `PANEL_DEEP`, `BORDER`), a gold title bar (`BAR_BG`, `GOLD`
+  heading), a blue "what to do here" line (`HINT_BG`, `HINT_EDGE`). Buttons, labels, panels, bars, rich text and tooltips
+  come from `UiKit.make_theme()`; HUD roots use `make_theme(true)`.
+- **Text**: Godot's default font, `TEXT` / `TEXT_DIM` / `TEXT_HINT`; text over the game world always has the black outline.
+- **Accents, one meaning each**: `GOLD` headings / selection / money, `GOOD` can do it, `WARN` cannot yet, `BAD` damage and
+  danger, `SKY` info and storage, `MAGIC` the crystal and rare things, `WARM` banners, `MUTED` locked.
+- **Bars**: a black frame with a flat fill, square corners (health `HP_RED`, keep `KEEP_FILL`, mana `MANA_FILL`).
+- **Font sizes**: one scale, 11 / 13 / 15 / 18 / 22 / 28 / 40 (`FONT_TINY` .. `FONT_HUGE`). Split views scale the whole
+  screen by view width / 1100 instead of choosing other sizes.
+- **Pixel art** (drawn 4x, nearest filtering) is for game sprites and icons only. The compact weapon frames stay.
+- Exceptions kept on purpose: the original hand-built HUD scripts (`ui/hud/inventory`, `tokens`, `upgrades`).
 
 ## No fixed roles
 - Every player has the same kind of character (move, melee, gather, pick up weapons).

@@ -20,6 +20,6 @@ Roguelike co-op tower defence. Design and work queue: `DESIGN.md`. Multiplayer r
   actions and their own input. A new screen follows this and adds itself to `tools/tests/ui_parity.gd`.
 - Rules and shared behaviour live in one helper (`Game.*` for rules, e.g. `forge_preview`, `can_repair`, `resource_line`,
   `move_on_map`; `Net.near_station`; `ui/cards/pad_edges.gd`); front-ends only adapt input/output. Never re-implement one.
-- Colours and font sizes come from `ui/cards/ui_kit.gd` (see DESIGN.md "Look"). `tools/tests/single_source.gd` fails on
+- Colours, font sizes and widget styles come from `ui/cards/ui_kit.gd` (constants + `make_theme()`, DESIGN.md "Look"). `tools/tests/single_source.gd` fails on
   a second copy of a known helper or on new raw `Color(` / font-size literals in UI code.
 
