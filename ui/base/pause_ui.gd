@@ -18,7 +18,7 @@ func _ready() -> void:
 	root_ctl.theme = UiKit.make_theme()
 	add_child(root_ctl)
 	var dim := ColorRect.new()
-	dim.color = Color(0, 0, 0, 0.7)
+	dim.color = Color(UiKit.BLACK, 0.7)
 	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
 	dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root_ctl.add_child(dim)
@@ -26,7 +26,7 @@ func _ready() -> void:
 	center.set_anchors_preset(Control.PRESET_FULL_RECT)
 	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root_ctl.add_child(center)
-	var frame := UiKit.panel(Color(0.07, 0.07, 0.13), UiKit.BORDER, 16.0)
+	var frame := UiKit.panel(UiKit.PANEL_DEEP, UiKit.BORDER, 16.0)
 	center.add_child(frame)
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 10)
@@ -35,17 +35,17 @@ func _ready() -> void:
 	var title := Label.new()
 	title.text = "Paused"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 32)
+	title.add_theme_font_size_override("font_size", UiKit.FONT_TITLE)
 	box.add_child(title)
 	_button(box, "Resume (P)", close)
-	box.add_child(UiKit.heading("Sound", 15))
+	box.add_child(UiKit.heading("Sound", UiKit.FONT_BODY))
 	_slider(box, "Music volume", Game.meta.get("music_vol", 1.0), func(v):
 		Game.meta["music_vol"] = v
 		Music.apply_volume())
 	_slider(box, "Effects volume", Game.meta.get("sfx_vol", 1.0), func(v):
 		Game.meta["sfx_vol"] = v
 		Sfx.play("coin", 0.0))
-	box.add_child(UiKit.heading("Co-op on this network", 15))
+	box.add_child(UiKit.heading("Co-op on this network", UiKit.FONT_BODY))
 	_button(box, "Host a game", func():
 		var err := Net.host_game()
 		var addr := ", ".join(Net.lan_addresses())
@@ -69,7 +69,7 @@ func _ready() -> void:
 	tips.button_pressed = Game.meta.get("hints_enabled", true)
 	tips.toggled.connect(func(on): Game.meta["hints_enabled"] = on)
 	box.add_child(tips)
-	box.add_child(UiKit.heading("Run", 15))
+	box.add_child(UiKit.heading("Run", UiKit.FONT_BODY))
 	_button(box, "Restart run", func():
 		close()
 		Game.restart_run())

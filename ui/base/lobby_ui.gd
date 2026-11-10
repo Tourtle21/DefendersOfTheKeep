@@ -1,6 +1,7 @@
 extends CanvasLayer
 ## Host's co-op lobby: shown while Net.lobby is true (host started with `-- host`).
 ## Lists who has joined; waves start when the host presses Start.
+const UiKit = preload("res://ui/cards/ui_kit.gd")
 
 var panel: PanelContainer
 var roster: Label
@@ -11,8 +12,8 @@ func _ready() -> void:
 		get_parent().get_node("SpawnTimer").paused = true
 	panel = PanelContainer.new()
 	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.04, 0.06, 0.14, 0.92)
-	style.border_color = Color(0.5, 0.8, 1.0)
+	style.bg_color = Color(UiKit.PANEL_DEEP, 0.92)
+	style.border_color = UiKit.SKY
 	style.set_border_width_all(2)
 	style.set_corner_radius_all(8)
 	style.set_content_margin_all(16)
@@ -26,7 +27,7 @@ func _ready() -> void:
 	panel.add_child(box)
 	var title := Label.new()
 	title.text = "Co-op lobby (port %d)" % Net.PORT
-	title.add_theme_font_size_override("font_size", 22)
+	title.add_theme_font_size_override("font_size", UiKit.FONT_BIG)
 	box.add_child(title)
 	roster = Label.new()
 	box.add_child(roster)
@@ -37,7 +38,7 @@ func _ready() -> void:
 	box.add_child(start)
 	var hint := Label.new()
 	hint.text = "Friends join with:  Godot --path . -- join=<your address> -- name=<their name>"
-	hint.add_theme_font_size_override("font_size", 11)
+	hint.add_theme_font_size_override("font_size", UiKit.FONT_TINY)
 	box.add_child(hint)
 
 func _process(_delta: float) -> void:

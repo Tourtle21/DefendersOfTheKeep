@@ -1,5 +1,6 @@
 extends CanvasLayer
 ## Controls cheat sheet. Shown for a few seconds at the start of a run; press H to toggle.
+const UiKit = preload("res://ui/cards/ui_kit.gd")
 
 var panel: Control
 
@@ -59,17 +60,13 @@ func _ready() -> void:
 	center.set_anchors_preset(Control.PRESET_FULL_RECT)
 	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panel.add_child(center)
-	var box := PanelContainer.new()
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0, 0, 0, 0.8)
-	style.set_corner_radius_all(8)
-	style.set_content_margin_all(22)
-	box.add_theme_stylebox_override("panel", style)
+	var box := UiKit.panel(Color(UiKit.PANEL, 0.92), UiKit.BORDER, 22.0)      # the one panel look, a little see-through
+	panel.theme = UiKit.make_theme()
 	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	center.add_child(box)
 	var label := Label.new()
 	label.text = TEXT
-	label.add_theme_font_size_override("font_size", 15)
+	label.add_theme_font_size_override("font_size", UiKit.FONT_BODY)
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART           # (the last paragraph is one very long line)
 	label.custom_minimum_size.x = 980.0
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE

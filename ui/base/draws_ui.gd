@@ -34,8 +34,8 @@ func _ready() -> void:
 	empty_label = Label.new()
 	empty_label.text = "Nothing waiting.\nEverything you drew has been unlocked or upgraded."
 	empty_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	empty_label.add_theme_font_size_override("font_size", 20)
-	empty_label.add_theme_color_override("font_color", Color(0.65, 0.7, 0.85))
+	empty_label.add_theme_font_size_override("font_size", UiKit.FONT_HEAD)
+	empty_label.add_theme_color_override("font_color", UiKit.TEXT_DIM)
 	empty_label.set_anchors_preset(Control.PRESET_CENTER)
 	empty_label.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	empty_label.grow_vertical = Control.GROW_DIRECTION_BOTH
@@ -104,8 +104,8 @@ func _refresh() -> void:
 		count.position = Vector2(0, csize.y)
 		count.size = Vector2(csize.x, gem_h)
 		count.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		count.add_theme_font_size_override("font_size", 14)
-		count.add_theme_color_override("font_color", Color(1, 0.88, 0.4))
+		count.add_theme_font_size_override("font_size", UiKit.FONT_SMALL)
+		count.add_theme_color_override("font_color", UiKit.GOLD)
 		holder.add_child(count)
 		grid_area.add_child(holder)
 

@@ -24,7 +24,7 @@ func _ready() -> void:
 	root_ctl.theme = UiKit.make_theme()
 	add_child(root_ctl)
 	var dim := ColorRect.new()
-	dim.color = Color(0.03, 0.03, 0.08, 1.0)
+	dim.color = Color(UiKit.BG, 1)
 	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
 	dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root_ctl.add_child(dim)
@@ -39,11 +39,11 @@ func _ready() -> void:
 	var title := Label.new()
 	title.text = "Defenders of the Keep"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 44)
+	title.add_theme_font_size_override("font_size", UiKit.FONT_HUGE)
 	box.add_child(title)
 	stats_label = Label.new()
 	stats_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	stats_label.add_theme_font_size_override("font_size", 16)
+	stats_label.add_theme_font_size_override("font_size", UiKit.FONT_BODY)
 	box.add_child(stats_label)
 	var start_row := HBoxContainer.new()                    # which weapon the next run starts with
 	start_row.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -62,13 +62,13 @@ func _ready() -> void:
 	var cards_label := Label.new()
 	cards_label.text = "Start with two spells and two buildings (the rest you find in chests):"
 	cards_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	cards_label.add_theme_font_size_override("font_size", 14)
+	cards_label.add_theme_font_size_override("font_size", UiKit.FONT_SMALL)
 	box.add_child(cards_label)
 	_card_pickers(box)
 	var play := Button.new()
 	play.text = "Play game"
 	play.custom_minimum_size = Vector2(0, 56)
-	play.add_theme_font_size_override("font_size", 24)
+	play.add_theme_font_size_override("font_size", UiKit.FONT_BIG)
 	play.pressed.connect(func():
 		Game._local_devices = []                  # a normal single-player game
 		_play())
@@ -96,7 +96,7 @@ func _ready() -> void:
 	var hint := Label.new()
 	hint.text = "In game: P for the pause menu (co-op host / join), H for controls."
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	hint.add_theme_color_override("font_color", Color(0.65, 0.7, 0.85))
+	hint.add_theme_color_override("font_color", UiKit.TEXT_DIM)
 	box.add_child(hint)
 	preload("res://ui/cards/menu_pad.gd").attach(root_ctl, Callable(), "", null, play)       # controller: Play is focused first
 	_refresh()
