@@ -3,6 +3,7 @@ class_name CardView
 ## One card in the hand: pixel-art frame + icon (see tools/make_card_art.gd),
 ## text on top. Flips in like the wave tokens, lifts on hover, and can be dragged
 ## (the drag itself is handled by ui/base/base_ui.gd).
+const UiKit = preload("res://ui/cards/ui_kit.gd")
 
 signal pressed_down(view: CardView)
 
@@ -48,7 +49,7 @@ func _label(text: String, pos: Vector2, size: Vector2, font: int, color: Color, 
 	l.size = size
 	l.add_theme_font_size_override("font_size", font)
 	l.add_theme_color_override("font_color", color)
-	l.add_theme_color_override("font_outline_color", Color.BLACK)
+	l.add_theme_color_override("font_outline_color", UiKit.BLACK)
 	l.add_theme_constant_override("outline_size", 3)
 	if center:
 		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -77,12 +78,12 @@ func _ready() -> void:
 
 	# mana cost badge, top-left of the art window
 	if card.mana > 0:
-		_face.add_child(_label(str(card.mana), Vector2(11, 9), Vector2(24, 18), 14, Color("8fc8ff"), false))
+		_face.add_child(_label(str(card.mana), Vector2(11, 9), Vector2(24, 18), 14, UiKit.SKY, false))
 	# level / draft badge, top-right of the art window
 	# a draft badge ("NEW", "+1 copy") also shows the tier of the offered card
 	var tag := ("T%d %s" % [level, badge.replace(" copy", "")] if level > 1 else badge) if badge != "" else ("T%d" % level if level > 1 else "")
 	if tag != "":
-		var tl := _label(tag, Vector2(48, 9), Vector2(38, 18), 11, Color("ffd23a"), false)
+		var tl := _label(tag, Vector2(48, 9), Vector2(38, 18), 11, UiKit.GOLD_BRIGHT, false)
 		tl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 		_face.add_child(tl)
 	# resource costs under the icon
@@ -95,13 +96,13 @@ func _ready() -> void:
 		var cost_text := ", ".join(parts)
 		if cost_text.length() > 13:
 			cost_text = " ".join(short_parts)
-		_face.add_child(_label(cost_text, Vector2(10, 60), Vector2(76, 14), 10, Color("ffe08a")))
-	_face.add_child(_label(card.name, Vector2(10, 81), Vector2(76, 20), 11, Color.WHITE))
+		_face.add_child(_label(cost_text, Vector2(10, 60), Vector2(76, 14), 10, UiKit.WARM))
+	_face.add_child(_label(card.name, Vector2(10, 81), Vector2(76, 20), 11, UiKit.WHITE))
 	var desc_text: String = card.desc
-	var desc_color := Color("c9d3f2")
+	var desc_color := UiKit.TEXT_HINT
 	if twist != "" and Game.TWISTS.has(twist):
 		desc_text = "* " + Game.TWISTS[twist][0]          # the twist's name replaces the blurb; hover for what it does
-		desc_color = Color("ffd23a")
+		desc_color = UiKit.GOLD_BRIGHT
 		tooltip_text = "%s\nTwist: %s - %s" % [card.desc, Game.TWISTS[twist][0], Game.TWISTS[twist][1]]
 	var desc := _label(desc_text, Vector2(10, 108), Vector2(76, 40), 10, desc_color, true, true)
 	desc.vertical_alignment = VERTICAL_ALIGNMENT_TOP
@@ -112,7 +113,7 @@ func _ready() -> void:
 	_body.add_child(_back)
 
 	_ring = ReferenceRect.new()                      # shown while the card has controller focus (menus opt in with focus_mode)
-	_ring.border_color = Color(0.5, 0.85, 1.0)
+	_ring.border_color = UiKit.SKY
 	_ring.border_width = 3.0
 	_ring.editor_only = false
 	_ring.size = SIZE
@@ -143,11 +144,11 @@ func _apply() -> void:
 	var lift := -16.0 if _selected else (-8.0 if _hover else 0.0)
 	create_tween().tween_property(_body, "position:y", lift, 0.08)
 	if _selected:
-		modulate = Color(1.2, 1.2, 0.85)
+		modulate = UiKit.GLOW_HOVER
 	elif !_affordable:
-		modulate = Color(0.55, 0.55, 0.62)
+		modulate = UiKit.MUTED
 	else:
-		modulate = Color.WHITE
+		modulate = UiKit.WHITE
 
 ## Spin in like a token: show the back, squash to a line, swap to the face.
 func flip_in(delay := 0.0) -> void:
