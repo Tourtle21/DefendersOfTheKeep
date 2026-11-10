@@ -216,6 +216,7 @@ func _input(event: InputEvent) -> void:
 		_key(KEY_P)                                  # split screen: Start on ANY controller opens the pause menu
 		return
 	if (event is InputEventJoypadMotion or event is InputEventJoypadButton) and _split_box != null and event.device != _dev:
+		get_viewport().set_input_as_handled()        # and never let it move player 1's menu focus
 		return                                       # split screen: that controller belongs to another player
 	if event is InputEventJoypadMotion:
 		_axes[event.axis] = event.axis_value
