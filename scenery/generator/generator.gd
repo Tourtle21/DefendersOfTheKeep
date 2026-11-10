@@ -3,7 +3,7 @@ class_name ResourceGenerator
 ## A resource generator found in every biome. It starts dormant: walk up and press
 ## interact to activate it (costs gold you are carrying). Once active it slowly makes
 ## that biome's resource into storage; press interact to collect everything at once.
-## With nothing to collect, interact upgrades it (levels 1-5: faster and bigger storage).
+## With nothing to collect, interact upgrades it (levels 1-5: faster and bigger storage), paid from the keep's stores.
 
 const MAX_LEVEL := 5
 const NET_SKIP := ["hovering"]
@@ -76,7 +76,8 @@ func use(who = null) -> String:
 		stored = 0
 		flash = 0.4
 		return "collected"
-	if level < MAX_LEVEL and Game.pay_carried(upgrade_cost(), who):
+	if level < MAX_LEVEL and Game.can_afford(upgrade_cost()):
+		Game.pay(upgrade_cost())          # upgrades come out of the keep's stores, nothing to carry
 		level += 1
 		flash = 0.6
 		Sfx.play("unlock", 0.0)
@@ -89,7 +90,7 @@ func _hint() -> String:
 	if stored > 0:
 		return "E: collect %d %s" % [stored, resource]
 	if level < MAX_LEVEL:
-		return "E: upgrade to %d (%s)" % [level + 1, _cost_text(upgrade_cost())]
+		return "E: upgrade to %d (%s from stores)" % [level + 1, _cost_text(upgrade_cost())]
 	return "Fully upgraded"
 
 func _cost_text(cost: Dictionary) -> String:
