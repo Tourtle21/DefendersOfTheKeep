@@ -17,15 +17,14 @@ var mana_bar: ProgressBar
 var res_label: Label
 var extras: HBoxContainer
 var selected := -1
-var draft_box: HBoxContainer
-var forge_box: VBoxContainer
+var draft_view: Control           # the shared chest choice (ui/base/draft_view.gd)
+var forge_view: Control           # the shared Forge screen (ui/forge/forge_view.gd), opened with E at the anvil
 var weapons_label: Label
 var ability_hud: AbilityHud
 var _ended_label: Label
-var _draft_key := ""
 var _forge_sel: Array = []        # positions in the forge list (ForgeLayout.items) the player picked
-var _forge_key := ""
-var fuser_box: VBoxContainer
+var _me := {}                     # this player's entry in the latest snapshot
+var fuser_view: Control           # the shared Card Fuser (ui/forge/fuser_view.gd), opened with E at the table
 var wave_label: Label
 var keep_bar: ProgressBar
 var keep_lbl: Label
@@ -34,7 +33,6 @@ var slots_ctl: Control
 var _extras_key := ""
 const TierCard = preload("res://ui/cards/tier_card.gd")
 var _fuse_sel: Array = []        # hand positions picked at the Card Fuser
-var _fuse_key := ""
 const ForgeLayout = preload("res://ui/forge/forge_layout.gd")
 var _hand_key := ""
 var _in_base := false
@@ -196,20 +194,43 @@ func _ready() -> void:
 	weapons_label = Label.new()               # (kept for tests; the weapon slots on the left show it)
 	weapons_label.visible = false
 	layer.add_child(weapons_label)
-	draft_box = HBoxContainer.new()
-	draft_box.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
-	draft_box.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	draft_box.grow_vertical = Control.GROW_DIRECTION_BOTH
-	draft_box.visible = false
-	layer.add_child(draft_box)
-	forge_box = VBoxContainer.new()
-	forge_box.position = Vector2(12, 110)
-	forge_box.visible = false
-	layer.add_child(forge_box)
-	fuser_box = VBoxContainer.new()
-	fuser_box.position = Vector2(12, 110)
-	fuser_box.visible = false
-	layer.add_child(fuser_box)
+	draft_view = preload("res://ui/base/draft_view.gd").new()
+	draft_view.visible = false
+	layer.add_child(draft_view)
+	draft_view.take.connect(func(entry): Net.net_command.rpc_id(1, {"cmd": "draft", "id": entry}))
+	draft_view.combine.connect(func(i, j): Net.net_command.rpc_id(1, {"cmd": "draft_merge", "a": i, "b": j}))
+	forge_view = preload("res://ui/forge/forge_view.gd").new()
+	forge_view.visible = false
+	layer.add_child(forge_view)
+	forge_view.card_pressed.connect(func(pos: int):
+		if pos in _forge_sel:
+			_forge_sel.erase(pos)
+		elif _forge_sel.size() < 2:
+			_forge_sel.append(pos)
+		else:
+			_forge_sel = [_forge_sel[1], pos])
+	forge_view.recipe_pressed.connect(func(a: int, b: int): _forge_sel = [a, b])
+	forge_view.forge_pressed.connect(func():
+		var list := _forge_list()
+		if _forge_sel.size() == 2 and _forge_sel.max() < list.size():
+			Net.net_command.rpc_id(1, {"cmd": "forge_craft", "a_src": list[_forge_sel[0]].src, "a_idx": list[_forge_sel[0]].idx, "b_src": list[_forge_sel[1]].src, "b_idx": list[_forge_sel[1]].idx})
+		_forge_sel = [])
+	forge_view.store_pressed.connect(func():
+		var t: int = forge_view.store_target()
+		var list := _forge_list()
+		if t >= 0 and t < list.size():
+			Net.net_command.rpc_id(1, {"cmd": "forge_store", "src": list[t].src, "idx": list[t].idx})
+		_forge_sel = [])
+	forge_view.back_pressed.connect(func(): forge_view.visible = false)
+	fuser_view = preload("res://ui/forge/fuser_view.gd").new()
+	fuser_view.visible = false
+	layer.add_child(fuser_view)
+	fuser_view.card_pressed.connect(func(i): _fuse_sel = fuser_view.toggle(_fuse_sel, i))
+	fuser_view.fuse_pressed.connect(func():
+		if _fuse_sel.size() == 2:
+			Net.net_command.rpc_id(1, {"cmd": "card_fuse", "a": _fuse_sel[0], "b": _fuse_sel[1]})
+		_fuse_sel = [])
+	fuser_view.back_pressed.connect(func(): fuser_view.visible = false)
 	ability_hud = AbilityHud.new()
 	add_child(ability_hud)
 	add_child(CrystalAlert.new())
@@ -392,8 +413,7 @@ func _update_loot_ui(snap: Dictionary) -> void:
 	slots_ctl.slots = me.slots
 	slots_ctl.active = me.active
 	var mg: Dictionary = Game.held_merge(me.slots) if !_in_base else {}
-	slots_ctl.hint = "" if mg.is_empty() else "%s: merge  %s  [%s]%s" % ["D-pad down" if Pad.using_pad else "F", mg.text, Game.cost_line(mg.cost), "" if mg.ok else "  (not enough in the keep)"]
-	slots_ctl.hint_ok = mg.get("ok", true)
+	slots_ctl.set_merge(mg, "D-pad down" if Pad.using_pad else "F")
 	var keep_pool := []
 	for k in snap.resources:
 		if snap.resources[k] > 0 or k in ["stone", "stick", "gold"]:
@@ -408,127 +428,58 @@ func _update_loot_ui(snap: Dictionary) -> void:
 		if me.carried[k] > 0:
 			load_parts.append("%d %s" % [me.carried[k], k])
 	carry_label.text = "Carrying: " + (", ".join(load_parts) if load_parts.size() > 0 else "nothing") + "     Keep: " + ", ".join(keep_pool)
-	# chest draft
-	var key := str(snap.draft)
-	draft_box.visible = snap.draft.size() > 0
-	if key != _draft_key:
-		_draft_key = key
-		for c in draft_box.get_children():
-			draft_box.remove_child(c)
-			c.queue_free()
-		for entry in snap.draft:
-			var view := CardView.new()
-			var cid: String = Game.entry_id(entry)
-			view.setup(cid, Game.entry_tier(entry), "NEW" if !snap.deck.has(cid) else "+1 copy", Game.entry_twist(entry))
-			view.pressed_down.connect(func(_v): Net.net_command.rpc_id(1, {"cmd": "draft", "id": entry}))
-			draft_box.add_child(view)
-	# forge: exactly the split-screen player's forge (ui/forge/forge_layout.gd): held and stored weapons grouped by type;
-	# click two to fuse / combine them, or click one to drop it into the forge / take it out. The host does the work.
-	forge_box.visible = me.near_forge
-	if me.near_forge:
-		var list: Array = ForgeLayout.items(me.slots, snap.get("store", []))
-		var fkey := str(list.map(func(it): return it.entry)) + str(_forge_sel) + str(snap.get("resources", {}))
-		if fkey != _forge_key:
-			_forge_key = fkey
-			for c in forge_box.get_children():
-				forge_box.remove_child(c)
-				c.queue_free()
-			var t := Label.new()
-			t.text = "Forge: your hands and the forge's storage"
-			forge_box.add_child(t)
-			var cards := HFlowContainer.new()
-			cards.custom_minimum_size = Vector2(640, 0)
-			cards.add_theme_constant_override("h_separation", 12)
-			forge_box.add_child(cards)
-			ForgeLayout.build(cards, list, _forge_sel, -1, Vector2(78, 108), func(pos: int):
-				if pos in _forge_sel:
-					_forge_sel.erase(pos)
-				elif _forge_sel.size() < 2:
-					_forge_sel.append(pos)
-				else:
-					_forge_sel = [_forge_sel[1], pos]
-				_forge_key = "")
-			var pv: Dictionary = ForgeLayout.preview(list, _forge_sel)
-			var info := Label.new()
-			info.text = pv.text
-			info.add_theme_color_override("font_color", Color(0.55, 1.0, 0.6) if pv.ok else Color(1, 0.8, 0.5))
-			forge_box.add_child(info)
-			var row := HBoxContainer.new()
-			forge_box.add_child(row)
-			var go := Button.new()
-			go.text = "Combine" if pv.kind == "combine" else "Fuse"
-			go.disabled = !pv.ok
-			go.pressed.connect(func():
-				Net.net_command.rpc_id(1, {"cmd": "forge_craft", "a_src": list[_forge_sel[0]].src, "a_idx": list[_forge_sel[0]].idx, "b_src": list[_forge_sel[1]].src, "b_idx": list[_forge_sel[1]].idx})
-				_forge_sel = []
-				_forge_key = "")
-			row.add_child(go)
-			var one: Dictionary = list[_forge_sel[0]] if _forge_sel.size() == 1 and _forge_sel[0] < list.size() else {}
-			var store_b := Button.new()
-			store_b.text = "Drop into forge" if one.get("src", "held") == "held" else "Take out"
-			store_b.disabled = one.is_empty() or (one.src == "held" and snap.get("store", []).size() >= Game.FORGE_STORE_MAX) or (one.src == "store" and me.slots.size() >= 3)
-			store_b.pressed.connect(func():
-				Net.net_command.rpc_id(1, {"cmd": "forge_store", "src": one.src, "idx": one.idx})
-				_forge_sel = []
-				_forge_key = "")
-			row.add_child(store_b)
-	else:
-		_forge_sel = []
-	# Card Fuser: the shared hand, pick two cards and the host fuses them
-	fuser_box.visible = me.get("near_fuser", false)
-	if fuser_box.visible:
-		var hand: Array = snap.get("hand", [])
-		var res: Dictionary = snap.get("resources", {})
-		var ukey := str(hand) + str(_fuse_sel) + str(res.get("gold", 0))
-		if ukey != _fuse_key:
-			_fuse_key = ukey
-			for c in fuser_box.get_children():
-				fuser_box.remove_child(c)
-				c.queue_free()
-			var t := Label.new()
-			t.text = "Card Fuser: pick two cards of the same tier (costs gold)"
-			fuser_box.add_child(t)
-			var row := HBoxContainer.new()
-			row.add_theme_constant_override("separation", 8)
-			fuser_box.add_child(row)
-			for i in hand.size():
-				var v := CardView.new()
-				v.setup(Game.entry_id(hand[i]), Game.entry_tier(hand[i]), "", Game.entry_twist(hand[i]))
-				var pos := i
-				v.ready.connect(func(): v.set_state(pos in _fuse_sel, true))
-				v.pressed_down.connect(func(_v):
-					if pos in _fuse_sel:
-						_fuse_sel.erase(pos)
-					else:
-						_fuse_sel.append(pos)
-						if _fuse_sel.size() > 2:
-							_fuse_sel.pop_front()
-					_fuse_key = "")
-				row.add_child(v)
-			var pv: Dictionary = {"ok": false, "reason": "Pick two cards."}
-			if _fuse_sel.size() == 2:
-				pv = Game.fuse_preview(_fuse_sel[0], _fuse_sel[1], hand, res)
-			var info := Label.new()
-			info.text = ("Makes %s for %d gold." % [Game.CARDS[Game.entry_id(pv.result)].name, pv.cost.gold]) if pv.ok else pv.reason
-			info.add_theme_color_override("font_color", Color(0.55, 1.0, 0.6) if pv.ok else Color(1, 0.8, 0.5))
-			fuser_box.add_child(info)
-			var go := Button.new()
-			go.text = "Fuse"
-			go.disabled = !pv.ok
-			go.pressed.connect(func():
-				Net.net_command.rpc_id(1, {"cmd": "card_fuse", "a": _fuse_sel[0], "b": _fuse_sel[1]})
-				_fuse_sel = []
-				_fuse_key = "")
-			fuser_box.add_child(go)
+	# chest draft: the same screen as everyone's
+	draft_view.visible = snap.draft.size() > 0
+	if draft_view.visible:
+		_fit(draft_view)
+		draft_view.render()
+	_me = me
+	_update_forge(snap)
+	# Card Fuser: the same screen as everyone's; the host fuses
+	if !me.get("near_fuser", false):
+		fuser_view.visible = false
+	if fuser_view.visible:
+		_fit(fuser_view)
+		fuser_view.render({"hand": snap.get("hand", []), "picks": _fuse_sel, "cur": -1, "gold": int(snap.get("resources", {}).get("gold", 0))})
 	else:
 		_fuse_sel = []
+
+## Size a shared screen to the window (it scales itself like player 1's).
+func _fit(v: Control) -> void:
+	var area := get_viewport().get_visible_rect().size
+	if !v.size.is_equal_approx(area / v.scale.x):
+		v.fit(area)
+
+func _forge_list() -> Array:
+	return ForgeLayout.items(_me.get("slots", []), Net.last_snapshot.get("store", []))
+
+## The Forge: the same screen as everyone's (ui/forge/forge_view.gd); the host does the work (forge_store / forge_craft).
+func _update_forge(snap: Dictionary) -> void:
+	if !_me.get("near_forge", false):
+		forge_view.visible = false
+	if !forge_view.visible:
+		_forge_sel = []
+		return
+	_fit(forge_view)
+	forge_view.render({"list": _forge_list(), "picks": _forge_sel, "cur": -1, "store_full": snap.get("store", []).size() >= Game.FORGE_STORE_MAX, "hands_full": _me.slots.size() >= 3})
+
+func open_forge() -> void:
+	if _me.get("near_forge", false):
+		_forge_sel = []
+		forge_view.visible = true
+		_update_forge(Net.last_snapshot)
 
 func _unhandled_input(event: InputEvent) -> void:
 	if (event is InputEventKey and event.pressed and !event.echo and event.keycode == KEY_Q) or event.is_action_pressed("switch_items"):
 		Net.net_command.rpc_id(1, {"cmd": "switch"})
 	if event.is_action_pressed("merge_weapons") and !_in_base:
 		Net.net_command.rpc_id(1, {"cmd": "merge_held"})
-	if event.is_action_pressed("interact"):
+	if event.is_action_pressed("interact") and _me.get("near_forge", false) and !forge_view.visible:
+		open_forge()                                         # E at the anvil opens the Forge, like player 1's
+	elif event.is_action_pressed("interact") and _me.get("near_fuser", false) and !fuser_view.visible:
+		_fuse_sel = []
+		fuser_view.visible = true                            # E at the table opens the Card Fuser
+	elif event.is_action_pressed("interact"):
 		Net.net_command.rpc_id(1, {"cmd": "interact"})      # tower, chest or pickup: the host decides what is in reach
 	elif _in_base and event is InputEventKey and event.pressed and !event.echo and event.keycode >= KEY_1 and event.keycode <= KEY_5:
 		selected = event.keycode - KEY_1

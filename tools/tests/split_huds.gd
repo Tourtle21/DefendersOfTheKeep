@@ -84,7 +84,7 @@ func _initialize() -> void:
 	var fui = lp.forge_uis[1]
 	p2.global_position = net.FORGE_POS + Vector2(8, 0)
 	await wait(0.3)
-	fui.is_open = true; fui._root.visible = true; fui._key = ""; fui._refresh()
+	fui.is_open = true; fui.view.visible = true; fui._refresh()
 	await wait(0.5)
 	r = extent(fui._root)
 	print("  P2 forge extent %s of view %s" % [r, v2])
@@ -96,7 +96,7 @@ func _initialize() -> void:
 	zui.open()
 	await wait(0.5)
 	r = extent(zui._root)
-	print("  P2 fuser extent %s (visible %s, hand %s, row children %d, root size %s)" % [r, zui._root.visible, game.hand, zui._row.get_child_count(), zui._root.size])
+	print("  P2 fuser extent %s (visible %s, hand %s, row children %d, root size %s)" % [r, zui._root.visible, game.hand, zui.view.hand_box.get_child_count(), zui._root.size])
 	ok("player 2's Card Fuser fits player 2's view", fits(r, v2) and zui._root.visible)
 	zui.close()
 	game.draft_owner_slot = 1

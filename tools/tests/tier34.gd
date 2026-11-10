@@ -66,7 +66,7 @@ func _initialize() -> void:
 	forge.open()
 	forge._toggle(0)
 	forge._toggle(1)
-	print("journal after previewing spear+hammer: ", forge.journal.text.split("\n")[0], " | ", forge.journal.text.split("\n")[1])
+	print("journal after previewing spear+hammer: ", game.meta.get("recipes_seen", []))
 	game.load_meta()
 	print("saved to disk: ", game.meta.recipes_seen)
 	DirAccess.remove_absolute(ProjectSettings.globalize_path("user://test_save.json"))

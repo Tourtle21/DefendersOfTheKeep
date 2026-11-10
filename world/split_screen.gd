@@ -5,7 +5,7 @@ extends Node
 ## The cursor of player 1 (mouse or pad) is mapped into player 1's viewport by Pad.
 
 const SPLIT_LAYER := 3                     # above the world, below the HUD layers (5 and up) and the menus
-const BIG_SCREENS := ["forge_ui.gd", "card_fuse_ui.gd", "draft_ui.gd", "help_ui.gd"]
+const BIG_SCREENS := ["help_ui.gd"]
 const HUD_SCRIPTS := ["ability_hud.gd", "base_ui.gd", "crystal_alert.gd", "respawn_ui.gd", "wave_banner.gd", "forge_ui.gd", "card_fuse_ui.gd", "draft_ui.gd", "help_ui.gd", "hints.gd"]
 
 var containers: Array = []
@@ -122,6 +122,9 @@ func _pin_all() -> void:
 		return
 	var s0 := Vector2(viewports[0].size)
 	for layer in _p1_layers:
+		if layer.has_method("fit_view"):
+			layer.fit_view(s0)                     # a shared screen sizes itself exactly like players 2-4's (ui/forge/forge_view.gd)
+			continue
 		var big: bool = str(layer.get_script().resource_path).get_file() in BIG_SCREENS
 		var design := Vector2(1060, 1260) if str(layer.get_script().resource_path).get_file() == "help_ui.gd" else Vector2(1100, 760)       # (about how big each screen is drawn)
 		var f: float = clampf(minf(s0.x / design.x, s0.y / design.y), 0.35, 1.0) if big else 1.0
@@ -256,8 +259,7 @@ func _process(_delta: float) -> void:
 			c.slots.active = pl.active_slot
 			var busy: bool = (Game.draft_active and Game.draft_owner_slot == slot) or (_local != null and _local.forge_uis.has(slot) and _local.forge_uis[slot].is_open)
 			var mg: Dictionary = Game.held_merge(pl.weapon_slots) if !pl.is_in_tower and !pl.downed and !busy else {}
-			c.slots.hint = "" if mg.is_empty() else "D-pad down: merge  %s  [%s]%s" % [mg.text, Game.cost_line(mg.cost), "" if mg.ok else "  (not enough in the keep)"]
-			c.slots.hint_ok = mg.get("ok", true)
+			c.slots.set_merge(mg, "D-pad down")
 			c.down.visible = pl.downed
 			c.down.text = "You fell!  Back in %d" % ceili(pl.respawn_left)
 			var light = pl.get_node_or_null("PointLight2D")

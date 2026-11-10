@@ -2,10 +2,63 @@ extends RefCounted
 ## Shared look for the menu screens: bordered panels, a title bar, section headings and a helper that sizes a
 ## grid of cards so they all fit on screen without scrolling.
 
+## ---- The design language (see DESIGN.md "Look"). Every screen takes its colours and font sizes from here. ----
+## From the original hand-built HUD (ui/hud/hud.tscn, ui/hud/inventory.png): pixel art drawn at 4x with nearest filtering,
+## white 1 px frames on a translucent black fill, a black-framed red health bar, Godot's default font with a black outline.
+const PIXEL := 4.0                               # original art scale (inventory frame 32 px drawn at 128 px)
+const FRAME_EDGE := Color(1, 1, 1)               # inventory.png: white edge
+const FRAME_FILL := Color(0, 0, 0, 0.39)         # inventory.png: translucent black inside
+const HP_RED := Color(1, 0.14902, 0)             # hud.tscn health fill
+const HP_FRAME := Color(0, 0, 0)                 # hud.tscn health frame (3 px)
+const OUTLINE := Color(0, 0, 0)                  # text over the world always gets a black outline
+## Menu screens (added later, kept as the user approved them): dark navy panels with a gold edge.
 const BG := Color(0.05, 0.05, 0.10, 0.98)
 const PANEL := Color(0.09, 0.09, 0.16)
 const BORDER := Color(0.55, 0.45, 0.2)
 const GOLD := Color(1.0, 0.85, 0.35)
+const BAR_BG := Color(0.12, 0.10, 0.06)          # title bars
+const HINT_BG := Color(0.07, 0.10, 0.16)         # the "what to do here" line
+const HINT_EDGE := Color(0.3, 0.5, 0.7)
+const RESULT_BG := Color(0.08, 0.08, 0.14)
+const HELD_BG := Color(0.07, 0.12, 0.09)         # "in your hands" (green)
+const HELD_EDGE := Color(0.35, 0.7, 0.4)
+const STORE_BG := Color(0.07, 0.09, 0.15)        # "in the forge" (blue)
+const STORE_EDGE := Color(0.4, 0.55, 0.85)
+const TEXT := Color(0.92, 0.92, 1.0)
+const TEXT_DIM := Color(0.7, 0.72, 0.8)
+const TEXT_HINT := Color(0.8, 0.9, 1.0)
+const GOOD := Color(0.55, 1.0, 0.6)              # can do it now
+const WARN := Color(1, 0.8, 0.5)                 # cannot (yet)
+const STORE_TEXT := Color(0.65, 0.8, 1.0)
+const CURSOR := Color(1, 0.95, 0.4)              # a controller's cursor ring
+## Font sizes at full scale (1100 px wide screens; split views scale the whole screen down).
+const FONT_TITLE := 28
+const FONT_HEAD := 18
+const FONT_BODY := 15
+const FONT_SMALL := 13
+const FONT_TINY := 11
+
+static func label(text: String, size := FONT_BODY, color := TEXT) -> Label:
+	var l := Label.new()
+	l.text = text
+	l.add_theme_font_size_override("font_size", size)
+	l.add_theme_color_override("font_color", color)
+	return l
+
+## A yellow ring around a control: where a controller's cursor is.
+static func cursor_ring(size: Vector2) -> ReferenceRect:
+	var ring := ReferenceRect.new()
+	ring.border_color = CURSOR
+	ring.border_width = 3.0
+	ring.editor_only = false
+	ring.size = size
+	ring.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return ring
+
+static func clear(c: Node) -> void:
+	for ch in c.get_children():
+		c.remove_child(ch)
+		ch.queue_free()
 
 static func style(bg := PANEL, border := BORDER, margin := 12.0) -> StyleBoxFlat:
 	var s := StyleBoxFlat.new()

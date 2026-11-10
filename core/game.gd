@@ -951,12 +951,20 @@ func forge_preview(ea: String, eb: String) -> Dictionary:
 	var idb := entry_id(eb)
 	if ida == idb:
 		var res := combine_weapons(ea, eb)
+		var t := weapon_tier_of(ea)
 		if res == "":
-			if combine_locked_by_draw(ea):
-				return {"text": "Tier %d is locked. Draw it at the end of a run." % (weapon_tier_of(ea) + 1), "ok": false, "kind": "combine", "result": ""}
-			return {"text": "These cannot combine.", "ok": false, "kind": "combine", "result": ""}
+			var why := "Tier %d is the limit for now." % t
+			if weapon_bonus(ea) != weapon_bonus(eb):
+				why = "Tiers differ (%d and %d). Pick matching tiers." % [t, weapon_tier_of(eb)]
+			elif t >= 6:
+				why = "Max tier."
+			elif combine_locked_by_draw(ea):
+				why = "Tier %d is locked. Draw it at the end of a run." % (t + 1)
+			return {"text": why, "ok": false, "kind": "combine", "result": ""}
 		var cost: Dictionary = combine_cost(ea)
-		return {"text": "%s: tier %d -> %d" % [Fusion.display_name(ida), weapon_tier_of(ea), weapon_tier_of(ea) + 1], "ok": can_afford(cost), "kind": "combine", "result": res, "cost": cost}
+		var gained := weapon_twist(ida, t + 1)
+		return {"text": "%s: tier %d -> %d" % [Fusion.display_name(ida), t, t + 1], "ok": can_afford(cost), "kind": "combine", "result": res, "cost": cost,
+			"note": ("Gains the twist: " + TWISTS[gained][0]) if gained != "" and TWISTS.has(gained) else ""}
 	var r := Fusion.recipe(ida, idb)
 	if r.is_empty():
 		return {"text": "These two do not fuse.", "ok": false, "kind": "fuse", "result": ""}
