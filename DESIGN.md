@@ -2,7 +2,23 @@
 
 Everything here is open to change. Nothing existing is sacred.
 
-## Pitch
+## Look (design language)
+
+Derived from the original hand-built game (commit 7f980d9: `ui/hud/hud.tscn`, `ui/hud/inventory.png`, the pixel sprites).
+The values live in `ui/cards/ui_kit.gd`; screens take them from there, never as literals.
+
+- **Pixel art** drawn at 4x (`UiKit.PIXEL`) with nearest filtering; icons are the item sprites, not drawn shapes.
+- **Frames**: the inventory frame, a 1 px white edge on a translucent black fill (`FRAME_EDGE`, `FRAME_FILL`).
+- **Bars** look like the original health bar: a 3 px black frame and a flat fill, square corners (`UiKit.style_bar`;
+  health `HP_RED`, keep `KEEP_FILL`, mana `MANA_FILL`).
+- **Text** is Godot's default font. Text over the world always has a black outline (`OUTLINE`, 3-6 px).
+- **Menus** (added later, kept as approved: Forge, Card Fuser, chest choice): dark navy panels with a gold edge
+  (`BG`, `PANEL`, `BORDER`, `GOLD`), a title bar, a blue "what to do" line, green for your hands, blue for storage.
+- **Font sizes** at full scale: title 28, heading 18, body 15, small 13, tiny 11. Split views scale the whole screen by
+  view width / 1100 instead of picking smaller fonts.
+- **Weapon frames**: the compact frames (`ui/hud/weapon_slots.gd`) for every player.
+
+
 A roguelike co-op tower-defense / exploration game for 1 to 4 players (online).
 Everyone has the same character. The **Keep** is a station: whoever stands inside
 it runs the base. The others go out, explore, fight and gather. You will not get

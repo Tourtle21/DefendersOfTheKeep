@@ -25,6 +25,8 @@ Known quirks: do not name `Game`-dependent `class_name`s inside these files (com
 | radar.gd | wide view, minimap, chest markers (screenshot) |
 | quick_merge.gd | merge two held weapons anywhere (player 1, player 2+), forge hands / storage areas, fusing hand cards in the keep |
 | forge_shots.gd | window screenshots of the forge areas and the merge hint |
+| ui_parity.gd | every shared screen (Forge, Card Fuser, chest choice, HUD top, upgrade cards) built through player 1, a split-screen player and a LAN client view (fake snapshot) gives the same tree |
+| single_source.gd | (no game, 1 s) fails when a known single-source helper is written again, or UI code adds raw colours / font sizes over its budget |
 | split_tour.gd | slow window tour of the split screen (HUDs, fight, merge hint, both Forges, chests, towers); n=2..4, hold=seconds, saves PNGs |
 
 ## Two-process network test

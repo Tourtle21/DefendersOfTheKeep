@@ -66,14 +66,14 @@ LAN clients and local split-screen players must behave **exactly the same**, so 
 - **Rules (host side, `core/net.gd`)**: `Net.forge_toggle_store(pl, src, idx)` drops a held weapon into the forge or takes a
   stored one out; `Net.forge_craft(pl, a_src, a_idx, b_src, b_idx)` fuses or combines any two (held `"held"` / stored `"store"`);
   `Net.forge_remove_held` keeps a sensible weapon equipped. The costs and tier locks come from `Game.forge_preview(ea, eb)`.
-- **Layout (client side, `ui/forge/forge_layout.gd`)**: the list of held + stored weapons grouped by type (common first) and the
-  preview text. Used by `ui/base/local_forge_ui.gd` (split screen, controller) and `net/client_view.gd` (LAN, mouse).
+- **Screen (`ui/forge/forge_view.gd`, data in `ui/forge/forge_layout.gd`)**: the one Forge screen for player 1
+  (`ui/forge/forge_ui.gd`), split screen (`ui/base/local_forge_ui.gd`, controller) and LAN (`net/client_view.gd`, mouse, E at the anvil).
 - **LAN wiring**: the client sends the commands `forge_store` and `forge_craft`; the stored weapons reach clients in the snapshot
   key `store` (a slow key). **Send a copy** (`Game._forge_store.duplicate()`): the slow part is only resent when it differs from
   the last one, and the same array edited in place never looks different.
 - **State**: `Game._forge_store` is host-only (leading underscore), cleared at the start of every run, at most `FORGE_STORE_MAX`.
-- **If you change the forge** (new action, new rule): change `Net.forge_*` / `Game.forge_preview` once, then check both the split-screen
-  screen and the LAN client screen. The player-1 forge (`ui/forge/forge_ui.gd`) has the same features but works on the HUD slots.
+- **If you change the forge** (new action, new rule): change `Net.forge_*` / `Game.forge_preview` once; the screen once in
+  `forge_view.gd`. Player 1's forge works on the HUD slots but uses the same `Game.forge_preview`. `tools/tests/ui_parity.gd` checks the three look the same.
 - Test: `tools/tests/net_forge_host.gd` + `net_forge_client.gd` (LAN), and the split-screen forge checks listed in the README.
 
 ## Local split screen (2 to 4 players)
@@ -99,7 +99,10 @@ Gameplay code asks `Pad.world_mouse(self)` instead of `get_global_mouse_position
 `vp.get_canvas_transform()`, so a co-op client (and a split-screen view) gets the stick-aimed point like any other aim.
 
 ## Card Fuser
-The Card Fuser (`Net.CARD_FUSER_POS`, across the keep from the Forge) fuses two cards of the shared hand. The rules are `Game.fuse_preview` / `Game.fuse_hand`; clients send `card_fuse {a, b}` (hand positions) and the host checks they stand within 50 px. The snapshot carries `near_fuser` per player and `fuser` (slow key); the client screen is `fuser_box` in `net/client_view.gd`. Local split-screen players 2-4 open their own screen with d-pad up (`ui/base/local_fuser_ui.gd`, same rules through `Net.card_fuse`).
+The Card Fuser (`Net.CARD_FUSER_POS`, across the keep from the Forge) fuses two cards of the shared hand. The rules are `Game.fuse_preview` / `Game.fuse_hand`; clients send `card_fuse {a, b}` (hand positions) and the host checks they stand within 50 px. The snapshot carries `near_fuser` per player and `fuser` (slow key); every screen is `ui/forge/fuser_view.gd` (LAN clients open it with E at the table). Local split-screen players 2-4 open their own screen with d-pad up (`ui/base/local_fuser_ui.gd`, same rules through `Net.card_fuse`).
 
 ## HUD parity
-The LAN client's HUD (`net/client_view.gd`), player 1's and the split-screen players' (`ui/base/local_hud.gd`, `ui/base/local_keep_ui.gd`) share one layout: the resource line top-left, the keep bar top-centre, the health bar top-right, the weapon slots bottom-left (`ui/hud/weapon_slots.gd`), the ability panel bottom-right, and Repair / upgrade cards in the keep. Change one, change the others.
+Every HUD piece is built once in `ui/hud/hud_kit.gd` (resource line, keep bar, wave countdown, banner, health bar, mana and draw
+bars, hand row, Repair / upgrade cards) and `ui/hud/weapon_slots.gd`; player 1 (`ui/base/base_ui.gd`), split screen
+(`ui/base/local_hud.gd`, `ui/base/local_keep_ui.gd`) and LAN (`net/client_view.gd`) only feed them data. The chest choice is
+`ui/base/draft_view.gd` for all three.
