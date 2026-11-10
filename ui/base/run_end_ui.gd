@@ -35,11 +35,11 @@ func _ready() -> void:
 	root_ctl.theme = UiKit.make_theme()
 	add_child(root_ctl)
 	var dim := ColorRect.new()
-	dim.color = Color(0.02, 0.02, 0.05, 0.97)
+	dim.color = Color(UiKit.BLACK, 0.97)
 	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
 	dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root_ctl.add_child(dim)
-	var frame := UiKit.panel(Color(0.07, 0.07, 0.13), UiKit.BORDER, 16.0)
+	var frame := UiKit.panel(UiKit.PANEL_DEEP, UiKit.BORDER, 16.0)
 	frame.set_anchors_preset(Control.PRESET_CENTER)
 	frame.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	frame.grow_vertical = Control.GROW_DIRECTION_BOTH
@@ -50,22 +50,22 @@ func _ready() -> void:
 	_box = box
 	title = Label.new()
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 34)
+	title.add_theme_font_size_override("font_size", UiKit.FONT_TITLE)
 	box.add_child(title)
 	summary = Label.new()
 	summary.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	summary.add_theme_font_size_override("font_size", 18)
+	summary.add_theme_font_size_override("font_size", UiKit.FONT_HEAD)
 	box.add_child(summary)
 	shards_label = Label.new()
 	shards_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	shards_label.add_theme_font_size_override("font_size", 22)
-	shards_label.add_theme_color_override("font_color", Color("8fd8ff"))
+	shards_label.add_theme_font_size_override("font_size", UiKit.FONT_BIG)
+	shards_label.add_theme_color_override("font_color", UiKit.SKY)
 	box.add_child(shards_label)
 	reward_head = Label.new()
 	reward_head.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	reward_head.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	reward_head.custom_minimum_size = Vector2(1000, 0)
-	reward_head.add_theme_font_size_override("font_size", 14)
+	reward_head.add_theme_font_size_override("font_size", UiKit.FONT_SMALL)
 	box.add_child(reward_head)
 	flip_all = Button.new()
 	flip_all.text = "Flip all"
@@ -74,7 +74,7 @@ func _ready() -> void:
 	box.add_child(flip_all)
 	pull_label = Label.new()
 	pull_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	pull_label.add_theme_font_size_override("font_size", 20)
+	pull_label.add_theme_font_size_override("font_size", UiKit.FONT_HEAD)
 	pull_label.visible = false
 	box.add_child(pull_label)
 	shop_row = HFlowContainer.new()
@@ -84,8 +84,8 @@ func _ready() -> void:
 	shop_row.custom_minimum_size = Vector2(1000, 0)
 	recipe_label = Label.new()
 	recipe_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	recipe_label.add_theme_color_override("font_color", Color("6df08a"))
-	recipe_label.add_theme_font_size_override("font_size", 15)
+	recipe_label.add_theme_color_override("font_color", UiKit.GOOD)
+	recipe_label.add_theme_font_size_override("font_size", UiKit.FONT_BODY)
 	box.add_child(recipe_label)
 	box.add_child(shop_row)                      # wraps onto more rows: no scrolling
 	extras_row = HFlowContainer.new()                  # wraps onto more lines instead of running off the screen
@@ -96,7 +96,7 @@ func _ready() -> void:
 	var again := Button.new()
 	again.text = "Continue"
 	again.custom_minimum_size = Vector2(240, 52)
-	again.add_theme_font_size_override("font_size", 22)
+	again.add_theme_font_size_override("font_size", UiKit.FONT_BIG)
 	again.pressed.connect(func():                   # back to the main menu (cards, weapons, skills and unlocks live there)
 		Game._menu_done = false
 		Game.restart_run())
@@ -177,7 +177,7 @@ func _refresh(earned: int = -1) -> void:
 			var hint := Label.new()
 			hint.text = "click to flip"
 			hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-			hint.add_theme_color_override("font_color", Color(0.75, 0.8, 0.95))
+			hint.add_theme_color_override("font_color", UiKit.STORE_TEXT)
 			footer.add_child(hint)
 			var flip := func(): _reveal(opt, holder, face, back, fx, footer, rarity)
 			back.gui_input.connect(func(ev):
@@ -211,7 +211,7 @@ func _make_face(opt: Dictionary) -> Control:
 	panel.custom_minimum_size = CardView.SIZE
 	panel.size = CardView.SIZE
 	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color("252c52")
+	sb.bg_color = UiKit.PANEL
 	sb.border_color = Game.rarity_color(r)
 	sb.set_border_width_all(3)
 	sb.set_corner_radius_all(6)
@@ -232,15 +232,15 @@ func _make_face(opt: Dictionary) -> Control:
 	name_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	name_l.position = Vector2(4, 78)
 	name_l.size = Vector2(88, 22)
-	name_l.add_theme_font_size_override("font_size", 12)
+	name_l.add_theme_font_size_override("font_size", UiKit.FONT_TINY)
 	panel.add_child(name_l)
 	var kind_l := Label.new()
 	kind_l.text = ("TIER %d" % int(opt.tier)) if opt.get("result", "") == "tierup" else "WEAPON"
 	kind_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	kind_l.position = Vector2(4, 108)
 	kind_l.size = Vector2(88, 20)
-	kind_l.add_theme_font_size_override("font_size", 11)
-	kind_l.add_theme_color_override("font_color", Color("c9d3f2"))
+	kind_l.add_theme_font_size_override("font_size", UiKit.FONT_TINY)
+	kind_l.add_theme_color_override("font_color", UiKit.TEXT_HINT)
 	panel.add_child(kind_l)
 	return panel
 
@@ -355,9 +355,9 @@ func _confetti(at: Vector2, col: Color, amount: int, rainbow := false) -> void:
 	if rainbow:
 		var g := Gradient.new()
 		g.offsets = PackedFloat32Array([0.0, 0.2, 0.4, 0.6, 0.8, 1.0])
-		g.colors = PackedColorArray([Color("ff5a5a"), Color("ffb040"), Color("ffe14a"), Color("5fe07a"), Color("5aa8ff"), Color("b066ff")])
+		g.colors = PackedColorArray(UiKit.RAINBOW)
 		pr.color_ramp = g
-		pr.color = Color.WHITE
+		pr.color = UiKit.WHITE
 	pr.z_index = 5
 	root_ctl.add_child(pr)
 	pr.emitting = true
@@ -371,7 +371,7 @@ func _banner(text: String, col: Color, rarity: int) -> void:
 	l.text = text
 	l.add_theme_font_size_override("font_size", 56 + 8 * (rarity - 4))
 	l.add_theme_color_override("font_color", col)
-	l.add_theme_color_override("font_outline_color", Color.BLACK)
+	l.add_theme_color_override("font_outline_color", UiKit.BLACK)
 	l.add_theme_constant_override("outline_size", 10)
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	l.set_anchors_preset(Control.PRESET_CENTER_TOP)
@@ -425,13 +425,13 @@ func _fill_footer(footer: VBoxContainer, opt: Dictionary, holder: Control, is_ke
 	for c in footer.get_children():
 		c.queue_free()
 	if opt.result == "converted":
-		holder.modulate = Color(0.6, 0.6, 0.65)
+		holder.modulate = UiKit.MUTED
 	elif opt.result == "offer":
-		holder.modulate = Color(0.9, 0.9, 0.95)
+		holder.modulate = UiKit.TEXT
 	var rl := Label.new()
 	rl.text = Game.rarity_name(rarity).to_upper()
 	rl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	rl.add_theme_font_size_override("font_size", 13)
+	rl.add_theme_font_size_override("font_size", UiKit.FONT_SMALL)
 	rl.add_theme_color_override("font_color", Game.rarity_color(rarity))
 	footer.add_child(rl)
 	if animate:                                              # the rarity word pops in
@@ -443,25 +443,25 @@ func _fill_footer(footer: VBoxContainer, opt: Dictionary, holder: Control, is_ke
 	match opt.result:
 		"offer":
 			tag.text = "KEPT" if is_kept else ("LEGENDARY! UNLOCK IT" if opt.get("legendary", false) else "NEW")
-			tag.add_theme_color_override("font_color", Color("ffd23a") if opt.get("legendary", false) else Color("6df08a"))
+			tag.add_theme_color_override("font_color", UiKit.GOLD_BRIGHT if opt.get("legendary", false) else UiKit.GOOD)
 		"unlocked":
 			tag.text = "LEGENDARY UNLOCKED!" if opt.get("legendary", false) else "UNLOCKED"
-			tag.add_theme_color_override("font_color", Color("ffd23a") if opt.get("legendary", false) else Color("6df08a"))
+			tag.add_theme_color_override("font_color", UiKit.GOLD_BRIGHT if opt.get("legendary", false) else UiKit.GOOD)
 		"tierup":
 			tag.text = "TIER %d UNLOCKED" % opt.tier
-			tag.add_theme_color_override("font_color", Color("ffd23a"))
+			tag.add_theme_color_override("font_color", UiKit.GOLD_BRIGHT)
 		"upgrade":
 			tag.text = "TIER %d DRAWN" % opt.tier
-			tag.add_theme_color_override("font_color", Color("ffd23a"))
+			tag.add_theme_color_override("font_color", UiKit.GOLD_BRIGHT)
 		"spare":
 			tag.text = "SPARE COPY (T%d)" % opt.tier
-			tag.add_theme_color_override("font_color", Color("8fd8ff"))
+			tag.add_theme_color_override("font_color", UiKit.SKY)
 		"merged":
 			tag.text = "MERGED -> T%d" % (int(opt.tier) + 1)
-			tag.add_theme_color_override("font_color", Color("ffd23a"))
+			tag.add_theme_color_override("font_color", UiKit.GOLD_BRIGHT)
 		_:
 			tag.text = "Owned: +%d Shards" % opt.shards
-			tag.add_theme_color_override("font_color", Color("8fd8ff"))
+			tag.add_theme_color_override("font_color", UiKit.SKY)
 	footer.add_child(tag)
 	if opt.result == "upgrade":
 		var upb := Button.new()
@@ -539,12 +539,12 @@ func _refresh_extras() -> void:
 		var can: bool = !owned and seen and Game.meta.shards >= price
 		var c := TierCard.new()
 		if !seen:
-			c.setup({"size": Vector2(92, 130), "title": "???", "glyph": "?", "accent": Color(0.4, 0.4, 0.5), "locked": true, "footer": "not found", "footer_color": Color(0.6, 0.6, 0.65)})
+			c.setup({"size": Vector2(92, 130), "title": "???", "glyph": "?", "accent": UiKit.MUTED_DARK, "locked": true, "footer": "not found", "footer_color": UiKit.MUTED})
 			extras_row.add_child(c)
 			continue
 		c.setup({"size": Vector2(92, 130), "title": Fusion.display_name(id), "icon": load(items[id].texture), "tier": 1 if owned else 0, "max_tier": 6,
 			"accent": Game.rarity_color(Game.weapon_rarity(id)), "locked": !owned and !can,
-			"footer": "OWNED" if owned else "%d shards" % price, "footer_color": Color(0.5, 1, 0.55) if owned else (Color(1, 0.9, 0.5) if can else Color(1, 0.55, 0.45)),
+			"footer": "OWNED" if owned else "%d shards" % price, "footer_color": UiKit.GOOD if owned else (UiKit.WARM if can else UiKit.KEEP_FILL),
 			"tooltip": "Adds this weapon to the chest pool for every run."})
 		c.set_selected(can)
 		if can:
@@ -559,9 +559,9 @@ func _refresh_extras() -> void:
 		var can: bool = !have and !gated and Game.meta.shards >= price
 		var c := TierCard.new()
 		c.setup({"size": Vector2(92, 130), "title": "Fusions T%d" % t, "glyph": "T%d" % t, "tier": t if have else t - 1, "max_tier": 4,
-			"lines": ["Forge tier %d" % t], "accent": Color(1.0, 0.6, 0.25), "locked": !have and !can,
+			"lines": ["Forge tier %d" % t], "accent": UiKit.KEEP_FILL, "locked": !have and !can,
 			"footer": "OWNED" if have else ("needs T%d" % (t - 1) if gated else "%d shards" % price),
-			"footer_color": Color(0.5, 1, 0.55) if have else (Color(1, 0.9, 0.5) if can else Color(1, 0.55, 0.45))})
+			"footer_color": UiKit.GOOD if have else (UiKit.WARM if can else UiKit.KEEP_FILL)})
 		c.set_selected(can)
 		if can:
 			c.pressed.connect(func(_c):

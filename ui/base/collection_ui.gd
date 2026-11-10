@@ -44,7 +44,7 @@ func _ready() -> void:
 		if root_ctl != null and root_ctl.visible:
 			_refresh.call_deferred())
 	left.add_child(grid_area)
-	var side := UiKit.panel(Color(0.08, 0.08, 0.14))
+	var side := UiKit.panel(UiKit.RESULT_BG)
 	side.custom_minimum_size = Vector2(470, 0)
 	side.size_flags_horizontal = Control.SIZE_SHRINK_END
 	side.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -59,8 +59,8 @@ func _ready() -> void:
 	detail = RichTextLabel.new()
 	detail.bbcode_enabled = true
 	detail.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	detail.add_theme_font_size_override("normal_font_size", 15)
-	detail.add_theme_font_size_override("bold_font_size", 19)
+	detail.add_theme_font_size_override("normal_font_size", UiKit.FONT_BODY)
+	detail.add_theme_font_size_override("bold_font_size", UiKit.FONT_HEAD)
 	sv.add_child(detail)
 	action_row = HBoxContainer.new()
 	sv.add_child(action_row)
@@ -112,7 +112,7 @@ func _refresh() -> void:
 				_refresh())
 		else:
 			view = TierCard.new()                      # not met yet: a "?" card
-			view.setup({"size": csize, "title": "???", "glyph": "?", "accent": Color(0.4, 0.4, 0.5), "locked": true})
+			view.setup({"size": csize, "title": "???", "glyph": "?", "accent": UiKit.MUTED_DARK, "locked": true})
 			view.pressed.connect(func(_c):
 				selected = id
 				viewed_tier = -1
@@ -127,8 +127,8 @@ func _refresh() -> void:
 		gems.position = Vector2(0, csize.y)
 		gems.size = Vector2(csize.x, gem_h)
 		gems.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		gems.add_theme_font_size_override("font_size", 10)
-		gems.add_theme_color_override("font_color", Color(1, 0.85, 0.3) if owned else Color(0.5, 0.5, 0.55))
+		gems.add_theme_font_size_override("font_size", UiKit.FONT_TINY)
+		gems.add_theme_color_override("font_color", UiKit.GOLD if owned else UiKit.MUTED_DARK)
 		if Game.upgrade_available(id):                    # the gems blink: this card can be upgraded
 			var bt := gems.create_tween().set_loops()
 			bt.tween_property(gems, "modulate:a", 0.25, 0.5)
@@ -136,7 +136,7 @@ func _refresh() -> void:
 		holder.add_child(gems)
 		if id == selected:
 			var frame := ReferenceRect.new()
-			frame.border_color = Color("ffd23a")
+			frame.border_color = UiKit.GOLD_BRIGHT
 			frame.border_width = 3.0
 			frame.editor_only = false
 			frame.size = csize
@@ -246,13 +246,13 @@ func _add_spare_rows(id: String) -> void:
 			by_tier[int(pe.tier)] = pe
 	var col := VBoxContainer.new()
 	col.add_theme_constant_override("separation", 4)
-	var head := UiKit.heading("Spare copies", 15)
+	var head := UiKit.heading("Spare copies", UiKit.FONT_BODY)
 	col.add_child(head)
 	if by_tier.is_empty():
 		var none := Label.new()
 		none.text = "None yet. Duplicates you draw at the end of a run land here."
-		none.add_theme_font_size_override("font_size", 13)
-		none.add_theme_color_override("font_color", Color(0.65, 0.7, 0.85))
+		none.add_theme_font_size_override("font_size", UiKit.FONT_SMALL)
+		none.add_theme_color_override("font_color", UiKit.TEXT_DIM)
 		col.add_child(none)
 	for t in by_tier:
 		var entry: Dictionary = by_tier[t]

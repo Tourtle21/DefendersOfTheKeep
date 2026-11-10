@@ -55,7 +55,7 @@ func _ready() -> void:
 		if root_ctl != null and root_ctl.visible:
 			_refresh.call_deferred())
 	left.add_child(grid_area)
-	var side := UiKit.panel(Color(0.08, 0.08, 0.14))
+	var side := UiKit.panel(UiKit.RESULT_BG)
 	side.custom_minimum_size = Vector2(470, 0)
 	side.size_flags_horizontal = Control.SIZE_SHRINK_END
 	side.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -70,8 +70,8 @@ func _ready() -> void:
 	detail = RichTextLabel.new()
 	detail.bbcode_enabled = true
 	detail.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	detail.add_theme_font_size_override("normal_font_size", 14)
-	detail.add_theme_font_size_override("bold_font_size", 17)
+	detail.add_theme_font_size_override("normal_font_size", UiKit.FONT_SMALL)
+	detail.add_theme_font_size_override("bold_font_size", UiKit.FONT_HEAD)
 	sv.add_child(detail)
 	action_row = HBoxContainer.new()
 	sv.add_child(action_row)
@@ -128,7 +128,7 @@ func _refresh() -> void:
 			inst.free()
 		card.setup({"size": csize, "title": Fusion.display_name(id) if known else "???", "icon": _icon_of(str(_info.items[id].texture)) if known else null,
 			"glyph": "?" if !known else "", "tier": Game.weapon_tier_unlocked(id) if known else 0, "max_tier": 6 if known else 0, "lines": lines, "locked": locked,
-			"accent": Game.rarity_color(Game.weapon_rarity(id)) if known else Color(0.4, 0.4, 0.5),
+			"accent": Game.rarity_color(Game.weapon_rarity(id)) if known else UiKit.MUTED_DARK,
 			"footer": ("%d shards" % Game.WEAPON_UNLOCK_COSTS[id]) if locked and Game.WEAPON_UNLOCK_COSTS.has(id) else ("" if !known else ("STARTER" if id in ["sword", "pickaxe"] else ("UNLOCKED" if Game.weapon_unlocked(id) or Fusion.tier_of(id) > 1 else "")))})
 		card.position = Vector2(off_x + (n % cols) * (csize.x + 8.0), (n / cols) * (csize.y + 8.0))
 		card.set_selected(id == selected)

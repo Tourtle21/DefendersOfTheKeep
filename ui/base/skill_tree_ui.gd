@@ -43,13 +43,13 @@ func _ready() -> void:
 			_layout()
 			_refresh())
 	area.add_child(tree)
-	var dp := UiKit.panel(Color(0.08, 0.08, 0.14), UiKit.BORDER, 8.0)
+	var dp := UiKit.panel(UiKit.RESULT_BG, UiKit.BORDER, 8.0)
 	sc.body.add_child(dp)
 	detail = RichTextLabel.new()
 	detail.bbcode_enabled = true
 	detail.custom_minimum_size = Vector2(0, 76)
-	detail.add_theme_font_size_override("normal_font_size", 16)
-	detail.add_theme_font_size_override("bold_font_size", 18)
+	detail.add_theme_font_size_override("normal_font_size", UiKit.FONT_BODY)
+	detail.add_theme_font_size_override("bold_font_size", UiKit.FONT_HEAD)
 	dp.add_child(detail)
 
 func open() -> void:
@@ -100,7 +100,7 @@ func _refresh() -> void:
 		var col: Color = Skills.BRANCHES[sk.branch].color
 		var can: bool = avail and lvl < sk.max and Game.meta.shards >= Game.skill_cost(id)
 		var foot := "MAX" if lvl >= sk.max else ("Locked" if !avail else "%d shards" % Game.skill_cost(id))
-		var fcol := Color(1, 0.9, 0.4) if lvl >= sk.max else (Color(0.6, 0.6, 0.65) if !avail else (Color(0.5, 1, 0.55) if can else Color(1, 0.55, 0.45)))
+		var fcol := UiKit.CURSOR if lvl >= sk.max else (UiKit.MUTED if !avail else (UiKit.GOOD if can else UiKit.KEEP_FILL))
 		if b == null:
 			b = TierCard.new()
 			b.mouse_entered.connect(func():
@@ -118,8 +118,8 @@ func _refresh() -> void:
 			var nx: String = Skills.effect_text(id, lvl + 1)
 			lines.append(nx if nx.begins_with("+") else "+" + nx)
 		b.setup({"size": NODE, "title": sk.name, "glyph": "%d/%d" % [lvl, sk.max], "tier": lvl, "max_tier": sk.max, "lines": lines,
-			"accent": col if avail else Color(0.4, 0.4, 0.46), "locked": false, "footer": foot, "footer_color": fcol})
-		b.modulate = Color(1, 1, 1) if avail else Color(0.6, 0.6, 0.65)
+			"accent": col if avail else UiKit.MUTED_DARK, "locked": false, "footer": foot, "footer_color": fcol})
+		b.modulate = UiKit.WHITE if avail else UiKit.MUTED
 		b.position = _node_pos(id)
 		b.set_selected(can)
 	tree.queue_redraw()
