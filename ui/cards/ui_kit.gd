@@ -30,13 +30,33 @@ const TEXT_HINT := Color(0.8, 0.9, 1.0)
 const GOOD := Color(0.55, 1.0, 0.6)              # can do it now
 const WARN := Color(1, 0.8, 0.5)                 # cannot (yet)
 const STORE_TEXT := Color(0.65, 0.8, 1.0)
+const PLAYER_COLORS := [Color(1, 0.85, 0.3), Color(0.5, 0.85, 1.0), Color(0.6, 1.0, 0.5), Color(1.0, 0.6, 0.9)]   # player 1-4 name tags
 const CURSOR := Color(1, 0.95, 0.4)              # a controller's cursor ring
+const DIM := Color(0, 0, 0, 0.6)                 # behind a choice shown over the world (chest draft)
+const RECIPE_TINTS := [Color(0.65, 0.65, 0.65), Color(1, 1, 0.5), Color(0.5, 1.0, 0.5)]   # missing / need more / ready
+const KEEP_FILL := Color(0.95, 0.5, 0.38)        # HUD bars use the health bar's look: black frame, flat fill
+const MANA_FILL := Color(0.35, 0.6, 1.0)
+const DRAW_FILL := Color(0.85, 0.9, 1.0)
 ## Font sizes at full scale (1100 px wide screens; split views scale the whole screen down).
 const FONT_TITLE := 28
 const FONT_HEAD := 18
 const FONT_BODY := 15
 const FONT_SMALL := 13
 const FONT_TINY := 11
+const FONT_AREA := 16                            # "IN YOUR HANDS" / "IN THE FORGE"
+const FONT_CHIP := 12                            # small captions under icons
+const FONT_CHOICE := 26                          # the chest choice title
+
+## A HUD bar in the original health bar's style (ui/hud/hud.tscn): a black frame, a flat fill, square corners.
+static func style_bar(bar: ProgressBar, fill: Color, frame := 3) -> void:
+	var bg := StyleBoxFlat.new()
+	bg.bg_color = HP_FRAME
+	bg.set_content_margin_all(frame)
+	var fg := StyleBoxFlat.new()
+	fg.bg_color = fill
+	fg.set_expand_margin_all(-frame)
+	bar.add_theme_stylebox_override("background", bg)
+	bar.add_theme_stylebox_override("fill", fg)
 
 static func label(text: String, size := FONT_BODY, color := TEXT) -> Label:
 	var l := Label.new()

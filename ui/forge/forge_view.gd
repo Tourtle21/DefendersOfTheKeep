@@ -70,6 +70,7 @@ func _init(controller_keys := {}, can_focus := false) -> void:
 	bar_row.add_child(_title)
 	var controls := "%s pick   %s forge   %s drop in / take out   %s close" % [keys.get("pick", "Click"), keys.get("forge", ""), keys.get("store", ""), keys.get("back", "")]
 	_bar_hint = UiKit.label(controls, UiKit.FONT_TINY, UiKit.TEXT_HINT)        # the controls, in the title bar once the hint line is dropped
+	_bar_hint.set_meta("parity_skip", true)
 	bar_row.add_child(_bar_hint)
 	var spacer := Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -99,7 +100,7 @@ func _init(controller_keys := {}, can_focus := false) -> void:
 		var av := VBoxContainer.new()
 		av.add_theme_constant_override("separation", 4)
 		area.add_child(av)
-		var t := UiKit.label("", 16, UiKit.GOOD if held else UiKit.STORE_TEXT)
+		var t := UiKit.label("", UiKit.FONT_AREA, UiKit.GOOD if held else UiKit.STORE_TEXT)
 		av.add_child(t)
 		var flow := HFlowContainer.new()
 		flow.add_theme_constant_override("h_separation", 14)
@@ -199,7 +200,7 @@ func _apply_level() -> void:
 	_headings[2].visible = level < 5
 	_hint.add_theme_font_size_override("font_size", f.call(UiKit.FONT_BODY, UiKit.FONT_SMALL))
 	for t in [held_title, store_title]:
-		t.add_theme_font_size_override("font_size", f.call(16, 12))
+		t.add_theme_font_size_override("font_size", f.call(UiKit.FONT_AREA, UiKit.FONT_CHIP))
 	info.add_theme_font_size_override("font_size", f.call(UiKit.FONT_BODY, UiKit.FONT_SMALL))
 	info.custom_minimum_size = Vector2(400, 60) if roomy else Vector2(230, 36)
 	numbers.add_theme_font_size_override("normal_font_size", f.call(14, 12))
@@ -293,7 +294,7 @@ func _fill_areas(list: Array, picks: Array, cur: int) -> void:
 						copies += 1
 				var col := VBoxContainer.new()
 				col.add_theme_constant_override("separation", 4)
-				col.add_child(UiKit.label("%s  x%d" % [Fusion.display_name(it.id), copies], 12 if small else UiKit.FONT_BODY, Game.rarity_color(Game.weapon_rarity(it.id))))
+				col.add_child(UiKit.label("%s  x%d" % [Fusion.display_name(it.id), copies], UiKit.FONT_CHIP if small else UiKit.FONT_BODY, Game.rarity_color(Game.weapon_rarity(it.id))))
 				group = HBoxContainer.new()
 				group.add_theme_constant_override("separation", 4 if small else 6)
 				col.add_child(group)
@@ -325,7 +326,7 @@ func _fill_recipes(list: Array) -> void:
 		var rb := Button.new()
 		rb.custom_minimum_size = Vector2(330, 100)
 		rb.focus_mode = Control.FOCUS_ALL if focusable else Control.FOCUS_NONE
-		rb.modulate = [Color(0.65, 0.65, 0.65), Color(1, 1, 0.5), Color(0.5, 1.0, 0.5)][r.state]
+		rb.modulate = UiKit.RECIPE_TINTS[r.state]
 		var h := HBoxContainer.new()
 		h.set_anchors_preset(Control.PRESET_FULL_RECT)
 		h.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -356,7 +357,7 @@ func _chip(c: Array) -> Control:
 	tr.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	v.add_child(tr)
-	var l := UiKit.label("%s\n%s" % [Fusion.display_name(c[0]), c[1]], 12)
+	var l := UiKit.label("%s\n%s" % [Fusion.display_name(c[0]), c[1]], UiKit.FONT_CHIP)
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	v.add_child(l)

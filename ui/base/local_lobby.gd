@@ -8,7 +8,7 @@ const UiKit = preload("res://ui/cards/ui_kit.gd")
 signal started
 signal closed
 
-const COLORS := [Color(1, 0.85, 0.3), Color(0.5, 0.85, 1.0), Color(0.6, 1.0, 0.5), Color(1.0, 0.6, 0.9)]
+const COLORS := preload("res://ui/cards/ui_kit.gd").PLAYER_COLORS
 
 var root_ctl: Control
 var _cards: Array = []              # per slot: {title, device, state}

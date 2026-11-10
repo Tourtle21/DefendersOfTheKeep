@@ -573,12 +573,19 @@ func damage_keep(amount: float) -> void:
 		end_run("The keep has fallen")
 
 ## Spend stone from the pool to mend the keep (only from inside it).
+const REPAIR_COST := {"stone": 3}
+const REPAIR_AMOUNT := 30.0
+
+## Could the keep be repaired now (damaged and the stone is there)? `have` / `hp` / `hp_max` default to this machine's state.
+func can_repair(have: Dictionary = resources, hp: float = keep_hp, hp_max: float = keep_max()) -> bool:
+	return hp < hp_max and int(have.get("stone", 0)) >= int(REPAIR_COST.stone)
+
 func repair_keep() -> bool:
-	var cost := {"stone": 3}
-	if !in_base or crystal_away() or keep_hp >= keep_max() or !can_afford(cost):
+	var cost := REPAIR_COST
+	if !in_base or crystal_away() or !can_repair():
 		return false
 	pay(cost)
-	keep_hp = min(keep_max(), keep_hp + 30.0 + bonus("repair"))
+	keep_hp = min(keep_max(), keep_hp + REPAIR_AMOUNT + bonus("repair"))
 	keep_changed.emit()
 	return true
 
@@ -989,6 +996,20 @@ func held_merge(entries: Array) -> Dictionary:
 			if fallback.is_empty():
 				fallback = hit
 	return fallback
+
+## "3 stone, 0 stick, 0 gold, 2 iron": a resource table for the HUD (stone, stick and gold always listed, others when > 0).
+static func resource_text(table: Dictionary) -> String:
+	var parts := []
+	for k in ["stone", "stick", "gold"]:
+		parts.append("%d %s" % [int(table.get(k, 0)), k])
+	for k in table:
+		if !(k in ["stone", "stick", "gold"]) and int(table[k]) > 0:
+			parts.append("%d %s" % [int(table[k]), k])
+	return ", ".join(parts)
+
+## The resource line every HUD shows top-left.
+static func resource_line(carried_table: Dictionary, keep_table: Dictionary) -> String:
+	return "Carrying: %s     Keep: %s" % [resource_text(carried_table), resource_text(keep_table)]
 
 ## "10 gold, 2 stone" for a cost table.
 func cost_line(cost: Dictionary) -> String:

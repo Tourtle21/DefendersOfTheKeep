@@ -9,37 +9,35 @@ var _down_label: Label
 var _daylight: PointLight2D
 var info: Label
 var hp_bar: ProgressBar
-var carry_label: Label
+var top: Dictionary               # the shared HUD top (ui/hud/hud_kit.gd)
+var carry_label: Label:
+	get: return top.info
 var radar: Control
 var base_box: VBoxContainer
 var hand_row: HBoxContainer
-var mana_bar: ProgressBar
-var res_label: Label
+var mana: Dictionary              # the shared mana and card-draw bars
 var extras: HBoxContainer
 var selected := -1
 var draft_view: Control           # the shared chest choice (ui/base/draft_view.gd)
 var forge_view: Control           # the shared Forge screen (ui/forge/forge_view.gd), opened with E at the anvil
-var weapons_label: Label
 var ability_hud: AbilityHud
 var _ended_label: Label
 var _forge_sel: Array = []        # positions in the forge list (ForgeLayout.items) the player picked
 var _me := {}                     # this player's entry in the latest snapshot
 var fuser_view: Control           # the shared Card Fuser (ui/forge/fuser_view.gd), opened with E at the table
-var wave_label: Label
-var keep_bar: ProgressBar
-var keep_lbl: Label
 var hp_fill: ColorRect
 var slots_ctl: Control
-var _extras_key := ""
-const TierCard = preload("res://ui/cards/tier_card.gd")
+const HudKit = preload("res://ui/hud/hud_kit.gd")
 var _fuse_sel: Array = []        # hand positions picked at the Card Fuser
 const ForgeLayout = preload("res://ui/forge/forge_layout.gd")
 var _hand_key := ""
+var _extras_key := ""
 var _in_base := false
 var _player_tgt := {}
 var _player_disp := {}
 var _last_snap_t := -1
 var _host_lost := false
+var screen_size := Vector2.ZERO  # tests: lay the screens out for this size instead of the window's
 var scripted_input := false      # tests: keep whatever is in Net.local_input instead of reading the keyboard
 
 func _ready() -> void:
@@ -119,14 +117,7 @@ func _ready() -> void:
 	base_box.offset_bottom = -10
 	base_box.visible = false
 	layer.add_child(base_box)
-	res_label = Label.new()
-	res_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	base_box.add_child(res_label)
-	mana_bar = ProgressBar.new()
-	mana_bar.custom_minimum_size = Vector2(420, 22)
-	mana_bar.show_percentage = false
-	mana_bar.modulate = Color(0.5, 0.7, 1.4)
-	base_box.add_child(mana_bar)
+	mana = HudKit.mana_block(base_box)
 	hand_row = HBoxContainer.new()
 	hand_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	hand_row.add_theme_constant_override("separation", 8)
@@ -135,50 +126,14 @@ func _ready() -> void:
 	hp_bar.max_value = 1.0
 	hp_bar.visible = false
 	layer.add_child(hp_bar)
-	# the same HUD layout as player 1's and the split-screen players' (ui/base/local_hud.gd): resources top-left, the keep bar
-	# top-centre, the health bar top-right, the weapon slots bottom-left
-	carry_label = Label.new()
-	carry_label.position = Vector2(12, 10)
-	carry_label.add_theme_font_size_override("font_size", 18)
-	layer.add_child(carry_label)
-	keep_bar = ProgressBar.new()
-	keep_bar.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
-	keep_bar.offset_left = -170
-	keep_bar.offset_right = 170
-	keep_bar.offset_top = 38
-	keep_bar.offset_bottom = 58
-	keep_bar.show_percentage = false
-	keep_bar.modulate = Color(1.0, 0.55, 0.45)
-	keep_lbl = Label.new()
-	keep_lbl.set_anchors_preset(Control.PRESET_FULL_RECT)
-	keep_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	keep_lbl.add_theme_font_size_override("font_size", 13)
-	keep_bar.add_child(keep_lbl)
-	layer.add_child(keep_bar)
-	wave_label = Label.new()
-	wave_label.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
-	wave_label.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	wave_label.position.y = 62
-	wave_label.add_theme_font_size_override("font_size", 16)
-	wave_label.add_theme_color_override("font_color", Color(1.0, 0.9, 0.6))
-	wave_label.add_theme_color_override("font_outline_color", Color.BLACK)
-	wave_label.add_theme_constant_override("outline_size", 5)
-	layer.add_child(wave_label)
-	var hp_frame := ColorRect.new()
-	hp_frame.color = Color.BLACK
-	hp_frame.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
-	hp_frame.offset_left = -250
-	hp_frame.offset_right = -16
-	hp_frame.offset_top = 16
-	hp_frame.offset_bottom = 43
-	hp_frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	layer.add_child(hp_frame)
-	hp_fill = ColorRect.new()
-	hp_fill.color = Color(1, 0.14902, 0, 1)
-	hp_fill.position = Vector2(3, 3)
-	hp_fill.size = Vector2(228, 21)
-	hp_fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	hp_frame.add_child(hp_fill)
+	# the same HUD as player 1's and the split-screen players' (ui/hud/hud_kit.gd)
+	var hud_root := Control.new()
+	hud_root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	hud_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	layer.add_child(hud_root)
+	top = HudKit.top(hud_root)
+	Game.announce.connect(func(text): if !text.begins_with("RUN_"): HudKit.announce(top.banner, text))
+	hp_fill = HudKit.health_bar(hud_root)
 	slots_ctl = Control.new()
 	slots_ctl.set_script(preload("res://ui/hud/weapon_slots.gd"))
 	layer.add_child(slots_ctl)
@@ -191,9 +146,6 @@ func _ready() -> void:
 	radar.offset_right = -16
 	radar.offset_top = 70
 	radar.offset_bottom = 290
-	weapons_label = Label.new()               # (kept for tests; the weapon slots on the left show it)
-	weapons_label.visible = false
-	layer.add_child(weapons_label)
 	draft_view = preload("res://ui/base/draft_view.gd").new()
 	draft_view.visible = false
 	layer.add_child(draft_view)
@@ -324,77 +276,29 @@ func _draw() -> void:
 			draw_string(ThemeDB.fallback_font, dp + Vector2(-12, 17), Fusion.display_name(p.slots[p.active]), HORIZONTAL_ALIGNMENT_LEFT, -1, 6, Color(1, 1, 0.8))
 		draw_rect(Rect2(dp + Vector2(-8, 8), Vector2(16.0 * p.hp, 2)), Color(0.9, 0.25, 0.2))
 
-var _info_res: Resource
-func _item_info() -> Resource:
-	if _info_res == null:
-		_info_res = load("res://world/item_info.tres")
-	return _info_res
-
-func _weapon_label(entry: String) -> String:
-	var tw := Game.entry_twist(entry)
-	return "%s T%d%s" % [Fusion.display_name(Game.entry_id(entry)), Game.weapon_tier_of(entry), (" *" + Game.TWISTS[tw][0]) if tw != "" and Game.TWISTS.has(tw) else ""]
-
 func _update_keep_ui(snap: Dictionary) -> void:
 	base_box.visible = _in_base
 	extras.visible = _in_base
 	if !_in_base:
 		selected = -1
 		return
-	mana_bar.max_value = snap.max_mana
-	mana_bar.value = snap.mana
-	var parts := []
-	for k in snap.resources:
-		if snap.resources[k] > 0 or k in ["stone", "stick", "gold"]:
-			parts.append("%d %s" % [snap.resources[k], k])
-	res_label.text = "Keep: " + ", ".join(parts) + "    Mana %d/%d" % [snap.mana, snap.max_mana]
-	var key := str(snap.hand) + str(snap.deck)
+	HudKit.set_mana(mana, snap.mana, snap.max_mana, 0.0)
+	mana.draw.visible = false                 # (the draw clock is the host's)
+	var key := str(snap.hand) + str(snap.deck) + str(selected)
 	if key != _hand_key:
 		_hand_key = key
-		for c in hand_row.get_children():
-			hand_row.remove_child(c)
-			c.queue_free()
-		for i in snap.hand.size():
-			var view := CardView.new()
-			view.setup(Game.entry_id(snap.hand[i]), Game.entry_tier(snap.hand[i]), "", Game.entry_twist(snap.hand[i]))
-			view.pressed_down.connect(func(_v):
-				if selected >= 0 and selected != i and (Game.can_merge(selected, i) or Game.can_fuse_pair(selected, i)):
-					Net.net_command.rpc_id(1, {"cmd": "merge", "a": selected, "b": i})      # same card, same tier: combine
-					selected = -1
-				else:
-					selected = i)
-			hand_row.add_child(view)
-	for i in hand_row.get_child_count():
-		hand_row.get_child(i).set_state(i == selected, true)
+		HudKit.hand_cards(hand_row, snap.hand, 1.0, selected, func(i: int):
+			if selected >= 0 and selected != i and (Game.can_merge(selected, i) or Game.can_fuse_pair(selected, i)):
+				Net.net_command.rpc_id(1, {"cmd": "merge", "a": selected, "b": i})      # same card, same tier: combine
+				selected = -1
+			else:
+				selected = i)
 	# repair / upgrades, as player 1's small cards (a green frame means you can buy it now)
 	var ekey := str(Game.upgrade_levels) + str(snap.resources) + str(snap.get("keep", 0))
 	if ekey != _extras_key:
 		_extras_key = ekey
-		for c in extras.get_children():
-			extras.remove_child(c)
-			c.queue_free()
-		var can_repair: bool = snap.get("keep", 0) < snap.get("keep_max", 1) and snap.resources.get("stone", 0) >= 3
-		var rc := TierCard.new()
-		rc.setup({"size": Vector2(92, 128), "title": "Repair", "glyph": "+", "lines": ["+30 keep"], "footer": "3 stone", "accent": Color(0.9, 0.5, 0.4), "locked": !can_repair})
-		rc.set_selected(can_repair)
-		rc.pressed.connect(func(_c): Net.net_command.rpc_id(1, {"cmd": "repair"}))
-		extras.add_child(rc)
-		var glyphs := {"max_mana": "M", "regen": "R", "draw": "D"}
-		for id in Game.UPGRADES:
-			var u: Dictionary = Game.UPGRADES[id]
-			var cost := Game.upgrade_cost(id)
-			var lvl: int = Game.upgrade_levels.get(id, 0)
-			var cost_parts := []
-			var can := true
-			for t in cost:
-				cost_parts.append("%d %s" % [cost[t], t])
-				if snap.resources.get(t, 0) < cost[t]:
-					can = false
-			var c := TierCard.new()
-			c.setup({"size": Vector2(92, 128), "title": u.name, "glyph": glyphs.get(id, "+"), "tier": mini(lvl, 6), "max_tier": 6, "badge": "Lv %d" % lvl,
-				"lines": [u.desc], "footer": " ".join(cost_parts), "accent": Color(0.5, 0.75, 1.0), "locked": !can})
-			c.set_selected(can)
-			c.pressed.connect(func(_c): Net.net_command.rpc_id(1, {"cmd": "upgrade", "id": id}))
-			extras.add_child(c)
+		HudKit.upgrade_cards(extras, HudKit.upgrade_size(get_viewport().get_visible_rect().size.x), -1, snap.resources, snap.get("keep", 0), snap.get("keep_max", 1),
+			func(): Net.net_command.rpc_id(1, {"cmd": "repair"}), func(id): Net.net_command.rpc_id(1, {"cmd": "upgrade", "id": id}))
 
 ## Weapons carried, the chest draft, and the Forge (when standing next to it).
 func _update_loot_ui(snap: Dictionary) -> void:
@@ -404,30 +308,14 @@ func _update_loot_ui(snap: Dictionary) -> void:
 			me = p
 	if me.is_empty():
 		return
-	var names := []
-	for i in me.slots.size():
-		names.append(("[%s]" if i == me.active else "%s") % _weapon_label(me.slots[i]))
-	weapons_label.text = "Weapons (Q switches): " + "  ".join(names)               # (hidden; the slots on the left show it)
 	hp_bar.value = me.hp
 	hp_fill.size.x = clampf(me.hp * 228.0, 0.0, 228.0)
 	slots_ctl.slots = me.slots
 	slots_ctl.active = me.active
 	var mg: Dictionary = Game.held_merge(me.slots) if !_in_base else {}
 	slots_ctl.set_merge(mg, "D-pad down" if Pad.using_pad else "F")
-	var keep_pool := []
-	for k in snap.resources:
-		if snap.resources[k] > 0 or k in ["stone", "stick", "gold"]:
-			keep_pool.append("%d %s" % [snap.resources[k], k])
-	keep_bar.max_value = snap.get("keep_max", 150.0)
-	keep_bar.value = snap.get("keep", 0.0)
-	keep_lbl.text = "Keep %d / %d" % [snap.get("keep", 0), snap.get("keep_max", 0)]
-	wave_label.text = Game.wave_timer_text()
+	HudKit.set_top(top, me.carried, snap.resources, snap.get("keep", 0.0), snap.get("keep_max", 150.0))
 	ability_hud.remote_cd = Net.my_cd
-	var load_parts := []
-	for k in me.carried:
-		if me.carried[k] > 0:
-			load_parts.append("%d %s" % [me.carried[k], k])
-	carry_label.text = "Carrying: " + (", ".join(load_parts) if load_parts.size() > 0 else "nothing") + "     Keep: " + ", ".join(keep_pool)
 	# chest draft: the same screen as everyone's
 	draft_view.visible = snap.draft.size() > 0
 	if draft_view.visible:
@@ -446,7 +334,7 @@ func _update_loot_ui(snap: Dictionary) -> void:
 
 ## Size a shared screen to the window (it scales itself like player 1's).
 func _fit(v: Control) -> void:
-	var area := get_viewport().get_visible_rect().size
+	var area := screen_size if screen_size != Vector2.ZERO else get_viewport().get_visible_rect().size
 	if !v.size.is_equal_approx(area / v.scale.x):
 		v.fit(area)
 

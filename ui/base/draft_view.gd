@@ -24,7 +24,7 @@ func _init(controller_keys := {}) -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP if keys.is_empty() else Control.MOUSE_FILTER_IGNORE     # no clicks through to the map
 	theme = UiKit.make_theme()
 	var dim := ColorRect.new()
-	dim.color = Color(0, 0, 0, 0.6)
+	dim.color = UiKit.DIM
 	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
 	dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(dim)
@@ -34,7 +34,7 @@ func _init(controller_keys := {}) -> void:
 	box.grow_vertical = Control.GROW_DIRECTION_BOTH
 	box.add_theme_constant_override("separation", 14)
 	add_child(box)
-	title = UiKit.label("Chest! Choose a card  (cards you own are upgraded)", 26, UiKit.TEXT)
+	title = UiKit.label("Chest! Choose a card  (cards you own are upgraded)", UiKit.FONT_CHOICE, UiKit.TEXT)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_color_override("font_outline_color", UiKit.OUTLINE)
 	title.add_theme_constant_override("outline_size", 5)
@@ -42,12 +42,13 @@ func _init(controller_keys := {}) -> void:
 	_sub = UiKit.label("Left stick / d-pad move   %s take it   %s combine two of the same card" % [keys.get("take", ""), keys.get("combine", "")], UiKit.FONT_SMALL, UiKit.TEXT_DIM)
 	_sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_sub.visible = !keys.is_empty()
+	_sub.set_meta("parity_skip", true)        # (the controller line only shows for a controller)
 	box.add_child(_sub)
 	row = HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_theme_constant_override("separation", 24)
 	box.add_child(row)
-	hand_title = UiKit.label("", 16, UiKit.TEXT_HINT)
+	hand_title = UiKit.label("", UiKit.FONT_AREA, UiKit.TEXT_HINT)
 	hand_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(hand_title)
 	hand_row = HBoxContainer.new()

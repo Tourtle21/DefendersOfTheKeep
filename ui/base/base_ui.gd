@@ -5,21 +5,24 @@ extends CanvasLayer
 var selected := -1          # index into Game.hand (click-to-aim fallback)
 var dragging := -1          # index being dragged from the hand
 var ghost: CardView
-var info_label: Label
+var top: Dictionary         # the shared HUD top (ui/hud/hud_kit.gd): resource line, keep bar, wave countdown, banner
+var info_label: Label:
+	get: return top.info
+var wave_label: Label:
+	get: return top.wave
+var keep_bar: ProgressBar:
+	get: return top.keep_bar
 var hint_label: Label
-var wave_label: Label
-var mana_bar: ProgressBar
-var mana_label: Label
-var draw_bar: ProgressBar
+var mana: Dictionary        # the shared mana and card-draw bars
 var hand_box: HBoxContainer
+var hand_views: Array = []
 var base_panel: Control      # everything that is base-only
 var upgrade_box: HBoxContainer
 var reticle: Control
 var deck_label: Label
-var ability_label: Label
-var banner: Label
-var keep_bar: ProgressBar
 var hurt_flash: ColorRect
+
+const HudKit = preload("res://ui/hud/hud_kit.gd")
 
 func _ready() -> void:
 	layer = 5
@@ -27,76 +30,15 @@ func _ready() -> void:
 	ui.set_anchors_preset(Control.PRESET_FULL_RECT)
 	ui.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(ui)
-
-	# always visible: resources
-	info_label = Label.new()
-	info_label.position = Vector2(12, 10)
-	info_label.add_theme_font_size_override("font_size", 18)
-	ui.add_child(info_label)
-
-	ability_label = Label.new()
-	ability_label.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
-	ability_label.offset_left = -420
-	ability_label.offset_right = -12
-	ability_label.offset_top = 36
-	ability_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	ability_label.add_theme_font_size_override("font_size", 16)
-	ability_label.add_theme_color_override("font_outline_color", Color.BLACK)
-	ability_label.add_theme_constant_override("outline_size", 4)
-	ui.add_child(ability_label)
-
-	hurt_flash = ColorRect.new()
-	hurt_flash.color = Color(0.9, 0.05, 0.05, 0.0)
-	hurt_flash.set_anchors_preset(Control.PRESET_FULL_RECT)
-	hurt_flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	ui.add_child(hurt_flash)
+	hurt_flash = HudKit.hurt_flash(ui)
 	Game.player_hurt.connect(func():
 		Sfx.play("hurt")
-		hurt_flash.color.a = 0.35
-		create_tween().tween_property(hurt_flash, "color:a", 0.0, 0.4))
-
-	keep_bar = ProgressBar.new()
-	keep_bar.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
-	keep_bar.offset_left = -170
-	keep_bar.offset_right = 170
-	keep_bar.offset_top = 38
-	keep_bar.offset_bottom = 58
-	keep_bar.max_value = Game.keep_max()
-	keep_bar.show_percentage = false
-	keep_bar.modulate = Color(1.0, 0.55, 0.45)
-	var keep_lbl := Label.new()
-	keep_lbl.set_anchors_preset(Control.PRESET_FULL_RECT)
-	keep_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	keep_lbl.add_theme_font_size_override("font_size", 13)
-	keep_bar.add_child(keep_lbl)
-	ui.add_child(keep_bar)
+		HudKit.flash(hurt_flash))
+	top = HudKit.top(ui)
+	Game.announce.connect(func(text): HudKit.announce(top.banner, text))
 	Game.keep_sel_changed.connect(func(): _rebuild_upgrades())
 	Pad.device_changed.connect(func(_on): _refresh_all())          # the hint names the buttons of whichever device you are using
-	Game.keep_changed.connect(func():
-		keep_bar.value = Game.keep_hp
-		keep_lbl.text = "Keep %d / %d" % [Game.keep_hp, Game.keep_max()]
-		_rebuild_upgrades())
-	keep_bar.value = Game.keep_hp
-	keep_lbl.text = "Keep %d / %d" % [Game.keep_hp, Game.keep_max()]
-
-	banner = Label.new()
-	banner.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
-	banner.offset_top = 70
-	banner.offset_left = -400
-	banner.offset_right = 400
-	banner.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	banner.add_theme_font_size_override("font_size", 28)
-	banner.add_theme_color_override("font_color", Color(1, 0.9, 0.5))
-	banner.add_theme_color_override("font_outline_color", Color.BLACK)
-	banner.add_theme_constant_override("outline_size", 6)
-	banner.modulate.a = 0.0
-	ui.add_child(banner)
-	Game.announce.connect(func(text):
-		banner.text = text
-		var tw := create_tween()
-		tw.tween_property(banner, "modulate:a", 1.0, 0.2)
-		tw.tween_interval(3.0)
-		tw.tween_property(banner, "modulate:a", 0.0, 0.8))
+	Game.keep_changed.connect(_rebuild_upgrades)
 
 	base_panel = Control.new()
 	base_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -110,15 +52,6 @@ func _ready() -> void:
 	reticle.draw.connect(_draw_reticle)
 	base_panel.add_child(reticle)
 
-	wave_label = Label.new()                       # the countdown to the next wave, so there is time to prepare
-	wave_label.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
-	wave_label.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	wave_label.position.y = 62
-	wave_label.add_theme_font_size_override("font_size", 16)
-	wave_label.add_theme_color_override("font_color", Color(1.0, 0.9, 0.6))
-	wave_label.add_theme_color_override("font_outline_color", Color.BLACK)
-	wave_label.add_theme_constant_override("outline_size", 5)
-	ui.add_child(wave_label)
 	hint_label = Label.new()
 	hint_label.set_anchors_preset(Control.PRESET_CENTER_TOP)
 	hint_label.grow_horizontal = Control.GROW_DIRECTION_BOTH
@@ -134,23 +67,7 @@ func _ready() -> void:
 	bottom.offset_bottom = -12
 	bottom.alignment = BoxContainer.ALIGNMENT_END
 	base_panel.add_child(bottom)
-
-	mana_bar = ProgressBar.new()
-	mana_bar.custom_minimum_size = Vector2(420, 22)
-	mana_bar.show_percentage = false
-	mana_bar.modulate = Color(0.5, 0.7, 1.4)
-	bottom.add_child(mana_bar)
-	mana_label = Label.new()
-	mana_label.set_anchors_preset(Control.PRESET_FULL_RECT)
-	mana_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	mana_bar.add_child(mana_label)
-
-	draw_bar = ProgressBar.new()
-	draw_bar.custom_minimum_size = Vector2(420, 6)
-	draw_bar.show_percentage = false
-	draw_bar.max_value = 1.0
-	bottom.add_child(draw_bar)
-
+	mana = HudKit.mana_block(bottom)
 	hand_box = HBoxContainer.new()
 	hand_box.alignment = BoxContainer.ALIGNMENT_CENTER
 	hand_box.add_theme_constant_override("separation", 8)
@@ -192,16 +109,23 @@ func _ready() -> void:
 	if hud and hud.has_node("Control3"):
 		hud.get_node("Control3").visible = false
 
+var _fitted := Vector2.ZERO
+
+func _view_size() -> Vector2:
+	return Vector2(custom_viewport.size) if custom_viewport is SubViewport else get_viewport().get_visible_rect().size
+
 func _process(_delta: float) -> void:
-	wave_label.text = Game.wave_timer_text()
-	_update_ability_label()
+	var view := _view_size()
+	if view != _fitted:
+		_fitted = view
+		HudKit.fit_top(top, view)
+		_rebuild_upgrades()
+	HudKit.set_top(top, Game.carried, Game.resources, Game.keep_hp, Game.keep_max())
 	if base_panel.visible:
 		# in a split-screen half the upgrade cards would sit on top of the keep bar and the wave timer: drop them below the hint
-		var view_w: float = float(custom_viewport.size.x) if custom_viewport != null else get_viewport().get_visible_rect().size.x
-		var narrow: bool = view_w < 1150.0
-		upgrade_box.position.y = 118.0 if narrow else 44.0
-		deck_label.position.y = upgrade_box.position.y + 132.0
-		draw_bar.value = Game.draw_progress()
+		upgrade_box.position.y = 118.0 if view.x < 1150.0 else 44.0
+		deck_label.position.y = upgrade_box.position.y + HudKit.upgrade_size(view.x).y + 4.0
+		mana.draw.value = Game.draw_progress()
 		reticle.queue_redraw()
 		if ghost:
 			ghost.position = Pad.screen_mouse(get_viewport()) - CardView.SIZE * 0.275
@@ -213,93 +137,40 @@ func _on_base_mode(active: bool) -> void:
 	_refresh_all()
 
 func _refresh_mana() -> void:
-	mana_bar.max_value = Game.max_mana()
-	mana_bar.value = Game.mana
-	mana_label.text = "Mana %d / %d" % [Game.mana, Game.max_mana()]
+	HudKit.set_mana(mana, Game.mana, Game.max_mana(), Game.draw_progress())
 	_refresh_hand_enabled()
 
 func _refresh_all() -> void:
-	var carry := []
-	var keep := []
-	for k in Game.resources:
-		if Game.resources[k] > 0 or k in ["stone", "stick", "gold"]:
-			keep.append("%d %s" % [Game.resources[k], k])
-	for k in Game.carried:
-		if Game.carried[k] > 0 or k in ["stone", "stick", "gold"]:
-			carry.append("%d %s" % [Game.carried[k], k])
-	info_label.text = "Carrying: %s     Keep: %s" % [", ".join(carry), ", ".join(keep)]
 	if Game.local_in_base():
 		hint_label.text = "LB / RB pick a card   RT place it (or jump to a lit tower)   D-pad up/down pick Repair / an upgrade, Y buy   X reload the tower   A leave" if Pad.using_pad else "Drag a card onto the map.  Click a lit tower to jump to it."
 	_rebuild_upgrades()
 	_refresh_hand_enabled()
 
-const TierCard = preload("res://ui/cards/tier_card.gd")
-const COST_SHORT := {"stone": "stone", "stick": "stick", "gold": "gold"}
-
-func _cost_short(cost: Dictionary) -> String:
-	var parts := []
-	for t in cost:
-		parts.append("%d %s" % [cost[t], COST_SHORT.get(t, t)])
-	return "  ".join(parts)
-
-## Keep upgrades as small cards: green frame = you can buy it now. The gems are the level.
+## Keep upgrades as small cards (shared with every player: ui/hud/hud_kit.gd); the controller's pick blinks.
 func _rebuild_upgrades() -> void:
-	for c in upgrade_box.get_children():
-		c.queue_free()
-	var rcost := {"stone": 3}
-	var can_repair: bool = Game.keep_hp < Game.keep_max() and Game.can_afford(rcost)
-	var rc := TierCard.new()
-	rc.setup({"size": Vector2(92, 128), "title": "Repair", "glyph": "+", "lines": ["+30 keep"], "footer": "3 stone",
-		"accent": Color(0.9, 0.5, 0.4), "locked": !can_repair, "tooltip": "Repair the keep +30 (3 stone)"})
-	rc.set_selected(can_repair)
-	if Pad.using_pad and Game._keep_sel == 0:
-		rc.data["blink"] = true                       # the controller's highlight (D-pad up/down, Y buys)
-	rc.pressed.connect(func(_c): Game.repair_keep())
-	upgrade_box.add_child(rc)
-	var glyphs := {"max_mana": "M", "regen": "R", "draw": "D"}
-	var pick_n := 0
-	for id in Game.UPGRADES:
-		pick_n += 1
-		var u: Dictionary = Game.UPGRADES[id]
-		var cost := Game.upgrade_cost(id)
-		var lvl: int = Game.upgrade_levels.get(id, 0)
-		var can := Game.can_afford(cost)
-		var c := TierCard.new()
-		c.setup({"size": Vector2(92, 128), "title": u.name, "glyph": glyphs.get(id, "+"), "tier": mini(lvl, 6), "max_tier": 6,
-			"badge": "Lv %d" % lvl, "lines": [u.desc], "footer": _cost_short(cost), "accent": Color(0.5, 0.75, 1.0),
-			"locked": !can, "tooltip": "%s: %s" % [u.name, u.desc]})
-		c.set_selected(can)
-		if Pad.using_pad and Game._keep_sel == pick_n:
-			c.data["blink"] = true
-		c.pressed.connect(func(_c): Game.buy_upgrade(id))
-		upgrade_box.add_child(c)
+	HudKit.upgrade_cards(upgrade_box, HudKit.upgrade_size(_view_size().x), Game._keep_sel if Pad.using_pad else -1, Game.resources, Game.keep_hp, Game.keep_max(),
+		func(): Game.repair_keep(), func(id): Game.buy_upgrade(id))
 
 func _refresh_hand(flip_all := false) -> void:
-	var prev := hand_box.get_child_count()
-	for c in hand_box.get_children():
-		hand_box.remove_child(c)
-		c.queue_free()
+	var prev := hand_views.size()
 	if selected >= Game.hand.size():
 		selected = -1
-	for i in Game.hand.size():
-		var view := CardView.new()
-		view.setup(Game.entry_id(Game.hand[i]), Game.entry_tier(Game.hand[i]), "", Game.entry_twist(Game.hand[i]))
-		view.pressed_down.connect(_on_card_down)
-		hand_box.add_child(view)
+	hand_views = HudKit.hand_cards(hand_box, Game.hand, 1.0, selected, start_drag)
+	for i in hand_views.size():
 		# new cards (or the whole hand when entering the keep) spin in like tokens
 		if flip_all:
-			view.flip_in(i * 0.08)
+			hand_views[i].flip_in(i * 0.08)
 		elif i >= prev:
-			view.flip_in()
+			hand_views[i].flip_in()
 	_refresh_hand_enabled()
 
 func _refresh_hand_enabled() -> void:
 	Game.card_aim_active = selected >= 0 or dragging >= 0
 	if hand_box == null:
 		return
-	var kids := hand_box.get_children()
+	var kids := hand_views
 	for i in kids.size():
-		if i >= Game.hand.size():
+		if i >= Game.hand.size() or !is_instance_valid(kids[i]):
 			break
 		kids[i].set_state(i == selected or i == dragging, Game.can_cast(Game.hand[i]))
 		# a card that can merge with the one you picked up glows green
@@ -325,9 +196,6 @@ func cast_selected_at(world_pos: Vector2) -> void:
 	var players := get_tree().get_nodes_in_group("player")
 	if Game.cast(id, world_pos, players[0] if players.size() > 0 else null):
 		selected = -1
-
-func _on_card_down(view: CardView) -> void:
-	start_drag(view.get_index())
 
 func start_drag(i: int) -> void:
 	if i < 0 or i >= Game.hand.size() or !Game.local_in_base() or Game.draft_active:
@@ -498,26 +366,3 @@ func _draw_chest_markers() -> void:
 			var side := d.orthogonal()
 			reticle.draw_colored_polygon(PackedVector2Array([p + d * 14, p - d * 4 + side * 9, p - d * 4 - side * 9]), col)
 		reticle.draw_string(font, p + Vector2(12, -8), "%s %ds" % [c.label(), int(c.time_left)], HORIZONTAL_ALIGNMENT_LEFT, -1, 15, col)
-
-func _update_ability_label() -> void:
-	ability_label.text = ""          # replaced by the bottom-right ability HUD (ui/hud/ability_hud.gd)
-	return
-	var p = get_tree().get_first_node_in_group("player")
-	if p == null or p.item == null or p.item.get("ability_name") == null:
-		ability_label.text = ""
-		return
-	var it = p.item
-	var lines := []
-	if it.get("attack_name") != null and it.attack_name != "":
-		lines.append("Left click: %s" % it.attack_name)
-	if it.ability_name != "":
-		var cd: float = it.ability_cd_left()
-		lines.append("Right click: %s  %s" % [it.ability_name, "ready" if cd <= 0.0 else "%.1fs" % cd])
-	if it.get("dash_name") != null and it.dash_name != "":
-		var dcd: float = it.dash_cd_left()
-		lines.append("Shift: %s  %s" % [it.dash_name, "ready" if dcd <= 0.0 else "%.1fs" % dcd])
-	if it.get("ultimate_name") != null and it.ultimate_name != "":
-		var ucd: float = it.ult_cd_left()
-		lines.append("Space: %s  %s" % [it.ultimate_name, "READY" if ucd <= 0.0 else "%.0fs" % ucd])
-	lines.append("(tap = cast at cursor, hold 1s = aim, release = cast)")
-	ability_label.text = "\n".join(lines)

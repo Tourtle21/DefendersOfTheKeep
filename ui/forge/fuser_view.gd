@@ -100,7 +100,7 @@ func _init(controller_keys := {}) -> void:
 	recipes_label = RichTextLabel.new()
 	recipes_label.bbcode_enabled = true
 	recipes_label.fit_content = true
-	recipes_label.add_theme_font_size_override("normal_font_size", 14)
+	recipes_label.add_theme_font_size_override("normal_font_size", UiKit.FONT_SMALL + 1)
 	var lines := []
 	for key in Game.FUSE_RECIPES:
 		var parts: PackedStringArray = key.split("+")

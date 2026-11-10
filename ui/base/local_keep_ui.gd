@@ -19,10 +19,11 @@ var _root: Control
 var _hand_row: HBoxContainer
 var _upgrade_box: HBoxContainer
 var _radar: Control
-var _mana_label: Label
-var _draw_bar: ProgressBar
-var _mana: ProgressBar
-var _info: Label
+var _mana_block: Dictionary
+var _mana_label: Label:
+	get: return _mana_block.label
+var _draw_bar: ProgressBar:
+	get: return _mana_block.draw
 var _hint: Label
 var _draft_row: HBoxContainer
 var _canvas: Control
@@ -59,9 +60,6 @@ func setup(player: Node, viewport: SubViewport, player_slot: int) -> void:
 	_radar.set_script(preload("res://ui/base/minimap.gd"))
 	_root.add_child(_radar)
 	_radar.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
-	_info = Label.new()                                    # (kept for the keep line; player 1 shows it in the HUD instead)
-	_info.visible = false
-	_root.add_child(_info)
 	_hint = Label.new()
 	_hint.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
 	_hint.grow_horizontal = Control.GROW_DIRECTION_BOTH
@@ -79,20 +77,7 @@ func setup(player: Node, viewport: SubViewport, player_slot: int) -> void:
 	bottom.alignment = BoxContainer.ALIGNMENT_END
 	bottom.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_root.add_child(bottom)
-	_mana = ProgressBar.new()
-	_mana.custom_minimum_size = Vector2(420, 22)
-	_mana.show_percentage = false
-	_mana.modulate = Color(0.5, 0.7, 1.4)
-	bottom.add_child(_mana)
-	_mana_label = Label.new()
-	_mana_label.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_mana_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_mana.add_child(_mana_label)
-	_draw_bar = ProgressBar.new()
-	_draw_bar.custom_minimum_size = Vector2(420, 6)
-	_draw_bar.show_percentage = false
-	_draw_bar.max_value = 1.0
-	bottom.add_child(_draw_bar)
+	_mana_block = HudKit.mana_block(bottom)
 	_hand_row = HBoxContainer.new()
 	_hand_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	_hand_row.add_theme_constant_override("separation", 8)
@@ -111,9 +96,7 @@ func setup(player: Node, viewport: SubViewport, player_slot: int) -> void:
 func fit(area: Vector2) -> void:
 	_root.size = area
 	cursor = cursor.clamp(Vector2.ZERO, area)
-	var bar_w: float = minf(420.0, area.x * 0.86)
-	_mana.custom_minimum_size.x = bar_w
-	_draw_bar.custom_minimum_size.x = bar_w
+	HudKit.size_mana(_mana_block, minf(420.0, area.x * 0.86))
 	var r: float = clampf(minf(area.x * 0.32, area.y * 0.4), 90.0, 220.0)       # the radar is as large as the view allows
 	_radar.offset_left = -(r + 16.0)
 	_radar.offset_right = -16.0
@@ -225,30 +208,13 @@ func poll(dev: int, delta: float) -> void:
 	_refresh_ui()
 
 func _refresh_ui() -> void:
-	_mana.max_value = Game.max_mana()
-	_mana.value = Game.mana
-	_mana_label.text = "Mana %d / %d" % [Game.mana, Game.max_mana()]
-	_draw_bar.value = Game.draw_progress()
+	HudKit.set_mana(_mana_block, Game.mana, Game.max_mana(), Game.draw_progress())
 	_hint.text = "LB/RB card  RT place  A leave  X merge/fuse/reload  D-pad pick  Y buy" if !Game.draft_active else "Chest draft!  Left stick / d-pad choose   A take it"
 	_rebuild_upgrades()
 	var key := str(Game.hand) + "|" + str(sel) + "|" + str(Game.draft_options) + str(draft_sel) + str(Game.draft_active)
 	if key != _hand_key:
 		_hand_key = key
-		for c in _hand_row.get_children():
-			_hand_row.remove_child(c)
-			c.queue_free()
-		var n_cards: int = maxi(1, Game.hand.size())
-		var cs: float = clampf((_view_size.x * 0.96 - 8.0 * (n_cards - 1)) / (n_cards * CardView.SIZE.x), 0.45, 1.0)
-		for i in Game.hand.size():
-			var holder := Control.new()
-			holder.custom_minimum_size = CardView.SIZE * cs
-			var view := CardView.new()
-			view.setup(Game.entry_id(Game.hand[i]), Game.entry_tier(Game.hand[i]), "", Game.entry_twist(Game.hand[i]))
-			view.scale = Vector2(cs, cs)
-			view.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			holder.add_child(view)
-			_hand_row.add_child(holder)
-			view.set_state(i == sel, Game.can_cast(Game.hand[i]))
+		HudKit.hand_cards(_hand_row, Game.hand, HudKit.hand_scale(Game.hand.size(), _view_size.x), sel)
 		for c in _draft_row.get_children():
 			_draft_row.remove_child(c)
 			c.queue_free()
@@ -266,52 +232,16 @@ func _refresh_ui() -> void:
 				view2.set_state(i == draft_sel, true)
 	_canvas.queue_redraw()
 
-const TierCard = preload("res://ui/cards/tier_card.gd")
+const HudKit = preload("res://ui/hud/hud_kit.gd")
 
-## Repair and the three upgrades as the same small cards player 1 has; the controller's pick pulses.
+## Repair and the upgrades as the same small cards player 1 has (ui/hud/hud_kit.gd); the controller's pick blinks.
 func _rebuild_upgrades() -> void:
-	var key := str(Game.keep_hp > 0.0 and Game.keep_hp < Game.keep_max()) + str(upg) + str(Game.upgrade_levels) + str(Game.resources)
+	var key := str(Game.keep_hp) + str(upg) + str(Game.upgrade_levels) + str(Game.resources)
 	if key == _upg_key:
 		return
 	_upg_key = key
-	for c in _upgrade_box.get_children():
-		_upgrade_box.remove_child(c)
-		c.queue_free()
-	var k: float = clampf(_view_size.x / 1100.0, 0.5, 0.8)
-	var card_size := Vector2(92, 128) * k
-	var can_repair: bool = Game.keep_hp < Game.keep_max() and Game.can_afford({"stone": 3})
-	var rc := TierCard.new()
-	rc.setup({"size": card_size, "title": "Repair", "glyph": "+", "lines": ["+30 keep"], "footer": "3 stone", "accent": Color(0.9, 0.5, 0.4), "locked": !can_repair})
-	rc.set_selected(can_repair)
-	rc.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	if upg % Game.keep_menu_items().size() == 0:
-		rc.data["blink"] = true
-	_upgrade_box.add_child(rc)
-	var glyphs := {"max_mana": "M", "regen": "R", "draw": "D"}
-	var n := 0
-	for id in Game.UPGRADES:
-		n += 1
-		var u: Dictionary = Game.UPGRADES[id]
-		var cost := Game.upgrade_cost(id)
-		var lvl: int = Game.upgrade_levels.get(id, 0)
-		var parts := []
-		for t in cost:
-			parts.append("%d %s" % [cost[t], t])
-		var c := TierCard.new()
-		c.setup({"size": card_size, "title": u.name, "glyph": glyphs.get(id, "+"), "tier": mini(lvl, 6), "max_tier": 6, "badge": "Lv %d" % lvl,
-			"lines": [u.desc], "footer": " ".join(parts), "accent": Color(0.5, 0.75, 1.0), "locked": !Game.can_afford(cost)})
-		c.set_selected(Game.can_afford(cost))
-		c.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		if upg % Game.keep_menu_items().size() == n:
-			c.data["blink"] = true
-		_upgrade_box.add_child(c)
-
-func _res_text() -> String:
-	var parts := []
-	for k in Game.resources:
-		if Game.resources[k] > 0 or k in ["stone", "stick", "gold"]:
-			parts.append("%d %s" % [Game.resources[k], k])
-	return ", ".join(parts)
+	HudKit.upgrade_cards(_upgrade_box, HudKit.upgrade_size(_view_size.x), upg % Game.keep_menu_items().size(),
+		Game.resources, Game.keep_hp, Game.keep_max())
 
 func _draw_canvas() -> void:
 	var col := Color(1.0, 0.92, 0.45)
