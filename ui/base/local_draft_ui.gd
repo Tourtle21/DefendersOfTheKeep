@@ -2,7 +2,7 @@ extends CanvasLayer
 ## The chest card choice for a local split-screen player (players 2 to 4) who opened the chest: shown in their own view.
 ## Left stick / d-pad move, A takes the card.
 
-const CARD_SCALE := 0.75
+const MAX_SCALE := 1.5                 # player 1's chest cards are drawn at this size; a smaller view shrinks them only as far as it must
 
 var pl: Node
 var slot := 1
@@ -61,6 +61,15 @@ func setup(player: Node, viewport: SubViewport, slot_index: int) -> void:
 
 func fit(area: Vector2) -> void:
 	_root.size = area
+	_key = ""                         # rebuild the cards at the new size
+
+## The scale of the three choices: as big as player 1's, unless the view is too small to hold them with the hand row under.
+func _card_scale() -> float:
+	var view: Vector2 = _root.size if _root != null and _root.size.x > 10.0 else Vector2(vp.size)
+	var n := maxi(3, Game.draft_options.size())
+	var by_width: float = (view.x * 0.92 - 10.0 * (n - 1)) / (n * CardView.SIZE.x)
+	var by_height: float = (view.y * 0.9 - 150.0) / (CardView.SIZE.y * 1.45)      # the title lines and the hand row take the rest
+	return clampf(minf(by_width, by_height), 0.6, MAX_SCALE)
 
 func _edge(key: String, down: bool) -> bool:
 	var was: bool = _prev.get(key, false)
@@ -110,14 +119,15 @@ func _refresh() -> void:
 	for c in _row.get_children():
 		_row.remove_child(c)
 		c.queue_free()
+	var cs := _card_scale()
 	for i in Game.draft_options.size():
 		var entry: String = Game.draft_options[i]
 		var id := Game.entry_id(entry)
 		var wrap := Control.new()
-		wrap.custom_minimum_size = CardView.SIZE * CARD_SCALE
+		wrap.custom_minimum_size = CardView.SIZE * cs
 		var v := CardView.new()
 		v.setup(id, Game.entry_tier(entry), "NEW" if Game.deck.get(id, 0) == 0 else "+1 copy", Game.entry_twist(entry))
-		v.scale = Vector2(CARD_SCALE, CARD_SCALE)
+		v.scale = Vector2(cs, cs)
 		v.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		v.ready.connect(func(): v.set_state(false, true))
 		wrap.add_child(v)
@@ -126,7 +136,7 @@ func _refresh() -> void:
 			ring.border_color = Color(1, 0.95, 0.4)
 			ring.border_width = 3.0
 			ring.editor_only = false
-			ring.size = CardView.SIZE * CARD_SCALE
+			ring.size = CardView.SIZE * cs
 			ring.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			wrap.add_child(ring)
 		_row.add_child(wrap)
@@ -135,10 +145,10 @@ func _refresh() -> void:
 		c.queue_free()
 	for g in Game.hand_groups():
 		var hw := Control.new()
-		hw.custom_minimum_size = CardView.SIZE * 0.45
+		hw.custom_minimum_size = CardView.SIZE * cs * 0.53
 		var hv := CardView.new()
 		hv.setup(Game.entry_id(g.entry), Game.entry_tier(g.entry), ("x%d" % g.count) if g.count > 1 else "", Game.entry_twist(g.entry))
-		hv.scale = Vector2(0.45, 0.45)
+		hv.scale = Vector2(cs * 0.53, cs * 0.53)
 		hv.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		hw.add_child(hv)
 		_hand_row.add_child(hw)

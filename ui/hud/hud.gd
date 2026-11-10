@@ -9,6 +9,32 @@ var equipped_items_count = 0
 
 var equipped_resources_count = 0
 
+var slots_widget: Control          # the compact weapon frames bottom-left, the same widget players 2 to 4 have (ui/hud/weapon_slots.gd)
+
+func _ready() -> void:
+	item_slots.visible = false         # the big frames still do the bookkeeping, but the compact widget is what is shown
+	slots_widget = Control.new()
+	slots_widget.set_script(preload("res://ui/hud/weapon_slots.gd"))
+	add_child(slots_widget)
+
+func _process(_delta: float) -> void:
+	if slots_widget == null:
+		return
+	var entries := []
+	var active := 0
+	var frames = item_slots.get_children()
+	for i in frames.size():
+		if frames[i].has_item:
+			if i == active_item_slot:
+				active = entries.size()
+			var item: Dictionary = frames[i].current_item
+			var id = item.get("id", "")
+			if id == "":
+				id = frames[i].item_info.items.find_key(item)         # the starting tools carry no id of their own
+			entries.append(item.get("entry", id))
+	slots_widget.slots = entries
+	slots_widget.active = active
+
 func _input(event):
 	if event.is_action_pressed("switch_items") and equipped_items_count > 1:
 		var slots = item_slots.get_children()

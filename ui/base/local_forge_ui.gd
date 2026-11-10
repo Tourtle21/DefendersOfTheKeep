@@ -16,9 +16,36 @@ var _prev := {}
 var _root: Control
 var _row: VBoxContainer
 var _info: Label
+var _numbers: RichTextLabel
 var _hint: Label
+var _fuse_btn: Label
+var _store_btn: Label
+var _recipes_panel: Control
+var _hint_panel: Control
+var _bar_hint: Label
+var _forge_heading: Label
+var _margin: MarginContainer
+var _outer: Control
+var _pick_heading: Label
+var _result_heading: Label
+var _level := 0          # how much has been dropped to make the screen fit this view (0 = everything)
+var _recipes: HFlowContainer
+var _card_size := Vector2(78, 108)
+var _recipe_size := Vector2(270, 84)
+var _recipe_icon := 36.0
+var _recipe_font := 11
 var _key := ""
 
+func _action_label(text: String) -> Label:
+	var l := Label.new()
+	l.text = text
+	l.add_theme_font_size_override("font_size", 14)
+	l.add_theme_stylebox_override("normal", UiKit.style(Color(0.14, 0.14, 0.22), Color(0.4, 0.34, 0.2), 6.0))
+	l.custom_minimum_size = Vector2(0, 34)
+	return l
+
+## The same screen as player 1's Forge (ui/forge/forge_ui.gd), laid out to fit this player's view: the weapons in your hands and
+## in the forge, the result with its cost and numbers, the buttons, and the recipes you know.
 func setup(player: Node, viewport: SubViewport) -> void:
 	pl = player
 	vp = viewport
@@ -30,42 +57,138 @@ func setup(player: Node, viewport: SubViewport) -> void:
 	_root.visible = false
 	_root.theme = UiKit.make_theme()
 	add_child(_root)
-	var backdrop := ColorRect.new()                 # dims the view like player 1's full-screen menus
-	backdrop.color = Color(UiKit.BG, 0.9)
+	var backdrop := ColorRect.new()
+	backdrop.color = UiKit.BG
 	backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
 	backdrop.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_root.add_child(backdrop)
-	var panel := PanelContainer.new()
-	var sb: StyleBoxFlat = UiKit.style(UiKit.PANEL, UiKit.BORDER, 12.0)       # the same panel as player 1's screens
-	panel.add_theme_stylebox_override("panel", sb)
-	panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
-	panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	panel.grow_vertical = Control.GROW_DIRECTION_BOTH
-	_root.add_child(panel)
-	var v := VBoxContainer.new()
-	v.add_theme_constant_override("separation", 8)
-	panel.add_child(v)
-	var t := UiKit.heading("Forge", 26)
-	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	v.add_child(t)
+	var margin := MarginContainer.new()
+	_margin = margin
+	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
+	margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_root.add_child(margin)
+	var outer := VBoxContainer.new()
+	outer.add_theme_constant_override("separation", 8)
+	outer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_outer = outer
+	margin.add_child(outer)
+	var bar := UiKit.panel(Color(0.12, 0.10, 0.06), UiKit.BORDER, 6.0)
+	outer.add_child(bar)
+	var bar_row := HBoxContainer.new()
+	bar_row.add_theme_constant_override("separation", 14)
+	bar.add_child(bar_row)
+	bar_row.add_child(UiKit.heading("Forge", 24))
+	_bar_hint = Label.new()                          # the controls, in the title bar when the view is too short for the hint line
+	_bar_hint.text = "A pick   X forge   Y drop in / take out   B close"
+	_bar_hint.add_theme_font_size_override("font_size", 11)
+	_bar_hint.add_theme_color_override("font_color", Color(0.8, 0.9, 1.0))
+	_bar_hint.visible = false
+	bar_row.add_child(_bar_hint)
+	var hint_panel := UiKit.panel(Color(0.07, 0.10, 0.16), Color(0.3, 0.5, 0.7), 6.0)
+	_hint_panel = hint_panel
+	outer.add_child(hint_panel)
+	_hint = Label.new()
+	_hint.text = "Pick two weapons, then forge them.   Left stick move   A pick   X forge   Y drop in / take out   B close"
+	_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_hint.add_theme_font_size_override("font_size", 13)
+	_hint.add_theme_color_override("font_color", Color(0.8, 0.9, 1.0))
+	hint_panel.add_child(_hint)
+	var weapons := UiKit.panel(UiKit.PANEL, UiKit.BORDER, 8.0)
+	outer.add_child(weapons)
+	var wv := VBoxContainer.new()
+	wv.add_theme_constant_override("separation", 4)
+	weapons.add_child(wv)
+	_pick_heading = UiKit.heading("1. Pick two weapons", 16)
+	wv.add_child(_pick_heading)
 	_row = VBoxContainer.new()                      # two areas stacked: what is in your hands, what is stored in the forge
 	_row.add_theme_constant_override("separation", 6)
-	v.add_child(_row)
+	wv.add_child(_row)
+	var result := UiKit.panel(Color(0.08, 0.08, 0.14), UiKit.BORDER, 8.0)
+	outer.add_child(result)
+	var rv := VBoxContainer.new()
+	rv.add_theme_constant_override("separation", 4)
+	result.add_child(rv)
+	_result_heading = UiKit.heading("2. Result", 16)
+	rv.add_child(_result_heading)
 	_info = Label.new()
-	_info.custom_minimum_size = Vector2(300, 40)
-	_info.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_info.custom_minimum_size = Vector2(300, 36)
 	_info.add_theme_font_size_override("font_size", 13)
-	v.add_child(_info)
-	_hint = Label.new()
-	_hint.text = "Left stick move  A pick  X forge  Y drop in / take out  B close"
-	_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_hint.add_theme_font_size_override("font_size", 11)
-	_hint.add_theme_color_override("font_color", Color(0.7, 0.75, 0.9))
-	v.add_child(_hint)
+	rv.add_child(_info)
+	_numbers = RichTextLabel.new()
+	_numbers.bbcode_enabled = true
+	_numbers.fit_content = true
+	_numbers.scroll_active = false
+	_numbers.add_theme_font_size_override("normal_font_size", 12)
+	_numbers.add_theme_font_size_override("bold_font_size", 12)
+	rv.add_child(_numbers)
+	_forge_heading = UiKit.heading("3. Forge it", 16)
+	rv.add_child(_forge_heading)
+	var buttons := HBoxContainer.new()
+	buttons.add_theme_constant_override("separation", 10)
+	rv.add_child(buttons)
+	_fuse_btn = _action_label("X   Fuse")
+	buttons.add_child(_fuse_btn)
+	_store_btn = _action_label("Y   Drop into forge")
+	buttons.add_child(_store_btn)
+	var rec := UiKit.panel(UiKit.PANEL, UiKit.BORDER, 8.0)
+	rec.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	outer.add_child(rec)
+	_recipes_panel = rec
+	var cv := VBoxContainer.new()
+	cv.add_theme_constant_override("separation", 4)
+	rec.add_child(cv)
+	cv.add_child(UiKit.heading("Recipes you know", 16))
+	var legend := Label.new()
+	legend.text = "Green: ready to forge     Yellow: need more     Grey: missing weapon"
+	legend.add_theme_font_size_override("font_size", 11)
+	legend.add_theme_color_override("font_color", Color(0.75, 0.8, 0.9))
+	cv.add_child(legend)
+	_recipes = HFlowContainer.new()
+	_recipes.add_theme_constant_override("h_separation", 6)
+	_recipes.add_theme_constant_override("v_separation", 6)
+	cv.add_child(_recipes)
+	fit(Vector2(viewport.size))
 
+## Fit to this player's view: start with everything, and let _check_fit drop pieces (recipes, numbers, hint line, card size)
+## one step at a time until the screen no longer overflows.
 func fit(area: Vector2) -> void:
 	_root.size = area
+	_level = 0
+	_apply_level()
+
+func _apply_level() -> void:
+	var area := _root.size
+	var roomy: bool = area.y >= 800.0 and _level == 0
+	_card_size = Vector2(78, 108) if roomy else Vector2(62, 86)
+	if _level >= 3:
+		_card_size = Vector2(52, 72)
+	if _level >= 5:
+		_card_size = Vector2(44, 60)
+	if _level >= 6:
+		_card_size = Vector2(38, 52)
+	_pick_heading.visible = _level < 6
+	_result_heading.visible = _level < 6
+	_recipe_size = Vector2(270, 84) if roomy else Vector2(214, 66)
+	_recipe_icon = 36.0 if roomy else 26.0
+	_recipe_font = 11 if roomy else 9
+	_recipes_panel.visible = _level < 1
+	_numbers.visible = _level < 2
+	_hint_panel.visible = _level < 4
+	_bar_hint.visible = _level >= 4
+	_forge_heading.visible = _level < 4
+	var m := 6 if _level >= 4 else 10
+	for side in ["left", "right", "top", "bottom"]:
+		_margin.add_theme_constant_override("margin_" + side, m)
+	_key = ""
+
+func _check_fit() -> void:
+	if !is_open or _level >= 6:
+		return
+	if _outer.get_combined_minimum_size().y + 20.0 > _root.size.y:
+		_level += 1
+		_apply_level()
+		_refresh()
 
 func _edge(key: String, down: bool) -> bool:
 	var was: bool = _prev.get(key, false)
@@ -155,11 +278,23 @@ func poll(dev: int) -> void:
 
 func _refresh() -> void:
 	var items := _items()
-	var key := str(items.map(func(it): return it.entry)) + str(cur) + str(picks) + str(Game.resources)
+	var key := str(items.map(func(it): return it.entry)) + str(cur) + str(picks) + str(Game.resources) + str(Game._forge_store.size())
 	if key == _key:
 		return
 	_key = key
-	ForgeLayout.build(_row, items, picks, cur, Vector2(78, 108))
+	ForgeLayout.build(_row, items, picks, cur, _card_size)
 	var p := preview()
 	_info.text = p.text
-	_info.add_theme_color_override("font_color", Color(0.55, 1.0, 0.6) if p.ok else Color(1, 0.8, 0.5))
+	_info.add_theme_color_override("font_color", Color(0.55, 1.0, 0.6) if p.ok else (Color(1, 0.8, 0.5) if picks.size() == 2 else Color(0.85, 0.88, 1.0)))
+	_numbers.text = ""
+	if picks.size() == 2 and p.kind == "combine" and p.result != "":
+		_numbers.text = ForgeLayout.numbers_text(Game.weapon_info(items[picks[0]].entry), Game.weapon_bonus(items[picks[0]].entry))
+	_fuse_btn.text = ("X   Combine into tier %d" % (Game.weapon_tier_of(items[picks[0]].entry) + 1)) if p.kind == "combine" and p.result != "" and picks.size() == 2 else "X   Fuse"
+	_fuse_btn.modulate = Color.WHITE if p.ok and picks.size() == 2 else Color(1, 1, 1, 0.45)
+	var on_held: bool = cur < items.size() and items[cur].src == "held"
+	var can_store: bool = cur < items.size() and ((on_held and Game._forge_store.size() < Game.FORGE_STORE_MAX) or (!on_held and _slots().size() < 3))
+	_store_btn.text = "Y   Drop into forge" if on_held or items.is_empty() else "Y   Take out"
+	_store_btn.modulate = Color.WHITE if can_store else Color(1, 1, 1, 0.45)
+	if _recipes_panel.visible:
+		ForgeLayout.recipes(_recipes, items, _recipe_size, _recipe_icon, _recipe_font)
+	_check_fit.call_deferred()

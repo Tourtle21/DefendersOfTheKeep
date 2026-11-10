@@ -135,25 +135,11 @@ func _hud():
 	return get_parent().get_node("Hud")
 
 ## ---- Merge on the spot: two weapons in your hands that fuse or combine can be merged anywhere, no forge trip ----
-var _merge_hint: Label
 var _merge_clock := 0.0
 var _merge_now := {}
 
 func _setup_merge_hint() -> void:
-	if !InputMap.has_action("merge_weapons"):
-		InputMap.add_action("merge_weapons", 0.2)
-		var ev := InputEventKey.new()
-		ev.physical_keycode = KEY_F
-		InputMap.action_add_event("merge_weapons", ev)
-	_merge_hint = Label.new()
-	_merge_hint.add_theme_font_size_override("font_size", 15)
-	_merge_hint.add_theme_color_override("font_color", Color(0.6, 1.0, 0.65))
-	_merge_hint.add_theme_color_override("font_outline_color", Color.BLACK)
-	_merge_hint.add_theme_constant_override("outline_size", 6)
-	_merge_hint.position = Vector2(170, 600)          # placed by _place_hint every update (the view can be a split-screen half)
-	_merge_hint.visible = false
-	_merge_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(_merge_hint)
+	pass          # (the hint is drawn by the weapon slots widget on player 1's HUD; the F key is registered by Pad)
 
 ## The weapons in your hands as entries, in slot order: [{slot, entry}]
 func _held_entries() -> Array:
@@ -173,30 +159,24 @@ func _merge_options() -> Dictionary:
 	return m
 
 func _process(delta: float) -> void:
-	if _merge_hint == null:
-		return
 	_merge_clock -= delta
 	if _merge_clock > 0.0:
 		return
 	_merge_clock = 0.2
+	var widget = _hud().slots_widget
+	if widget == null:
+		return
 	var p = get_tree().get_first_node_in_group("player")
 	if p == null or root_ctl.visible or Game.menu_open() or Game.local_in_base() or p.get("is_in_tower") or (Game.draft_active and Game.draft_owner_slot == 0):
-		_merge_hint.visible = false
+		widget.hint = ""
+		_merge_now = {}
 		return
-	_place_hint()
 	_merge_now = _merge_options()
-	_merge_hint.visible = !_merge_now.is_empty()
-	if _merge_hint.visible:
-		var key := "F" if !Pad.using_pad else "D-pad down"
-		_merge_hint.text = "%s: merge  %s  [%s]" % [key, _merge_now.text, Game.cost_line(_merge_now.cost)] + ("" if _merge_now.ok else "  (not enough in the keep)")
-		_merge_hint.add_theme_color_override("font_color", Color(0.6, 1.0, 0.65) if _merge_now.ok else Color(1.0, 0.8, 0.45))
-
-## Bottom left of player 1's view (the whole window, or their half of a split screen), beside the weapon frames.
-func _place_hint() -> void:
-	var view := Vector2(custom_viewport.size) if custom_viewport != null else get_viewport().get_visible_rect().size
-	var k := clampf(view.y / 1000.0 * 1.1, 0.4, 0.6)
-	var frame := 128.0 * k                              # the same spot the weapon slots' hint uses for players 2 to 4
-	_merge_hint.position = Vector2(142.0, view.y - 12.0 - frame - 24.0)       # (player 1's frames are a fixed size, a little wider than the others')
+	if _merge_now.is_empty():
+		widget.hint = ""
+		return
+	widget.hint = "%s: merge  %s  [%s]%s" % ["D-pad down" if Pad.using_pad else "F", _merge_now.text, Game.cost_line(_merge_now.cost), "" if _merge_now.ok else "  (not enough in the keep)"]
+	widget.hint_ok = _merge_now.ok
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("merge_weapons") and !root_ctl.visible and !Game.menu_open():
@@ -648,21 +628,8 @@ func _info_combine(a: String, b: String) -> void:
 	awaken_button.text = "Combine into tier %d" % (t + 1)
 	numbers.text = _weapon_numbers(Game.weapon_info(a), Game.weapon_bonus(a))
 
-## Real numbers for the weapon now and one tier up (green). Each tier of bonus gives +20%
-## damage and -8% cooldowns.
 func _weapon_numbers(info: Dictionary, bonus: int) -> String:
-	var inst = load(info["path"]).instantiate()
-	var cds := [["Attack", inst.attack_cooldown, inst.attack_name], ["Ability (T2)", inst.ability_cooldown, inst.ability_name],
-		["Dash", inst.dash_cooldown, inst.dash_name], ["Ultimate (T3)", inst.ultimate_cooldown, inst.ultimate_name]]
-	inst.free()
-	var r: int = Game.weapon_rarity(str(info.id))
-	var fz: float = pow(0.95, Fusion.tier_of(str(info.id)) - 1)
-	var lines := ["[color=#%s][b]%s[/b][/color] weapon" % [Game.rarity_color(r).to_html(false), Game.rarity_name(r)], "Damage  [color=#ffd23a][b]x%.1f[/b][/color]  ->  [color=#6df08a][b]x%.1f[/b][/color]" % [Game.weapon_power(str(info.id), bonus), Game.weapon_power(str(info.id), bonus + 1)]]
-	for c in cds:
-		if c[2] == "":
-			continue
-		lines.append("%s: %s  [color=#ffd23a][b]%.2fs[/b][/color]  ->  [color=#6df08a][b]%.2fs[/b][/color]" % [c[0], c[2], c[1] * fz * pow(0.92, bonus), c[1] * fz * pow(0.92, bonus + 1)])
-	return "\n".join(lines)
+	return preload("res://ui/forge/forge_layout.gd").numbers_text(info, bonus)
 
 ## Combine two identical copies.
 func awaken() -> void:

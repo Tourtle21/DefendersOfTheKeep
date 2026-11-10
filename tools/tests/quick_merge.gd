@@ -53,8 +53,8 @@ func _initialize() -> void:
 	p1.global_position = Vector2(300, 300)
 	await wait(0.5)
 	ok("player 1 is far from the forge", p1.global_position.distance_to(net.FORGE_POS) > 100.0)
-	ok("the merge hint shows for player 1", forge._merge_hint.visible and forge._merge_hint.text.find("merge") >= 0)
-	print("  hint: ", forge._merge_hint.text)
+	ok("the merge hint shows for player 1 (on the compact weapon slots)", hud.slots_widget.hint.find("merge") >= 0 and !hud.item_slots.visible)
+	print("  hint: ", hud.slots_widget.hint)
 	var gold_before: int = game.resources.gold
 	var did: bool = forge.quick_merge()
 	await wait(0.2)
@@ -62,7 +62,7 @@ func _initialize() -> void:
 	ok("player 1 merged hammer + spear in the field", did and held.size() == 1 and game.entry_id(held[0].entry) == "lance")
 	ok("it cost something from the keep's stores", game.resources.gold < gold_before or game.resources.stone < 40 or game.resources.stick < 40)
 	await wait(0.4)
-	ok("with nothing left to merge the hint hides", !forge._merge_hint.visible)
+	ok("with nothing left to merge the hint hides", hud.slots_widget.hint == "")
 	# ---- not enough in the keep: refused
 	for id in ["hammer", "spear"]:
 		var info = game.weapon_info(id)

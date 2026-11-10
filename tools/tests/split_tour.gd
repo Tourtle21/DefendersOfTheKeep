@@ -65,9 +65,6 @@ func _initialize() -> void:
 	for s in range(1, N):
 		lp.avatars[s].weapon_slots = ["hammer", "spear"]
 	p1.global_position = Vector2(150, 220)
-	await wait(0.6)
-	var fu = scripted(world, "forge_ui.gd")
-	print("   p1 merge hint: visible=%s rect=%s viewport=%s text=%s" % [fu._merge_hint.visible, fu._merge_hint.get_global_rect(), fu._merge_hint.get_viewport().size, fu._merge_hint.text])
 	await stage("3. MERGE HINT: two held weapons that fuse show a hint by the weapon slots", "3_merge_hint")
 	# forges
 	var forge = scripted(world, "forge_ui.gd")
