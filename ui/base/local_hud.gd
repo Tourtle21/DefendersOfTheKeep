@@ -31,6 +31,7 @@ func setup(player: Node, viewport: SubViewport, slot_index: int) -> void:
 	root = Control.new()
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.size = Vector2(viewport.size)
+	root.theme = UiKit.make_theme(true)
 	add_child(root)
 	flash = HudKit.hurt_flash(root)
 	if pl.has_signal("hurt"):

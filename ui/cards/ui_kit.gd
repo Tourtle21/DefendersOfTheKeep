@@ -2,20 +2,16 @@ extends RefCounted
 ## Shared look for the menu screens: bordered panels, a title bar, section headings and a helper that sizes a
 ## grid of cards so they all fit on screen without scrolling.
 
-## ---- The design language (see DESIGN.md "Look"). Every screen takes its colours and font sizes from here. ----
-## From the original hand-built HUD (ui/hud/hud.tscn, ui/hud/inventory.png): pixel art drawn at 4x with nearest filtering,
-## white 1 px frames on a translucent black fill, a black-framed red health bar, Godot's default font with a black outline.
-const PIXEL := 4.0                               # original art scale (inventory frame 32 px drawn at 128 px)
-const FRAME_EDGE := Color(1, 1, 1)               # inventory.png: white edge
-const FRAME_FILL := Color(0, 0, 0, 0.39)         # inventory.png: translucent black inside
-const HP_RED := Color(1, 0.14902, 0)             # hud.tscn health fill
-const HP_FRAME := Color(0, 0, 0)                 # hud.tscn health frame (3 px)
-const OUTLINE := Color(0, 0, 0)                  # text over the world always gets a black outline
-## Menu screens (added later, kept as the user approved them): dark navy panels with a gold edge.
-const BG := Color(0.05, 0.05, 0.10, 0.98)
-const PANEL := Color(0.09, 0.09, 0.16)
-const BORDER := Color(0.55, 0.45, 0.2)
-const GOLD := Color(1.0, 0.85, 0.35)
+## ---- THE design language (DESIGN.md "Look"). Every screen and HUD piece takes its colours and font sizes from here,
+## and its widgets from make_theme(). Pixel art is kept for game sprites and icons only.
+## Navy panels with a gold edge, a gold title bar, a blue hint line, themed buttons, black-framed flat bars,
+## outlined text over the world, one font-size scale.
+const PIXEL := 4.0                               # sprite / icon art scale (nearest filtering)
+# surfaces
+const BG := Color(0.05, 0.05, 0.10, 0.98)        # full-screen menus
+const PANEL := Color(0.09, 0.09, 0.16)           # panels, cards, HUD boxes
+const PANEL_DEEP := Color(0.07, 0.07, 0.12)      # sunk areas, the inside of frames
+const BORDER := Color(0.55, 0.45, 0.2)           # every panel's edge
 const BAR_BG := Color(0.12, 0.10, 0.06)          # title bars
 const HINT_BG := Color(0.07, 0.10, 0.16)         # the "what to do here" line
 const HINT_EDGE := Color(0.3, 0.5, 0.7)
@@ -24,28 +20,54 @@ const HELD_BG := Color(0.07, 0.12, 0.09)         # "in your hands" (green)
 const HELD_EDGE := Color(0.35, 0.7, 0.4)
 const STORE_BG := Color(0.07, 0.09, 0.15)        # "in the forge" (blue)
 const STORE_EDGE := Color(0.4, 0.55, 0.85)
+const SHADE := Color(0, 0, 0, 0.55)              # translucent black behind HUD text and over the world
+const DIM := Color(0, 0, 0, 0.6)                 # behind a choice shown over the world
+const OUTLINE := Color(0, 0, 0)                  # text over the world always gets a black outline
+const WHITE := Color(1, 1, 1)
+const BLACK := Color(0, 0, 0)
+# text
 const TEXT := Color(0.92, 0.92, 1.0)
 const TEXT_DIM := Color(0.7, 0.72, 0.8)
 const TEXT_HINT := Color(0.8, 0.9, 1.0)
-const GOOD := Color(0.55, 1.0, 0.6)              # can do it now
+const MUTED := Color(0.6, 0.6, 0.65)             # locked / unavailable
+const MUTED_DARK := Color(0.4, 0.4, 0.5)
+# accents (one meaning each)
+const GOLD := Color(1.0, 0.85, 0.35)             # headings, selection, money
+const GOLD_BRIGHT := Color(1.0, 0.82, 0.23)      # numbers now (ffd23a)
+const WARM := Color(1.0, 0.9, 0.5)               # banners, announcements
+const GOOD := Color(0.55, 1.0, 0.6)              # can do it now / better
 const WARN := Color(1, 0.8, 0.5)                 # cannot (yet)
+const BAD := Color(1.0, 0.3, 0.25)               # damage, danger
+const HP_RED := Color(1, 0.14902, 0)             # health fill (the original HUD's red)
+const SKY := Color(0.55, 0.85, 1.0)              # info, shards, the forge's storage
 const STORE_TEXT := Color(0.65, 0.8, 1.0)
-const PLAYER_COLORS := [Color(1, 0.85, 0.3), Color(0.5, 0.85, 1.0), Color(0.6, 1.0, 0.5), Color(1.0, 0.6, 0.9)]   # player 1-4 name tags
+const MAGIC := Color(0.7, 0.4, 1.0)              # the crystal, mana-ish magic, rare things
+const GRASS := Color(0.35, 0.8, 0.3)             # the map's ground on radars
+const SLOT_ACTIVE := Color(0.3, 0.3, 1.0)        # tint of the weapon frame in hand (the compact frames)
+const GLOW_MERGE := Color(0.7, 1.4, 0.8)         # (over-bright modulate) a hand card that merges with the picked one
+const GLOW_FUSE := Color(0.7, 1.2, 1.5)          # (over-bright modulate) a hand card that fuses with the picked one
+const RAINBOW := [Color("ff5a5a"), Color("ffb040"), Color("ffe14a"), Color("5fe07a"), Color("5aa8ff"), Color("b066ff")]   # legendary effects
+const ACCENT := Color(0.85, 0.7, 0.3)             # a card's default ornament
+const GLOW_HOVER := Color(1.2, 1.2, 0.85)        # (over-bright modulate) a hovered card
 const CURSOR := Color(1, 0.95, 0.4)              # a controller's cursor ring
-const DIM := Color(0, 0, 0, 0.6)                 # behind a choice shown over the world (chest draft)
+const PLAYER_COLORS := [Color(1, 0.85, 0.3), Color(0.5, 0.85, 1.0), Color(0.6, 1.0, 0.5), Color(1.0, 0.6, 0.9)]   # player 1-4 name tags
 const RECIPE_TINTS := [Color(0.65, 0.65, 0.65), Color(1, 1, 0.5), Color(0.5, 1.0, 0.5)]   # missing / need more / ready
-const KEEP_FILL := Color(0.95, 0.5, 0.38)        # HUD bars use the health bar's look: black frame, flat fill
+const HP_FRAME := Color(0, 0, 0)                 # bars: a 3 px black frame, a flat fill
+const KEEP_FILL := Color(0.95, 0.5, 0.38)
 const MANA_FILL := Color(0.35, 0.6, 1.0)
 const DRAW_FILL := Color(0.85, 0.9, 1.0)
-## Font sizes at full scale (1100 px wide screens; split views scale the whole screen down).
-const FONT_TITLE := 28
-const FONT_HEAD := 18
-const FONT_BODY := 15
-const FONT_SMALL := 13
+const DAYLIGHT := Color(1.0, 0.95, 0.75)         # the client's day light (same as the host world's)
+## Font sizes at full scale (1100 px wide screens; split views scale the whole screen down). One scale, nothing between.
 const FONT_TINY := 11
-const FONT_AREA := 16                            # "IN YOUR HANDS" / "IN THE FORGE"
-const FONT_CHIP := 12                            # small captions under icons
-const FONT_CHOICE := 26                          # the chest choice title
+const FONT_SMALL := 13
+const FONT_BODY := 15
+const FONT_HEAD := 18
+const FONT_BIG := 22
+const FONT_TITLE := 28
+const FONT_HUGE := 40
+const FONT_AREA := FONT_BODY + 1                 # "IN YOUR HANDS" / "IN THE FORGE" (kept from the approved Forge)
+const FONT_CHIP := FONT_TINY + 1                 # small captions under icons (kept from the approved Forge)
+const FONT_CHOICE := FONT_TITLE - 2              # the chest choice title
 
 ## A HUD bar in the original health bar's style (ui/hud/hud.tscn): a black frame, a flat fill, square corners.
 static func style_bar(bar: ProgressBar, fill: Color, frame := 3) -> void:
@@ -94,9 +116,31 @@ static func panel(bg := PANEL, border := BORDER, margin := 12.0) -> PanelContain
 	p.add_theme_stylebox_override("panel", style(bg, border, margin))
 	return p
 
-## One theme for every menu: dark buttons with a gold edge on hover and focus, so plain buttons match the cards.
-static func make_theme() -> Theme:
+## THE theme: buttons, labels, panels, bars, rich text and tooltips in the design language. `world` = text drawn over the
+## game world (HUDs), which always gets the black outline.
+static func make_theme(world := false) -> Theme:
 	var t := Theme.new()
+	t.set_color("font_color", "Label", TEXT)
+	t.set_font_size("font_size", "Label", FONT_BODY)
+	t.set_color("font_outline_color", "Label", OUTLINE)
+	t.set_constant("outline_size", "Label", 4 if world else 0)
+	t.set_color("default_color", "RichTextLabel", TEXT)
+	t.set_font_size("normal_font_size", "RichTextLabel", FONT_BODY)
+	t.set_font_size("bold_font_size", "RichTextLabel", FONT_BODY)
+	t.set_stylebox("panel", "PanelContainer", style())
+	t.set_stylebox("panel", "Panel", style())
+	t.set_stylebox("panel", "TooltipPanel", style(PANEL, BORDER, 8.0))
+	t.set_color("font_color", "TooltipLabel", TEXT)
+	t.set_font_size("font_size", "TooltipLabel", FONT_SMALL)
+	var bg := StyleBoxFlat.new()
+	bg.bg_color = HP_FRAME
+	bg.set_content_margin_all(3)
+	var fg := StyleBoxFlat.new()
+	fg.bg_color = GOLD
+	fg.set_expand_margin_all(-3)
+	t.set_stylebox("background", "ProgressBar", bg)
+	t.set_stylebox("fill", "ProgressBar", fg)
+	t.set_font_size("font_size", "Button", FONT_BODY)
 	var states := {"normal": [Color(0.14, 0.14, 0.22), Color(0.4, 0.34, 0.2)], "hover": [Color(0.2, 0.19, 0.3), GOLD],
 		"pressed": [Color(0.3, 0.26, 0.12), GOLD], "disabled": [Color(0.1, 0.1, 0.14), Color(0.25, 0.25, 0.3)], "focus": [Color(0, 0, 0, 0), GOLD]}
 	for k in states:

@@ -1,6 +1,7 @@
 extends CanvasLayer
 ## One-time contextual tips for new players. Each tip appears once, when it becomes relevant,
 ## and is remembered in Game.meta["hints_seen"]. Turn them off in the pause menu.
+const UiKit = preload("res://ui/cards/ui_kit.gd")
 
 const TIPS := {
 	"pickup": "Walk onto the sword or pickaxe on the grass and press E to pick it up.",
@@ -33,8 +34,8 @@ func _ready() -> void:
 	layer = 12
 	panel = PanelContainer.new()
 	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.05, 0.07, 0.15, 0.88)
-	style.border_color = Color(1.0, 0.85, 0.3)
+	style.bg_color = Color(UiKit.STORE_BG, 0.88)
+	style.border_color = UiKit.GOLD
 	style.set_border_width_all(2)
 	style.set_corner_radius_all(6)
 	style.set_content_margin_all(10)
@@ -49,7 +50,7 @@ func _ready() -> void:
 	label = Label.new()
 	label.custom_minimum_size = Vector2(560, 0)
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	label.add_theme_font_size_override("font_size", 15)
+	label.add_theme_font_size_override("font_size", UiKit.FONT_BODY)
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panel.add_child(label)
 

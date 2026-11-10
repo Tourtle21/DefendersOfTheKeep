@@ -3,6 +3,7 @@ class_name CrystalAlert
 ## Shown while the crystal is away from the Well: a banner (what happened, what to do, the
 ## thief's escape countdown) and an arrow at the screen edge pointing to the crystal.
 ## Reads only Game.crystal_* so it works the same for a co-op client.
+const UiKit = preload("res://ui/cards/ui_kit.gd")
 
 var canvas: Control
 var view: SubViewport = null          # split screen, players 2 to 4: draw for this player's view
@@ -25,10 +26,10 @@ func _process(delta: float) -> void:
 func _message() -> Array:
 	match Game.crystal_state:
 		"carried":
-			return ["THE CRYSTAL WAS STOLEN", "Base offline. Kill the thief before it reaches the edge: %d s" % int(ceil(Game.crystal_eta)), Color(1.0, 0.35, 0.3)]
+			return ["THE CRYSTAL WAS STOLEN", "Base offline. Kill the thief before it reaches the edge: %d s" % int(ceil(Game.crystal_eta)), UiKit.BAD]
 		"dropped":
-			return ["THE CRYSTAL IS LOOSE", "Base offline. Pick it up and carry it back to the Well!", Color(0.85, 0.55, 1.0)]
-	return ["YOU HAVE THE CRYSTAL", "Base offline until it is back in the Well.", Color(0.55, 1.0, 0.7)]
+			return ["THE CRYSTAL IS LOOSE", "Base offline. Pick it up and carry it back to the Well!", UiKit.MAGIC]
+	return ["YOU HAVE THE CRYSTAL", "Base offline until it is back in the Well.", UiKit.GOOD]
 
 func _draw_alert() -> void:
 	var msg := _message()
@@ -38,10 +39,10 @@ func _draw_alert() -> void:
 	var pulse := 0.6 + 0.4 * sin(_t * 6.0)
 	var bw := minf(520.0, vp.x - 16.0)               # (a half-width view is narrower than the banner)
 	var small := bw < 500.0
-	canvas.draw_rect(Rect2(vp.x / 2.0 - bw / 2.0, 150.0, bw, 52.0), Color(0, 0, 0, 0.55))
+	canvas.draw_rect(Rect2(vp.x / 2.0 - bw / 2.0, 150.0, bw, 52.0), UiKit.SHADE)
 	canvas.draw_rect(Rect2(vp.x / 2.0 - bw / 2.0, 150.0, bw, 52.0), Color(col, 0.5 + 0.4 * pulse), false, 2.0)
 	canvas.draw_string(font, Vector2(vp.x / 2.0 - bw / 2.0, 174.0), msg[0], HORIZONTAL_ALIGNMENT_CENTER, bw, 18 if small else 22, col)
-	canvas.draw_string(font, Vector2(vp.x / 2.0 - bw / 2.0, 194.0), msg[1], HORIZONTAL_ALIGNMENT_CENTER, bw, 11 if small else 14, Color(1, 1, 1, 0.9))
+	canvas.draw_string(font, Vector2(vp.x / 2.0 - bw / 2.0, 194.0), msg[1], HORIZONTAL_ALIGNMENT_CENTER, bw, 11 if small else 14, Color(UiKit.WHITE, 0.9))
 	# arrow toward the crystal when it is off screen
 	var xf: Transform2D = view.get_canvas_transform() if view != null else Pad.view_transform(get_viewport())
 	var sp: Vector2 = xf * Game.crystal_pos

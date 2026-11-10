@@ -4,6 +4,7 @@ extends CanvasLayer
 ##   A leave   B / LT put the card back   LB / RB pick a card   RT place it (or jump to a lit tower)
 ##   X merge the picked card   d-pad up repair the keep   d-pad left / right choose an upgrade   d-pad down buy it
 ## During a chest draft the same player can pick a card with the left stick / d-pad and A.
+const UiKit = preload("res://ui/cards/ui_kit.gd")
 
 const CURSOR_SPEED := 560.0
 
@@ -43,6 +44,7 @@ func setup(player: Node, viewport: SubViewport, player_slot: int) -> void:
 	_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_root.size = Vector2(viewport.size)
 	_root.visible = false
+	_root.theme = UiKit.make_theme(true)
 	add_child(_root)
 	_canvas = Control.new()                                # the cursor and the landing ring
 	_canvas.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -65,8 +67,8 @@ func setup(player: Node, viewport: SubViewport, player_slot: int) -> void:
 	_hint.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	_hint.offset_top = 62
 	_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_hint.add_theme_font_size_override("font_size", 12)
-	_hint.add_theme_color_override("font_outline_color", Color.BLACK)
+	_hint.add_theme_font_size_override("font_size", UiKit.FONT_TINY)
+	_hint.add_theme_color_override("font_outline_color", UiKit.BLACK)
 	_hint.add_theme_constant_override("outline_size", 4)
 	_root.add_child(_hint)
 	var bottom := VBoxContainer.new()
@@ -96,17 +98,7 @@ func setup(player: Node, viewport: SubViewport, player_slot: int) -> void:
 func fit(area: Vector2) -> void:
 	_root.size = area
 	cursor = cursor.clamp(Vector2.ZERO, area)
-	HudKit.size_mana(_mana_block, minf(420.0, area.x * 0.86))
-	var r: float = clampf(minf(area.x * 0.32, area.y * 0.4), 90.0, 220.0)       # the radar is as large as the view allows
-	_radar.offset_left = -(r + 16.0)
-	_radar.offset_right = -16.0
-	_radar.offset_top = 66.0
-	_radar.offset_bottom = 66.0 + r
-	_radar.custom_minimum_size = Vector2(r, r)                          # (the radar asks for 220 by itself, more than a small view has)
-	_upgrade_box.position.y = 124.0 if area.x < 900.0 else 100.0         # (under the keep bar, which sits lower in a narrow view)
-	_hint.offset_top = 98.0 if area.x < 900.0 else 84.0       # (below the wave timer)
-	_hint.custom_minimum_size.x = area.x - 24.0
-	_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	HudKit.fit_keep(area, _mana_block, _radar, _upgrade_box, _hint)
 	_view_size = area
 
 func _world_pos() -> Vector2:
@@ -244,12 +236,12 @@ func _rebuild_upgrades() -> void:
 		Game.resources, Game.keep_hp, Game.keep_max())
 
 func _draw_canvas() -> void:
-	var col := Color(1.0, 0.92, 0.45)
+	var col := UiKit.WARM
 	if sel >= 0 and sel < Game.hand.size():
 		var card: Dictionary = Game.stats_of(Game.hand[sel])
 		var zoom: float = vp.get_canvas_transform().get_scale().x
 		_canvas.draw_arc(cursor, card.radius * zoom, 0, TAU, 40, Color(col, 0.9), 2.0)
-	_canvas.draw_arc(cursor, 10.0, 0, TAU, 24, Color(0, 0, 0, 0.85), 4.0)
+	_canvas.draw_arc(cursor, 10.0, 0, TAU, 24, Color(UiKit.BLACK, 0.85), 4.0)
 	_canvas.draw_arc(cursor, 10.0, 0, TAU, 24, col, 2.0)
 	for d in [Vector2.UP, Vector2.DOWN, Vector2.LEFT, Vector2.RIGHT]:
 		_canvas.draw_line(cursor + d * 13.0, cursor + d * 18.0, col, 2.0)

@@ -1,6 +1,7 @@
 extends CanvasLayer
 ## Big centre-screen announcement when a wave begins: the title, then what the card draw did.
 ## (Clients get the same news as a normal banner line through Game.announce.)
+const UiKit = preload("res://ui/cards/ui_kit.gd")
 
 var title_font := 46          # split screen: players 2 to 4 get a smaller copy for their narrower view
 var body_font := 18
@@ -27,8 +28,8 @@ func _make_label(font: int, y: float) -> Label:
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	l.add_theme_font_size_override("font_size", font)
-	l.add_theme_color_override("font_color", Color(1.0, 0.9, 0.55))
-	l.add_theme_color_override("font_outline_color", Color.BLACK)
+	l.add_theme_color_override("font_color", UiKit.WARM)
+	l.add_theme_color_override("font_outline_color", UiKit.BLACK)
 	l.add_theme_constant_override("outline_size", 10 if font > 30 else 5)
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	l.modulate.a = 0.0

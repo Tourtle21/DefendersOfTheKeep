@@ -3,6 +3,7 @@ extends Node
 ## camera (the same technique dodger-madness uses). Player 1's HUD layers are pointed at player 1's viewport
 ## (CanvasLayer.custom_viewport) so nothing else in the game has to move; players 2 to 4 get a small HUD each.
 ## The cursor of player 1 (mouse or pad) is mapped into player 1's viewport by Pad.
+const UiKit = preload("res://ui/cards/ui_kit.gd")
 
 const SPLIT_LAYER := 3                     # above the world, below the HUD layers (5 and up) and the menus
 const BIG_SCREENS := ["help_ui.gd"]
@@ -40,7 +41,7 @@ func setup(count: int, local: Node) -> void:
 	layer.layer = SPLIT_LAYER
 	add_child(layer)
 	_bg = ColorRect.new()
-	_bg.color = Color.BLACK
+	_bg.color = UiKit.BLACK
 	_bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	layer.add_child(_bg)
@@ -208,9 +209,9 @@ func _make_corner(slot: int) -> void:
 	wave.custom_viewport = viewports[slot]
 	var down := Label.new()
 	down.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
-	down.add_theme_font_size_override("font_size", 28)
-	down.add_theme_color_override("font_color", Color(1.0, 0.85, 0.5))
-	down.add_theme_color_override("font_outline_color", Color.BLACK)
+	down.add_theme_font_size_override("font_size", UiKit.FONT_TITLE)
+	down.add_theme_color_override("font_color", UiKit.WARN)
+	down.add_theme_color_override("font_outline_color", UiKit.BLACK)
 	down.add_theme_constant_override("outline_size", 7)
 	down.visible = false
 	holder.add_child(down)
@@ -232,8 +233,8 @@ func _make_corner(slot: int) -> void:
 		if _local == null or !is_instance_valid(pl) or pl.downed or pl.is_in_tower or !_local.avatars.has(slot):
 			return
 		var at: Vector2 = viewports[slot].get_canvas_transform() * _local.aim_world_point(slot)
-		var col := Color(1.0, 0.92, 0.45)
-		aimer.draw_arc(at, 12.0, 0, TAU, 28, Color(0, 0, 0, 0.85), 4.0)
+		var col := UiKit.WARM
+		aimer.draw_arc(at, 12.0, 0, TAU, 28, Color(UiKit.BLACK, 0.85), 4.0)
 		aimer.draw_arc(at, 12.0, 0, TAU, 28, col, 2.0)
 		for d in [Vector2.UP, Vector2.DOWN, Vector2.LEFT, Vector2.RIGHT]:
 			aimer.draw_line(at + d * 16.0, at + d * 22.0, col, 2.0))

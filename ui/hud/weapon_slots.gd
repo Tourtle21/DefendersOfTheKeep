@@ -1,6 +1,7 @@
 extends Control
 ## The three stacked weapon frames, the same look as player 1's inventory (ui/hud/inventory): the weapon's icon, a tier badge,
 ## and the one in hand tinted blue. Used for players 2 to 4 in split screen and for a LAN client's own HUD.
+const UiKit = preload("res://ui/cards/ui_kit.gd")
 
 var slots: Array = []          # weapon entries, e.g. "spear" or "hammer:1:twin"
 var active := 0                # which of them is in hand
@@ -30,7 +31,7 @@ func _draw() -> void:
 		var top := size.y - 12.0 - frame - i * step
 		var rect := Rect2(Vector2(10.0, top), Vector2(frame, frame))
 		var is_active: bool = i == active and i < slots.size()
-		draw_texture_rect(FRAME_TEX, rect, false, Color(0.3, 0.3, 1.0) if is_active else Color.WHITE)
+		draw_texture_rect(FRAME_TEX, rect, false, UiKit.SLOT_ACTIVE if is_active else UiKit.WHITE)
 		if i >= slots.size():
 			continue
 		var entry: String = slots[i]
@@ -44,11 +45,11 @@ func _draw() -> void:
 		var fs := int(20.0 * k * 1.6)
 		var label := "T%d" % Game.weapon_tier_of(entry)
 		var at := rect.position + Vector2(6.0 * k, frame - 6.0 * k)
-		draw_string_outline(font, at, label, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, 5, Color.BLACK)
-		draw_string(font, at, label, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(1, 0.9, 0.3))
+		draw_string_outline(font, at, label, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, 5, UiKit.BLACK)
+		draw_string(font, at, label, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, UiKit.GOLD)
 	if hint != "":
 		var hs := int(20.0 * k * 1.3)
 		var at2 := Vector2(frame + 22.0, size.y - 12.0 - frame - 6.0)
-		var col := Color(0.6, 1.0, 0.65) if hint_ok else Color(1.0, 0.8, 0.45)
-		draw_string_outline(font, at2, hint, HORIZONTAL_ALIGNMENT_LEFT, size.x - at2.x - 8.0, hs, 5, Color.BLACK)
+		var col := UiKit.GOOD if hint_ok else UiKit.WARN
+		draw_string_outline(font, at2, hint, HORIZONTAL_ALIGNMENT_LEFT, size.x - at2.x - 8.0, hs, 5, UiKit.BLACK)
 		draw_string(font, at2, hint, HORIZONTAL_ALIGNMENT_LEFT, size.x - at2.x - 8.0, hs, col)

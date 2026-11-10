@@ -1,5 +1,6 @@
 extends CanvasLayer
 ## "You fell" countdown: shown while the local player is out of the fight (see Player.fall / respawn).
+const UiKit = preload("res://ui/cards/ui_kit.gd")
 
 var _label: Label
 var _bar: ColorRect
@@ -13,19 +14,19 @@ func _ready() -> void:
 	_label.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	_label.position.y = 120
 	_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_label.add_theme_font_size_override("font_size", 34)
-	_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.5))
-	_label.add_theme_color_override("font_outline_color", Color.BLACK)
+	_label.add_theme_font_size_override("font_size", UiKit.FONT_TITLE)
+	_label.add_theme_color_override("font_color", UiKit.WARN)
+	_label.add_theme_color_override("font_outline_color", UiKit.BLACK)
 	_label.add_theme_constant_override("outline_size", 8)
 	_label.visible = false
 	add_child(_label)
 	_bar = ColorRect.new()
-	_bar.color = Color(0, 0, 0, 0.6)
+	_bar.color = Color(UiKit.BLACK, 0.6)
 	_bar.size = Vector2(300, 10)
 	_bar.visible = false
 	add_child(_bar)
 	_fill = ColorRect.new()
-	_fill.color = Color(1.0, 0.8, 0.3)
+	_fill.color = UiKit.GOLD
 	_fill.size = Vector2(300, 10)
 	_bar.add_child(_fill)
 

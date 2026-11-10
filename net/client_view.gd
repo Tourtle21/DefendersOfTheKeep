@@ -2,6 +2,7 @@ extends Node2D
 ## Co-op CLIENT view (groundwork). Draws the host's latest snapshot (the six sectors,
 ## players, enemies, bosses) and sends this player's input to the host. It does not
 ## simulate anything itself.
+const UiKit = preload("res://ui/cards/ui_kit.gd")
 
 const SM := preload("res://world/sector_manager.gd")
 var cam: Camera2D
@@ -71,30 +72,30 @@ func _ready() -> void:
 	_daylight.texture = tex
 	_daylight.blend_mode = Light2D.BLEND_MODE_SUB
 	_daylight.energy = 0.0
-	_daylight.color = Color(1.0, 0.95, 0.75)
+	_daylight.color = UiKit.DAYLIGHT
 	add_child(_daylight)
-	GlowLight.attach(cam, 46.0, Color(1.0, 1.0, 1.0), 0.55)
+	GlowLight.attach(cam, 46.0, UiKit.WHITE, 0.55)
 	var layer := CanvasLayer.new()
 	add_child(layer)
 	_down_label = Label.new()
 	_down_label.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
 	_down_label.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	_down_label.position.y = 120
-	_down_label.add_theme_font_size_override("font_size", 34)
-	_down_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.5))
-	_down_label.add_theme_color_override("font_outline_color", Color.BLACK)
+	_down_label.add_theme_font_size_override("font_size", UiKit.FONT_TITLE)
+	_down_label.add_theme_color_override("font_color", UiKit.WARN)
+	_down_label.add_theme_color_override("font_outline_color", UiKit.BLACK)
 	_down_label.add_theme_constant_override("outline_size", 8)
 	_down_label.visible = false
 	layer.add_child(_down_label)
 	info = Label.new()                        # connection / lobby status and a few numbers: small, under the resource line
 	info.position = Vector2(12, 40)
-	info.add_theme_font_size_override("font_size", 12)
-	info.add_theme_color_override("font_color", Color(0.8, 0.85, 1.0, 0.8))
+	info.add_theme_font_size_override("font_size", UiKit.FONT_TINY)
+	info.add_theme_color_override("font_color", Color(UiKit.TEXT_HINT, 0.8))
 	layer.add_child(info)
 	DisplayServer.window_set_title("Defenders of the Keep (co-op client)")
 	_ended_label = Label.new()
 	_ended_label.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
-	_ended_label.add_theme_font_size_override("font_size", 34)
+	_ended_label.add_theme_font_size_override("font_size", UiKit.FONT_TITLE)
 	_ended_label.visible = false
 	layer.add_child(_ended_label)
 	Game.announce.connect(func(text: String):
@@ -116,6 +117,7 @@ func _ready() -> void:
 	base_box.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	base_box.offset_bottom = -10
 	base_box.visible = false
+	base_box.theme = UiKit.make_theme(true)
 	layer.add_child(base_box)
 	mana = HudKit.mana_block(base_box)
 	hand_row = HBoxContainer.new()
@@ -130,6 +132,7 @@ func _ready() -> void:
 	var hud_root := Control.new()
 	hud_root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	hud_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hud_root.theme = UiKit.make_theme(true)
 	layer.add_child(hud_root)
 	top = HudKit.top(hud_root)
 	Game.announce.connect(func(text): if !text.begins_with("RUN_"): HudKit.announce(top.banner, text))
@@ -247,34 +250,34 @@ func _draw() -> void:
 	# sector wedges (locked ones grey)
 	for id in Game.SECTOR_ANGLES:
 		var c: float = Game.SECTOR_ANGLES[id]
-		var col := Color(0.35, 0.8, 0.3)
+		var col := UiKit.GRASS
 		if id != "s":
 			col = SM.SECTORS[id].ground
 		if !(id in sectors):
-			col = Color(0.45, 0.45, 0.45)
+			col = UiKit.MUTED_DARK
 		var pts := PackedVector2Array([Vector2.ZERO])
 		for i in 13:
 			pts.append(Vector2.from_angle(deg_to_rad(c - 30.0 + 60.0 * i / 12.0)) * 1300.0)
 		draw_colored_polygon(pts, col.darkened(0.1))
-	draw_circle(Vector2.ZERO, 120.0, Color(0.35, 0.8, 0.3))
-	draw_circle(Vector2(0, 4), 10.0, Color(0.6, 0.3, 0.8))                 # the well / crystal
+	draw_circle(Vector2.ZERO, 120.0, UiKit.GRASS)
+	draw_circle(Vector2(0, 4), 10.0, UiKit.MAGIC)                 # the well / crystal
 	if !snap.has("players"):
 		return
-	draw_rect(Rect2(snap.forge - Vector2(8, 4), Vector2(16, 8)), Color(0.6, 0.65, 0.7))
-	draw_string(ThemeDB.fallback_font, snap.forge + Vector2(-10, 14), "forge", HORIZONTAL_ALIGNMENT_LEFT, -1, 7, Color.WHITE)
+	draw_rect(Rect2(snap.forge - Vector2(8, 4), Vector2(16, 8)), UiKit.MUTED)
+	draw_string(ThemeDB.fallback_font, snap.forge + Vector2(-10, 14), "forge", HORIZONTAL_ALIGNMENT_LEFT, -1, 7, UiKit.WHITE)
 	if snap.has("fuser"):
-		draw_rect(Rect2(snap.fuser - Vector2(8, 4), Vector2(16, 8)), Color(0.6, 0.55, 0.72))
-		draw_string(ThemeDB.fallback_font, snap.fuser + Vector2(-14, 14), "fuser", HORIZONTAL_ALIGNMENT_LEFT, -1, 7, Color.WHITE)
+		draw_rect(Rect2(snap.fuser - Vector2(8, 4), Vector2(16, 8)), UiKit.MUTED)
+		draw_string(ThemeDB.fallback_font, snap.fuser + Vector2(-14, 14), "fuser", HORIZONTAL_ALIGNMENT_LEFT, -1, 7, UiKit.WHITE)
 	# enemies, bosses, chests, pickups, structures... are replicated puppets (Rep), drawn by themselves
 	for p in snap.players:
 		var mine: bool = p.id == multiplayer.get_unique_id()
 		var dp: Vector2 = _player_disp.get(p.id, p.pos)
-		draw_circle(dp, 6.0, Color.BLACK)
-		draw_circle(dp, 5.0, Color(1, 1, 0.5) if mine else Color(0.5, 0.8, 1.0))
-		draw_string(ThemeDB.fallback_font, dp + Vector2(-12, -10), snap.roster.get(p.id, "?"), HORIZONTAL_ALIGNMENT_LEFT, -1, 8, Color.WHITE)
+		draw_circle(dp, 6.0, UiKit.BLACK)
+		draw_circle(dp, 5.0, UiKit.WARM if mine else UiKit.SKY)
+		draw_string(ThemeDB.fallback_font, dp + Vector2(-12, -10), snap.roster.get(p.id, "?"), HORIZONTAL_ALIGNMENT_LEFT, -1, 8, UiKit.WHITE)
 		if p.slots.size() > 0 and p.active < p.slots.size():
-			draw_string(ThemeDB.fallback_font, dp + Vector2(-12, 17), Fusion.display_name(p.slots[p.active]), HORIZONTAL_ALIGNMENT_LEFT, -1, 6, Color(1, 1, 0.8))
-		draw_rect(Rect2(dp + Vector2(-8, 8), Vector2(16.0 * p.hp, 2)), Color(0.9, 0.25, 0.2))
+			draw_string(ThemeDB.fallback_font, dp + Vector2(-12, 17), Fusion.display_name(p.slots[p.active]), HORIZONTAL_ALIGNMENT_LEFT, -1, 6, UiKit.WHITE)
+		draw_rect(Rect2(dp + Vector2(-8, 8), Vector2(16.0 * p.hp, 2)), UiKit.BAD)
 
 func _update_keep_ui(snap: Dictionary) -> void:
 	base_box.visible = _in_base

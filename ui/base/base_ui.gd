@@ -1,6 +1,7 @@
 extends CanvasLayer
 ## HUD for the keep: carried/pooled resources are always visible; the mana bar,
 ## card hand and upgrades only appear while a player is inside the keep.
+const UiKit = preload("res://ui/cards/ui_kit.gd")
 
 var selected := -1          # index into Game.hand (click-to-aim fallback)
 var dragging := -1          # index being dragged from the hand
@@ -19,6 +20,7 @@ var hand_views: Array = []
 var base_panel: Control      # everything that is base-only
 var upgrade_box: HBoxContainer
 var reticle: Control
+var radar: Control
 var deck_label: Label
 var hurt_flash: ColorRect
 
@@ -29,6 +31,7 @@ func _ready() -> void:
 	var ui := Control.new()
 	ui.set_anchors_preset(Control.PRESET_FULL_RECT)
 	ui.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	ui.theme = UiKit.make_theme(true)           # the one look; text over the world is outlined
 	add_child(ui)
 	hurt_flash = HudKit.hurt_flash(ui)
 	Game.player_hurt.connect(func():
@@ -56,7 +59,7 @@ func _ready() -> void:
 	hint_label.set_anchors_preset(Control.PRESET_CENTER_TOP)
 	hint_label.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	hint_label.position.y = 88      # under the keep integrity bar and the wave timer
-	hint_label.add_theme_font_size_override("font_size", 15)
+	hint_label.add_theme_font_size_override("font_size", UiKit.FONT_BODY)
 	base_panel.add_child(hint_label)
 
 	# bottom centre: mana bar + draw bar + hand
@@ -74,14 +77,9 @@ func _ready() -> void:
 	bottom.add_child(hand_box)
 
 	# radar for scouting (top-right, under the weapon readout)
-	var radar := Control.new()
+	radar = Control.new()
 	radar.set_script(preload("res://ui/base/minimap.gd"))
 	base_panel.add_child(radar)
-	radar.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
-	radar.offset_left = -236
-	radar.offset_right = -16
-	radar.offset_top = 150
-	radar.offset_bottom = 370
 
 	# top-left under the resources: upgrades
 	upgrade_box = HBoxContainer.new()
@@ -90,7 +88,7 @@ func _ready() -> void:
 	base_panel.add_child(upgrade_box)
 	deck_label = Label.new()
 	deck_label.position = Vector2(12, 176)
-	deck_label.add_theme_font_size_override("font_size", 14)
+	deck_label.add_theme_font_size_override("font_size", UiKit.FONT_SMALL)
 	base_panel.add_child(deck_label)
 
 	Game.mana_changed.connect(_refresh_mana)
@@ -119,11 +117,12 @@ func _process(_delta: float) -> void:
 	if view != _fitted:
 		_fitted = view
 		HudKit.fit_top(top, view)
+		HudKit.fit_keep(view, mana, radar, upgrade_box, hint_label)       # the same keep layout as every other player's
 		_rebuild_upgrades()
+		_refresh_hand()
 	HudKit.set_top(top, Game.carried, Game.resources, Game.keep_hp, Game.keep_max())
 	if base_panel.visible:
 		# in a split-screen half the upgrade cards would sit on top of the keep bar and the wave timer: drop them below the hint
-		upgrade_box.position.y = 118.0 if view.x < 1150.0 else 44.0
 		deck_label.position.y = upgrade_box.position.y + HudKit.upgrade_size(view.x).y + 4.0
 		mana.draw.value = Game.draw_progress()
 		reticle.queue_redraw()
@@ -155,7 +154,7 @@ func _refresh_hand(flip_all := false) -> void:
 	var prev := hand_views.size()
 	if selected >= Game.hand.size():
 		selected = -1
-	hand_views = HudKit.hand_cards(hand_box, Game.hand, 1.0, selected, start_drag)
+	hand_views = HudKit.hand_cards(hand_box, Game.hand, HudKit.hand_scale(Game.hand.size(), _view_size().x), selected, start_drag)
 	for i in hand_views.size():
 		# new cards (or the whole hand when entering the keep) spin in like tokens
 		if flip_all:
@@ -176,9 +175,9 @@ func _refresh_hand_enabled() -> void:
 		# a card that can merge with the one you picked up glows green
 		var pick := dragging if dragging >= 0 else selected
 		if pick >= 0 and i != pick and Game.can_merge(pick, i):
-			kids[i].modulate = Color(0.7, 1.4, 0.8)
+			kids[i].modulate = UiKit.GLOW_MERGE
 		elif pick >= 0 and i != pick and Game.can_fuse_pair(pick, i):
-			kids[i].modulate = Color(0.7, 1.2, 1.5)          # a different card it fuses with (drop or click it: no trip to the Card Fuser)
+			kids[i].modulate = UiKit.GLOW_FUSE          # a different card it fuses with (drop or click it: no trip to the Card Fuser)
 
 func select(i: int) -> void:
 	if i < 0 or i >= Game.hand.size():
@@ -206,7 +205,7 @@ func start_drag(i: int) -> void:
 	ghost.setup(Game.entry_id(Game.hand[i]), Game.entry_tier(Game.hand[i]), "", Game.entry_twist(Game.hand[i]))
 	ghost.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	ghost.scale = Vector2(0.55, 0.55)
-	ghost.modulate = Color(1, 1, 1, 0.85)
+	ghost.modulate = Color(UiKit.WHITE, 0.85)
 	base_panel.add_child(ghost)
 	_refresh_hand_enabled()
 
@@ -314,8 +313,8 @@ func _draw_tower_markers() -> void:
 		if t == here or !Game.tower_online(t):
 			continue
 		var sp: Vector2 = xf * (t.global_position + Vector2(0, -6))
-		reticle.draw_arc(sp, (20.0 + 3.0 * pulse) * zoom, 0, TAU, 32, Color(0.7, 0.9, 1.0, 0.8), 2.0)
-		reticle.draw_string(ThemeDB.fallback_font, sp + Vector2(-30, -26 * zoom), "click to go", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color(0.8, 0.95, 1.0))
+		reticle.draw_arc(sp, (20.0 + 3.0 * pulse) * zoom, 0, TAU, 32, Color(UiKit.TEXT_HINT, 0.8), 2.0)
+		reticle.draw_string(ThemeDB.fallback_font, sp + Vector2(-30, -26 * zoom), "click to go", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, UiKit.TEXT_HINT)
 
 func _draw_reticle() -> void:
 	_draw_chest_markers()
@@ -328,7 +327,7 @@ func _draw_reticle() -> void:
 	var zoom: float = Pad.view_transform(get_viewport()).get_scale().x
 	var mouse := Pad.screen_mouse(get_viewport())
 	var cancel := dragging >= 0 and _over_hand()
-	var col := Color(1, 0.35, 0.35, 0.8) if cancel else Color(1, 1, 0.4, 0.95)
+	var col := Color(UiKit.BAD, 0.8) if cancel else Color(UiKit.CURSOR, 0.95)
 	# where it will land
 	reticle.draw_arc(mouse, card.radius * zoom, 0, TAU, 48, col, 2.0)
 	if cancel:
@@ -360,7 +359,7 @@ func _draw_chest_markers() -> void:
 		var sp: Vector2 = xf * c.global_position
 		var inside := rect.has_point(sp)
 		var p := sp if inside else sp.clamp(rect.position, rect.end)
-		var col := Color(1, 0.85, 0.3, 0.95)
+		var col := Color(UiKit.GOLD, 0.95)
 		if !inside:
 			var d := (sp - p).normalized()
 			var side := d.orthogonal()
