@@ -254,8 +254,9 @@ func _process(_delta: float) -> void:
 			c.aimer.queue_redraw()
 			c.slots.slots = pl.weapon_slots
 			c.slots.active = pl.active_slot
-			var mg: Dictionary = Game.held_merge(pl.weapon_slots) if !pl.is_in_tower and !pl.downed else {}
-			c.slots.hint = "" if mg.is_empty() else "D-pad down: merge  %s%s" % [mg.text, "" if mg.ok else "  (not enough in the keep)"]
+			var busy: bool = (Game.draft_active and Game.draft_owner_slot == slot) or (_local != null and _local.forge_uis.has(slot) and _local.forge_uis[slot].is_open)
+			var mg: Dictionary = Game.held_merge(pl.weapon_slots) if !pl.is_in_tower and !pl.downed and !busy else {}
+			c.slots.hint = "" if mg.is_empty() else "D-pad down: merge  %s  [%s]%s" % [mg.text, Game.cost_line(mg.cost), "" if mg.ok else "  (not enough in the keep)"]
 			c.slots.hint_ok = mg.get("ok", true)
 			c.down.visible = pl.downed
 			c.down.text = "You fell!  Back in %d" % ceili(pl.respawn_left)

@@ -150,8 +150,7 @@ func _setup_merge_hint() -> void:
 	_merge_hint.add_theme_color_override("font_color", Color(0.6, 1.0, 0.65))
 	_merge_hint.add_theme_color_override("font_outline_color", Color.BLACK)
 	_merge_hint.add_theme_constant_override("outline_size", 6)
-	_merge_hint.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
-	_merge_hint.position = Vector2(170, -70)
+	_merge_hint.position = Vector2(170, 600)          # placed by _place_hint every update (the view can be a split-screen half)
 	_merge_hint.visible = false
 	_merge_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_merge_hint)
@@ -181,18 +180,23 @@ func _process(delta: float) -> void:
 		return
 	_merge_clock = 0.2
 	var p = get_tree().get_first_node_in_group("player")
-	if p == null or root_ctl.visible or Game.menu_open() or Game.local_in_base() or p.get("is_in_tower"):
+	if p == null or root_ctl.visible or Game.menu_open() or Game.local_in_base() or p.get("is_in_tower") or (Game.draft_active and Game.draft_owner_slot == 0):
 		_merge_hint.visible = false
 		return
+	_place_hint()
 	_merge_now = _merge_options()
 	_merge_hint.visible = !_merge_now.is_empty()
 	if _merge_hint.visible:
 		var key := "F" if !Pad.using_pad else "D-pad down"
-		var cost_bits := []
-		for k in _merge_now.cost:
-			cost_bits.append("%d %s" % [_merge_now.cost[k], k])
-		_merge_hint.text = "%s: merge  %s  [%s]" % [key, _merge_now.text, ", ".join(cost_bits)] + ("" if _merge_now.ok else "  (not enough in the keep)")
+		_merge_hint.text = "%s: merge  %s  [%s]" % [key, _merge_now.text, Game.cost_line(_merge_now.cost)] + ("" if _merge_now.ok else "  (not enough in the keep)")
 		_merge_hint.add_theme_color_override("font_color", Color(0.6, 1.0, 0.65) if _merge_now.ok else Color(1.0, 0.8, 0.45))
+
+## Bottom left of player 1's view (the whole window, or their half of a split screen), beside the weapon frames.
+func _place_hint() -> void:
+	var view := Vector2(custom_viewport.size) if custom_viewport != null else get_viewport().get_visible_rect().size
+	var k := clampf(view.y / 1000.0 * 1.1, 0.4, 0.6)
+	var frame := 128.0 * k                              # the same spot the weapon slots' hint uses for players 2 to 4
+	_merge_hint.position = Vector2(142.0, view.y - 12.0 - frame - 24.0)       # (player 1's frames are a fixed size, a little wider than the others')
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("merge_weapons") and !root_ctl.visible and !Game.menu_open():

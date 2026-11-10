@@ -982,6 +982,13 @@ func held_merge(entries: Array) -> Dictionary:
 				fallback = hit
 	return fallback
 
+## "10 gold, 2 stone" for a cost table.
+func cost_line(cost: Dictionary) -> String:
+	var bits := []
+	for k in cost:
+		bits.append("%d %s" % [cost[k], k])
+	return ", ".join(bits)
+
 func combine_cost(a: String) -> Dictionary:
 	return Fusion.AWAKEN_COSTS[clampi(weapon_tier_of(a), 1, 5)]
 

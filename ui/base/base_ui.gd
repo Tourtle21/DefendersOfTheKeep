@@ -196,6 +196,11 @@ func _process(_delta: float) -> void:
 	wave_label.text = Game.wave_timer_text()
 	_update_ability_label()
 	if base_panel.visible:
+		# in a split-screen half the upgrade cards would sit on top of the keep bar and the wave timer: drop them below the hint
+		var view_w: float = float(custom_viewport.size.x) if custom_viewport != null else get_viewport().get_visible_rect().size.x
+		var narrow: bool = view_w < 1150.0
+		upgrade_box.position.y = 118.0 if narrow else 44.0
+		deck_label.position.y = upgrade_box.position.y + 132.0
 		draw_bar.value = Game.draw_progress()
 		reticle.queue_redraw()
 		if ghost:

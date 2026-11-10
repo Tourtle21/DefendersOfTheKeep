@@ -392,7 +392,7 @@ func _update_loot_ui(snap: Dictionary) -> void:
 	slots_ctl.slots = me.slots
 	slots_ctl.active = me.active
 	var mg: Dictionary = Game.held_merge(me.slots) if !_in_base else {}
-	slots_ctl.hint = "" if mg.is_empty() else "%s: merge  %s%s" % ["D-pad down" if Pad.using_pad else "F", mg.text, "" if mg.ok else "  (not enough in the keep)"]
+	slots_ctl.hint = "" if mg.is_empty() else "%s: merge  %s  [%s]%s" % ["D-pad down" if Pad.using_pad else "F", mg.text, Game.cost_line(mg.cost), "" if mg.ok else "  (not enough in the keep)"]
 	slots_ctl.hint_ok = mg.get("ok", true)
 	var keep_pool := []
 	for k in snap.resources:
