@@ -78,14 +78,24 @@ func _label(text: String, pos: Vector2, size: Vector2, font: int, color: Color, 
 
 ## The weapon's icon (or a glyph for one you have not met) centred in the art window, at a whole-number pixel scale.
 func _weapon_art() -> void:
-	var window := Rect2(11, 11, 74, 64)
+	var window := Rect2(16, 12, 64, 64)                  # inside the frame's art window (a 32 px weapon icon fits at 2x), clear of the name banner
 	var tex = weapon.get("icon")
 	if tex != null:
 		var ts: Vector2 = tex.get_size()
-		var ik := minf((window.size.x - 4.0) / ts.x, (window.size.y - 4.0) / ts.y)
-		ik = maxf(1.0, floorf(ik)) if ik >= 1.0 else ik
-		var dr := ts * ik
-		_face.add_child(_tex_of(tex, window.position + (window.size - dr) / 2.0, dr))
+		var ik := minf(window.size.x / ts.x, window.size.y / ts.y)
+		ik = minf(ik, 2.0)
+		if ik >= 1.0:
+			ik = floorf(ik)                               # whole-number pixel scale when it fits
+		var dr := (ts * ik).floor()
+		var r := TextureRect.new()
+		r.texture = tex
+		r.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		r.stretch_mode = TextureRect.STRETCH_SCALE
+		r.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		r.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		r.size = dr
+		r.position = (window.position + (window.size - dr) / 2.0).floor()
+		_face.add_child(r)
 	elif weapon.has("glyph"):
 		var g := _label(str(weapon.glyph), window.position, window.size, 36, weapon.get("accent", UiKit.ACCENT), true)
 		g.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -147,7 +157,7 @@ func _ready() -> void:
 		cost.position = Vector2(10, 59)
 		cost.size = Vector2(76, 16)
 		_face.add_child(cost)
-	_face.add_child(_label(card.name, Vector2(10, 81), Vector2(76, 20), 11, UiKit.WHITE))
+	_face.add_child(_label(card.name, Vector2(10, 81), Vector2(76, 20), 11, weapon.get("accent", UiKit.WHITE) if kind == "weapon" else UiKit.WHITE))     # a weapon's name is in its rarity colour
 	var desc_text: String = card.desc
 	var desc_color := UiKit.TEXT_HINT
 	if twist != "" and Game.TWISTS.has(twist):
@@ -162,15 +172,6 @@ func _ready() -> void:
 	_face.add_child(desc)
 	if kind == "weapon" and str(weapon.get("footer", "")) != "":                     # a state ("HELD", "STORED", a price) at the bottom of the text box
 		_face.add_child(_label(str(weapon.footer), Vector2(10, 136), Vector2(76, 14), 10, weapon.get("footer_color", UiKit.WARM)))
-	if kind == "weapon" and weapon.has("accent"):                                    # the rarity, as a thin line just inside the frame
-		var rr := ReferenceRect.new()
-		rr.border_color = weapon.accent
-		rr.border_width = 2.0
-		rr.editor_only = false
-		rr.position = Vector2(7, 7)
-		rr.size = SIZE - Vector2(14, 14)
-		rr.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		_face.add_child(rr)
 	if kind == "weapon" and weapon.get("locked", false):
 		modulate = UiKit.MUTED
 
