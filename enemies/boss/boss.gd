@@ -34,6 +34,8 @@ var awake := false
 var dormant := false            # not arrived yet: not in the world (see set_dormant)
 var enraged := false
 var is_taking_damage := false
+var untargetable := false           # hidden under the ground (the Frost Wyrm's burrow): nothing can hit it
+var vulnerable := 1.0               # damage multiplier: above 1 while the boss is stranded and exposed
 var armor := 0.0
 var resist := {}               # element -> multiplier (set per boss in sector_manager)
 
@@ -115,7 +117,7 @@ func _path_dir(to_player: Vector2, delta: float) -> Vector2:
 # ---------- hit API shared with normal enemies ----------
 
 func take_damage(_origin: Vector2) -> void:      # legacy sword/pickaxe hitboxes
-	if dormant:
+	if dormant or untargetable:
 		return
 	if is_taking_damage:
 		return
@@ -124,10 +126,11 @@ func take_damage(_origin: Vector2) -> void:      # legacy sword/pickaxe hitboxes
 	spell_damage(1.0)
 
 func spell_damage(amount: float, element := "", _aoe := false) -> void:
-	if dormant:
-		return                                   # a boss that has not arrived cannot be hurt
+	if dormant or untargetable:
+		return                                   # a boss that has not arrived (or is under the snow) cannot be hurt
 	if dead:
 		return
+	amount *= vulnerable
 	var raw := amount
 	if armor > 0.0 and element != "pierce":
 		amount = maxf(amount - armor * (0.5 if element == "crush" else 1.0), amount * 0.25)
@@ -147,6 +150,16 @@ func spell_damage(amount: float, element := "", _aoe := false) -> void:
 		Game.announce.emit("%s is enraged!" % boss_name)
 	if health <= 0.0:
 		_die()
+
+## Dive under the ground (or come back up): hidden, solid to nothing, not an enemy while down, so no weapon, spell or turret can find it.
+func submerge(on: bool) -> void:
+	untargetable = on
+	visible = !on
+	collision_layer = 0 if on else 2
+	if on:
+		remove_from_group("enemy")
+	elif !dormant:
+		add_to_group("enemy")
 
 func apply_slow(mult: float, time: float) -> void:
 	slow_mult = max(0.5, mult)          # bosses can be slowed but never fully stunned
@@ -312,7 +325,10 @@ func _rescale_for_players() -> void:
 
 func _end_attack() -> void:
 	_state = "chase"
-	_timer = (2.4 if !enraged else 1.5) / Game.team_scale(Game.BOSS_PACE_TEAM_SCALE)       # with more players the next attack comes sooner
+	var gap := 2.0 if !enraged else 1.25
+	if health < max_health * 0.25:
+		gap *= 0.75                                     # nearly beaten: it stops holding back
+	_timer = gap / Game.team_scale(Game.BOSS_PACE_TEAM_SCALE)       # with more players the next attack comes sooner
 
 func _die() -> void:
 	if dead:
@@ -413,6 +429,9 @@ func _draw() -> void:
 				px += 8.0
 		if armor > 0.0:
 			draw_rect(Rect2(px - 3, -r - 34.0, 6, 6), Color(0.75, 0.75, 0.8))
+	if vulnerable > 1.0 and awake:                                  # stranded and exposed: hit it now
+		draw_arc(Vector2.ZERO, r + 5.0 + sin(Time.get_ticks_msec() / 120.0) * 2.0, 0, TAU, 32, Color(1.0, 0.9, 0.3, 0.9), 2.5)
+		draw_string(ThemeDB.fallback_font, Vector2(-30, r + 16.0), "EXPOSED", HORIZONTAL_ALIGNMENT_CENTER, 60, 11, Color(1.0, 0.9, 0.3))
 	# health bar
 	if awake:
 		var w := 70.0

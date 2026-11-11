@@ -2,7 +2,7 @@ extends RefCounted
 ## The signature attacks of the six sector bosses: three each, themed on their biome, none shared.
 ##   King Blobbert (grassland)  bounce, bramble, vine_sweep
 ##   Sand Colossus (desert)     sand_spiral, quicksand, scarab_fan
-##   Frost Wyrm (tundra)        ice_lance, blizzard, frost_nova
+##   Frost Wyrm (tundra)        burrow, frost_breath, glacier_run   (a hit-and-run fight: it dives, raises cover, and charges)
 ##   Magma Titan (ember)        meteor_rain, lava_spokes, fire_wave
 ##   Bog Mother (swamp)         poison_pools, tongue_lash, mire_grasp
 ##   Crystal Warden (caverns)   prism_beams, shard_trail, facet_burst
@@ -14,7 +14,7 @@ const ZONE := preload("res://enemies/boss/boss_zone.gd")
 const LABELS := {
 	"bounce": "BOUNCE!", "bramble": "BRAMBLES", "vine_sweep": "VINE SWEEP",
 	"sand_spiral": "SAND SPIRAL", "quicksand": "QUICKSAND", "scarab_fan": "SCARAB FAN",
-	"ice_lance": "ICE LANCE", "blizzard": "BLIZZARD", "frost_nova": "FROST NOVA",
+	"burrow": "BURROW!", "frost_breath": "FROST BREATH", "glacier_run": "GLACIER RUN",
 	"meteor_rain": "METEOR RAIN", "lava_spokes": "LAVA SPOKES", "fire_wave": "FIRE WAVE",
 	"poison_pools": "POISON POOLS", "tongue_lash": "TONGUE LASH", "mire_grasp": "MIRE GRASP",
 	"prism_beams": "PRISM BEAMS", "shard_trail": "SHARD TRAIL", "facet_burst": "FACET BURST",
@@ -47,9 +47,9 @@ static func run(b, name: String) -> void:
 		"sand_spiral": await sand_spiral(b)
 		"quicksand": await quicksand(b)
 		"scarab_fan": await scarab_fan(b)
-		"ice_lance": await ice_lance(b)
-		"blizzard": await blizzard(b)
-		"frost_nova": await frost_nova(b)
+		"burrow": await burrow(b)
+		"frost_breath": await frost_breath(b)
+		"glacier_run": await glacier_run(b)
 		"meteor_rain": await meteor_rain(b)
 		"lava_spokes": await lava_spokes(b)
 		"fire_wave": await fire_wave(b)
@@ -216,32 +216,146 @@ static func scarab_fan(b) -> void:
 
 # ------------------------------------------------------------------ Frost Wyrm (tundra)
 
-## A long lance of ice, telegraphed, straight at you.
-static func ice_lance(b) -> void:
+## The Wyrm dives under the snow, hidden and untouchable, and tunnels after you leaving cracks. Where you stand when it stops, a
+## circle warns for a second, then it erupts there: dodge it and the Wyrm is stranded on the surface, EXPOSED, taking much more damage.
+static func burrow(b) -> void:
 	var col := Color(0.6, 0.9, 1.0)
-	await line(b, b.global_position, aim(b), 300.0, 18.0, 0.9, 70.0, col)
-	await wait(b, 0.6)
-
-## A snowstorm settles where you are: deep slow and frostbite.
-static func blizzard(b) -> void:
-	var p = target(b)
-	if p == null:
+	ring_fx(b, b.global_position, 44.0, 0.5, col)
+	if !await wait(b, 0.5):
 		return
-	zone(b, p.global_position, 72.0, 5.5, 14.0, 0.5, Color(0.75, 0.9, 1.0), 0.9)
-	await wait(b, 1.5)
-
-## Rings of ice shards with gaps to slip through.
-static func frost_nova(b) -> void:
-	var col := Color(0.7, 0.92, 1.0)
-	for round in 2:
-		var gap := randi() % 16
-		for i in 16:
-			if i == gap or i == (gap + 1) % 16:
-				continue
-			shot(b, Vector2.from_angle(i * TAU / 16.0 + round * 0.2), 92.0, 30.0, col, 6.0, 3.0)
-		if !await wait(b, 0.7):
+	b.submerge(true)
+	var t := 0.0
+	while t < 2.4:
+		var p = target(b)
+		if p == null:
+			break
+		var to: Vector2 = p.global_position - b.global_position
+		if t > 1.0 and to.length() < 40.0:
+			break
+		b.global_position += Game.keep_on_map(b.global_position, to.normalized() * 165.0, 0.05) * 0.05          # tunnels fast, never off the map
+		if int(t * 20.0) % 3 == 0:
+			ring_fx(b, b.global_position, 14.0, 0.45, col.darkened(0.2))                                         # cracks in the snow
+		if !await wait(b, 0.05):
 			return
-	await wait(b, 0.4)
+		t += 0.05
+	for round in (1 if !b.enraged else 2):
+		var p2 = any_target(b) if round > 0 else target(b)
+		if p2 == null:
+			break
+		var at: Vector2 = p2.global_position
+		b.global_position = at
+		ring_fx(b, at, 48.0, 1.0, Color(1.0, 0.45, 0.35))             # where it will burst out: move!
+		if !await wait(b, 1.0):
+			return
+		ring_fx(b, at, 56.0, 0.3, col.lightened(0.5))
+		b.submerge(false)
+		if is_instance_valid(b._player):
+			b._player.shake(5.0, 0.3)
+		for pl in b.get_tree().get_nodes_in_group("player"):
+			if is_instance_valid(pl) and !pl.get("downed") and !pl.get("is_in_tower") and pl.global_position.distance_to(at) <= 48.0:
+				pl.take_damage(at, b._dmg(70.0))
+		for i in 10:
+			shot(b, Vector2.from_angle(i * TAU / 10.0 + randf() * 0.2), 100.0, 26.0, col, 6.0, 2.4)
+		if round == 0 and b.enraged:
+			if !await wait(b, 0.5):
+				return
+			b.submerge(true)
+	b.submerge(false)
+	b.vulnerable = 1.8                                                    # stranded on the surface: hit it now
+	Game.announce.emit("The Frost Wyrm is exposed!")
+	await wait(b, 3.6)
+	if is_instance_valid(b):
+		b.vulnerable = 1.0
+
+## Pillars of ice rise around the arena, then the Wyrm sweeps a freezing breath across it. The pillars stop the breath: stand
+## behind one. Each is chipped away as the breath passes, so keep moving from cover to cover.
+static func frost_breath(b) -> void:
+	var col := Color(0.7, 0.93, 1.0)
+	var pillars := []
+	var n := 5 + extra()
+	var off := randf() * TAU
+	for i in n:
+		var pos: Vector2 = b.global_position + Vector2.from_angle(off + i * TAU / float(n)) * randf_range(60.0, 105.0)
+		var tries := 0
+		while !Game.in_playable(pos) and tries < 6:
+			pos = b.global_position + (pos - b.global_position) * 0.75
+			tries += 1
+		var pil := StaticBody2D.new()
+		pil.set_script(preload("res://enemies/boss/ice_pillar.gd"))
+		pil.position = pos
+		b.get_parent().add_child.call_deferred(pil)
+		pillars.append(pil)
+	if !await wait(b, 1.0):
+		return
+	var origin: Vector2 = b.global_position
+	var base := aim(b)
+	var span := 1.9
+	var start := base.angle() - span * 0.5
+	var dir_sign := 1.0 if randf() < 0.5 else -1.0
+	if dir_sign < 0.0:
+		start = base.angle() + span * 0.5
+	for k in 2:                                                           # the warning: the sweep's two edges
+		WeaponFx.spawn(b.get_parent(), "line", origin, Color(col, 0.5), {"dir": Vector2.from_angle(start + dir_sign * span * k), "length": 230.0, "width": 3.0, "life": 0.9})
+	if !await wait(b, 0.9):
+		return
+	var steps := 42
+	var hit_until := 0.0
+	for i in steps:
+		var d := Vector2.from_angle(start + dir_sign * span * float(i) / float(steps - 1))
+		var length := 230.0
+		for pil in pillars:
+			if is_instance_valid(pil) and !pil.is_queued_for_deletion() and seg_dist(pil.global_position, origin, origin + d * length) <= 14.0:
+				length = minf(length, maxf(10.0, origin.distance_to(pil.global_position) - 6.0))
+				pil.absorb(1.0)
+		WeaponFx.spawn(b.get_parent(), "line", origin, col.lightened(0.4), {"dir": d, "length": length, "width": 9.0, "life": 0.11})
+		var p = target(b)
+		if p != null and !p.is_in_tower and seg_dist(p.global_position, origin, origin + d * length) <= 11.0 and Time.get_ticks_msec() / 1000.0 > hit_until:
+			hit_until = Time.get_ticks_msec() / 1000.0 + 0.5
+			p.take_damage(origin, b._dmg(48.0))
+		for q in b.get_tree().get_nodes_in_group("player"):               # (every player, not only the Wyrm's target)
+			if q != p and is_instance_valid(q) and !q.get("downed") and !q.get("is_in_tower") and seg_dist(q.global_position, origin, origin + d * length) <= 11.0 and !q.has_meta("breath_hit"):
+				q.set_meta("breath_hit", true)
+				q.take_damage(origin, b._dmg(48.0))
+				q.get_tree().create_timer(0.5).timeout.connect(func(): if is_instance_valid(q): q.remove_meta("breath_hit"))
+		if !await wait(b, 0.075):
+			return
+	await wait(b, 0.5)
+
+## The Wyrm charges across the arena twice, a frozen trail behind it that slows and hurts. Get out of its line, and keep off the ice.
+static func glacier_run(b) -> void:
+	var col := Color(0.6, 0.88, 1.0)
+	for run in 2:
+		var p = target(b)
+		if p == null:
+			break
+		var dir := aim(b)
+		var length := 250.0
+		var end: Vector2 = b.global_position + dir * length
+		var tries := 0
+		while !Game.in_playable(end) and tries < 10:
+			length *= 0.85
+			end = b.global_position + dir * length
+			tries += 1
+		WeaponFx.spawn(b.get_parent(), "line", b.global_position, Color(1.0, 0.45, 0.35, 0.7), {"dir": dir, "length": length, "width": 12.0, "life": 0.8})
+		if !await wait(b, 0.8):
+			return
+		var from: Vector2 = b.global_position
+		var steps := 14
+		var hit := false
+		for i in steps:
+			b.global_position = from.lerp(end, float(i + 1) / float(steps))
+			zone(b, b.global_position, 17.0, 3.5, 8.0, 0.45, col, 0.1)
+			for q in b.get_tree().get_nodes_in_group("player"):
+				if !hit and is_instance_valid(q) and !q.get("downed") and !q.get("is_in_tower") and q.global_position.distance_to(b.global_position) < b.body_radius + 12.0:
+					hit = true
+					q.take_damage(b.global_position, b._dmg(60.0))
+			if !await wait(b, 0.03):
+				return
+		if is_instance_valid(b._player):
+			b._player.shake(3.0, 0.2)
+		if !await wait(b, 0.45):
+			return
+	await wait(b, 0.5)
 
 # ------------------------------------------------------------------ Magma Titan (ember)
 
