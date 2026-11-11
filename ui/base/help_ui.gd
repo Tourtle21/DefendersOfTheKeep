@@ -15,7 +15,7 @@ OUTSIDE THE KEEP
   Shift ............. dash attack          } hold 1 second = show aim
   Space ............. ultimate (tier 3)    } release = cast, Esc = cancel
   Weapon tiers go to 6: fuse different weapons, or combine two identical copies (same tier) at the Forge.
-  Cards, buildings and weapons can come in higher tiers and gain a twist at tier 2, 4 and 6 that changes how they work.
+  Cards, buildings and weapons can come in higher tiers and add new abilities as they go up (tiers 2, 4 and 6 for most; every tier for Guards), and each keeps what the earlier tiers added.
   (Hammer slam, Lance charge and Bulwark brace: hold to charge, release to fire)
 
 INSIDE A TOWER (the keep)

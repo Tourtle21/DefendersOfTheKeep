@@ -242,7 +242,7 @@ func _show_detail(id: String) -> void:
 	inst.free()
 	var tw: String = Game.weapon_twist(id, t)
 	if tw != "" and Game.TWISTS.has(tw):
-		txt += "\n[b]Twist[/b]  [color=#ffd23a]%s[/color]: %s\n" % [Game.TWISTS[tw][0], Game.TWISTS[tw][1]]
+		txt += "\n[b]Added[/b]  [color=#ffd23a]%s[/color]: %s\n" % [Game.TWISTS[tw][0], Game.TWISTS[tw][1]]
 	txt += "\n[color=#c9d3f2]%s[/color]\n" % Fusion.TIER_TEXT.get(t, "")
 	if t > base:
 		txt += "To reach it: %s\n" % _cost_text(Fusion.AWAKEN_COSTS[t - 1])

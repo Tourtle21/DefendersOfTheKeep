@@ -162,10 +162,12 @@ func _ready() -> void:
 	_face.add_child(_label(card.name, Vector2(10, 81), Vector2(76, 20), 11, UiKit.WHITE))
 	var desc_text: String = card.desc
 	var desc_color := UiKit.TEXT_HINT
-	if twist != "" and Game.TWISTS.has(twist):
-		desc_text = "* " + Game.TWISTS[twist][0]          # the twist's name replaces the blurb; hover for what it does
+	var adds: Array = Game.adds_for(card_id, level, twist) if kind != "weapon" else []
+	adds = adds.filter(func(a): return Game.TWISTS.has(a))
+	if !adds.is_empty():
+		desc_text = "\n".join(adds.slice(-2).map(func(a): return "+ " + Game.TWISTS[a][0]))      # what it has added (the newest two; hover for all of them)
 		desc_color = UiKit.GOLD_BRIGHT
-		tooltip_text = "%s\nTwist: %s - %s" % [card.desc, Game.TWISTS[twist][0], Game.TWISTS[twist][1]]
+		tooltip_text = "%s\nAdded so far:\n%s" % [card.desc, "\n".join(adds.map(func(a): return "+ %s: %s" % [Game.TWISTS[a][0], Game.TWISTS[a][1]]))]
 	if kind == "weapon":
 		desc_text = "\n".join(weapon.get("lines", []))
 		desc_color = UiKit.TEXT_HINT

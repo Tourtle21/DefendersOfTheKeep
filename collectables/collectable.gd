@@ -81,7 +81,7 @@ func kit_text() -> String:
 	var tier: int = Game.weapon_tier_of(entry())
 	var right: String = str(kit[1]) if tier >= 2 else "%s (tier 2)" % kit[1]
 	var ult: String = str(kit[3]) if tier >= 3 else "%s (tier 3)" % kit[3]
-	var tw := ("\n* %s: %s" % [Game.TWISTS[twist][0], Game.TWISTS[twist][1]]) if twist != "" and Game.TWISTS.has(twist) else ""
+	var tw := ("\n+ Added %s: %s" % [Game.TWISTS[twist][0], Game.TWISTS[twist][1]]) if twist != "" and Game.TWISTS.has(twist) else ""
 	_kit = "%s (Tier %d)%s\nLeft: %s\nRight: %s\nShift: %s\nSpace: %s\nE: take (swaps if full)" % [
 		Fusion.display_name(item_type) + " [" + Game.rarity_name(Game.weapon_rarity(item_type)) + "]", tier, tw, kit[0], right, kit[2], ult]
 	return _kit

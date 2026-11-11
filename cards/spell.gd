@@ -20,12 +20,8 @@ func setup(card: Dictionary, target: Vector2, from: Vector2) -> void:
 	data = card
 	position = target
 	origin = from
-	if card.get("twist", "") == "wide":
-		card = card.duplicate()
-		card.radius = card.radius * 1.4
-		if card.has("duration"):
-			card.duration = card.duration * 1.3
-		data = card
+	card = _with_numeric_adds(card)
+	data = card
 	radius = card.radius
 	flight = 0.1 if card.kind == "flare" else max(0.15, from.distance_to(target) / card.speed)         # a Flare is just there, at your aim
 	effect_time = 0.4 if card.kind == "fireball" else card.get("duration", 0.3)
@@ -36,16 +32,44 @@ func _ready() -> void:
 	if data.get("night", false) and data.kind in ["fireball", "flare", "zone", "meteor"] and data.get("element", "") == "fire":
 		_glow = GlowLight.attach(self, 34.0, Color(1.0, 0.7, 0.3), 0.9)       # a fire spell glows in flight too
 
-## What a twist adds when the spell lands. The copies it makes carry no twist themselves.
+## The additions that only change the numbers (wider, longer, stronger), applied once when the spell is made.
+static func _with_numeric_adds(card: Dictionary) -> Dictionary:
+	var adds: Array = card.get("adds", [card.get("twist", "")])
+	var any := false
+	for a in ["wide", "lingers", "potent", "swift_heal", "deep_freeze"]:
+		any = any or (a in adds)
+	if !any:
+		return card
+	var c: Dictionary = card.duplicate()
+	if "wide" in adds:
+		c.radius = c.radius * 1.4
+		if c.has("duration"):
+			c.duration = c.duration * 1.3
+	if "lingers" in adds and c.has("duration"):
+		c.duration = c.duration * 1.5
+	if "potent" in adds:
+		for key in ["damage", "dps", "burst", "heal_per_sec"]:
+			if c.has(key):
+				c[key] = c[key] * 1.25
+	if "swift_heal" in adds and c.has("heal_per_sec"):
+		c.heal_per_sec = c.heal_per_sec * 1.6
+	if "deep_freeze" in adds and c.has("slow"):
+		c.slow = maxf(0.12, pow(c.slow, 1.8))
+	return c
+
+## What an addition does when the spell lands. The copies it makes carry no twist themselves.
 func _apply_twist() -> void:
-	var tw: String = data.get("twist", "")
-	if tw == "" or tw == "wide":
-		return
+	var adds: Array = data.get("adds", [data.get("twist", "")])
 	var world := get_parent()
 	var tree := get_tree()
 	var pos := position
 	var plain: Dictionary = data.duplicate()
 	plain.twist = ""
+	plain.adds = []
+	for tw in adds:
+		_apply_add(String(tw), world, tree, pos, plain)
+
+func _apply_add(tw: String, world: Node, tree: SceneTree, pos: Vector2, plain: Dictionary) -> void:
 	match tw:
 		"twin":
 			tree.create_timer(0.5).timeout.connect(func(): Spell.cast_copy(world, plain, pos))
@@ -60,6 +84,12 @@ func _apply_twist() -> void:
 			var kinds := {"fire": "burn", "poison": "burn", "pierce": "burn", "ice": "slow", "earth": "slow"}
 			var hz: String = kinds.get(data.get("element", ""), "slow")
 			WeaponUtil.patch(world, pos, hz, radius * 0.75, _color(), 4.0, 0.55)
+		"burn":
+			for e in _in_radius("enemy"):
+				WeaponUtil.bleed(tree, e, 4, maxf(0.5, data.get("damage", data.get("dps", 2.0)) * 0.25))
+		"refund":
+			Game.mana = minf(Game.max_mana(), Game.mana + float(data.get("mana", 0)) * 0.3)
+			Game.mana_changed.emit()
 		"shrapnel":
 			var dmg: float = data.get("damage", data.get("dps", 2.0))
 			for i in 6:
@@ -178,7 +208,11 @@ func _color() -> Color:
 	return Color(0.7, 0.6, 1.0)
 
 func _draw() -> void:
-	var col := _color()
+	var tier := int(data.get("tier", 1))
+	var col := _color().lerp(Color(1.0, 0.92, 0.5), 0.1 * (tier - 1))          # a higher tier tints toward gold
+	if landed and tier >= 2:
+		for i in tier - 1:                                                      # and gets one more ring inside the area for each tier
+			draw_arc(Vector2.ZERO, radius * (1.0 - 0.14 * (i + 1)), 0, TAU, 40, Color(col, 0.35), 1.0)
 	if !landed:
 		# target outline closes in as the shot approaches
 		var t: float = age / flight

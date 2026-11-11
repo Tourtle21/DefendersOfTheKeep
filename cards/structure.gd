@@ -27,7 +27,8 @@ var _age := 0.0
 var tier := 1               # 1-3: place the same build card on a structure to merge up
 const MAX_TIER := 6
 
-var twist := ""             # a twist that changes how this works (see Game.TWISTS)
+var twist := ""             # the newest thing it added (see Game.TWISTS)
+var adds: Array = []        # everything it has added so far, stacked (Game.adds_for)
 var light_radius := 0.0     # > 0: this building is a light source at night (torches, and glowing turrets); group "light"
 var _glow: GlowLight
 var _rearm := 0.0
@@ -35,6 +36,7 @@ var _rearm := 0.0
 func setup(card: Dictionary, pos: Vector2) -> void:
 	data = card
 	twist = str(card.get("twist", ""))
+	adds = card.get("adds", [twist] if twist != "" else [])
 	_apply_twist()
 	kind = card.build
 	tier = int(card.get("level", 1))              # a card drawn at a higher tier is placed at that tier
@@ -111,18 +113,44 @@ static func settle(tree: SceneTree, st):
 ## Twists that change numbers are applied to the data; the ones that change behaviour
 ## (regrow, rearm, venom, twin_shot) are checked while running.
 func _apply_twist() -> void:
-	match twist:
+	for a in adds:
+		_apply_add(String(a))
+
+func _apply_add(a: String) -> void:
+	match a:
 		"thorned":
 			data.thorns = maxf(data.get("thorns", 0.0), 2.0 * pow(1.5, tier - 1))
+		"thorns_plus":
+			data.thorns = data.get("thorns", 2.0 * pow(1.5, tier - 1)) * 2.0
+		"tough":
+			if data.has("hp"):
+				data.hp = data.hp * 1.4
 		"frost_shot":
 			if !data.has("slow"):
 				data.slow = 0.5
 		"blast_shot":
 			data.burst = maxf(data.get("burst", 0.0), data.get("damage", 1.0) * 0.8)
+		"heavy":
+			if data.has("damage"):
+				data.damage = data.damage * 1.3
+		"rapid":
+			data.interval = data.get("interval", 0.7) * 0.6
+		"barbed":
+			if data.has("damage"):
+				data.damage = data.damage * 1.5
+		"more_uses":
+			data.uses = int(data.get("uses", 0)) + 3
+		"potent":
+			for key in ["damage", "dps", "heal_per_sec", "burst"]:
+				if data.has(key):
+					data[key] = data[key] * 1.25
 		"wide_field":
 			data.radius = data.radius * 1.4
 			if data.has("light"):
 				data.light = data.light * 1.4
+		"bright":
+			if data.has("light"):
+				data.light = data.light * 1.3
 		"swift_heal":
 			data.heal_per_sec = data.get("heal_per_sec", 0.0) * 1.6
 		"deep_freeze":
@@ -136,7 +164,9 @@ func promote() -> void:
 	var id := str(data.id)
 	data = Game.scaled(id, tier)
 	twist = Game.twist_for(id, tier)
+	adds = Game.adds_for(id, tier, twist)
 	data.twist = twist
+	data.adds = adds
 	_apply_twist()
 	if kind in ["spike_trap", "mender", "totem"]:
 		radius = data.radius
@@ -186,9 +216,9 @@ func _physics_process(delta: float) -> void:
 	_age += delta
 	flash = max(0.0, flash - delta)
 	shot_t = max(0.0, shot_t - delta)
-	if twist == "regrow" and hp < max_hp:
+	if "regrow" in adds and hp < max_hp:
 		hp = minf(max_hp, hp + 1.5 * delta)
-	if twist == "rearm" and kind == "spike_trap" and uses < int(data.get("uses", 0)):
+	if "rearm" in adds and kind == "spike_trap" and uses < int(data.get("uses", 0)):
 		_rearm += delta
 		if _rearm >= 3.0:
 			_rearm = 0.0
@@ -221,7 +251,7 @@ func _physics_process(delta: float) -> void:
 					for e in hit:
 						e.spell_damage(data.damage, data.get("element", ""), true)
 						e.apply_slow(data.slow, 0.6)
-						if twist == "venom":
+						if "venom" in adds:
 							WeaponUtil.bleed(get_tree(), e, 4, data.damage * 0.3)
 					flash = 0.2
 					uses -= 1
@@ -245,7 +275,7 @@ func _physics_process(delta: float) -> void:
 						best.apply_slow(data.slow, 1.2)
 					if data.get("poison", 0.0) > 0.0:
 						WeaponUtil.bleed(get_tree(), best, 4, data.poison * 0.25)
-					if twist == "twin_shot":
+					if "twin_shot" in adds:
 						var second = null
 						for e2 in _near_enemies(data.range):
 							if e2 != best and Game.defence_sees(e2, global_position) and (second == null or e2.global_position.distance_to(global_position) < second.global_position.distance_to(global_position)):
@@ -260,10 +290,15 @@ func _physics_process(delta: float) -> void:
 								e.spell_damage(blast * 0.5, data.get("element", ""), true)
 						WeaponFx.spawn(get_parent(), "burst", best.global_position, _color(), {"radius": 16.0, "life": 0.2})
 		"torch":
-			if twist == "blaze" and _tick >= 0.5:
+			if _tick >= 0.5:
 				_tick = 0.0
 				for e in _near_enemies(light_radius):
-					e.spell_damage(1.0 + 0.5 * tier, "fire", true)
+					if "blaze" in adds:
+						e.spell_damage(1.0 + 0.5 * tier, "fire", true)
+					if "sunfire" in adds:
+						e.spell_damage(1.5 + 0.5 * tier, "fire", true)
+					if "warding" in adds and e.has_method("apply_slow"):
+						e.apply_slow(0.65, 0.7)
 		"mender":
 			for p in get_tree().get_nodes_in_group("player"):
 				if is_instance_valid(p) and p.global_position.distance_to(global_position) <= radius and p.needs_health():
@@ -286,6 +321,10 @@ func _near_enemies_at(pos: Vector2, r: float) -> Array:
 	return out
 
 func _expire() -> void:
+	if "last_stand" in adds:
+		for e in _near_enemies(radius + 24.0):
+			e.spell_damage(3.0 * pow(1.6, tier - 1), "", true)
+		WeaponFx.spawn(get_parent(), "ring", global_position, Color(1.0, 0.6, 0.3), {"radius": radius + 24.0, "life": 0.35})
 	WeaponFx.spawn(get_parent(), "burst", global_position, _color(), {"radius": radius, "life": 0.25})
 	queue_free()
 
@@ -314,7 +353,7 @@ func _draw_progress() -> void:
 	var mouse := Pad.world_mouse(self)
 	if mouse.distance_to(global_position) <= radius + 14.0 or (Game.card_aim_active and mouse.distance_to(global_position) <= MERGE_RANGE + radius):
 		var n := needs()
-		var tw: String = (" | " + Game.TWISTS[twist][0]) if twist != "" and Game.TWISTS.has(twist) else ""
+		var tw: String = (" | Added: " + ", ".join(adds.filter(func(a): return Game.TWISTS.has(a)).map(func(a): return Game.TWISTS[a][0]))) if !adds.is_empty() else ""
 		draw_string(ThemeDB.fallback_font, Vector2(-45, y + 12.0), "tier %d: %d/%d, needs %d more (tier 1 cards)%s" % [tier, points - tier_points(tier), tier_points(tier), n, tw], HORIZONTAL_ALIGNMENT_CENTER, 90.0, 6, Color(0.8, 1.0, 0.8))
 
 func _draw_tier() -> void:
@@ -325,7 +364,9 @@ func _draw_tier() -> void:
 
 func _draw() -> void:
 	_draw_tier()
-	var col := _color()
+	var col := _color().lerp(Color(1.0, 0.92, 0.5), 0.08 * (tier - 1))          # a higher tier is tinted toward gold
+	if tier >= 5:
+		draw_arc(Vector2.ZERO, radius + 4.0, 0, TAU, 28, Color(1.0, 0.85, 0.3, 0.5 + 0.2 * sin(_age * 3.0)), 1.5)     # and a ring of light round it
 	if flash > 0.0:
 		col = col.lerp(Color.WHITE, 0.6)
 	draw_circle(Vector2(0, radius * 0.5), radius * 0.9, Color(0, 0, 0, 0.25))

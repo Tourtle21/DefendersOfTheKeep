@@ -76,3 +76,4 @@ Local split screen: `split_two_pads.gd` (two simulated controllers, 22 checks: e
 | shared_hands.gd | player 1 (HUD slots) and a split-screen player (weapon_slots) go through the same Net hand functions: give, store, take out, craft, pickup-merge; both end in the same state |
 | guards.gd | guards have health (no timer), swing with a wind-up about once a second, draw enemies' aggro and take their hits, and fall when their health runs out |
 | conversion.gd | the legendary Mass Conversion card (costs crystal gems) and the Mindbender weapon turn enemies to your side; allies fight the rest and the rest turn on them |
+| card_adds.gd | every card adds something new at each tier 2-6 and keeps the earlier ones; the card says Added; spells and buildings apply all of them |

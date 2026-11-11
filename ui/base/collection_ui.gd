@@ -227,9 +227,9 @@ func _show_detail() -> void:
 	var t := viewed_tier
 	var txt := "[b]%s[/b]   tier [color=#ffd23a][b]%d[/b][/color]%s\n" % [c.name, t, "" if t <= owned_tier else "   [color=#ff9a7a](locked)[/color]"]
 	txt += "[color=#c9d3f2]%s[/color]\n" % c.desc
-	var tw: String = Game.twist_for(id, t)
-	if tw != "" and Game.TWISTS.has(tw):
-		txt += "\n[b]Twist[/b]  [color=#ffd23a]%s[/color]: %s\n" % [Game.TWISTS[tw][0], Game.TWISTS[tw][1]]
+	for ad in Game.adds_for(id, t, Game.twist_for(id, t)):
+		if Game.TWISTS.has(ad):
+			txt += "\n[b]Added[/b]  [color=#ffd23a]%s[/color]: %s\n" % [Game.TWISTS[ad][0], Game.TWISTS[ad][1]]
 	txt += "\n" + _num_block(id, t, t + 1)
 	if !owned:
 		txt += "\n\n[color=#ff9a7a]Not unlocked yet.[/color]"

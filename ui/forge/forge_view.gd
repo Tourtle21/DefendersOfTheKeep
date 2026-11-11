@@ -310,7 +310,7 @@ func _fill_areas(list: Array, picks: Array, cur: int) -> void:
 				box.add_child(col)
 			var tw: String = Game.entry_twist(it.entry)
 			var card = WeaponCard.make(it.id, Game.weapon_tier_of(it.entry), _card_size(), {
-				"lines": ["* " + Game.TWISTS[tw][0]] if tw != "" and Game.TWISTS.has(tw) and !small else [],
+				"lines": ["+ " + Game.TWISTS[tw][0]] if tw != "" and Game.TWISTS.has(tw) and !small else [],
 				"footer": "PICKED" if n in picks else ("HELD" if held else "STORED"), "footer_color": UiKit.GOOD if held else UiKit.STORE_TEXT})
 			card.set_selected(n == cur or n in picks)
 			card.focus_mode = Control.FOCUS_ALL if focusable else Control.FOCUS_NONE

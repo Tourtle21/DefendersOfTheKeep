@@ -1023,7 +1023,7 @@ func forge_preview(ea: String, eb: String) -> Dictionary:
 		var cost: Dictionary = combine_cost(ea)
 		var gained := weapon_twist(ida, t + 1)
 		return {"text": "%s: tier %d -> %d" % [Fusion.display_name(ida), t, t + 1], "ok": can_afford(cost), "kind": "combine", "result": res, "cost": cost,
-			"note": ("Gains the twist: " + TWISTS[gained][0]) if gained != "" and TWISTS.has(gained) else ""}
+			"note": ("Adds: " + TWISTS[gained][0]) if gained != "" and TWISTS.has(gained) else ""}
 	var r := Fusion.recipe(ida, idb)
 	if r.is_empty():
 		return {"text": "These two do not fuse.", "ok": false, "kind": "fuse", "result": ""}
@@ -1399,53 +1399,94 @@ static func make_entry(id: String, tier: int, twist := "") -> String:
 
 # Twists: spells, buildings and weapons gain one as part of upgrading (fixed per card and tier, see twist_for). [name, what it does]
 const TWISTS := {
-	"twin": ["Twin", "Casts a second time half a second later."],
-	"aftermath": ["Aftermath", "Leaves a lingering patch on the ground."],
-	"shrapnel": ["Shrapnel", "Bursts into fragments that fly outward."],
-	"echo": ["Echo", "A wider second wave follows."],
-	"wide": ["Wide", "40% bigger area, lasts longer."],
-	"thorned": ["Thorned", "Hurts whatever chews on it."],
-	"regrow": ["Regrowth", "Slowly mends itself."],
-	"rearm": ["Rearm", "Regains a use every few seconds."],
+	"twin": ["Double cast", "Casts a second time half a second later."],
+	"aftermath": ["Lingering patch", "Leaves a lingering patch on the ground."],
+	"shrapnel": ["Shrapnel burst", "Bursts into fragments that fly outward."],
+	"echo": ["Echo wave", "A wider second wave follows."],
+	"wide": ["Wider area", "40% bigger area, lasts longer."],
+	"thorned": ["Thorns", "Hurts whatever chews on it."],
+	"regrow": ["Self-healing", "Slowly mends itself."],
+	"rearm": ["Rearming", "Regains a use every few seconds."],
 	"venom": ["Venom", "Enemies it hits are poisoned."],
-	"twin_shot": ["Twin Shot", "Fires at the two nearest enemies."],
-	"frost_shot": ["Frost Shot", "Shots chill their target."],
-	"blast_shot": ["Blast Shot", "Shots splash nearby enemies."],
-	"wide_field": ["Wide Field", "40% bigger area."],
-	"swift_heal": ["Swift Healing", "Heals 60% faster."],
-	"deep_freeze": ["Deep Freeze", "Chills much harder."],
-	"blaze": ["Blaze", "Enemies standing in its light burn."],
+	"twin_shot": ["Second target", "Fires at the two nearest enemies."],
+	"frost_shot": ["Chilling shots", "Shots chill their target."],
+	"blast_shot": ["Splash shots", "Shots splash nearby enemies."],
+	"wide_field": ["Wider field", "40% bigger area."],
+	"swift_heal": ["Faster healing", "Heals 60% faster."],
+	"deep_freeze": ["Deeper freeze", "Chills much harder."],
+	"blaze": ["Burning light", "Enemies standing in its light burn."],
 	"bleed": ["Bleeding", "Hits cause bleeding."],
 	"chill": ["Chilling", "Hits slow the target."],
 	"chain": ["Chain", "Hits arc to a nearby enemy."],
 	"lifesteal": ["Vampiric", "Heals you a little with every hit."],
 	"thunder": ["Thunder", "Every 4th hit blasts the area."],
+	"lingers": ["Longer lasting", "Lasts 50% longer."],
+	"burn": ["Searing", "Enemies it hits burn for a few seconds."],
+	"refund": ["Mana return", "Gives back 30% of its mana when it lands."],
+	"potent": ["More potent", "25% stronger effect."],
+	"tough": ["Reinforced", "40% more health."],
+	"thorns_plus": ["Barbed thorns", "Twice the thorns damage."],
+	"last_stand": ["Last stand", "Bursts and hurts what is near when it is destroyed."],
+	"more_uses": ["Extra charges", "Three more uses."],
+	"barbed": ["Barbed spikes", "50% more damage."],
+	"bright": ["Brighter light", "30% bigger light."],
+	"warding": ["Warding light", "Enemies in its light are slowed."],
+	"sunfire": ["Sunfire", "Enemies in its light take fire damage."],
+	"rapid": ["Rapid fire", "Fires 40% faster."],
+	"heavy": ["Heavy shots", "30% more damage."],
+	"g_shield": ["Shield", "The guard carries a shield and reaches further."],
+	"g_double": ["Double strike", "Every swing is followed by a second strike."],
+	"g_captain": ["Shockwave", "Draws enemies from afar; every third swing is a shockwave all round."],
+	"g_beam": ["Sword beam", "Every strike also sends a beam down the line."],
+	"g_paladin": ["Whirl and mending", "Every strike whirls all round, and it mends allies beside it."],
 }
+## What each tier adds, tiers 2 to 6 in order (one each, all kept). See TWISTS for what they do.
 const BUILD_TWISTS := {
-	"barricade": ["thorned", "regrow"], "spike_trap": ["rearm", "venom"], "sentry": ["twin_shot", "frost_shot", "blast_shot"],
-	"mender": ["wide_field", "swift_heal"], "totem": ["deep_freeze", "wide_field"], "torch": ["wide_field", "blaze"],
+	"barricade": ["thorned", "regrow", "tough", "thorns_plus", "last_stand"],
+	"spike_trap": ["rearm", "venom", "more_uses", "barbed", "deep_freeze"],
+	"sentry": ["twin_shot", "frost_shot", "rapid", "heavy", "blast_shot"],
+	"mender": ["wide_field", "swift_heal", "potent", "regrow", "tough"],
+	"totem": ["deep_freeze", "wide_field", "potent", "regrow", "tough"],
+	"torch": ["wide_field", "blaze", "bright", "warding", "sunfire"],
 }
+const SPELL_TWISTS := {
+	"fireball": ["wide", "twin", "aftermath", "burn", "shrapnel"],
+	"frost_ring": ["wide", "aftermath", "deep_freeze", "echo", "twin"],
+	"zone": ["wide", "aftermath", "lingers", "echo", "shrapnel"],
+	"spikes": ["wide", "aftermath", "lingers", "echo", "shrapnel"],
+	"flare": ["wide", "lingers", "burn", "twin", "refund"],
+	"rejuvenation": ["wide", "swift_heal", "lingers", "twin", "refund"],
+	"charm": ["wide", "lingers", "twin", "refund", "potent"],
+	"guards": ["g_shield", "g_double", "g_captain", "g_beam", "g_paladin"],
+}
+const DEFAULT_SPELL_TWISTS := ["wide", "lingers", "twin", "echo", "refund"]
 
 func twist_pool(id: String) -> Array:
 	var c: Dictionary = CARDS[id]
 	if c.kind == "build":
-		return BUILD_TWISTS.get(c.build, [])
-	match c.kind:
-		"fireball", "zone", "spikes":
-			return ["twin", "aftermath", "shrapnel", "echo"]
-		"frost_ring":
-			return ["twin", "aftermath", "echo"]
-	return ["twin", "wide"]
+		return BUILD_TWISTS.get(c.build, ["wide_field", "regrow", "potent", "tough", "last_stand"])
+	return SPELL_TWISTS.get(c.kind, DEFAULT_SPELL_TWISTS)
 
-## The twist a card or building has at a tier. Fixed, never random: tier 2 gains the first
-## twist of its list, tier 4 the second and tier 6 the third (if it has that many; a card with
-## fewer keeps its last). It is part of the upgrade.
+## Everything a card or building has ADDED by its tier, stacking: tier 2 gets the first, tier 4 that and the second, tier 6 all three.
+## Every card adds one thing per tier, 2 to 6. `twist` is the entry's own (a fused card's fixed one), kept as well.
+func adds_for(id: String, tier: int, twist := "") -> Array:
+	id = entry_id(id)
+	var out := []
+	if CARDS.has(id):
+		var pool := twist_pool(id)
+		for t in range(2, clampi(tier, 1, 6) + 1):
+			if t - 2 < pool.size() and !(pool[t - 2] in out):
+				out.append(pool[t - 2])
+	if twist != "" and !(twist in out):
+		out.append(twist)
+	return out
+
+## The newest thing a card has added at a tier (what that tier brought). Fixed, never random.
 func twist_for(id: String, tier: int) -> String:
-	var pool := twist_pool(id)
-	var rung := clampi(tier, 1, 6) / 2
-	if pool.is_empty() or rung < 1:
+	if !CARDS.has(id) or tier < 2:
 		return ""
-	return pool[mini(rung - 1, pool.size() - 1)]
+	var pool := twist_pool(id)
+	return pool[tier - 2] if tier - 2 < pool.size() else ""
 
 func is_build(id: String) -> bool:
 	return CARDS[entry_id(id)].kind == "build"
@@ -1482,6 +1523,7 @@ func roll_card_tier(id: String, lvl := -1) -> int:
 func stats_of(entry: String) -> Dictionary:
 	var c := scaled(entry_id(entry), entry_tier(entry))
 	c.twist = entry_twist(entry)
+	c.adds = adds_for(entry_id(entry), entry_tier(entry), c.twist)       # everything it has added so far, stacked
 	c.tier = entry_tier(entry)                 # (guards look and fight differently by tier)
 	return c
 
