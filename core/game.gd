@@ -668,6 +668,9 @@ func waiting_draws() -> Array:
 	for id in CARDS:
 		if upgrade_available(id):
 			groups["card:%s:upgrade" % id] = {"kind": "card", "id": id, "tier": card_tier(id) + 1, "count": 1, "result": "upgrade"}
+	for id in owned_weapon_ids():
+		if can_buy_weapon_tier(id):
+			groups["weapon:%s:upgrade" % id] = {"kind": "weapon", "id": id, "tier": weapon_tier_unlocked(id) + 1, "count": 1, "result": "upgrade"}
 	return groups.values()
 
 func mark_seen(id: String, kind := "card") -> void:
@@ -959,9 +962,20 @@ func weapon_owned(id: String) -> bool:
 func weapon_tier_price(id: String) -> int:
 	return int(round(8.0 * pow(weapon_tier_unlocked(id), 1.5)))
 
-## Can the next tier of this weapon be bought with Shards (owned, below this run's tier cap)?
+## The weapons you own (sword, pickaxe, unlocked weapons and the fused weapons you can make), for tier draws and tier purchases.
+func owned_weapon_ids() -> Array:
+	var ids: Array = meta.weapons + ["sword", "pickaxe"]
+	for key in Fusion.RECIPES:
+		var rid: String = Fusion.RECIPES[key].id
+		if weapon_known(rid) and fusion_tier_unlocked(int(Fusion.RECIPES[key].tier)):
+			ids.append(rid)
+	return ids
+
+## Has the next tier of this weapon been DRAWN at the end of a run, so it may be bought with Shards (like a card's next tier)?
 func can_buy_weapon_tier(id: String) -> bool:
-	return weapon_owned(id) and weapon_tier_unlocked(id) < mini(6, weapon_tier_cap())
+	fix_meta()
+	var nt := weapon_tier_unlocked(id) + 1
+	return weapon_owned(id) and nt <= mini(6, weapon_tier_cap()) and int(meta.tier_drawn.get("w:" + id, 1)) >= nt
 
 func buy_weapon_tier(id: String) -> bool:
 	fix_meta()
@@ -992,7 +1006,7 @@ func forge_preview(ea: String, eb: String) -> Dictionary:
 			elif t >= 6:
 				why = "Max tier."
 			elif combine_locked_by_draw(ea):
-				why = "Tier %d is locked. Buy it with Shards in the Weapons tab, or draw it at the end of a run." % (t + 1)
+				why = "Tier %d is locked. Draw it at the end of a run, then buy it with Shards." % (t + 1)
 			return {"text": why, "ok": false, "kind": "combine", "result": ""}
 		var cost: Dictionary = combine_cost(ea)
 		var gained := weapon_twist(ida, t + 1)
@@ -1891,14 +1905,9 @@ func make_rewards(won := false) -> Array:
 			if !(w in meta.weapons) and !(("w:" + w) in used) and WEAPON_LEVEL[w] <= top:
 				weapons.append(w)
 		var tier_ups := []
-		var owned_ids: Array = meta.weapons + ["sword", "pickaxe"]
-		for key in Fusion.RECIPES:                          # fused weapons you can make also have higher tiers to draw
-			var rid: String = Fusion.RECIPES[key].id
-			if weapon_known(rid) and fusion_tier_unlocked(int(Fusion.RECIPES[key].tier)):
-				owned_ids.append(rid)
-		for w in owned_ids:
+		for w in owned_weapon_ids():                          # fused weapons you can make also have higher tiers to draw
 			var nt := weapon_tier_unlocked(w) + 1
-			if nt <= 6 and nt <= top + 1 and !(("wt:" + w) in used):
+			if nt <= 6 and nt <= top + 1 and !(("wt:" + w) in used) and int(meta.tier_drawn.get("w:" + w, 1)) < nt:
 				tier_ups.append(w)
 		if (weapons.size() > 0 or tier_ups.size() > 0) and randf() < 0.3:
 			entry.kind = "weapon"
@@ -1912,8 +1921,8 @@ func make_rewards(won := false) -> Array:
 				entry.id = tier_ups.pick_random()
 				entry.realm = WEAPON_LEVEL.get(entry.id, 1)
 				entry.tier = weapon_tier_unlocked(entry.id) + 1
-				entry.result = "tierup"                 # a higher tier of a weapon you own: the Forge can now take it that far
-				note_weapon_tier(entry.id, int(entry.tier))
+				entry.result = "upgrade"                # drawn, not applied: you pay Shards for it, like a card's next tier
+				meta.tier_drawn["w:" + str(entry.id)] = int(entry.tier)
 				used.append("wt:" + entry.id)
 		else:
 			var bag := []

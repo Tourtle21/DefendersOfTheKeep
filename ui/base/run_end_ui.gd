@@ -235,7 +235,7 @@ func _make_face(opt: Dictionary) -> Control:
 	name_l.add_theme_font_size_override("font_size", UiKit.FONT_TINY)
 	panel.add_child(name_l)
 	var kind_l := Label.new()
-	kind_l.text = ("TIER %d" % int(opt.tier)) if opt.get("result", "") == "tierup" else "WEAPON"
+	kind_l.text = ("TIER %d" % int(opt.tier)) if opt.get("result", "") == "upgrade" else "WEAPON"
 	kind_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	kind_l.position = Vector2(4, 108)
 	kind_l.size = Vector2(88, 20)
@@ -447,9 +447,6 @@ func _fill_footer(footer: VBoxContainer, opt: Dictionary, holder: Control, is_ke
 		"unlocked":
 			tag.text = "LEGENDARY UNLOCKED!" if opt.get("legendary", false) else "UNLOCKED"
 			tag.add_theme_color_override("font_color", UiKit.GOLD_BRIGHT if opt.get("legendary", false) else UiKit.GOOD)
-		"tierup":
-			tag.text = "TIER %d UNLOCKED" % opt.tier
-			tag.add_theme_color_override("font_color", UiKit.GOLD_BRIGHT)
 		"upgrade":
 			tag.text = "TIER %d DRAWN" % opt.tier
 			tag.add_theme_color_override("font_color", UiKit.GOLD_BRIGHT)
@@ -466,11 +463,13 @@ func _fill_footer(footer: VBoxContainer, opt: Dictionary, holder: Control, is_ke
 	if opt.result == "upgrade":
 		var upb := Button.new()
 		var cid := str(opt.id)
-		var owned_next: bool = Game.card_tier(cid) >= int(opt.tier)
-		upb.text = "Upgraded" if owned_next else "Upgrade (%d)" % Game.card_upgrade_cost(cid)
-		upb.disabled = owned_next or Game.meta.shards < Game.card_upgrade_cost(cid)
+		var is_weapon: bool = str(opt.get("kind", "card")) == "weapon"
+		var owned_next: bool = (Game.weapon_tier_unlocked(cid) if is_weapon else Game.card_tier(cid)) >= int(opt.tier)
+		var price: int = Game.weapon_tier_price(cid) if is_weapon else Game.card_upgrade_cost(cid)
+		upb.text = "Upgraded" if owned_next else "Upgrade (%d)" % price
+		upb.disabled = owned_next or Game.meta.shards < price
 		upb.pressed.connect(func():
-			if Game.upgrade_card(cid):
+			if (Game.buy_weapon_tier(cid) if is_weapon else Game.upgrade_card(cid)):
 				Sfx.play_ui("reveal_3")
 				_refresh())
 		footer.add_child(upb)

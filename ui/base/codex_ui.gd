@@ -191,7 +191,7 @@ func _show_detail(id: String) -> void:
 			if Game.buy_weapon(id):
 				_refresh())
 		action_row.add_child(b)
-	if Game.can_buy_weapon_tier(id):                      # the next tier can be bought with Shards (drawing it at the end of a run is still free)
+	if Game.can_buy_weapon_tier(id):                      # its next tier was drawn at the end of a run: it can be bought with Shards
 		var nt: int = Game.weapon_tier_unlocked(id) + 1
 		var tb := Button.new()
 		tb.text = "Unlock tier %d for %d Shards  (you have %d)" % [nt, Game.weapon_tier_price(id), Game.meta.shards]
