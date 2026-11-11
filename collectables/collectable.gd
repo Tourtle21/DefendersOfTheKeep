@@ -60,6 +60,8 @@ func _input(event: InputEvent) -> void:
 			$AnimationPlayer.play("invalid")
 			return
 		var winfo: Dictionary = Game.weapon_info(entry())
+		if _merge_into_held(winfo):
+			return
 		if player.get_parent().get_node("Hud").equip_item(winfo):
 			if (item_info.items[item_type]["type"] == "item" and player.get_parent() != null):
 				player.equip_item(winfo)
@@ -87,6 +89,23 @@ func _input(event: InputEvent) -> void:
 					return
 			$AnimationPlayer.play("invalid")
 			
+## Standing on a copy of a weapon you hold: pick it up straight into a merge (the keep's stores pay), see Game.pickup_merge.
+func _merge_into_held(winfo: Dictionary) -> bool:
+	var hud = player.get_parent().get_node("Hud")
+	var held: Array = hud.held_entries()
+	var m: Dictionary = Game.pickup_merge(held.map(func(h): return h.entry), str(winfo.entry))
+	if m.is_empty():
+		return false
+	Game.pay(m.cost)
+	hud.remove_slot(held[m.idx].slot)
+	var merged: Dictionary = Game.weapon_info(m.result)
+	if hud.equip_item(merged):
+		player.equip_item(merged)
+	Game.announce.emit(m.text)
+	Sfx.play("unlock", 0.0)
+	queue_free()
+	return true
+
 ## A weapon you have not unlocked cannot be picked up.
 func _locked() -> bool:
 	return item_info.items[item_type]["type"] == "item" and !Game.weapon_unlocked(item_type) and !Game.weapon_known(item_type)
@@ -99,7 +118,7 @@ func pickup_by(pl) -> bool:
 	if info["type"] == "resource":
 		Game.pick_up_resource(item_type, pl)
 	else:
-		Net.give_weapon(pl, entry())
+		Net.pickup_weapon(pl, entry())
 	queue_free()
 	return true
 

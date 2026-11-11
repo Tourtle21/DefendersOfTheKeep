@@ -73,12 +73,7 @@ var _merge_clock := 0.0
 
 ## The weapons in your hands as entries, in slot order: [{slot, entry}]
 func _held_entries() -> Array:
-	var out := []
-	var slots = _hud().item_slots.get_children()
-	for i in slots.size():
-		if slots[i].has_item:
-			out.append({"slot": i, "entry": _entry_of(slots[i].current_item)})
-	return out
+	return _hud().held_entries()
 
 func _merge_options() -> Dictionary:
 	var held := _held_entries()

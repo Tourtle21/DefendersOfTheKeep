@@ -97,6 +97,32 @@ func _initialize() -> void:
 	ok("player 1 forge: stored cards sit in the storage area", forge.store_box.get_child_count() > 0 and forge.list_box.get_child_count() > 0)
 	forge.root_ctl.visible = false
 	game._forge_store = []
+	# ---- picking up a copy of a weapon you hold merges it (the keep's stores pay)
+	game.meta.weapon_tiers["hammer"] = 2
+	game.resources = {"stone": 40, "stick": 40, "gold": 99}
+	p2.weapon_slots = ["hammer"]
+	var gold_now: int = game.resources.gold
+	net.pickup_weapon(p2, game.make_weapon_entry("hammer", 0, ""))
+	ok("avatar: picking up a second hammer merges it into a tier 2 hammer", p2.weapon_slots.size() == 1 and game.weapon_tier_of(p2.weapon_slots[0]) == 2)
+	ok("avatar: the merge cost came out of the keep", game.resources.gold < gold_now or game.resources.stone < 40)
+	game.resources = {"stone": 0, "stick": 0, "gold": 0}
+	p2.weapon_slots = ["hammer"]
+	net.pickup_weapon(p2, game.make_weapon_entry("hammer", 0, ""))
+	ok("avatar: with an empty keep it is simply picked up (two hammers)", p2.weapon_slots.size() == 2)
+	game.resources = {"stone": 40, "stick": 40, "gold": 99}
+	for fr in hud.item_slots.get_children():
+		hud.remove_slot(fr.get_index())
+	var hinfo = game.weapon_info("hammer")
+	hud.equip_item(hinfo)
+	p1.equip_item(hinfo)
+	var coll = load("res://collectables/collectable.tscn").instantiate()
+	coll.item_type = "hammer"
+	world.add_child(coll)
+	coll.player = p1
+	var merged_p1: bool = coll._merge_into_held(game.weapon_info(game.make_weapon_entry("hammer", 0, "")))
+	await wait(0.2)
+	var hh: Array = hud.held_entries()
+	ok("player 1: standing on a second hammer merges it into the one in hand", merged_p1 and hh.size() == 1 and game.weapon_tier_of(hh[0].entry) == 2)
 	# ---- the forge lists only recipes you can make: no "Tier 2 locked" cards
 	var two_hammers: Array = layout.items(["hammer", "hammer"], [])
 	game.meta.weapon_tiers["hammer"] = 1

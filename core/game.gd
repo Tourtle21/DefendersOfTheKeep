@@ -1023,6 +1023,18 @@ func cost_line(cost: Dictionary) -> String:
 		bits.append("%d %s" % [cost[k], k])
 	return ", ".join(bits)
 
+## Picking up `entry` while holding `held` (weapon entries): the first held copy it can merge with right now (same weapon and
+## tier, next tier unlocked, keep stores can pay). {idx, result, cost, text} or {} (then it is simply picked up / swapped in).
+func pickup_merge(held: Array, entry: String) -> Dictionary:
+	for i in held.size():
+		var res := combine_weapons(held[i], entry)
+		if res == "":
+			continue
+		var cost := combine_cost(held[i])
+		if can_afford(cost):
+			return {"idx": i, "result": res, "cost": cost, "text": "%s merged to Tier %d (-%s)" % [Fusion.display_name(entry_id(entry)), weapon_tier_of(res), cost_line(cost)]}
+	return {}
+
 func combine_cost(a: String) -> Dictionary:
 	return Fusion.AWAKEN_COSTS[clampi(weapon_tier_of(a), 1, 5)]
 

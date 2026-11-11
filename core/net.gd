@@ -245,6 +245,18 @@ static func near_station(pl, station: Vector2) -> bool:
 
 ## Give a co-op avatar a weapon: a free slot if there is one, otherwise swap with the
 ## active weapon (the old one is dropped as a pickup).
+## An avatar picks up a weapon: if it matches one they hold (and the keep can pay) the two merge, otherwise it is given as usual.
+func pickup_weapon(pl, entry: String) -> void:
+	var m: Dictionary = Game.pickup_merge(pl.weapon_slots, entry)
+	if m.is_empty():
+		give_weapon(pl, entry)
+		return
+	Game.pay(m.cost)
+	forge_remove_held(pl, [m.idx])
+	give_weapon(pl, m.result)
+	Game.announce.emit(m.text)
+	Sfx.play("unlock", 0.0)
+
 func give_weapon(pl, entry: String) -> void:
 	var slots: Array = pl.weapon_slots
 	if slots.size() < 3:

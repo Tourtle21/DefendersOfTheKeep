@@ -1,7 +1,7 @@
 extends Area2D
 class_name ResourceGenerator
 ## A resource generator found in every biome. It starts dormant: walk up and press
-## interact to activate it (costs gold you are carrying). Once active it slowly makes
+## interact to activate it (paid from the keep's stores). Once active it slowly makes
 ## that biome's resource into storage; press interact to collect everything at once.
 ## With nothing to collect, interact upgrades it (levels 1-5: faster and bigger storage), paid from the keep's stores.
 
@@ -61,7 +61,8 @@ func _input(event: InputEvent) -> void:
 ## Activate, collect or upgrade, depending on the state. Returns what happened.
 func use(who = null) -> String:
 	if level == 0:
-		if Game.pay_carried(activate_cost(), who):
+		if Game.can_afford(activate_cost()):
+			Game.pay(activate_cost())          # the keep's stores pay, nothing to carry here
 			level = 1
 			flash = 0.6
 			Sfx.play("unlock", 0.0)
@@ -86,7 +87,7 @@ func use(who = null) -> String:
 
 func _hint() -> String:
 	if level == 0:
-		return "E: activate (%s)" % _cost_text(activate_cost())
+		return "E: activate (%s from stores)" % _cost_text(activate_cost())
 	if stored > 0:
 		return "E: collect %d %s" % [stored, resource]
 	if level < MAX_LEVEL:

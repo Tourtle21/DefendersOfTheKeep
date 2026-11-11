@@ -17,22 +17,28 @@ func _ready() -> void:
 	slots_widget.set_script(preload("res://ui/hud/weapon_slots.gd"))
 	add_child(slots_widget)
 
-func _process(_delta: float) -> void:
-	if slots_widget == null:
-		return
-	var entries := []
-	var active := 0
+## The weapons in your hands as entries, in slot order: [{slot, entry}]
+func held_entries() -> Array:
+	var out := []
 	var frames = item_slots.get_children()
 	for i in frames.size():
 		if frames[i].has_item:
-			if i == active_item_slot:
-				active = entries.size()
 			var item: Dictionary = frames[i].current_item
 			var id = item.get("id", "")
 			if id == "":
 				id = frames[i].item_info.items.find_key(item)         # the starting tools carry no id of their own
-			entries.append(item.get("entry", id))
-	slots_widget.slots = entries
+			out.append({"slot": i, "entry": item.get("entry", id)})
+	return out
+
+func _process(_delta: float) -> void:
+	if slots_widget == null:
+		return
+	var held := held_entries()
+	var active := 0
+	for n in held.size():
+		if held[n].slot == active_item_slot:
+			active = n
+	slots_widget.slots = held.map(func(h): return h.entry)
 	slots_widget.active = active
 
 func _input(event):

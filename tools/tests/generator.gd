@@ -1,5 +1,5 @@
 extends SceneTree
-# Resource generators: activate with carried gold, produce over time, collect all, upgrade; yield skills.
+# Resource generators: activate (keep's stores pay), produce over time, collect all, upgrade; yield skills.
 func wait(sec: float) -> void:
 	await create_timer(sec, true, false, true).timeout
 func _initialize() -> void:
@@ -20,18 +20,22 @@ func _initialize() -> void:
 	for x in gens:
 		if x.resource == "stone": g = x
 	game.carried = {"stone": 0, "stick": 0, "gold": 0}
-	print("activate with no gold: ", g.use(), " level ", g.level)
-	game.carried.gold = 30
-	print("activate with 30 gold: ", g.use(), " level ", g.level, " gold left ", game.carried.gold)
+	game.resources = {"stone": 0, "stick": 0, "gold": 0}
+	print("activate with an empty keep: ", g.use(), " level ", g.level)
+	game.carried.gold = 50                  # what you carry does not pay any more
+	print("activate with carried gold only: ", g.use(), " level ", g.level)
+	game.resources = {"stone": 50, "stick": 50, "gold": 30}
+	print("activate with 30 gold in the keep: ", g.use(), " level ", g.level, " keep gold left ", game.resources.gold)
 	g.progress = g.interval() - 0.1
 	await wait(0.5)
 	print("stored after a tick: ", g.stored, " interval lvl1 ", g.interval(), " capacity ", g.capacity())
 	g.stored = 5
 	print("collect: ", g.use(), " carried stone ", game.carried.stone, " stored ", g.stored)
 	game.carried.stone = 10
-	print("upgrade lvl1->2 (cost ", g.upgrade_cost(), "): ", g.use(), " level ", g.level, " interval ", g.interval(), " capacity ", g.capacity(), " gold left ", game.carried.gold)
+	game.resources = {"stone": 99, "stick": 99, "gold": 99}
+	print("upgrade lvl1->2 (cost ", g.upgrade_cost(), "): ", g.use(), " level ", g.level, " interval ", g.interval(), " capacity ", g.capacity(), " keep gold left ", game.resources.gold)
 	for i in 5:
-		game.carried = {"stone": 99, "gold": 99}
+		game.resources = {"stone": 99, "stick": 99, "gold": 99}
 		g.use()
 	print("after repeated upgrades: level ", g.level, " (max 5)")
 	game.meta.skills = {"overclock": 4}

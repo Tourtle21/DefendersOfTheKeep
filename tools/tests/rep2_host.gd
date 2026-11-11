@@ -25,6 +25,7 @@ func _initialize() -> void:
 		if g.resource == "stone": gen = g
 	pl.global_position = gen.global_position + Vector2(0, 8)
 	pl.carried = {"gold": 10, "stone": 0, "stick": 0}
+	game.resources = {"gold": 10, "stone": 10, "stick": 10}          # generators are paid from the keep's stores
 	print("HOST: avatar next to the stone generator with 10 gold; generator level ", gen.level)
 	var t := 0.0
 	while gen.level == 0 and t < 20.0:
