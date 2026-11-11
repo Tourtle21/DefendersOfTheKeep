@@ -49,6 +49,9 @@ func _initialize() -> void:
 		spare1, spare2]})
 	var re = scripted(world, "run_end_ui.gd")
 	await wait(0.5)
+	if OUT != "":
+		await RenderingServer.frame_post_draw
+		root.get_texture().get_image().save_png("%s/reward_before_flip.png" % OUT)
 	re._flip_all()
 	await wait(7.0)
 	print("=== every reward button: Unlock + Convert (new card, new weapon), Upgrade (card tier, weapon tier), Merge + Combine pair + Sell (spare copies)")

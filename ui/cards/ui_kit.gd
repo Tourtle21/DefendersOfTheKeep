@@ -33,6 +33,7 @@ const MUTED := Color(0.6, 0.6, 0.65)             # locked / unavailable
 const MUTED_DARK := Color(0.4, 0.4, 0.5)
 # accents (one meaning each)
 const GOLD := Color(1.0, 0.85, 0.35)             # headings, selection, money
+const GOLD_FILL := Color(0.30, 0.25, 0.10)         # the highlighted (main) button on a reward card
 const GOLD_BRIGHT := Color(1.0, 0.82, 0.23)      # numbers now (ffd23a)
 const WARM := Color(1.0, 0.9, 0.5)               # banners, announcements
 const GOOD := Color(0.55, 1.0, 0.6)              # can do it now / better

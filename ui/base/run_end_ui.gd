@@ -8,6 +8,8 @@ const TierCard = preload("res://ui/cards/tier_card.gd")
 var root_ctl: Control
 var title: Label
 var summary: Label
+const FOOTER_W := 150.0             # every reward column is this wide ...
+const FOOTER_H := 128.0             # ... and this tall under the card (rarity, tag, main button, side buttons)
 var shop_row: Container
 var extras_row: Container
 var skills: SkillTreeUi
@@ -75,7 +77,7 @@ func _ready() -> void:
 	pull_label = Label.new()
 	pull_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	pull_label.add_theme_font_size_override("font_size", UiKit.FONT_HEAD)
-	pull_label.visible = false
+	pull_label.text = " "                                            # (keeps its line, so the panel does not grow when it fills in)
 	box.add_child(pull_label)
 	shop_row = HFlowContainer.new()
 	shop_row.alignment = FlowContainer.ALIGNMENT_CENTER
@@ -121,7 +123,7 @@ func _refresh(earned: int = -1) -> void:
 		shop_row.remove_child(c)
 		c.queue_free()
 	_flippers.clear()
-	pull_label.visible = false
+	pull_label.text = " "
 	var total_conv := 0
 	for opt in _rewards:
 		total_conv += int(opt.shards)
@@ -152,6 +154,7 @@ func _refresh(earned: int = -1) -> void:
 		col.alignment = BoxContainer.ALIGNMENT_CENTER
 		var holder := Control.new()
 		holder.custom_minimum_size = CardView.SIZE
+		holder.size_flags_horizontal = Control.SIZE_SHRINK_CENTER           # the card sits in the middle of its column
 		holder.pivot_offset = CardView.SIZE / 2.0
 		var face := _make_face(opt)
 		holder.add_child(face)
@@ -169,8 +172,10 @@ func _refresh(earned: int = -1) -> void:
 		col.add_child(holder)
 		var footer := VBoxContainer.new()
 		footer.alignment = BoxContainer.ALIGNMENT_BEGIN
-		footer.custom_minimum_size.y = 170.0              # room for the most buttons any card gets, so every card sits on the same line
+		footer.add_theme_constant_override("separation", 4)
+		footer.custom_minimum_size = Vector2(FOOTER_W, FOOTER_H)     # the same size whether or not it is flipped or has buttons: nothing moves when a card turns over
 		col.alignment = BoxContainer.ALIGNMENT_BEGIN
+		col.custom_minimum_size.x = maxf(CardView.SIZE.x, FOOTER_W)
 		col.add_child(footer)
 		shop_row.add_child(col)
 		if hidden:
@@ -198,7 +203,7 @@ func _refresh(earned: int = -1) -> void:
 			back.visible = false
 			fx.play_burst()
 			_fill_footer(footer, opt, holder, is_kept, rarity)
-	flip_all.visible = unrevealed > 0
+	_show_flip_all(unrevealed > 0)
 	flip_all.text = "Flip all (%d)" % unrevealed
 
 ## What a reward looks like face up: a card, or a weapon panel with its icon and rarity colour.
@@ -409,7 +414,7 @@ func _update_flip_all() -> void:
 	for opt in _rewards:
 		if !opt.get("revealed", false):
 			left += 1
-	flip_all.visible = left > 0
+	_show_flip_all(left > 0)
 	flip_all.text = "Flip all (%d)" % left
 	if left == 0 and !_rewards.is_empty():
 		var best: Dictionary = _rewards[0]
@@ -420,7 +425,6 @@ func _update_flip_all() -> void:
 		var nm: String = Game.CARDS[best.id].name if best.kind == "card" else Fusion.display_name(str(best.id))
 		pull_label.text = "Best pull: %s %s" % [Game.rarity_name(br), nm]
 		pull_label.add_theme_color_override("font_color", Game.rarity_color(br))
-		pull_label.visible = true
 
 ## The rarity line and the Unlock / Convert buttons under a face-up reward.
 func _fill_footer(footer: VBoxContainer, opt: Dictionary, holder: Control, is_kept: bool, rarity: int, animate := false) -> void:
@@ -462,58 +466,70 @@ func _fill_footer(footer: VBoxContainer, opt: Dictionary, holder: Control, is_ke
 			tag.text = "Owned: +%d Shards" % opt.shards
 			tag.add_theme_color_override("font_color", UiKit.SKY)
 	footer.add_child(tag)
+	# the actions: ONE main button (what you most likely want) full width, and the other choices side by side under it
+	var main_btn: Button = null
+	var side: Array = []
 	if opt.result == "upgrade":
-		var upb := Button.new()
 		var cid := str(opt.id)
 		var is_weapon: bool = str(opt.get("kind", "card")) == "weapon"
 		var owned_next: bool = (Game.weapon_tier_unlocked(cid) if is_weapon else Game.card_tier(cid)) >= int(opt.tier)
 		var price: int = Game.weapon_tier_price(cid) if is_weapon else Game.card_upgrade_cost(cid)
-		upb.text = "Upgraded" if owned_next else "Upgrade (%d)" % price
-		upb.disabled = owned_next or Game.meta.shards < price
-		upb.pressed.connect(func():
+		main_btn = _action("Upgraded" if owned_next else "Upgrade  (%d)" % price, true, !owned_next and Game.meta.shards >= price, func():
 			if (Game.buy_weapon_tier(cid) if is_weapon else Game.upgrade_card(cid)):
 				Sfx.play_ui("reveal_3")
 				_refresh())
-		footer.add_child(upb)
-	if opt.result == "spare":
-		var merge := Button.new()
-		merge.text = "Merge -> T%d" % (int(opt.tier) + 1) if int(opt.tier) < Game.MAX_LEVEL else "Max tier"
-		merge.disabled = !Game.spare_can_merge(opt)
-		merge.tooltip_text = "Adds this copy to your card: a copy of the same tier raises it one tier (up to the deepest level you have reached)."
-		merge.pressed.connect(func():
+	elif opt.result == "spare":
+		var can_up: bool = int(opt.tier) < Game.MAX_LEVEL
+		main_btn = _action(("Merge  -> T%d" % (int(opt.tier) + 1)) if can_up else "Max tier", true, Game.spare_can_merge(opt), func():
 			if Game.spare_merge(opt):
 				Sfx.play_ui("reveal_3")
 				_refresh())
-		footer.add_child(merge)
-		if !Game.spare_pair(opt).is_empty() and int(opt.tier) < Game.MAX_LEVEL:
-			var comb := Button.new()
-			comb.text = "Combine pair -> T%d" % (int(opt.tier) + 1)
-			comb.tooltip_text = "Two spare copies of the same card and tier make one spare a tier higher."
-			comb.pressed.connect(func():
+		main_btn.tooltip_text = "Adds this copy to your card: a copy of the same tier raises it one tier (up to the deepest level you have reached)."
+		if !Game.spare_pair(opt).is_empty() and can_up:
+			var comb := _action("Combine", false, true, func():
 				if Game.spare_combine(opt):
 					Sfx.play_ui("reveal_2")
 					_refresh())
-			footer.add_child(comb)
-		var sell := Button.new()
-		sell.text = "Sell (+%d)" % Game.spare_sell_value(opt)
-		sell.pressed.connect(func():
+			comb.tooltip_text = "Two spare copies of the same card and tier make one spare a tier higher."
+			side.append(comb)
+		side.append(_action("Sell  +%d" % Game.spare_sell_value(opt), false, true, func():
 			Game.spare_sell(opt)
-			_refresh())
-		footer.add_child(sell)
-	if opt.result == "offer":
-		var unlock := Button.new()
-		unlock.text = "Unlock (%d)" % opt.cost
-		unlock.disabled = Game.meta.shards < opt.cost
-		unlock.pressed.connect(func():
+			_refresh()))
+	elif opt.result == "offer":
+		main_btn = _action("Unlock  (%d)" % opt.cost, true, Game.meta.shards >= opt.cost, func():
 			if Game.unlock_offer(opt):
 				_refresh())
-		footer.add_child(unlock)
-		var conv := Button.new()
-		conv.text = "Convert (+%d)" % Game.offer_convert_value(opt)
-		conv.pressed.connect(func():
+		side.append(_action("Convert  +%d" % Game.offer_convert_value(opt), false, true, func():
 			Game.convert_offer(opt)
-			_refresh())
-		footer.add_child(conv)
+			_refresh()))
+	if main_btn != null:
+		footer.add_child(main_btn)
+	if !side.is_empty():
+		var srow := HBoxContainer.new()
+		srow.add_theme_constant_override("separation", 6)
+		for b in side:
+			b.custom_minimum_size.x = (FOOTER_W - 6.0 * (side.size() - 1)) / side.size()
+			srow.add_child(b)
+		footer.add_child(srow)
+
+## One reward button, always the same width: the main one is highlighted, the others plain and smaller.
+func _action(text: String, main: bool, enabled: bool, cb: Callable) -> Button:
+	var b := Button.new()
+	b.text = text
+	b.disabled = !enabled
+	b.custom_minimum_size = Vector2(FOOTER_W, 34.0 if main else 28.0)
+	b.add_theme_font_size_override("font_size", UiKit.FONT_BODY if main else UiKit.FONT_SMALL)
+	if main and enabled:
+		for st in ["normal", "hover", "pressed"]:
+			b.add_theme_stylebox_override(st, UiKit.style(UiKit.GOLD_FILL, UiKit.GOLD, 6.0))
+	b.pressed.connect(cb)
+	return b
+
+## Show or hide the Flip all button without freeing its space (nothing below it moves).
+func _show_flip_all(on: bool) -> void:
+	flip_all.modulate.a = 1.0 if on else 0.0
+	flip_all.disabled = !on
+	flip_all.mouse_filter = Control.MOUSE_FILTER_STOP if on else Control.MOUSE_FILTER_IGNORE
 
 func _flip_all() -> void:
 	var todo: Array = _flippers.duplicate()

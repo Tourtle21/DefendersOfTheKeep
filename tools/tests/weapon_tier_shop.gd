@@ -23,6 +23,7 @@ func _initialize() -> void:
 				ok_once(game, r)
 	ok("tier draws happened (%d) and no weapon tier was applied by drawing" % drawn, drawn > 0 and game.weapon_tier_unlocked("sword") == 1 and game.weapon_tier_unlocked("pickaxe") == 1)
 	game.meta.tier_drawn["w:sword"] = 2
+	game.meta.shards = 100                       # (the reward draws above paid out Shards)
 	ok("once drawn the sword's tier 2 can be bought", game.can_buy_weapon_tier("sword"))
 	ok("tier 2 costs 8 Shards (the card curve)", game.weapon_tier_price("sword") == 8)
 	ok("buying it takes the Shards and unlocks tier 2", game.buy_weapon_tier("sword") and game.meta.shards == 92 and game.weapon_tier_unlocked("sword") == 2)
