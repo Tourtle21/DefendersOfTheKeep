@@ -45,7 +45,7 @@ func _initialize() -> void:
 	await wait(0.5)
 	net._set_base(p1, true)
 	net._set_base(p2, true)
-	game.mana = 500.0
+	game.mana = 100.0
 	game.resources = {"stone": 40, "stick": 40, "gold": 40}
 	await step("1. START: both players are in the keep and share one hand of cards (%s)" % str(game.hand))
 	for who in [[p1, "PLAYER 1", Vector2(220, 120)], [p2, "PLAYER 2", Vector2(-220, 120)]]:
@@ -70,7 +70,7 @@ func _initialize() -> void:
 		game.draft_owner_slot = s
 		game.draft_active = false
 		game.start_draft()
-		await step("CHEST for player %d: 3 cards to choose from, your hand (x2 = two copies) and your whole deck with copies held" % (s + 1))
+		await step("CHEST for player %d: 3 cards to choose from and your whole deck with copies held (a Combine button when a pair can go up)" % (s + 1))
 		if s == 0:
 			game.merge_hand(0, 1)
 			await step("PLAYER 1 combined the pair of Fireballs into one Tier 2 card")

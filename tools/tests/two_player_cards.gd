@@ -25,7 +25,8 @@ func _initialize() -> void:
 	var p2 = lp.avatars[1]
 	game.enter_base(p1)
 	game.enter_base(p2)
-	game.mana = 500.0
+	ok("a run starts with 15 mana (%.0f)" % game.mana, game.mana == 15.0)
+	game.mana = 100.0
 	game.resources = {"stone": 99, "stick": 99, "gold": 99}
 	# ---- start
 	ok("the run starts with the four starting cards, one copy each (%s)" % str(game.deck), game.deck.size() == 4 and game.deck.values().all(func(v): return v == 1))
@@ -61,7 +62,7 @@ func _initialize() -> void:
 			if c is Label:
 				labels.append(c.text)
 	ok("the deck row shows every deck card with its copies %s" % str(labels), view.deck_row.get_child_count() == game.deck.size() and "x2" in labels and labels.count("x1") == game.deck.size() - 1)
-	ok("the pair of Fireballs in the hand shows x2 and a Combine button", view.hand_row.get_child_count() >= 1 and view.combine_row.get_child_count() == (1 if game.can_merge(0, 1) else 0))
+	ok("the chest screen has no hand row, only a Combine button when a pair can go up", view.hand_row.get_child_count() == 0 and view.combine_row.get_child_count() == (1 if game.can_merge(0, 1) else 0))
 	if game.can_merge(0, 1):
 		game.merge_hand(0, 1)
 		ok("merging turns the pair into one tier-2 card", game.hand.size() == 1 and game.entry_tier(game.hand[0]) == 2)

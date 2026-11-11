@@ -1161,7 +1161,7 @@ func team_scale(per: float) -> float:
 	return 1.0 + per * float(player_count() - 1)
 
 func mana_regen() -> float:
-	return (3.0 + 1.5 * upgrade_levels.get("regen", 0) + bonus("mana_regen")) * team_scale(0.35)      # one shared mana pool, more people casting from it
+	return (1.0 + 1.5 * upgrade_levels.get("regen", 0) + bonus("mana_regen")) * team_scale(0.35)      # one shared mana pool, more people casting from it
 
 func draw_interval() -> float:
 	return max(1.5, (6.0 - 0.8 * upgrade_levels.get("draw", 0)) * (1.0 - bonus("draw_speed")))
@@ -1174,7 +1174,7 @@ func start_run() -> void:
 	run_stats = {"kills": 0, "gold": 0, "waves": 0, "bosses": 0}
 	sectors_unlocked = ["s"]
 	unlocked_cards = meta.unlocked.duplicate()
-	mana = 60.0
+	mana = 15.0
 	resources = {"stone": int(bonus("start_mats")), "stick": int(bonus("start_mats")), "gold": 0}
 	carried = {"stone": 0, "stick": 0, "gold": 0}
 	upgrade_levels = {}

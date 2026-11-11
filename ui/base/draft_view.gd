@@ -147,26 +147,12 @@ func render(cur := -1) -> void:
 		deck_row.add_child(dw)
 	_sub.visible = !_tight()
 	var groups: Array = Game.hand_groups()
-	hand_title.text = "Your cards" if !groups.is_empty() else "Your hand is empty"
-	hand_title.visible = !_tight()
-	var hs := cs * HAND_SCALE
+	hand_title.visible = false
 	var combine_first := true
 	for g in groups:
 		var can: bool = g.count > 1 and Game.can_merge(g.i, g.j)
-		var wrap := Control.new()                                     # every hand card sits in a slot of the same size
-		wrap.custom_minimum_size = CardView.SIZE * hs
-		var hv := CardView.new()
-		hv.setup(Game.entry_id(g.entry), Game.entry_tier(g.entry), ("x%d" % g.count) if g.count > 1 else "", Game.entry_twist(g.entry))
-		hv.scale = Vector2(hs, hs)
-		hv.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		wrap.add_child(hv)
-		if can:
-			var ring := UiKit.cursor_ring(CardView.SIZE * hs)          # a pair here can go up a tier: the Combine button below says which
-			ring.border_color = UiKit.GOOD
-			wrap.add_child(ring)
-		hand_row.add_child(wrap)
 		if !can:
-			continue                                                    # a pair whose next tier is locked shows no button (just the x2)
+			continue                                                    # (a pair whose next tier is locked shows no button)
 		var nxt: int = Game.entry_tier(g.entry) + 1
 		var b := Button.new()
 		b.text = (keys.get("combine", "") + "   " if combine_first and keys.has("combine") else "") + "Combine 2 %s  ->  Tier %d" % [Game.CARDS[Game.entry_id(g.entry)].name, nxt]
