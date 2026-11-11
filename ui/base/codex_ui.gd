@@ -128,7 +128,7 @@ func _refresh() -> void:
 				lines.append(str(inst.attack_name).split(" (")[0])
 			inst.free()
 		var footer: String = ("%d shards" % Game.WEAPON_UNLOCK_COSTS[id]) if locked and Game.WEAPON_UNLOCK_COSTS.has(id) else ("" if !known else ("STARTER" if id in ["sword", "pickaxe"] else ("UNLOCKED" if Game.weapon_unlocked(id) or Fusion.tier_of(id) > 1 else "")))
-		var card: TierCard = WeaponCard.make(id, Game.weapon_tier_unlocked(id), csize, {"lines": lines, "locked": locked, "footer": footer}) if known else WeaponCard.make(id, 0, csize,
+		var card: CardView = WeaponCard.make(id, Game.weapon_tier_unlocked(id), csize, {"lines": lines, "locked": locked, "footer": footer}) if known else WeaponCard.make(id, 0, csize,
 			{"title": "???", "icon": null, "glyph": "?", "max_tier": 0, "lines": [], "locked": false, "accent": UiKit.MUTED_DARK, "footer": ""})
 		card.position = Vector2(off_x + (n % cols) * (csize.x + 8.0), (n / cols) * (csize.y + 8.0))
 		card.set_selected(id == selected)

@@ -7,6 +7,7 @@ const ResIcons = preload("res://ui/cards/res_icons.gd")
 const UiKit = preload("res://ui/cards/ui_kit.gd")
 
 signal pressed_down(view: CardView)
+signal pressed(view: CardView)           # (the same click, under the name the other card widgets use)
 
 const SIZE := Vector2(96, 160)   # the 48x80 art at 2x
 
@@ -21,6 +22,24 @@ var _selected := false
 var _affordable := true
 var _hover := false
 var _ring: ReferenceRect
+var _scaler: Control                      # everything is drawn at SIZE inside this, scaled to fit_size
+var _sel_ring: ReferenceRect              # weapon cards show selection with a gold ring (spells lift)
+var fit_size := Vector2.ZERO              # draw the card to fit this box (ZERO: its natural SIZE)
+var weapon := {}                          # a weapon card: {title, icon, accent, lines, footer, footer_color, locked, glyph, tooltip}
+
+## A weapon as a card: the same layout as a spell or building card (frame, art window, name banner, text box, tier badge top-right),
+## in the weapon frame. `d` may hold title, icon (Texture2D), accent (the rarity colour, drawn as a thin line inside the frame),
+## lines, footer, footer_color, locked, glyph ("?" in the art window) and tooltip; fit is the box to draw it in.
+func setup_weapon(id: String, tier: int, d := {}, fit := Vector2.ZERO) -> void:
+	card_id = id
+	level = tier
+	weapon = d
+	fit_size = fit
+	if d.has("tooltip"):
+		tooltip_text = d.tooltip
+
+func set_selected(on: bool) -> void:
+	set_state(on, true)
 
 func setup(id: String, lvl := 1, badge_text := "", twist_id := "") -> void:
 	card_id = id
@@ -57,32 +76,67 @@ func _label(text: String, pos: Vector2, size: Vector2, font: int, color: Color, 
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return l
 
-func _ready() -> void:
-	custom_minimum_size = SIZE
-	size = SIZE
-	mouse_filter = Control.MOUSE_FILTER_STOP
-	var card: Dictionary = Game.CARDS[card_id]
-	var kind: String = card.get("art", card.kind)
+## The weapon's icon (or a glyph for one you have not met) centred in the art window, at a whole-number pixel scale.
+func _weapon_art() -> void:
+	var window := Rect2(11, 11, 74, 64)
+	var tex = weapon.get("icon")
+	if tex != null:
+		var ts: Vector2 = tex.get_size()
+		var ik := minf((window.size.x - 4.0) / ts.x, (window.size.y - 4.0) / ts.y)
+		ik = maxf(1.0, floorf(ik)) if ik >= 1.0 else ik
+		var dr := ts * ik
+		_face.add_child(_tex_of(tex, window.position + (window.size - dr) / 2.0, dr))
+	elif weapon.has("glyph"):
+		var g := _label(str(weapon.glyph), window.position, window.size, 36, weapon.get("accent", UiKit.ACCENT), true)
+		g.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		_face.add_child(g)
 
+func _tex_of(t: Texture2D, pos: Vector2, size: Vector2) -> TextureRect:
+	var r := _tex("res://ui/cards/card_back.png", pos, size)          # (a TextureRect set up the usual way, then given the picture)
+	r.texture = t
+	return r
+
+func _ready() -> void:
+	var k := 1.0 if fit_size == Vector2.ZERO else minf(fit_size.x / SIZE.x, fit_size.y / SIZE.y)
+	custom_minimum_size = SIZE * k
+	size = SIZE * k
+	mouse_filter = Control.MOUSE_FILTER_STOP
+	var card: Dictionary
+	var kind: String
+	if !weapon.is_empty() or !Game.CARDS.has(card_id):
+		card = {"name": str(weapon.get("title", card_id)), "mana": 0, "res": {}, "desc": "", "kind": "weapon"}
+		kind = "weapon"
+	else:
+		card = Game.CARDS[card_id]
+		kind = card.get("art", card.kind)
+
+	_scaler = Control.new()
+	_scaler.size = SIZE
+	_scaler.scale = Vector2(k, k)
+	_scaler.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_scaler)
 	_body = Control.new()
 	_body.size = SIZE
 	_body.pivot_offset = SIZE / 2.0
 	_body.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(_body)
+	_scaler.add_child(_body)
 
 	_face = Control.new()
 	_face.size = SIZE
 	_face.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_body.add_child(_face)
 	_face.add_child(_tex("res://ui/cards/frame_%s.png" % kind, Vector2.ZERO, SIZE))
-	_face.add_child(_tex("res://ui/cards/icon_%s.png" % kind, Vector2(32, 26), Vector2(32, 32)))
+	if kind == "weapon":
+		_weapon_art()
+	else:
+		_face.add_child(_tex("res://ui/cards/icon_%s.png" % kind, Vector2(32, 26), Vector2(32, 32)))
 
 	# mana cost badge, top-left of the art window
 	if card.mana > 0:
 		_face.add_child(_label(str(card.mana), Vector2(11, 9), Vector2(24, 18), 14, UiKit.SKY, false))
 	# level / draft badge, top-right of the art window
 	# a draft badge ("NEW", "+1 copy") also shows the tier of the offered card
-	var tag := ("T%d %s" % [level, badge.replace(" copy", "")]) if badge != "" else ("T%d" % level)        # every card shows its tier, tier 1 too (as weapon cards do)
+	var tag := ("T%d %s" % [level, badge.replace(" copy", "")]) if badge != "" else ("T%d" % level if level > 0 else "")        # every card shows its tier, tier 1 too
 	if tag != "":
 		var tl := _label(tag, Vector2(48, 9), Vector2(38, 18), 11, UiKit.GOLD_BRIGHT, false)
 		tl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
@@ -100,9 +154,25 @@ func _ready() -> void:
 		desc_text = "* " + Game.TWISTS[twist][0]          # the twist's name replaces the blurb; hover for what it does
 		desc_color = UiKit.GOLD_BRIGHT
 		tooltip_text = "%s\nTwist: %s - %s" % [card.desc, Game.TWISTS[twist][0], Game.TWISTS[twist][1]]
-	var desc := _label(desc_text, Vector2(10, 108), Vector2(76, 40), 10, desc_color, true, true)
+	if kind == "weapon":
+		desc_text = "\n".join(weapon.get("lines", []))
+		desc_color = UiKit.TEXT_HINT
+	var desc := _label(desc_text, Vector2(10, 108), Vector2(76, 26 if kind == "weapon" else 40), 10, desc_color, true, true)
 	desc.vertical_alignment = VERTICAL_ALIGNMENT_TOP
 	_face.add_child(desc)
+	if kind == "weapon" and str(weapon.get("footer", "")) != "":                     # a state ("HELD", "STORED", a price) at the bottom of the text box
+		_face.add_child(_label(str(weapon.footer), Vector2(10, 136), Vector2(76, 14), 10, weapon.get("footer_color", UiKit.WARM)))
+	if kind == "weapon" and weapon.has("accent"):                                    # the rarity, as a thin line just inside the frame
+		var rr := ReferenceRect.new()
+		rr.border_color = weapon.accent
+		rr.border_width = 2.0
+		rr.editor_only = false
+		rr.position = Vector2(7, 7)
+		rr.size = SIZE - Vector2(14, 14)
+		rr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_face.add_child(rr)
+	if kind == "weapon" and weapon.get("locked", false):
+		modulate = UiKit.MUTED
 
 	_back = _tex("res://ui/cards/card_back.png", Vector2.ZERO, SIZE)
 	_back.visible = false
@@ -116,6 +186,14 @@ func _ready() -> void:
 	_ring.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_ring.visible = false
 	_body.add_child(_ring)
+	_sel_ring = ReferenceRect.new()                  # weapon cards: the picked one has a gold ring
+	_sel_ring.border_color = UiKit.GOLD_BRIGHT
+	_sel_ring.border_width = 4.0
+	_sel_ring.editor_only = false
+	_sel_ring.size = SIZE
+	_sel_ring.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_sel_ring.visible = false
+	_body.add_child(_sel_ring)
 	focus_entered.connect(func(): _ring.visible = true)
 	focus_exited.connect(func(): _ring.visible = false)
 	mouse_entered.connect(func(): _hover = true; _apply())
@@ -125,9 +203,11 @@ func _ready() -> void:
 func _on_gui_input(event: InputEvent) -> void:
 	if event.is_action_pressed("ui_accept") and focus_mode == Control.FOCUS_ALL:
 		pressed_down.emit(self)
+		pressed.emit(self)
 		return
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		pressed_down.emit(self)
+		pressed.emit(self)
 
 func set_state(selected: bool, affordable: bool) -> void:
 	_selected = selected
@@ -136,6 +216,10 @@ func set_state(selected: bool, affordable: bool) -> void:
 
 func _apply() -> void:
 	if _body == null:
+		return
+	if !weapon.is_empty():                           # weapon cards: a ring when picked, a small lift on hover, no glow
+		_sel_ring.visible = _selected
+		create_tween().tween_property(_body, "position:y", -6.0 if _hover else 0.0, 0.08)
 		return
 	var lift := -16.0 if _selected else (-8.0 if _hover else 0.0)
 	create_tween().tween_property(_body, "position:y", lift, 0.08)
