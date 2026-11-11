@@ -2,7 +2,7 @@ extends CanvasLayer
 ## The keep screen for a local split-screen player (players 2 to 4): their hand, mana, a cursor over their view of the
 ## map, and what their controller does inside a tower. It shows only while that player is inside a tower.
 ##   A leave   B / LT put the card back   LB / RB pick a card   RT place it (or jump to a lit tower)
-##   X merge the picked card   d-pad up repair the keep   d-pad left / right choose an upgrade   d-pad down buy it
+##   X merge / fuse the picked card (reload the tower with none picked)   d-pad up / down choose Repair or an upgrade   Y buy it
 ## During a chest draft the same player can pick a card with the left stick / d-pad and A.
 const UiKit = preload("res://ui/cards/ui_kit.gd")
 
@@ -177,17 +177,8 @@ func poll(dev: int, delta: float) -> void:
 		else:
 			Game.teleport_to_tower(pl, Game.tower_at(_world_pos(), 34.0, Game.current_tower(pl)), false)
 	if x and sel >= 0 and sel < hand_n:
-		for j in hand_n:
-			if j != sel and Game.can_merge(sel, j):
-				Game.merge_hand(sel, j)
-				sel = -1
-				break
-		if sel >= 0:
-			for j in hand_n:
-				if j != sel and Game.can_fuse_pair(sel, j):          # a different card it fuses with: fused right here, no Card Fuser trip
-					Game.fuse_hand(sel, j)
-					sel = -1
-					break
+		if Game.merge_or_fuse_picked(sel):
+			sel = -1
 	elif x:
 		Game.reload_tower_of(pl)                           # X with no card in hand reloads the tower you are in
 	var n_items: int = Game.keep_menu_items().size()

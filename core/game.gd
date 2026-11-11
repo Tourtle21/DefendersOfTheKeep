@@ -2119,6 +2119,17 @@ func keep_menu_buy(i: int) -> bool:
 	var id: String = keep_menu_items()[i % keep_menu_items().size()]
 	return repair_keep() if id == "repair" else buy_upgrade(id)
 
+## The picked hand card i: merge it with an identical one (next tier), or fuse it with a different card it combines with. Both
+## player 1's controller (Pad) and players 2-4 (LocalKeepUi) use this on X, so they behave the same.
+func merge_or_fuse_picked(i: int) -> bool:
+	for j in hand.size():
+		if j != i and can_merge(i, j):
+			return merge_hand(i, j)
+	for j in hand.size():
+		if j != i and can_fuse_pair(i, j):
+			return fuse_hand(i, j)
+	return false
+
 ## Reload the arrows of the tower this player is standing in.
 func reload_tower_of(player: Node) -> bool:
 	var tower = current_tower(player)

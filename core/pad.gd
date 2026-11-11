@@ -259,9 +259,14 @@ func _input(event: InputEvent) -> void:
 				JOY_BUTTON_Y:
 					Game.keep_menu_buy(Game._keep_sel)                                                 # buy the highlighted one
 				JOY_BUTTON_X:
-					var me := _local_player()
-					if me != null:
-						Game.reload_tower_of(me)                                                       # reload the tower you are in
+					if _keep_card >= 0 and _keep_card < Game.hand.size():
+						if Game.merge_or_fuse_picked(_keep_card):                                      # the picked card: merge / fuse it (same as players 2-4)
+							_keep_card = -1
+							_key(KEY_ESCAPE)
+					else:
+						var me := _local_player()
+						if me != null:
+							Game.reload_tower_of(me)                                                   # nothing picked: reload the tower you are in
 		elif mode == "all":
 			_set_using(true)
 
