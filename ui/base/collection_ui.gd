@@ -17,6 +17,8 @@ var tab_id := "cards"
 const TierCard = preload("res://ui/cards/tier_card.gd")
 var grid_area: Control          # the spells column
 var build_area: Control         # the buildings column
+var _auto_refreshes := 0        # how many times the layout settling has redrawn the grid since it opened (capped: no endless redraw)
+var _laid_out := Vector2.ZERO
 var tier_row: HBoxContainer
 var _focus_id := ""
 var _views := {}
@@ -51,8 +53,11 @@ func _ready() -> void:
 		var area := Control.new()
 		area.clip_contents = true
 		area.size_flags_vertical = Control.SIZE_EXPAND_FILL
-		area.resized.connect(func():              # the panel settles after first layout: redraw at its real size
-			if root_ctl != null and root_ctl.visible:
+		area.custom_minimum_size = Vector2(160, 160)       # (a fixed floor, so the cards inside never push the column bigger)
+		area.resized.connect(func():              # the panel settles after first layout: redraw at its real size, a few times at most
+			if root_ctl != null and root_ctl.visible and _auto_refreshes < 3 and (area.size - _laid_out).length() > 24.0:
+				_auto_refreshes += 1
+				_laid_out = area.size
 				_refresh.call_deferred())
 		col.add_child(area)
 		return area
@@ -81,6 +86,8 @@ func _ready() -> void:
 
 func open() -> void:
 	root_ctl.visible = true
+	_auto_refreshes = 0
+	_laid_out = Vector2.ZERO
 	if selected == "":
 		selected = Game.CARDS.keys()[0]
 	await get_tree().process_frame

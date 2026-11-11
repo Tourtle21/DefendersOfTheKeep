@@ -152,5 +152,6 @@ func _refresh() -> void:
 
 func _play() -> void:
 	Game._menu_done = true
+	Music._update()                             # the music starts now, not while the menu is up
 	get_tree().paused = false
 	queue_free()

@@ -41,9 +41,15 @@ func _ready() -> void:
 		_update())
 	Game.run_ended.connect(func(_info): _fade_out())
 	_update()
-	# the themes you hear first are built up front; the rest on first use (~0.4s each)
-	for theme_name in ["desert", "boss"]:
-		tracks[theme_name] = _build(THEMES[theme_name], theme_name)
+	_prebuild.call_deferred()
+
+## The first themes are built while the start menu is up (one every couple of seconds), so building them never stalls the game
+## or the menu screens. Any other theme is built the first time it is needed (~0.4 s).
+func _prebuild() -> void:
+	for theme_name in ["grass", "desert", "boss"]:
+		await get_tree().create_timer(2.5).timeout
+		if !tracks.has(theme_name):
+			tracks[theme_name] = _build(THEMES[theme_name], theme_name)
 
 func current_theme() -> String:
 	if _boss_active:
@@ -51,6 +57,8 @@ func current_theme() -> String:
 	return SECTOR_THEME[Game.sectors_unlocked.back()]
 
 func _update() -> void:
+	if !Game._menu_done:
+		return                                  # the start menu is silent: the music begins when you press Play
 	var want := current_theme()
 	if want == _current:
 		return
