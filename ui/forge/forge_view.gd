@@ -6,7 +6,7 @@ extends Control
 
 const ResIcons = preload("res://ui/cards/res_icons.gd")
 const UiKit = preload("res://ui/cards/ui_kit.gd")
-const TierCard = preload("res://ui/cards/tier_card.gd")
+const WeaponCard = preload("res://ui/cards/weapon_card.gd")
 const ForgeLayout = preload("res://ui/forge/forge_layout.gd")
 const MAX_LEVEL := 7
 
@@ -309,11 +309,9 @@ func _fill_areas(list: Array, picks: Array, cur: int) -> void:
 				col.add_child(group)
 				box.add_child(col)
 			var tw: String = Game.entry_twist(it.entry)
-			var card = TierCard.new()
-			card.setup({"size": _card_size(), "title": "T%d" % Game.weapon_tier_of(it.entry), "icon": ForgeLayout.icon(it.id),
-				"tier": Game.weapon_tier_of(it.entry), "max_tier": 6, "lines": ["* " + Game.TWISTS[tw][0]] if tw != "" and Game.TWISTS.has(tw) and !small else [],
-				"accent": Game.rarity_color(Game.weapon_rarity(it.id)), "footer": "PICKED" if n in picks else ("HELD" if held else "STORED"),
-				"footer_color": UiKit.GOOD if held else UiKit.STORE_TEXT})
+			var card = WeaponCard.make(it.id, Game.weapon_tier_of(it.entry), _card_size(), {"title": "T%d" % Game.weapon_tier_of(it.entry),
+				"lines": ["* " + Game.TWISTS[tw][0]] if tw != "" and Game.TWISTS.has(tw) and !small else [],
+				"footer": "PICKED" if n in picks else ("HELD" if held else "STORED"), "footer_color": UiKit.GOOD if held else UiKit.STORE_TEXT})
 			card.set_selected(n == cur or n in picks)
 			card.focus_mode = Control.FOCUS_ALL if focusable else Control.FOCUS_NONE
 			if keys.is_empty():
@@ -359,7 +357,7 @@ func _chip(c: Array) -> Control:
 	v.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	v.alignment = BoxContainer.ALIGNMENT_CENTER
 	var tr := TextureRect.new()
-	tr.texture = ForgeLayout.icon(c[0])
+	tr.texture = WeaponCard.icon(c[0])
 	tr.custom_minimum_size = Vector2(48, 48)
 	tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED

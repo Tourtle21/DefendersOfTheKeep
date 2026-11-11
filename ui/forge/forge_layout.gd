@@ -25,10 +25,6 @@ static func items(held: Array, stored: Array) -> Array:
 		return Game.weapon_tier_of(a.entry) > Game.weapon_tier_of(b.entry))
 	return out
 
-static func icon(id: String) -> Texture2D:
-	var info: Dictionary = load("res://world/item_info.tres").items.get(id, {})
-	return UiKit.weapon_icon(str(info.texture)) if info.has("texture") else null
-
 ## What the picked pair would make: Game.forge_preview plus the text every Forge screen shows; p.cost is shown by the screen as resource icons.
 static func preview(list: Array, picks: Array) -> Dictionary:
 	var none := {"ok": false, "kind": "", "result": ""}

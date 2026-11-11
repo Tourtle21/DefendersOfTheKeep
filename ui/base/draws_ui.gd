@@ -4,7 +4,7 @@ extends CanvasLayer
 
 const UiKit = preload("res://ui/cards/ui_kit.gd")
 var tab_id := "draws"
-const TierCard = preload("res://ui/cards/tier_card.gd")
+const WeaponCard = preload("res://ui/cards/weapon_card.gd")
 
 signal closed
 
@@ -93,9 +93,7 @@ func _refresh() -> void:
 			view.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			holder.add_child(view)
 		elif info.has(id):
-			var wc := TierCard.new()
-			wc.setup({"size": csize, "title": Fusion.display_name(id), "icon": _icon_of(str(info[id].texture)), "tier": int(h.tier), "max_tier": 6,
-				"accent": Game.rarity_color(Game.weapon_rarity(id)), "footer": "WEAPON"})
+			var wc := WeaponCard.make(id, int(h.tier), csize, {"footer": "WEAPON"})
 			wc.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			holder.add_child(wc)
 		var count := Label.new()
@@ -108,15 +106,3 @@ func _refresh() -> void:
 		count.add_theme_color_override("font_color", UiKit.GOLD)
 		holder.add_child(count)
 		grid_area.add_child(holder)
-
-## Sword and pickaxe use sprite sheets: show their first frame.
-const SHEETS := {"res://items/tools/sword/excalibur_.png": Vector2i(4, 4), "res://items/tools/pickaxe/pickaxe.png": Vector2i(2, 2)}
-
-func _icon_of(path: String) -> Texture2D:
-	var tex: Texture2D = load(path)
-	if SHEETS.has(path):
-		var at := AtlasTexture.new()
-		at.atlas = tex
-		at.region = Rect2(0, 0, tex.get_width() / SHEETS[path].x, tex.get_height() / SHEETS[path].y)
-		return at
-	return tex

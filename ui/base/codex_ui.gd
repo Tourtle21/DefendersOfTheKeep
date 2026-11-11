@@ -8,6 +8,7 @@ const ResIcons = preload("res://ui/cards/res_icons.gd")
 const UiKit = preload("res://ui/cards/ui_kit.gd")
 var tab_id := "weapons"
 const TierCard = preload("res://ui/cards/tier_card.gd")
+const WeaponCard = preload("res://ui/cards/weapon_card.gd")
 signal closed
 
 var root_ctl: Control
@@ -119,7 +120,6 @@ func _refresh() -> void:
 		var id: String = ids[n]
 		var known := _known(id)
 		var locked: bool = known and (Game.WEAPON_UNLOCK_COSTS.has(id) or id in Game.LEGENDARY_WEAPONS) and !Game.weapon_unlocked(id)
-		var card := TierCard.new()
 		var lines := []
 		if known:
 			var inst = load(_info.items[id].path).instantiate()
@@ -127,10 +127,9 @@ func _refresh() -> void:
 			if inst.attack_name != "":
 				lines.append(str(inst.attack_name).split(" (")[0])
 			inst.free()
-		card.setup({"size": csize, "title": Fusion.display_name(id) if known else "???", "icon": _icon_of(str(_info.items[id].texture)) if known else null,
-			"glyph": "?" if !known else "", "tier": Game.weapon_tier_unlocked(id) if known else 0, "max_tier": 6 if known else 0, "lines": lines, "locked": locked,
-			"accent": Game.rarity_color(Game.weapon_rarity(id)) if known else UiKit.MUTED_DARK,
-			"footer": ("%d shards" % Game.WEAPON_UNLOCK_COSTS[id]) if locked and Game.WEAPON_UNLOCK_COSTS.has(id) else ("" if !known else ("STARTER" if id in ["sword", "pickaxe"] else ("UNLOCKED" if Game.weapon_unlocked(id) or Fusion.tier_of(id) > 1 else "")))})
+		var footer: String = ("%d shards" % Game.WEAPON_UNLOCK_COSTS[id]) if locked and Game.WEAPON_UNLOCK_COSTS.has(id) else ("" if !known else ("STARTER" if id in ["sword", "pickaxe"] else ("UNLOCKED" if Game.weapon_unlocked(id) or Fusion.tier_of(id) > 1 else "")))
+		var card: TierCard = WeaponCard.make(id, Game.weapon_tier_unlocked(id), csize, {"lines": lines, "locked": locked, "footer": footer}) if known else WeaponCard.make(id, 0, csize,
+			{"title": "???", "icon": null, "glyph": "?", "max_tier": 0, "lines": [], "locked": false, "accent": UiKit.MUTED_DARK, "footer": ""})
 		card.position = Vector2(off_x + (n % cols) * (csize.x + 8.0), (n / cols) * (csize.y + 8.0))
 		card.set_selected(id == selected)
 		card.pressed.connect(func(_c):
@@ -251,15 +250,3 @@ func _name_tool_moves(id: String, inst) -> void:
 		inst.attack_name = "Slash"; inst.dash_name = "Slash Dash"; inst.ability_name = "Whirlwind"; inst.ultimate_name = "Blade Tempest"
 	elif id == "pickaxe":
 		inst.attack_name = "Mine"; inst.dash_name = "Dash-Mine"; inst.ability_name = "Seismic Strike"; inst.ultimate_name = "Earthquake"
-
-## Sword and pickaxe use sprite sheets: show their first frame.
-const SHEETS := {"res://items/tools/sword/excalibur_.png": Vector2i(4, 4), "res://items/tools/pickaxe/pickaxe.png": Vector2i(2, 2)}
-
-func _icon_of(path: String) -> Texture2D:
-	var tex: Texture2D = load(path)
-	if SHEETS.has(path):
-		var at := AtlasTexture.new()
-		at.atlas = tex
-		at.region = Rect2(0, 0, tex.get_width() / SHEETS[path].x, tex.get_height() / SHEETS[path].y)
-		return at
-	return tex

@@ -5,13 +5,13 @@ extends CanvasLayer
 const UiKit = preload("res://ui/cards/ui_kit.gd")
 const DrawsUi = preload("res://ui/base/draws_ui.gd")
 const TierCard = preload("res://ui/cards/tier_card.gd")
+const WeaponCard = preload("res://ui/cards/weapon_card.gd")
 var root_ctl: Control
 var title: Label
 var summary: Label
 const FOOTER_W := 150.0             # every reward column is this wide ...
 const FOOTER_H := 128.0             # ... and this tall under the card (rarity, tag, main button, side buttons)
 var shop_row: Container
-var extras_row: Container
 var skills: SkillTreeUi
 var codex: CodexUi
 var reward_head: Label
@@ -90,11 +90,6 @@ func _ready() -> void:
 	recipe_label.add_theme_font_size_override("font_size", UiKit.FONT_BODY)
 	box.add_child(recipe_label)
 	box.add_child(shop_row)                      # wraps onto more rows: no scrolling
-	extras_row = HFlowContainer.new()                  # wraps onto more lines instead of running off the screen
-	extras_row.alignment = FlowContainer.ALIGNMENT_CENTER
-	extras_row.custom_minimum_size = Vector2(1000, 0)
-	extras_row.add_theme_constant_override("h_separation", 10)
-	extras_row.add_theme_constant_override("v_separation", 6)
 	var again := Button.new()
 	again.text = "Continue"
 	again.custom_minimum_size = Vector2(240, 52)
@@ -118,7 +113,6 @@ func _show(info: Dictionary) -> void:
 
 func _refresh(earned: int = -1) -> void:
 	shards_label.text = ("+%d Shards earned   " % earned if earned >= 0 else "") + "Shards: %d" % Game.meta.shards
-	_refresh_extras()
 	for c in shop_row.get_children():
 		shop_row.remove_child(c)
 		c.queue_free()
@@ -213,43 +207,9 @@ func _make_face(opt: Dictionary) -> Control:
 		view.setup(opt.id, opt.tier)
 		view.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		return view
-	var r: int = Game.weapon_rarity(str(opt.id))
-	var panel := Panel.new()
-	panel.custom_minimum_size = CardView.SIZE
-	panel.size = CardView.SIZE
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = UiKit.PANEL
-	sb.border_color = Game.rarity_color(r)
-	sb.set_border_width_all(3)
-	sb.set_corner_radius_all(6)
-	panel.add_theme_stylebox_override("panel", sb)
-	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var icon := TextureRect.new()
-	var info = load("res://world/item_info.tres").items.get(str(opt.id), {})
-	if info.has("texture"):
-		icon.texture = UiKit.weapon_icon(str(info.texture))          # (the pickaxe and sword are sprite sheets)
-	icon.position = Vector2(24, 22)
-	icon.size = Vector2(48, 48)
-	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	panel.add_child(icon)
-	var name_l := Label.new()
-	name_l.text = Fusion.display_name(str(opt.id))
-	name_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	name_l.position = Vector2(4, 78)
-	name_l.size = Vector2(88, 22)
-	name_l.add_theme_font_size_override("font_size", UiKit.FONT_TINY)
-	panel.add_child(name_l)
-	var kind_l := Label.new()
-	kind_l.text = ("TIER %d" % int(opt.tier)) if opt.get("result", "") == "upgrade" else "WEAPON"
-	kind_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	kind_l.position = Vector2(4, 108)
-	kind_l.size = Vector2(88, 20)
-	kind_l.add_theme_font_size_override("font_size", UiKit.FONT_TINY)
-	kind_l.add_theme_color_override("font_color", UiKit.TEXT_HINT)
-	panel.add_child(kind_l)
-	return panel
+	var wc := WeaponCard.make(str(opt.id), int(opt.tier), CardView.SIZE)       # the same weapon card every screen shows
+	wc.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return wc
 
 ## Cards fly in one after another, each with a whoosh that climbs in pitch, then wobble gently while face down.
 func _deal(holder: Control, index: int) -> void:
@@ -546,63 +506,3 @@ func _flip_all() -> void:
 	for f in todo:
 		f.call()
 		await get_tree().create_timer(0.8, true).timeout
-
-## Weapon unlocks, fusion tiers and the starting weapon, as compact buttons.
-func _refresh_extras() -> void:
-	return                      # the unlock shop moved to the main menu
-	Game.fix_meta()
-
-	for c in extras_row.get_children():
-		extras_row.remove_child(c)
-		c.queue_free()
-	var items: Dictionary = load("res://world/item_info.tres").items
-	for id in Game.WEAPON_UNLOCK_COSTS:
-		if id in Game.SECTOR_WEAPONS.values():
-			continue                      # sector weapons are unlocked in the weapon codex or from reward draws
-		var owned: bool = id in Game.meta.weapons
-		var price: int = Game.WEAPON_UNLOCK_COSTS[id]
-		var seen: bool = Game.is_seen(id)
-		var can: bool = !owned and seen and Game.meta.shards >= price
-		var c := TierCard.new()
-		if !seen:
-			c.setup({"size": Vector2(92, 130), "title": "???", "glyph": "?", "accent": UiKit.MUTED_DARK, "locked": true, "footer": "not found", "footer_color": UiKit.MUTED})
-			extras_row.add_child(c)
-			continue
-		c.setup({"size": Vector2(92, 130), "title": Fusion.display_name(id), "icon": load(items[id].texture), "tier": 1 if owned else 0, "max_tier": 6,
-			"accent": Game.rarity_color(Game.weapon_rarity(id)), "locked": !owned and !can,
-			"footer": "OWNED" if owned else "%d shards" % price, "footer_color": UiKit.GOOD if owned else (UiKit.WARM if can else UiKit.KEEP_FILL),
-			"tooltip": "Adds this weapon to the chest pool for every run."})
-		c.set_selected(can)
-		if can:
-			c.pressed.connect(func(_c):
-				if Game.buy_weapon(id):
-					_refresh())
-		extras_row.add_child(c)
-	for t in Game.FUSION_TIER_COSTS:
-		var have: bool = Game.fusion_tier_unlocked(t)
-		var price: int = Game.FUSION_TIER_COSTS[t]
-		var gated: bool = t > 3 and !Game.fusion_tier_unlocked(t - 1)
-		var can: bool = !have and !gated and Game.meta.shards >= price
-		var c := TierCard.new()
-		c.setup({"size": Vector2(92, 130), "title": "Fusions T%d" % t, "glyph": "T%d" % t, "tier": t if have else t - 1, "max_tier": 4,
-			"lines": ["Forge tier %d" % t], "accent": UiKit.KEEP_FILL, "locked": !have and !can,
-			"footer": "OWNED" if have else ("needs T%d" % (t - 1) if gated else "%d shards" % price),
-			"footer_color": UiKit.GOOD if have else (UiKit.WARM if can else UiKit.KEEP_FILL)})
-		c.set_selected(can)
-		if can:
-			c.pressed.connect(func(_c):
-				if Game.buy_fusion_tier(t):
-					_refresh())
-		extras_row.add_child(c)
-	var l := Label.new()
-	l.text = "Start with:"
-	l.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	extras_row.add_child(l)
-	var opt := OptionButton.new()
-	opt.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	var options: Array = Game.start_weapon_options()
-	for o in options:
-		opt.add_item(Fusion.display_name(String(o)))
-	opt.selected = max(0, options.find(Game.meta.start_weapon))
-	opt.item_selected.connect(func(i: int): Game.set_start_weapon(options[i]))
-	extras_row.add_child(opt)
