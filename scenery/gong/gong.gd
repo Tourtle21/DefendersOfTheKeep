@@ -39,10 +39,6 @@ func _ready() -> void:
 	area.body_exited.connect(func(_b): hovering = Game.has_local_player(area))
 	z_index = 2
 
-func _input(event: InputEvent) -> void:
-	if hovering and event.is_action_pressed("interact") and !(Game.draft_active and Game.draft_owner_slot == 0) and !Game.menu_open():
-		ring()
-
 ## Ring the gong: the sound, the swing, and the next wave.
 func ring() -> void:
 	if _pause > 0.0:

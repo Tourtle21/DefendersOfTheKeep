@@ -48,71 +48,15 @@ func _tick_life(delta: float) -> void:
 func entry() -> String:
 	return Game.make_weapon_entry(item_type, bonus, twist)
 
-func _input(event: InputEvent) -> void:
-	if hovering and event.is_action_pressed("interact") and !Game.menu_open():
-		if item_info.items[item_type]["type"] == "resource":
-			# resources are carried and pooled in the keep (see core/game.gd)
-			Game.pick_up_resource(item_type)
-			queue_free()
-			return
-		if _locked():
-			Game.announce.emit("%s is locked. Draw it at the end of a run to unlock it." % Fusion.display_name(item_type))
-			$AnimationPlayer.play("invalid")
-			return
-		var winfo: Dictionary = Game.weapon_info(entry())
-		if _merge_into_held(winfo):
-			return
-		if player.get_parent().get_node("Hud").equip_item(winfo):
-			if (item_info.items[item_type]["type"] == "item" and player.get_parent() != null):
-				player.equip_item(winfo)
-			queue_free()
-		else:
-			var info: Dictionary = winfo
-			if info["type"] == "item":
-				# every slot is full: swap with the active weapon and drop the old one here
-				var old = player.get_parent().get_node("Hud").swap_active(info)
-				if old != null:
-					player.equip_item(info)
-					var old_entry: String = old.get("entry", "")
-					if old_entry == "":
-						var found = item_info.items.find_key(old)
-						old_entry = found if found != null else ""
-					if old_entry != "":
-						var pick = load("res://collectables/collectable.tscn").instantiate()
-						pick.item_type = Game.entry_id(old_entry)
-						pick.bonus = Game.weapon_bonus(old_entry)
-						pick.twist = Game.entry_twist(old_entry)
-						pick.fixed = true
-						pick.position = player.global_position + Vector2(0, 18)
-						player.get_parent().add_child.call_deferred(pick)
-					queue_free()
-					return
-			$AnimationPlayer.play("invalid")
-			
-## Standing on a copy of a weapon you hold: pick it up straight into a merge (the keep's stores pay), see Game.pickup_merge.
-func _merge_into_held(winfo: Dictionary) -> bool:
-	var hud = player.get_parent().get_node("Hud")
-	var held: Array = hud.held_entries()
-	var m: Dictionary = Game.pickup_merge(held.map(func(h): return h.entry), str(winfo.entry))
-	if m.is_empty():
-		return false
-	Game.pay(m.cost)
-	hud.remove_slot(held[m.idx].slot)
-	var merged: Dictionary = Game.weapon_info(m.result)
-	if hud.equip_item(merged):
-		player.equip_item(merged)
-	Game.announce.emit(m.text)
-	Sfx.play("unlock", 0.0)
-	queue_free()
-	return true
-
 ## A weapon you have not unlocked cannot be picked up.
 func _locked() -> bool:
 	return item_info.items[item_type]["type"] == "item" and !Game.weapon_unlocked(item_type) and !Game.weapon_known(item_type)
 
-## Pickup by a co-op avatar (the local keyboard path is _input above).
+## Pickup by any player (Net.interact_objects): player 1 too.
 func pickup_by(pl) -> bool:
 	if _locked():
+		Game.announce.emit("%s is locked. Draw it at the end of a run to unlock it." % Fusion.display_name(item_type))
+		$AnimationPlayer.play("invalid")
 		return false
 	var info = item_info.items[item_type]
 	if info["type"] == "resource":

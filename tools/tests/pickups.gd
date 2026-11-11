@@ -41,7 +41,7 @@ func _initialize() -> void:
 	var ev := InputEventAction.new()
 	ev.action = "interact"
 	ev.pressed = true
-	c._input(ev)
+	root.get_node("Net")._input(ev)               # player 1 interacts through Net, like everyone
 	await wait(0.4)
 	print("after pressing interact: ", slot_names(hud), " | holding: ", player.item.weapon_name if player.item.get("weapon_name") != null else player.item.name)
 	var dropped := []

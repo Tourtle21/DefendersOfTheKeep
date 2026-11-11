@@ -64,6 +64,20 @@ func remove_slot(i: int) -> void:
 	if active_item_slot == i:
 		active_item_slot = -1
 
+## After the weapon in your hand left, pick up another one you still hold (or none).
+func equip_any() -> void:
+	var slots = item_slots.get_children()
+	for i in slots.size():
+		if slots[i].has_item:
+			if active_item_slot != -1 and active_item_slot != i:
+				slots[active_item_slot].toggle_active()
+			if !slots[i].is_active:
+				slots[i].toggle_active()
+			active_item_slot = i
+			player.equip_item(slots[i].current_item)
+			return
+	player.clear_item()
+
 ## All three slots are full: replace the active weapon with `new_item`.
 ## Returns the weapon that was swapped out (or null if there was nothing to swap).
 func swap_active(new_item):

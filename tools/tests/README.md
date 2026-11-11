@@ -73,3 +73,4 @@ Local split screen: `split_two_pads.gd` (two simulated controllers, 22 checks: e
 `card_fuser.gd`: the Card Fuser (opposite the Forge): recipes, gold cost, same-tier rule, the screen, the `card_fuse` net command's range check, casting a fused card.
 | two_player_cards.gd | two players share the hand and deck: start (4-card deck, hand of 3), both cast, 3-card chest, deck row with copy counts, merge |
 | card_tour.gd | a slow, watchable 2-player run of the keep's cards in a real window (hold=<s>) |
+| shared_hands.gd | player 1 (HUD slots) and a split-screen player (weapon_slots) go through the same Net hand functions: give, store, take out, craft, pickup-merge; both end in the same state |

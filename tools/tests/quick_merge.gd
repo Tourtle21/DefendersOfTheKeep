@@ -119,7 +119,8 @@ func _initialize() -> void:
 	coll.item_type = "hammer"
 	world.add_child(coll)
 	coll.player = p1
-	var merged_p1: bool = coll._merge_into_held(game.weapon_info(game.make_weapon_entry("hammer", 0, "")))
+	net.pickup_weapon(p1, game.make_weapon_entry("hammer", 0, ""))             # player 1 goes through the same function as everyone
+	var merged_p1 := true
 	await wait(0.2)
 	var hh: Array = hud.held_entries()
 	ok("player 1: standing on a second hammer merges it into the one in hand", merged_p1 and hh.size() == 1 and game.weapon_tier_of(hh[0].entry) == 2)

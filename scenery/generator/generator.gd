@@ -56,10 +56,6 @@ func _process(delta: float) -> void:
 			stored += 1
 	queue_redraw()
 
-func _input(event: InputEvent) -> void:
-	if hovering and event.is_action_pressed("interact") and !(Game.draft_active and Game.draft_owner_slot == 0) and !Game.menu_open():
-		use()
-
 ## Activate, collect or upgrade, depending on the state. Returns what happened.
 func use(who = null) -> String:
 	if level == 0:

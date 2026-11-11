@@ -52,13 +52,6 @@ func _process(delta: float) -> void:
 		return
 	queue_redraw()
 
-func _input(event: InputEvent) -> void:
-	if hovering and !opened and event.is_action_pressed("interact") and !Game.menu_open():
-		Game.draft_owner_slot = 0
-		if _open():
-			opened = true
-			queue_free()
-
 func open_now() -> void:   # used by tests
 	if _open():
 		opened = true

@@ -104,14 +104,9 @@ func quick_merge() -> bool:
 	var p = get_tree().get_first_node_in_group("player")
 	if p == null or Game.local_in_base() or p.get("is_in_tower"):
 		return false
-	var m := _merge_options()
-	if m.is_empty() or !m.ok:
-		return false
-	selected = [m.slot_a, m.slot_b]
-	_craft()
-	selected = []
+	var done: bool = Net.merge_held(p)               # the same function every other player uses
 	_merge_clock = 0.0
-	return true
+	return done
 
 func _entry_of(info: Dictionary) -> String:
 	if info.has("entry"):
@@ -160,66 +155,25 @@ func _toggle(key: int) -> void:
 		selected = [selected[1], key]
 	_refresh()
 
-## Take the picked weapons away (held ones leave the slots, stored ones leave the forge).
-## Returns true if one of them was the weapon in your hand.
-func _consume_selected() -> bool:
-	var hud = _hud()
-	var was_active := false
-	var held := []
-	var stored := []
-	for k in selected:
-		(stored if k >= 100 else held).append(k - 100 if k >= 100 else k)
-	stored.sort()
-	stored.reverse()
-	for j in stored:
-		Game._forge_store.remove_at(j)
-	held.sort()
-	held.reverse()                 # remove the higher slot first so the other index stays valid
-	var slots = hud.item_slots.get_children()
-	for i in held:
-		if slots[i].is_active:
-			was_active = true
-		hud.remove_slot(i)
-	return was_active
+## A picked key as the forge rules see it: ["held", position among the weapons you hold] or ["store", index in the forge].
+func _src_of(key: int) -> Array:
+	if key >= 100:
+		return ["store", key - 100]
+	var held: Array = _held_entries()
+	for n in held.size():
+		if held[n].slot == key:
+			return ["held", n]
+	return ["held", -1]
 
-## The new weapon goes into your hands if there is room, otherwise it waits in the forge (Net._craft's rule).
-func _place(entry: String, was_active: bool) -> void:
-	var info := Game.weapon_info(entry)
-	if _hud().equip_item(info):
-		get_tree().get_first_node_in_group("player").equip_item(info)
-	else:
-		if Game._forge_store.size() < Game.FORGE_STORE_MAX:
-			Game._forge_store.append(entry)
-		if was_active:
-			_equip_any()
-
-## After the weapon in your hand left, pick up another one you still hold (or none).
-func _equip_any() -> void:
-	var hud = _hud()
-	var player = get_tree().get_first_node_in_group("player")
-	var slots = hud.item_slots.get_children()
-	for i in slots.size():
-		if slots[i].has_item:
-			if hud.active_item_slot != -1 and hud.active_item_slot != i:
-				slots[hud.active_item_slot].toggle_active()
-			if !slots[i].is_active:
-				slots[i].toggle_active()
-			hud.active_item_slot = i
-			player.equip_item(slots[i].current_item)
-			return
-	player.clear_item()
-
-## Fuse or combine the two picked weapons by the shared rule (Game.forge_preview). Returns true if it happened.
+## Fuse or combine the two picked weapons: Net.craft, the same function every other player's forge uses. Returns true if it happened.
 func _craft() -> bool:
 	if selected.size() != 2:
 		return false
-	var p: Dictionary = Game.forge_preview(_item_for(selected[0]).get("entry", ""), _item_for(selected[1]).get("entry", ""))
-	if !p.ok:
+	var a := _src_of(selected[0])
+	var b := _src_of(selected[1])
+	var p = get_tree().get_first_node_in_group("player")
+	if !Net.craft(p, a[0], a[1], b[0], b[1]):
 		return false
-	Game.pay(p.cost)
-	if p.has("key"):
-		Game.note_recipe(p.key)
-	_place(p.result, _consume_selected())
 	Sfx.play("unlock", 0.0)
 	return true
 
@@ -240,26 +194,14 @@ func fuse() -> void:
 func awaken() -> void:
 	forge()
 
-## Drop the picked held weapon into the forge, or take the picked stored one out.
+## Drop the picked held weapon into the forge, or take the picked stored one out (Net.toggle_store, shared with the other players).
 func _store_or_take() -> void:
 	if selected.size() != 1:
 		return
-	var it := _item_for(selected[0])
-	if it.is_empty():
+	var src := _src_of(selected[0])
+	var p = get_tree().get_first_node_in_group("player")
+	if !Net.toggle_store(p, src[0], src[1]):
 		return
-	if it.src == "held":
-		if Game._forge_store.size() >= Game.FORGE_STORE_MAX:
-			return
-		var was_active := _consume_selected()
-		Game._forge_store.append(it.entry)
-		if was_active:
-			_equip_any()
-	else:
-		var info := Game.weapon_info(it.entry)
-		if !_hud().equip_item(info):
-			return
-		Game._forge_store.remove_at(it.idx)
-		get_tree().get_first_node_in_group("player").equip_item(info)
 	Sfx.play("unlock", 0.0)
 	selected = []
 	_refresh()

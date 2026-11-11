@@ -243,11 +243,65 @@ const STATION_REACH := 31.0          # how close to the Forge / Card Fuser a pla
 static func near_station(pl, station: Vector2) -> bool:
 	return pl != null and is_instance_valid(pl) and pl.global_position.distance_to(station) <= STATION_REACH
 
-## Give a co-op avatar a weapon: a free slot if there is one, otherwise swap with the
-## active weapon (the old one is dropped as a pickup).
-## An avatar picks up a weapon: if it matches one they hold (and the keep can pay) the two merge, otherwise it is given as usual.
+## --- A player's hands: ONE set of functions for player 1 (whose weapons live in the HUD slots) and for every other player
+## (LAN clients and split-screen, whose weapons live in weapon_slots). Everything that picks up, merges, forges or stores a
+## weapon goes through these, so there is one rule for all of them.
+
+## The HUD of player 1, or null for any other player.
+func _hud_of(pl):
+	var par = pl.get_parent() if pl != null else null
+	if par != null and par.has_node("Hud") and par.get_node("Hud").get("player") == pl:
+		return par.get_node("Hud")
+	return null
+
+## The weapon entries this player holds, in slot order.
+func held_of(pl) -> Array:
+	var hud = _hud_of(pl)
+	if hud != null:
+		return hud.held_entries().map(func(h): return h.entry)
+	return pl.weapon_slots
+
+## Drop a weapon on the ground next to the player.
+func _drop_weapon(pl, old: String) -> void:
+	var pick = load("res://collectables/collectable.tscn").instantiate()
+	pick.item_type = Game.entry_id(old)
+	pick.bonus = Game.weapon_bonus(old)
+	pick.twist = Game.entry_twist(old)
+	pick.fixed = true
+	pick.position = pl.global_position + Vector2(0, 18)
+	Game.world.add_child.call_deferred(pick)
+
+## Give a weapon: a free slot if there is one, otherwise swap with the active weapon (the old one is dropped as a pickup).
+func give_weapon(pl, entry: String) -> void:
+	var hud = _hud_of(pl)
+	if hud != null:
+		var info := Game.weapon_info(entry)
+		if hud.equip_item(info):
+			pl.equip_item(info)
+			return
+		var old = hud.swap_active(info)
+		if old != null:
+			pl.equip_item(info)
+			var old_entry: String = old.get("entry", "")
+			if old_entry == "":
+				var found = hud.item_slots.get_child(0).item_info.items.find_key(old)
+				old_entry = found if found != null else ""
+			if old_entry != "":
+				_drop_weapon(pl, old_entry)
+		return
+	var slots: Array = pl.weapon_slots
+	if slots.size() < 3:
+		slots.append(entry)
+		pl.active_slot = slots.size() - 1
+	else:
+		var old: String = slots[pl.active_slot]
+		slots[pl.active_slot] = entry
+		_drop_weapon(pl, old)
+	pl.equip_item(Game.weapon_info(entry))
+
+## A player picks up a weapon: if it matches one they hold (and the keep can pay) the two merge, otherwise it is given as usual.
 func pickup_weapon(pl, entry: String) -> void:
-	var m: Dictionary = Game.pickup_merge(pl.weapon_slots, entry)
+	var m: Dictionary = Game.pickup_merge(held_of(pl), entry)
 	if m.is_empty():
 		give_weapon(pl, entry)
 		return
@@ -256,23 +310,6 @@ func pickup_weapon(pl, entry: String) -> void:
 	give_weapon(pl, m.result)
 	Game.announce.emit(m.text)
 	Sfx.play("unlock", 0.0)
-
-func give_weapon(pl, entry: String) -> void:
-	var slots: Array = pl.weapon_slots
-	if slots.size() < 3:
-		slots.append(entry)
-		pl.active_slot = slots.size() - 1
-	else:
-		var old: String = slots[pl.active_slot]
-		slots[pl.active_slot] = entry
-		var pick = load("res://collectables/collectable.tscn").instantiate()
-		pick.item_type = Game.entry_id(old)
-		pick.bonus = Game.weapon_bonus(old)
-		pick.twist = Game.entry_twist(old)
-		pick.fixed = true
-		pick.position = pl.global_position + Vector2(0, 18)
-		Game.world.add_child.call_deferred(pick)
-	pl.equip_item(Game.weapon_info(entry))
 
 func _interact(pl) -> void:
 	if pl.downed:
@@ -283,23 +320,38 @@ func _interact(pl) -> void:
 	if _tower_at_door(pl.global_position) != null:
 		_set_base(pl, true)
 		return
+	interact_objects(pl)
+
+## Player 1's interact key goes through the same function as everyone else's (the tower doors and the stations open their own screens).
+func _input(event: InputEvent) -> void:
+	if !event.is_action_pressed("interact") or Game.menu_open() or (Game.draft_active and Game.draft_owner_slot == 0) or Game.world == null:
+		return
+	var p1 = Game.world.get_node_or_null("Player")
+	if p1 == null or p1.downed or p1.is_in_tower:
+		return
+	interact_objects(p1)
+
+## Chests, generators, the gong and pickups within reach of this player: the ONE rule for player 1 (see _input below), split-screen
+## players and LAN clients. Returns true if it used something.
+func interact_objects(pl) -> bool:
 	for c in get_tree().get_nodes_in_group("chest"):
 		if is_instance_valid(c) and !c.opened and c.global_position.distance_to(pl.global_position) <= 25.0:
 			Game.draft_owner_slot = int(pl.get_meta("local_slot", 0))
 			c.open_now()
-			return
+			return true
 	for g in get_tree().get_nodes_in_group("generator"):
 		if is_instance_valid(g) and !Rep.is_puppet(g) and g.is_visible_in_tree() and g.global_position.distance_to(pl.global_position) <= 26.0:
 			g.use(pl)
-			return
+			return true
 	for g in get_tree().get_nodes_in_group("gong"):
 		if is_instance_valid(g) and g.global_position.distance_to(pl.global_position) <= g.REACH:
 			g.ring()
-			return
+			return true
 	for p in get_tree().get_nodes_in_group("pickup"):
 		if is_instance_valid(p) and p.global_position.distance_to(pl.global_position) <= 28.0:
 			p.pickup_by(pl)
-			return
+			return true
+	return false
 
 ## A LAN client or split-screen player fuses two cards of the shared hand at the Card Fuser.
 func card_fuse(pl, a: int, b: int) -> void:
@@ -309,11 +361,22 @@ func card_fuse(pl, a: int, b: int) -> void:
 
 ## --- The forge's storage, for avatars (LAN clients and local split-screen players use these same rules) ---
 
-## Take held weapons (by slot index) out of an avatar's hands and keep a sensible weapon equipped.
+## Take held weapons (by position in held_of) out of a player's hands and keep a sensible weapon equipped.
 func forge_remove_held(pl, indexes: Array) -> void:
 	var idx := indexes.duplicate()
 	idx.sort()
 	idx.reverse()
+	var hud = _hud_of(pl)
+	if hud != null:
+		var held: Array = hud.held_entries()
+		var was_active := false
+		for i in idx:
+			if hud.active_item_slot == held[i].slot:
+				was_active = true
+			hud.remove_slot(held[i].slot)
+		if was_active:
+			hud.equip_any()
+		return
 	for i in idx:
 		pl.weapon_slots.remove_at(i)
 	if pl.weapon_slots.is_empty():
@@ -326,38 +389,47 @@ func forge_remove_held(pl, indexes: Array) -> void:
 func forge_toggle_store(pl, src: String, idx: int) -> void:
 	if !near_station(pl, FORGE_POS):
 		return
+	toggle_store(pl, src, idx)
+
+## (The same, for a front-end that has already checked the player is at the forge.) Returns true if something moved.
+func toggle_store(pl, src: String, idx: int) -> bool:
+	var held := held_of(pl)
 	if src == "held":
-		if idx < 0 or idx >= pl.weapon_slots.size() or Game._forge_store.size() >= Game.FORGE_STORE_MAX:
-			return
-		var entry: String = pl.weapon_slots[idx]
+		if idx < 0 or idx >= held.size() or Game._forge_store.size() >= Game.FORGE_STORE_MAX:
+			return false
+		var entry: String = held[idx]
 		forge_remove_held(pl, [idx])
 		Game._forge_store.append(entry)
-	elif idx >= 0 and idx < Game._forge_store.size() and pl.weapon_slots.size() < 3:
+		return true
+	elif idx >= 0 and idx < Game._forge_store.size() and held.size() < 3:
 		var e: String = Game._forge_store[idx]
 		Game._forge_store.remove_at(idx)
 		give_weapon(pl, e)
+		return true
+	return false
 
 func _forge_entry(pl, src: String, idx: int) -> String:
 	if src == "held":
-		return pl.weapon_slots[idx] if idx >= 0 and idx < pl.weapon_slots.size() else ""
+		var held := held_of(pl)
+		return held[idx] if idx >= 0 and idx < held.size() else ""
 	return Game._forge_store[idx] if idx >= 0 and idx < Game._forge_store.size() else ""
 
 ## Fuse or combine two weapons, each one held ("held", slot) or stored ("store", index). Any mix.
 func forge_craft(pl, a_src: String, a_idx: int, b_src: String, b_idx: int) -> void:
 	if !near_station(pl, FORGE_POS):
 		return
-	_craft(pl, a_src, a_idx, b_src, b_idx)
+	craft(pl, a_src, a_idx, b_src, b_idx)
 
 ## Merge two weapons you are holding, anywhere (no forge needed). Returns true if it happened.
 func merge_held(pl) -> bool:
 	if pl == null or !is_instance_valid(pl) or pl.downed or pl.is_in_tower:
 		return false
-	var m := Game.held_merge(pl.weapon_slots)
+	var m := Game.held_merge(held_of(pl))
 	if m.is_empty() or !m.ok:
 		return false
-	return _craft(pl, "held", m.a, "held", m.b)
+	return craft(pl, "held", m.a, "held", m.b)
 
-func _craft(pl, a_src: String, a_idx: int, b_src: String, b_idx: int) -> bool:
+func craft(pl, a_src: String, a_idx: int, b_src: String, b_idx: int) -> bool:
 	if a_src == b_src and a_idx == b_idx:
 		return false
 	var ea := _forge_entry(pl, a_src, a_idx)
@@ -383,7 +455,7 @@ func _craft(pl, a_src: String, a_idx: int, b_src: String, b_idx: int) -> bool:
 		Game._forge_store.remove_at(j)
 	if !held.is_empty():
 		forge_remove_held(pl, held)
-	if pl.weapon_slots.size() < 3:
+	if held_of(pl).size() < 3:
 		give_weapon(pl, p.result)
 	elif Game._forge_store.size() < Game.FORGE_STORE_MAX:
 		Game._forge_store.append(p.result)
