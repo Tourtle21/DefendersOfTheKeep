@@ -29,7 +29,7 @@ func _ability(delta: float, t, dist: float) -> bool:
 			if _valid_target(p):
 				var rel: Vector2 = p.global_position - global_position
 				if rel.length() <= 110.0 and rel.normalized().dot(_dash_dir) > 0.95:
-					p.take_damage(global_position, 8.0)
+					p.take_damage(global_position, 8.0 * power)
 					p.blink(-rel.normalized() * minf(rel.length() - 14.0, 46.0))          # pulled in
 		return false
 	if ability_cd <= 0.0 and dist >= 40.0 and dist <= 110.0:

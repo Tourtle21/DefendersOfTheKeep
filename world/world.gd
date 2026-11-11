@@ -203,34 +203,51 @@ func _spawn_position_raw() -> Vector2:
 			return p
 	return Vector2(0, 1240)
 
-## The wave the player picked, made harder by how far into the run we are:
-## more enemies, higher levels, a spread across every unlocked sector, and new
-## enemy types (brutes every third wave, runners from wave 6, spitters from wave 5, splitters from wave 6).
-func wave_plan(picked: Array) -> Array:
+## Three new kinds of enemy per level (sector). They are introduced one by one over the level's five waves (the first from wave 1,
+## the second from wave 3, the third on wave 5 with the boss), and the boss wave has all three plus every kind from the levels
+## before. A kind has a base scene and may be a recoloured, bigger or faster variant of it.
+const ROSTER := {
+	1: [{"name": "goblin", "label": "Goblin"}, {"name": "blobbert", "label": "Blobbert"}, {"name": "scarab", "label": "Scarab"}],
+	2: [{"name": "runner", "label": "Runner"}, {"name": "spitter", "label": "Spitter"}, {"name": "golem", "label": "Golem"}],
+	3: [{"name": "splitter", "label": "Splitter"}, {"name": "frost_imp", "label": "Frost Imp"}, {"name": "brute", "label": "Brute"}],
+	4: [{"name": "ember_imp", "label": "Ember Imp"}, {"name": "goblin", "label": "Cinder Goblin", "tint": Color(1.0, 0.55, 0.25), "scale": 1.12, "speed": 1.2},
+		{"name": "brute", "label": "Magma Brute", "tint": Color(1.0, 0.45, 0.3), "scale": 1.15}],
+	5: [{"name": "bog_lurker", "label": "Bog Lurker"}, {"name": "scarab", "label": "Venom Scarab", "tint": Color(0.5, 1.0, 0.4), "scale": 1.12},
+		{"name": "spitter", "label": "Mire Spitter", "tint": Color(0.55, 0.9, 0.35), "scale": 1.1}],
+	6: [{"name": "crystal_guard", "label": "Crystal Guard"}, {"name": "runner", "label": "Prism Runner", "tint": Color(0.85, 0.6, 1.0), "speed": 1.15},
+		{"name": "splitter", "label": "Shard Splitter", "tint": Color(0.8, 0.65, 1.0), "scale": 1.12}],
+}
+const INTRO_WAVE := [1, 3, 5]             # the wave of a level on which its 1st, 2nd and 3rd new kind first show up
+const LEVEL_POWER_STEP := 0.5             # each level's own kinds are this much tougher (health and damage) than the level before ...
+const OLD_BUFF_STEP := 0.12               # ... and the kinds of earlier levels grow by this much for every level since (never past the newer ones)
+
+## How much tougher (health and damage) a kind from level `l` is while the front level is `front`: 1.0, 1.5, 2.0 ... for each
+## level's own kinds, and older kinds get +12% per level since they were new, which keeps them below the newer ones.
+static func kind_power(l: int, front: int) -> float:
+	return (1.0 + LEVEL_POWER_STEP * float(l - 1)) * (1.0 + OLD_BUFF_STEP * float(front - l))
+
+## The wave that is about to start: the kinds of every level up to the front one, the newest level's kinds phased in over its five waves.
+func wave_plan(_picked := []) -> Array:
 	var w: int = Game.run_stats.waves
+	var front: int = clampi(Game.sectors_unlocked.size(), 1, ROSTER.size())
+	var k: int = clampi(waves_in_sector, 1, WAVES_PER_SECTOR)
 	var factor := WAVE_SIZE * Game.team_scale(Game.WAVE_TEAM_SCALE) * early_size_mult(w)        # every group grows with the number of players (LAN and split screen)
-	var bonus := int(w * 0.4) + (Game.sectors_unlocked.size() - 1)
-	var level_bonus := int(w / 3.0)
-	var plan := []
 	if night_wave:
 		factor *= 1.3                  # a night wave is a bigger one
-		level_bonus += 1
-	for e in picked:
-		plan.append({"name": e.name, "amount": int(ceil((e.amount + bonus) * factor)), "level": e.level + level_bonus})
-	if w >= 3 and w % 3 == 0:
-		plan.append({"name": "brute", "amount": int(ceil(int(w / 3.0) * factor)), "level": 1})
-	if w >= 6:                         # the fast runners start later and come in small groups (about 2 at wave 6, 3 by wave 10)
-		plan.append({"name": "runner", "amount": int(ceil(ceil((w - 3) / 4.0) * factor)), "level": 1})
-	if w >= 5:
-		plan.append({"name": "spitter", "amount": int(ceil(int(w / 4.0) * factor)), "level": 1})
-	if w >= 6:
-		plan.append({"name": "splitter", "amount": int(ceil(int(w / 3.0) * factor)), "level": 1})
-	# each opened biome sends its own kind: golems, frost and ember imps, bog lurkers, crystal guards
-	var biome_enemy := {"se": "golem", "ne": "frost_imp", "n": "ember_imp", "nw": "bog_lurker", "sw": "crystal_guard"}
-	if w >= 2:
-		for sec in Game.sectors_unlocked:
-			if biome_enemy.has(sec):
-				plan.append({"name": biome_enemy[sec], "amount": int(ceil((1 + w / 4.0) * factor)), "level": 1})
+	var plan := []
+	for l in range(1, front + 1):
+		var kinds: Array = ROSTER[l]
+		for i in kinds.size():
+			var fresh: bool = l == front
+			if fresh and k < INTRO_WAVE[i]:
+				continue               # not introduced yet
+			var amount: int = int(ceil((1.5 + 0.7 * k) * factor)) if fresh else maxi(1, int(ceil((0.5 + 0.25 * k) * factor)))
+			var entry: Dictionary = kinds[i].duplicate()
+			entry["amount"] = amount
+			entry["level"] = l
+			entry["power"] = kind_power(l, front) * (1.0 + 0.08 * float(i))        # the later kinds of a level are a little tougher again
+			entry["new"] = fresh and k == INTRO_WAVE[i]
+			plan.append(entry)
 	return plan
 
 const ELITE_AFFIXES := ["shielded", "hasty", "leeching"]
@@ -275,11 +292,17 @@ func spawn_enemies(enemies, draw_lines := []) -> void:
 		total += e.amount
 	Game.night_wave_now = night_wave
 	var head := "%s wave %d" % ["Night" if night_wave else "Day", Game.run_stats.waves]
-	var lines: Array = draw_lines.duplicate()
+	var lines: Array = []
+	var fresh := []
+	for e in plan:
+		if e.get("new", false):
+			fresh.append(str(e.label))
+	if !fresh.is_empty():
+		lines.append("New: " + ", ".join(fresh))
 	lines.append("%d enemies from %d direction(s)%s" % [total, Game.sectors_unlocked.size(), " (shrouded until lit)" if night_wave else ""])
 	for b in get_tree().get_nodes_in_group("wave_banner"):      # player 1's, and each split-screen player's own
 		b.show_wave(head.to_upper() + " STARTS", lines)
-	Game.announce.emit("%s starts: %d enemies. %s" % [head, total, " / ".join(draw_lines)])
+	Game.announce.emit("%s starts: %d enemies. %s" % [head, total, lines[0] if !fresh.is_empty() else ""])
 	Sfx.play("wave_horn")
 	var elite_chance := elite_chance_for(Game.run_stats.waves)
 	for enemy in plan:
@@ -287,8 +310,15 @@ func spawn_enemies(enemies, draw_lines := []) -> void:
 			var scene = load("res://enemies/" + enemy.name + "/" + enemy.name + ".tscn")
 			var enemy_scene = scene.instantiate()
 			enemy_scene.level = enemy.level
+			enemy_scene.power = enemy.get("power", 1.0)
 			enemy_scene.position = _spawn_position()
 			$Enemies.add_child(enemy_scene)
+			if enemy.has("tint") and enemy_scene.has_node("Sprite2D"):
+				enemy_scene.get_node("Sprite2D").self_modulate = enemy.tint          # a variant: the same enemy in other colours,
+			if enemy.has("scale"):
+				enemy_scene.scale = Vector2.ONE * float(enemy.scale)                  # bigger,
+			if enemy.has("speed"):
+				enemy_scene.speed *= float(enemy.speed)                               # or faster
 			if enemy_scene.has_method("apply_affix") and randf() < elite_chance:
 				enemy_scene.apply_affix(ELITE_AFFIXES.pick_random())
 	

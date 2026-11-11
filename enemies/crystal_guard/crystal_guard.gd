@@ -38,7 +38,7 @@ func _ability(delta: float, t, dist: float) -> bool:
 	if _dashing(delta):
 		if !_bash_hit and _valid_target(t) and t.global_position.distance_to(global_position) <= 20.0:
 			_bash_hit = true
-			t.take_damage(global_position, 16.0)
+			t.take_damage(global_position, 16.0 * power)
 			t.global_position += (t.global_position - global_position).normalized() * 14.0
 		return true
 	if ability_cd <= 0.0 and dist > 24.0 and dist < 70.0:

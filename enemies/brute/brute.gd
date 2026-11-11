@@ -19,7 +19,7 @@ func _ability(delta: float, t, dist: float) -> bool:
 		WeaponFx.spawn(Game.world, "ring", global_position, Color(1.0, 0.7, 0.3), {"radius": 44.0, "life": 0.3})
 		for p in get_tree().get_nodes_in_group("player"):
 			if _valid_target(p) and p.global_position.distance_to(global_position) <= 44.0:
-				p.take_damage(global_position, 20.0)
+				p.take_damage(global_position, 20.0 * power)
 		return false
 	if ability_cd <= 0.0 and dist <= 50.0:
 		_wind = 0.75

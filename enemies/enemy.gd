@@ -7,6 +7,7 @@ class_name Enemy
 
 var health = max_health
 var level = 1
+var power := 1.0                     # how much tougher than the base type (health and damage): set by the wave plan before it enters the tree
 var detection_distance = 200
 var is_taking_damage = false
 var has_crystal = false
@@ -112,7 +113,10 @@ func _ready():
 	$AnimationPlayer.play("walking")
 	nav_agent.path_desired_distance = 5.0       # the defaults (20 / 10) cut corners and bump into obstacles
 	nav_agent.target_desired_distance = 7.0
-	max_health *= Game.enemy_health_mult()          # (not the wave's level: only the bosses you have beaten make them tougher)
+	max_health *= Game.enemy_health_mult()          # (the bosses you have beaten make them tougher)
+	max_health *= power                             # and the level this kind of enemy belongs to (see World.ROSTER)
+	contact_damage *= power
+	keep_dps *= sqrt(power)
 	speed += level * 2
 	
 	health = max_health
