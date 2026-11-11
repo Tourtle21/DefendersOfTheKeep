@@ -15,6 +15,7 @@ var landed := false
 var _tick := 0.0
 var light_radius := 0.0     # > 0 once a bright spell (flare, fire zone) has landed: it is a light source (group "light")
 var _glow: GlowLight
+var _pulses := 0            # (host only) pulses a tier 5 fireball has sent
 
 func setup(card: Dictionary, target: Vector2, from: Vector2) -> void:
 	data = card
@@ -25,6 +26,7 @@ func setup(card: Dictionary, target: Vector2, from: Vector2) -> void:
 	radius = card.radius
 	flight = 0.1 if card.kind == "flare" else max(0.15, from.distance_to(target) / card.speed)         # a Flare is just there, at your aim
 	effect_time = 0.4 if card.kind == "fireball" else card.get("duration", 0.3)
+	effect_time = SpellTiers.effect_time(self, effect_time)
 
 func _ready() -> void:
 	add_to_group("net")
@@ -66,6 +68,7 @@ func _apply_twist() -> void:
 	var plain: Dictionary = data.duplicate()
 	plain.twist = ""
 	plain.adds = []
+	plain.copy = true                    # a copy (twin, echo) has the tier's looks and abilities, but never a finale
 	for tw in adds:
 		_apply_add(String(tw), world, tree, pos, plain)
 
@@ -120,6 +123,7 @@ func _physics_process(delta: float) -> void:
 		if age >= flight:
 			landed = true
 			_apply_twist()
+			SpellTiers.on_land(self)
 			if data.get("night", false) and data.kind in ["flare", "zone"] and data.get("element", "") == "fire":
 				light_radius = radius                      # the landed spell is a light source until it ends
 				add_to_group("light")
@@ -127,9 +131,9 @@ func _physics_process(delta: float) -> void:
 					_glow.texture_scale = maxf(0.1, radius * 2.0 / 128.0)
 					_glow.base_energy = 0.65
 			if data.kind == "fireball":
-				LightSource.spawn(get_parent(), position, radius * 1.6, 2.0, Color(1.0, 0.7, 0.3))      # the blast lights the area for a moment
-				for e in _in_radius("enemy"):
-					e.spell_damage(data.damage, data.get("element", ""), true)
+				var lit := SpellTiers.fireball_light(self)
+				LightSource.spawn(get_parent(), position, radius * lit[0], lit[1], Color(1.0, 0.7, 0.3))      # the blast lights the area for a while
+				SpellTiers.blast_fireball(self)
 			elif data.kind == "meteor":
 				LightSource.spawn(get_parent(), position, radius * 1.4, data.duration + 1.0, Color(1.0, 0.7, 0.3))
 				WeaponUtil.rain(get_tree(), get_parent(), position, radius, int(data.get("count", 10)), data.duration, data.damage, 26.0, _color())
@@ -193,6 +197,7 @@ func _physics_process(delta: float) -> void:
 		"aegis":
 			for p in _in_radius("player"):
 				p.shield_time = max(p.shield_time, 0.3)
+	SpellTiers.tick(self, delta)
 	if age >= flight + effect_time:
 		queue_free()
 	queue_redraw()
@@ -212,7 +217,7 @@ func _draw() -> void:
 	var col := _color().lerp(Color(1.0, 0.92, 0.5), 0.1 * (tier - 1))          # a higher tier tints toward gold
 	if landed and tier >= 2:
 		for i in tier - 1:                                                      # and gets one more ring inside the area for each tier
-			draw_arc(Vector2.ZERO, radius * (1.0 - 0.14 * (i + 1)), 0, TAU, 40, Color(col, 0.35), 1.0)
+			draw_arc(Vector2.ZERO, radius * (1.0 - 0.14 * (i + 1)), 0, TAU, 40, Color(col, 0.245 if SpellArt.has_body(str(data.get("id", ""))) else 0.35), 1.0)
 	if !landed:
 		# target outline closes in as the shot approaches
 		var t: float = age / flight
@@ -223,13 +228,15 @@ func _draw() -> void:
 		for i in 6:
 			var tt: float = max(0.0, t - i * 0.03)
 			draw_circle(from_local.lerp(Vector2.ZERO, tt), 3.0 - i * 0.4, Color(col, 0.9 - i * 0.14))
+		SpellArt.draw_flight(self, t, col)
 		return
 	var since := age - flight
 	if data.kind == "fireball":
-		var fade: float = 1.0 - since / 0.4
+		var fade: float = clampf(1.0 - since / 0.4, 0.0, 1.0)
 		draw_circle(Vector2.ZERO, radius, Color(col, 0.6 * fade))
 	else:
 		var fade: float = clamp((effect_time - since) / 1.0, 0.0, 1.0)
 		var pulse: float = 0.5 + 0.5 * sin(since * 4.0)
 		draw_circle(Vector2.ZERO, radius, Color(col, (0.15 + 0.1 * pulse) * fade))
 		draw_arc(Vector2.ZERO, radius, 0, TAU, 48, Color(col, 0.8 * fade), 1.5)
+	SpellArt.draw(self, since, col)
