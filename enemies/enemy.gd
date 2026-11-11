@@ -7,6 +7,7 @@ class_name Enemy
 
 var health = max_health
 var level = 1
+var ghost := false                   # underground (the Venom Burrower's dive): nothing can hurt it
 var power := 1.0                     # how much tougher than the base type (health and damage): set by the wave plan before it enters the tree
 var detection_distance = 200
 var is_taking_damage = false
@@ -364,6 +365,8 @@ func _charmed(delta: float) -> void:
 		$Sprite2D.scale.x = 1
 
 func take_damage(damage_origin: Vector2):
+	if ghost:
+		return
 	provoke()
 	if !is_taking_damage:
 		is_taking_damage = true
@@ -423,6 +426,8 @@ func apply_traits(amount: float, element: String, aoe := false) -> float:
 	return a
 
 func spell_damage(amount: float, element := "", aoe := false) -> void:
+	if ghost:
+		return
 	if element == "fire":
 		Game.light_up(self, 2.5)          # fire is bright: it lights what it hits, so it is never shrouded
 	provoke()
