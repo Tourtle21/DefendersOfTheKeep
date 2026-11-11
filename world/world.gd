@@ -206,7 +206,7 @@ func _spawn_position_raw() -> Vector2:
 	return Vector2(0, 1240)
 
 ## Three new kinds of enemy per level (sector). They are introduced one by one over the level's five waves (the first from wave 1,
-## the second from wave 3, the third on wave 5 with the boss), and the boss wave has all three plus every kind from the levels
+## the second from wave 2, the third from wave 4, so every kind gets a wave before the boss), and the boss wave has all three plus every kind from the levels
 ## before. A kind has a base scene and may be a recoloured, bigger or faster variant of it.
 const ROSTER := {
 	1: [{"name": "goblin", "label": "Goblin"}, {"name": "blobbert", "label": "Blobbert"}, {"name": "scarab", "label": "Scarab"}],
@@ -219,7 +219,7 @@ const ROSTER := {
 	6: [{"name": "crystal_guard", "label": "Crystal Guard"}, {"name": "runner", "label": "Prism Runner", "tint": Color(0.85, 0.6, 1.0), "speed": 1.15},
 		{"name": "splitter", "label": "Shard Splitter", "tint": Color(0.8, 0.65, 1.0), "scale": 1.12}],
 }
-const INTRO_WAVE := [1, 3, 5]             # the wave of a level on which its 1st, 2nd and 3rd new kind first show up
+const INTRO_WAVE := [1, 2, 4]             # the wave of a level on which its 1st, 2nd and 3rd new kind first show up (every kind gets at least one wave before the boss)
 const LEVEL_POWER_STEP := 0.5             # each level's own kinds are this much tougher (health and damage) than the level before ...
 const OLD_BUFF_STEP := 0.12               # ... and the kinds of earlier levels grow by this much for every level since (never past the newer ones)
 

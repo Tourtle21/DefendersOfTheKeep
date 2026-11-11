@@ -292,6 +292,10 @@ func _interact(pl) -> void:
 		if is_instance_valid(g) and !Rep.is_puppet(g) and g.is_visible_in_tree() and g.global_position.distance_to(pl.global_position) <= 26.0:
 			g.use(pl)
 			return
+	for g in get_tree().get_nodes_in_group("gong"):
+		if is_instance_valid(g) and g.global_position.distance_to(pl.global_position) <= g.REACH:
+			g.ring()
+			return
 	for p in get_tree().get_nodes_in_group("pickup"):
 		if is_instance_valid(p) and p.global_position.distance_to(pl.global_position) <= 28.0:
 			p.pickup_by(pl)

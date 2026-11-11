@@ -10,7 +10,7 @@ static func _radius(e: Node) -> float:
 
 static func enemies_in_circle(tree: SceneTree, pos: Vector2, r: float) -> Array:
 	var out := []
-	for e in tree.get_nodes_in_group("enemy") + tree.get_nodes_in_group("critter") + tree.get_nodes_in_group("gong"):
+	for e in tree.get_nodes_in_group("enemy") + tree.get_nodes_in_group("critter"):
 		if _alive(e) and e.global_position.distance_to(pos) <= r + _radius(e):
 			out.append(e)
 	return out
@@ -25,7 +25,7 @@ static func enemies_in_arc(tree: SceneTree, pos: Vector2, dir: Vector2, r: float
 
 static func enemies_in_line(tree: SceneTree, pos: Vector2, dir: Vector2, length: float, width: float) -> Array:
 	var out := []
-	for e in tree.get_nodes_in_group("enemy") + tree.get_nodes_in_group("gong"):
+	for e in tree.get_nodes_in_group("enemy"):
 		if !_alive(e):
 			continue
 		var rel: Vector2 = e.global_position - pos

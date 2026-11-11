@@ -42,18 +42,31 @@ func _initialize() -> void:
 	timer.start(9999.0)
 	await wait(0.3)
 	var waves0: int = game.run_stats.waves
-	gong.spell_damage(1.0)                                    # what a weapon or spell does
+	gong.ring()                                               # interacting with it
 	await wait(1.0)
-	ok("hitting the gong starts the next wave right away (waves %d -> %d)" % [waves0, game.run_stats.waves], game.run_stats.waves == waves0 + 1)
+	ok("ringing the gong starts the next wave right away (waves %d -> %d)" % [waves0, game.run_stats.waves], game.run_stats.waves == waves0 + 1)
 	var count: int = world.get_node("Enemies").get_child_count()
 	ok("the wave brought enemies (%d)" % count, count > 0)
 	var w1: int = game.run_stats.waves
-	gong.take_damage(Vector2.ZERO)                            # a second hit right away does nothing (it is still ringing)
+	gong.ring()                                               # a second ring right away does nothing (it is still ringing)
 	await wait(0.3)
-	ok("a second hit while it rings does not call another wave", game.run_stats.waves == w1)
-	# the sword's way in: a physics body on the enemy layer
-	ok("the gong is on the enemy collision layer (the sword's hitbox sees it)", gong.collision_layer == 2)
-	ok("weapons find it (WeaponUtil.enemies_in_circle)", load("res://items/weapons/weapon_util.gd").enemies_in_circle(root.get_tree(), gong.global_position, 10.0).has(gong))
+	ok("a second ring while it sounds does not call another wave", game.run_stats.waves == w1)
+	ok("the gong has its own sound", root.get_node("Sfx").streams.has("gong") and root.get_node("Sfx").streams["gong"].data.size() > 100000)
+	ok("a player can interact with it: it is solid and has a reach", gong.collision_layer == 4 and gong.REACH > 0.0)
+	# split-screen players and LAN clients ring it through Net._interact
+	await wait(4.2)
+	var w2: int = game.run_stats.waves
+	var avatar = player
+	avatar.global_position = gong.global_position + Vector2(0, 14)
+	net._interact(avatar)
+	await wait(0.6)
+	ok("interacting next to it (Net._interact) rings it and starts a wave (%d -> %d)" % [w2, game.run_stats.waves], game.run_stats.waves == w2 + 1)
+	await wait(4.2)
+	avatar.global_position = Vector2(300, 300)
+	var w3: int = game.run_stats.waves
+	net._interact(avatar)
+	await wait(0.4)
+	ok("interacting far from it does nothing", game.run_stats.waves == w3)
 	# ---------- the roster
 	var W = world
 	game.sectors_unlocked = ["s"]
@@ -64,7 +77,9 @@ func _initialize() -> void:
 		var names := plan.map(func(e): return e.label)
 		seen[k] = names
 	ok("level 1, wave 1: only the first kind (%s)" % [seen[1]], seen[1].size() == 1 and seen[1][0] == "Goblin")
-	ok("level 1, wave 3: two kinds (%s)" % [seen[3]], seen[3].size() == 2)
+	ok("level 1, wave 2: two kinds (%s)" % [seen[2]], seen[2].size() == 2)
+	ok("level 1, wave 3: still two kinds (%s)" % [seen[3]], seen[3].size() == 2)
+	ok("level 1, wave 4: all three kinds, a wave before the boss (%s)" % [seen[4]], seen[4].size() == 3)
 	ok("level 1, wave 5 (the boss wave): all three kinds (%s)" % [seen[5]], seen[5].size() == 3)
 	game.sectors_unlocked = ["s", "se", "ne"]
 	world.waves_in_sector = 5

@@ -39,6 +39,7 @@ func _ready() -> void:
 	streams["reveal_5"] = _arp([262.0, 330.0, 392.0, 523.0, 659.0, 784.0, 1047.0], 0.075, 1.1, "tri", 0.8, 1.0)
 	streams["reveal_6"] = _arp([262.0, 330.0, 392.0, 523.0, 659.0, 784.0, 988.0, 1175.0, 1568.0], 0.085, 1.5, "tri", 0.85, 1.2)
 	streams["thump"] = _make(90.0, 35.0, 0.45, "sine", 0.1, 0.95)
+	streams["gong"] = _gong()
 
 func _make(f0: float, f1: float, secs: float, wave: String, noise: float, vol: float) -> AudioStreamWAV:
 	var n := int(RATE * secs)
@@ -55,6 +56,36 @@ func _make(f0: float, f1: float, secs: float, wave: String, noise: float, vol: f
 		s = s * (1.0 - noise) + (randf() * 2.0 - 1.0) * noise
 		var env: float = pow(1.0 - t, 1.6) * min(1.0, i / 150.0)
 		data.encode_s16(i * 2, int(clamp(s * env * vol, -1.0, 1.0) * 30000.0))
+	var w := AudioStreamWAV.new()
+	w.format = AudioStreamWAV.FORMAT_16_BITS
+	w.mix_rate = RATE
+	w.data = data
+	return w
+
+## A big bronze gong: a low fundamental with the inharmonic overtones of struck metal, each pair slightly detuned so it wobbles
+## ("wah-wah-wah") as it fades over about three seconds, and a short clang of noise at the strike.
+func _gong() -> AudioStreamWAV:
+	var secs := 3.4
+	var n := int(RATE * secs)
+	var buf := PackedFloat32Array()
+	buf.resize(n)
+	#               ratio  amp   decay (higher = dies faster)
+	var partials := [[1.0, 1.0, 1.1], [1.007, 0.8, 1.2], [1.52, 0.55, 1.6], [2.0, 0.4, 1.9], [2.76, 0.35, 2.4], [3.18, 0.25, 3.0], [4.11, 0.2, 3.6], [5.43, 0.12, 5.0]]
+	var f0 := 98.0
+	for p in partials:
+		var ph := 0.0
+		for i in n:
+			var t := float(i) / RATE
+			ph += TAU * f0 * float(p[0]) / RATE
+			var swell := 1.0 + 0.12 * sin(TAU * 3.1 * t)                          # the slow wobble of a big gong
+			buf[i] += sin(ph) * float(p[1]) * exp(-t * float(p[2])) * swell * minf(1.0, t * 90.0)
+	for i in int(RATE * 0.09):                                                       # the clang of the mallet
+		var t := float(i) / (RATE * 0.09)
+		buf[i] += (randf() * 2.0 - 1.0) * pow(1.0 - t, 3.0) * 0.55
+	var data := PackedByteArray()
+	data.resize(n * 2)
+	for i in n:
+		data.encode_s16(i * 2, int(clampf(buf[i] * 0.34, -1.0, 1.0) * 30000.0))
 	var w := AudioStreamWAV.new()
 	w.format = AudioStreamWAV.FORMAT_16_BITS
 	w.mix_rate = RATE
