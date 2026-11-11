@@ -277,6 +277,11 @@ func _update_aggro(delta: float) -> void:
 	if _aggro_scan <= 0.0:
 		_aggro_scan = 0.25
 		var p = _nearest_player(AGGRO_RANGE, true)
+		if p == null:
+			for g in get_tree().get_nodes_in_group("guard"):             # a Captain or better draws enemies from further off, front or back
+				if is_instance_valid(g) and g.pull > 0.0 and g.global_position.distance_to(global_position) <= AGGRO_RANGE + g.pull:
+					p = g
+					break
 		if p != null:
 			start_aggro(p)
 

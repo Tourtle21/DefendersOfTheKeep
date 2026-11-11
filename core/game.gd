@@ -1482,6 +1482,7 @@ func roll_card_tier(id: String, lvl := -1) -> int:
 func stats_of(entry: String) -> Dictionary:
 	var c := scaled(entry_id(entry), entry_tier(entry))
 	c.twist = entry_twist(entry)
+	c.tier = entry_tier(entry)                 # (guards look and fight differently by tier)
 	return c
 
 ## Card Fuser recipes: two different cards of the same tier become one fused card of that tier, which comes with a fixed twist.
@@ -1666,6 +1667,7 @@ func scaled(id: String, level: int) -> Dictionary:
 	elif c.kind == "guards":
 		e.damage = 0.5
 		e.hp = 0.7
+		c.count = 3 + (level - 1) / 2                  # 3, 3, 4, 4, 5, 5 guards
 	if bk in ["barricade", "sentry", "torch"]:
 		e.erase("radius")                                           # that radius is just the footprint
 	for key in e:
@@ -1676,7 +1678,7 @@ func scaled(id: String, level: int) -> Dictionary:
 		c[key] = c[key] * pow(m, e[key])
 	if c.has("uses"):
 		c.uses = int(c.uses)
-	if c.has("count"):
+	if c.has("count") and c.kind != "guards":
 		c.count = c.count + 2 * k
 	if c.has("slow"):
 		c.slow = maxf(0.12, pow(c.slow, 1.0 + 0.35 * k))           # stronger chill with tier
