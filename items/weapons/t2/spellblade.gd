@@ -31,8 +31,8 @@ func attack() -> void:
 	var o: Vector2 = player.global_position
 	fx("arc", o, Color(0.7, 0.8, 1.0), {"radius": 28.0, "dir": aim, "half_angle": 0.9, "life": 0.15})
 	for e in WeaponUtil.enemies_in_arc(get_tree(), o, aim, 28.0, 55.0):
-		WeaponUtil.hit(e, 2.0, o, 100.0)
-	WeaponProjectile.shoot(game_world(), o + aim * 14.0, aim, 240.0, 2.0, Color(0.7, 0.8, 1.0), 0.5, 1, 100.0)
+		WeaponUtil.hit(e, Game.basic_hit(weapon_id) * 0.5, o, 100.0)
+	WeaponProjectile.shoot(game_world(), o + aim * 14.0, aim, 240.0, Game.basic_hit(weapon_id) * 0.5, Color(0.7, 0.8, 1.0), 0.5, 1, 100.0)
 
 func ability() -> void:
 	_storm_until = Time.get_ticks_msec() / 1000.0 + storm_len

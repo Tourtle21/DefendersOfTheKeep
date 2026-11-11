@@ -28,12 +28,16 @@ func attack() -> void:
 	var o: Vector2 = player.global_position
 	fx("arc", o, Color(0.95, 0.8, 0.45), {"radius": 30.0, "dir": aim, "half_angle": 1.2, "life": 0.14})
 	for e in WeaponUtil.enemies_in_arc(get_tree(), o, aim, 30.0, 70.0):
-		WeaponUtil.hit(e, Game.basic_hit("scimitar"), o, 60.0)
+		WeaponUtil.hit(e, Game.basic_hit(weapon_id), o, 60.0)
 		WeaponUtil.bleed(get_tree(), e, 3, 0.7)
 
 func ability() -> void:
 	thrust(8.0, 0.2)
-	WeaponProjectile.shoot(game_world(), player.global_position + aim * 12.0, aim, 260.0, 2.5, Color(0.95, 0.8, 0.45), 0.55, 3, 80.0, {"bleed_ticks": 4, "bleed_dmg": 0.8})
+	WeaponProjectile.shoot(game_world(), player.global_position + aim * 12.0, aim, 260.0, 2.8, Color(0.95, 0.8, 0.45), 0.55, 4, 80.0, {"bleed_ticks": 4, "bleed_dmg": 0.8})
+	await get_tree().create_timer(0.18).timeout                    # a second, wider wave right behind the first
+	if is_inside_tree():
+		var d := aim.rotated(0.12)
+		WeaponProjectile.shoot(game_world(), player.global_position + d * 12.0, d, 240.0, 2.0, Color(1.0, 0.9, 0.55), 0.5, 4, 80.0, {"bleed_ticks": 4, "bleed_dmg": 0.8})
 
 func dash_attack() -> void:
 	fx("line", player.global_position, Color(0.95, 0.8, 0.45), {"dir": aim, "length": 50.0, "width": 6.0, "life": 0.25})
@@ -44,14 +48,16 @@ func _on_dash_hit(e) -> void:
 	WeaponUtil.bleed(get_tree(), e, 3, 0.8)
 
 func ultimate() -> void:
-	for i in 5:
+	for i in 7:                                                    # a longer, wider cyclone that also slows what it drags in
 		if !is_inside_tree():
 			return
 		var o: Vector2 = player.global_position
-		fx("ring", o, Color(0.95, 0.8, 0.45), {"radius": 52.0, "life": 0.25})
-		for e in WeaponUtil.enemies_in_circle(get_tree(), o, 52.0):
-			WeaponUtil.hit(e, 2.0, o)
+		fx("ring", o, Color(0.95, 0.8, 0.45), {"radius": 64.0, "life": 0.25})
+		for e in WeaponUtil.enemies_in_circle(get_tree(), o, 64.0):
+			WeaponUtil.hit(e, 2.2, o)
+			if is_instance_valid(e) and !e.is_queued_for_deletion():
+				e.apply_slow(0.5, 0.6)
 			if is_instance_valid(e) and !e.is_queued_for_deletion():
 				e.push((o - e.global_position).normalized() * 160.0, 0.15)     # pulled in
 		player.shake(1.5, 0.1)
-		await get_tree().create_timer(0.3).timeout
+		await get_tree().create_timer(0.27).timeout

@@ -24,6 +24,7 @@ Known quirks: do not name `Game`-dependent `class_name`s inside these files (com
 | music.gd, pause.gd | music themes and switching, pause menu and volume |
 | radar.gd | wide view, minimap, chest markers (screenshot) |
 | quick_merge.gd | merge two held weapons anywhere (player 1, player 2+), forge hands / storage areas, fusing hand cards in the keep |
+| weapon_rules.gd | every fusion is rarer than both parts, out-damages them; damage per second rises with rarity; every weapon in the basic-attack table |
 | forge_shots.gd | window screenshots of the forge areas and the merge hint |
 | ui_parity.gd | every shared screen (Forge, Card Fuser, chest choice, HUD top, upgrade cards) built through player 1, a split-screen player and a LAN client view (fake snapshot) gives the same tree |
 | single_source.gd | (no game, 1 s) fails when a known single-source helper is written again, or UI code adds raw colours / font sizes over its budget |

@@ -17,7 +17,7 @@ func attack() -> void:
 	thrust(5.0, 0.2)
 	for i in 5:
 		var d := aim.rotated((i - 2) * 0.1)
-		WeaponProjectile.shoot(game_world(), player.global_position + d * 10.0, d, 310.0, 1.2, Color(0.85, 0.65, 1.0), 0.8, 1, 60.0)
+		WeaponProjectile.shoot(game_world(), player.global_position + d * 10.0, d, 310.0, Game.basic_hit(weapon_id) / 5.0, Color(0.85, 0.65, 1.0), 0.8, 1, 60.0)
 
 func ability() -> void:
 	var o: Vector2 = player.global_position

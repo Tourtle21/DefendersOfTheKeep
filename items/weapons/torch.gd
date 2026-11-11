@@ -31,7 +31,7 @@ func attack() -> void:
 	var o: Vector2 = player.global_position
 	fx("arc", o, Color(1.0, 0.6, 0.2), {"radius": 36.0, "dir": aim, "half_angle": 0.6, "life": 0.15})
 	for e in WeaponUtil.enemies_in_arc(get_tree(), o, aim, 36.0, 35.0):
-		WeaponUtil.hit(e, Game.basic_hit("torch"), o, 70.0)
+		WeaponUtil.hit(e, Game.basic_hit(weapon_id), o, 70.0)
 		if is_instance_valid(e) and !e.is_queued_for_deletion():
 			WeaponUtil.bleed(get_tree(), e, 3, 0.6)          # it keeps burning for a moment
 

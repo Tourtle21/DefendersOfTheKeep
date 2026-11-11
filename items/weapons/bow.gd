@@ -61,7 +61,7 @@ func release_item() -> void:
 	_attack_cd = attack_cooldown
 	var ratio: float = min(1.0, _draw_t / FULL_DRAW)
 	var perfect := _draw_t >= FULL_DRAW and _draw_t <= PERFECT_END
-	var dmg := Game.basic_hit("bow") * (0.33 + 0.67 * ratio)
+	var dmg := Game.basic_hit(weapon_id) * (0.33 + 0.67 * ratio)
 	var speed := 200.0 + 160.0 * ratio
 	var col := Color(0.9, 0.8, 0.5)
 	if perfect:
@@ -83,18 +83,21 @@ func dash_attack() -> void:
 
 func ability() -> void:
 	thrust(-6.0, 0.3)
-	for i in 5:
-		var d := aim.rotated((i - 2) * 0.17)
-		WeaponProjectile.shoot(game_world(), player.global_position + d * 8.0, d, 290.0, 1.5, Color(1.0, 0.85, 0.4), 1.0, 0, 80.0)
+	for i in 7:                                                    # a seven-arrow fan, the middle one a piercing golden shaft
+		var d := aim.rotated((i - 3) * 0.14)
+		var mid: bool = i == 3
+		WeaponProjectile.shoot(game_world(), player.global_position + d * 8.0, d, 310.0 if mid else 290.0, 2.4 if mid else 1.5, Color(1.0, 0.95, 0.5) if mid else Color(1.0, 0.85, 0.4), 1.0, 2 if mid else 0, 80.0)
 
 func ultimate() -> void:
 	# Arrow Storm: two seconds of rapid fire toward the cursor (you can still move)
 	player.speed_mult = 0.6
-	for i in 20:
+	for i in 28:
 		if !is_inside_tree():
 			return
 		var d := aim.rotated(randf_range(-0.18, 0.18))
 		WeaponProjectile.shoot(game_world(), player.global_position + d * 8.0, d, 320.0, 1.5, Color(1.0, 0.85, 0.4), 0.9, 0, 70.0)
-		await get_tree().create_timer(0.1).timeout
+		await get_tree().create_timer(0.07).timeout
+	if is_inside_tree():                                           # finale: one huge arrow comes down at the cursor
+		ground_strike(cursor_target(160.0), 44.0, 0.45, 5.0, 220.0, Color(1.0, 0.9, 0.4), 0.5)
 	if is_inside_tree():
 		player.speed_mult = 1.0

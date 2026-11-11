@@ -23,6 +23,8 @@ func _init() -> void:
 	preview_ability = {"kind": "line", "length": 130.0}
 	preview_dash = 40.0
 
+var melee_share := 1.0              # (a fusion that adds a ranged part takes it out of the same total)
+
 func attack() -> void:
 	var now := Time.get_ticks_msec() / 1000.0
 	if now > _combo_until:
@@ -33,10 +35,10 @@ func attack() -> void:
 	var o: Vector2 = player.global_position
 	fx("arc", o, Color(0.8, 0.85, 1.0), {"radius": 36.0, "dir": aim, "half_angle": 0.7, "life": 0.14})
 	for e in WeaponUtil.enemies_in_arc(get_tree(), o, aim, 36.0, 40.0):
-		var dmg := 1.5
+		var dmg := Game.basic_hit(weapon_id) * melee_share
 		if WeaponUtil.is_exposed(e):
 			WeaponUtil.clear_exposed(e)
-			dmg = 4.5
+			dmg = Game.basic_hit(weapon_id) * melee_share * 3.0
 			player.shake(2.0, 0.12)
 			fx("ring", e.global_position, Color(1.0, 0.3, 0.3), {"radius": 14.0, "life": 0.25})
 		WeaponUtil.hit(e, dmg, o, 60.0)

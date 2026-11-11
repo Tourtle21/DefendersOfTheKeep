@@ -33,9 +33,9 @@ func attack() -> void:
 		if (e.global_position - o).dot(aim) >= 34.0:
 			player.shake(2.0, 0.12)
 			fx("ring", o + aim * 46.0, Color(1.0, 0.85, 0.3), {"radius": 14.0, "life": 0.2})
-			WeaponUtil.hit(e, 6.0, o, 240.0)
+			WeaponUtil.hit(e, Game.basic_hit(weapon_id), o, 240.0)
 		else:
-			WeaponUtil.hit(e, 3.0, o, 140.0)
+			WeaponUtil.hit(e, Game.basic_hit(weapon_id) * 0.5, o, 140.0)
 
 func use_ability() -> void:
 	_claim()

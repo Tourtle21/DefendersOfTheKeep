@@ -30,14 +30,14 @@ func attack() -> void:
 	var o: Vector2 = player.global_position
 	fx("arc", o, Color(0.7, 0.9, 1.0), {"radius": 30.0, "dir": aim, "half_angle": 0.9, "life": 0.15})
 	for e in WeaponUtil.enemies_in_arc(get_tree(), o, aim, 30.0, 55.0):
-		var dmg := Game.basic_hit("frostglaive") * (1.5 if WeaponUtil.is_exposed(e) else 1.0)
+		var dmg := Game.basic_hit(weapon_id) * (1.5 if WeaponUtil.is_exposed(e) else 1.0)
 		WeaponUtil.hit(e, dmg, o, 80.0)
 		_chill(e)
 
 func ability() -> void:
 	var o: Vector2 = player.global_position
-	for i in 5:
-		ground_strike(o + aim * (22.0 + i * 18.0), 18.0, 0.35 + i * 0.1, 2.5, 120.0, Color(0.7, 0.9, 1.0), 0.5)
+	for i in 7:                                                    # a longer line of ice spikes that grows as it goes
+		ground_strike(o + aim * (22.0 + i * 18.0), 18.0 + i * 1.5, 0.35 + i * 0.08, 2.8, 120.0, Color(0.7, 0.9, 1.0), 0.5)
 
 func dash_attack() -> void:
 	fx("line", player.global_position, Color(0.7, 0.9, 1.0), {"dir": aim, "length": 90.0, "width": 6.0, "life": 0.3})
@@ -49,8 +49,13 @@ func _on_dash_hit(e) -> void:
 
 func ultimate() -> void:
 	var o: Vector2 = player.global_position
-	fx("ring", o, Color(0.7, 0.95, 1.0), {"radius": 130.0, "life": 0.6})
+	fx("ring", o, Color(0.7, 0.95, 1.0), {"radius": 160.0, "life": 0.6})
 	await get_tree().create_timer(0.3).timeout
-	for e in WeaponUtil.enemies_in_circle(get_tree(), o, 130.0):
-		WeaponUtil.hit(e, 3.0, o, 0.0, 2.5)
-		WeaponUtil.expose(e, 4.0)
+	for e in WeaponUtil.enemies_in_circle(get_tree(), o, 160.0):
+		WeaponUtil.hit(e, 3.5, o, 0.0, 2.5)
+		WeaponUtil.expose(e, 5.0)
+	await get_tree().create_timer(0.7).timeout                     # the frozen shatter
+	if is_inside_tree():
+		fx("ring", o, Color(0.9, 1.0, 1.0), {"radius": 160.0, "life": 0.3})
+		for e in WeaponUtil.enemies_in_circle(get_tree(), o, 160.0):
+			WeaponUtil.hit(e, 4.5, o, 120.0)

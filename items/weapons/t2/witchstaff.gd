@@ -16,7 +16,7 @@ func _init() -> void:
 
 func attack() -> void:
 	thrust(5.0, 0.2)
-	WeaponProjectile.shoot(game_world(), player.global_position + aim * 10.0, aim, 240.0, 1.5, Color(0.55, 0.9, 0.35), 1.0, 1, 40.0, {"bleed_ticks": 5, "bleed_dmg": 0.9})
+	WeaponProjectile.shoot(game_world(), player.global_position + aim * 10.0, aim, 240.0, Game.basic_hit(weapon_id), Color(0.55, 0.9, 0.35), 1.0, 1, 40.0, {"bleed_ticks": 5, "bleed_dmg": 0.9})
 
 func ability() -> void:
 	var c := cursor_target(120.0)

@@ -33,12 +33,14 @@ func attack() -> void:
 	var c: Vector2 = o + aim * 26.0
 	fx("arc", o, Color(1.0, 0.5, 0.2), {"radius": 32.0, "dir": aim, "half_angle": 1.0, "life": 0.18})
 	for e in WeaponUtil.enemies_in_arc(get_tree(), o, aim, 34.0, 60.0):
-		WeaponUtil.hit(e, Game.basic_hit("emberflail"), o, 140.0)
+		WeaponUtil.hit(e, Game.basic_hit(weapon_id), o, 140.0)
 	_fire(c, 14.0, 3.0)
 
 func ability() -> void:
 	var c := cursor_target(90.0)
-	ground_strike(c, 30.0, 0.45, 5.0, 220.0, Color(1.0, 0.4, 0.1), 0.4)
+	ground_strike(c, 32.0, 0.45, 5.5, 240.0, Color(1.0, 0.4, 0.1), 0.4)
+	for i in 6:                                                    # sparks of lava ring the eruption
+		ground_strike(c + Vector2.from_angle(i * TAU / 6.0) * 52.0, 16.0, 0.6 + i * 0.05, 3.0, 120.0, Color(1.0, 0.5, 0.15), 0.2)
 	await get_tree().create_timer(0.47).timeout
 	if is_inside_tree():
 		_fire(c, 30.0, 4.0)
@@ -51,7 +53,9 @@ func dash_attack() -> void:
 
 func ultimate() -> void:
 	var o: Vector2 = player.global_position
-	for i in 8:
-		var p := o + Vector2.from_angle(i * TAU / 8.0) * 70.0
-		_fire(p, 18.0, 6.0)
-		ground_strike(p, 20.0, 0.3 + i * 0.05, 4.0, 200.0, Color(1.0, 0.4, 0.1), 0.3)
+	for i in 12:                                                   # a full ring of twelve, then a second inner ring
+		var p := o + Vector2.from_angle(i * TAU / 12.0) * 85.0
+		_fire(p, 20.0, 6.0)
+		ground_strike(p, 22.0, 0.3 + i * 0.04, 4.5, 220.0, Color(1.0, 0.4, 0.1), 0.3)
+	for i in 6:
+		ground_strike(o + Vector2.from_angle(i * TAU / 6.0 + 0.26) * 45.0, 18.0, 0.8 + i * 0.05, 4.0, 200.0, Color(1.0, 0.55, 0.2), 0.3)

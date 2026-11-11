@@ -38,7 +38,7 @@ func attack() -> void:
 	if big:
 		player.shake(2.5, 0.15)
 	for e in WeaponUtil.enemies_in_arc(get_tree(), o, aim, r, 80.0 if big else 55.0):
-		WeaponUtil.hit(e, 5.0 if big else 2.0, o, 300.0 if big else 100.0)
+		WeaponUtil.hit(e, Game.basic_hit(weapon_id) * (2.5 if big else 1.0), o, 300.0 if big else 100.0)
 	if big:
 		_combo = 0
 

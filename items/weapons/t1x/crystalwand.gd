@@ -24,12 +24,14 @@ func attack() -> void:
 	thrust(5.0, 0.2)
 	for i in 3:
 		var d := aim.rotated((i - 1) * 0.12)
-		WeaponProjectile.shoot(game_world(), player.global_position + d * 10.0, d, 300.0, Game.basic_hit("crystalwand") / 3.0, Color(0.8, 0.6, 1.0), 0.8, 1, 60.0)
+		WeaponProjectile.shoot(game_world(), player.global_position + d * 10.0, d, 300.0, Game.basic_hit(weapon_id) / 3.0, Color(0.8, 0.6, 1.0), 0.8, 1, 60.0)
 
 func ability() -> void:
 	var o: Vector2 = player.global_position
-	for i in 6:
-		ground_strike(o + Vector2.from_angle(i * TAU / 6.0) * 40.0, 18.0, 0.3 + i * 0.04, 3.0, 180.0, Color(0.8, 0.6, 1.0), 0.3)
+	for i in 6:                                                    # two rings of crystals, the outer one a beat later
+		ground_strike(o + Vector2.from_angle(i * TAU / 6.0) * 40.0, 20.0, 0.3 + i * 0.04, 3.6, 200.0, Color(0.8, 0.6, 1.0), 0.3)
+	for i in 10:
+		ground_strike(o + Vector2.from_angle(i * TAU / 10.0 + 0.3) * 74.0, 20.0, 0.65 + i * 0.03, 3.6, 200.0, Color(0.9, 0.7, 1.0), 0.3)
 
 func dash_attack() -> void:
 	var from: Vector2 = player.global_position
@@ -38,4 +40,4 @@ func dash_attack() -> void:
 	ground_strike(player.global_position, 22.0, 0.25, 2.5, 160.0, Color(0.8, 0.6, 1.0), 0.3)
 
 func ultimate() -> void:
-	rain(cursor_target(110.0), 80.0, 12, 2.0, 3.5, 22.0, Color(0.8, 0.6, 1.0), 0.3)
+	rain(cursor_target(110.0), 105.0, 22, 2.4, 4.4, 24.0, Color(0.8, 0.6, 1.0), 0.5)

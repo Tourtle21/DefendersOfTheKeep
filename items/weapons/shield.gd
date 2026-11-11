@@ -26,7 +26,7 @@ func attack() -> void:
 	var o: Vector2 = player.global_position
 	fx("arc", o, Color(0.5, 0.7, 1.0), {"radius": 22.0, "dir": aim, "half_angle": 1.0, "life": 0.15})
 	for e in WeaponUtil.enemies_in_arc(get_tree(), o, aim, 22.0, 65.0):
-		WeaponUtil.hit(e, Game.basic_hit("shield"), o, 300.0, 0.5)
+		WeaponUtil.hit(e, Game.basic_hit(weapon_id), o, 300.0, 0.5)
 
 func dash_attack() -> void:
 	# Shield Charge: rush forward, shoving and briefly stunning whatever you hit
@@ -56,12 +56,12 @@ func _on_parry(_from: Vector2) -> void:
 	var o: Vector2 = player.global_position
 	player.shield_time = max(player.shield_time, 0.4)
 	player.shake(3.0, 0.25)
-	fx("ring", o, Color(1.0, 0.9, 0.4), {"radius": 48.0, "life": 0.4})
-	for e in WeaponUtil.enemies_in_circle(get_tree(), o, 48.0):
-		WeaponUtil.hit(e, 3.0, o, 300.0, 1.5)
+	fx("ring", o, Color(1.0, 0.9, 0.4), {"radius": 64.0, "life": 0.4})
+	for e in WeaponUtil.enemies_in_circle(get_tree(), o, 64.0):
+		WeaponUtil.hit(e, 4.0, o, 340.0, 1.8)
 	_ability_cd = min(_ability_cd, ability_cooldown * 0.2)    # perfect parry: mostly refunded
 
 func ultimate() -> void:
 	# Bastion: five seconds untouchable, with a shoving pulse every second
-	player.shield_time = max(player.shield_time, 5.0)
-	pulse_around(2.0, 42.0, 260.0, 0.3, 5, 1.0, Color(0.5, 0.7, 1.0))
+	player.shield_time = max(player.shield_time, 5.2)
+	pulse_around(3.0, 52.0, 280.0, 0.4, 6, 0.85, Color(0.5, 0.7, 1.0))

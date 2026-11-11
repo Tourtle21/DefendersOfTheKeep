@@ -49,7 +49,7 @@ func attack() -> void:
 		var p: Vector2 = e.global_position
 		fx("line", prev, Color(0.7, 0.85, 1.0), {"dir": (p - prev).normalized(), "length": prev.distance_to(p), "width": 3.0, "life": 0.15})
 		prev = p
-		WeaponUtil.hit(e, 2.0 * pow(0.6, i), o, 40.0)
+		WeaponUtil.hit(e, Game.basic_hit(weapon_id) * pow(0.6, i), o, 40.0)
 		_charge(e)
 
 func ability() -> void:

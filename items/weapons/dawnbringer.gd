@@ -28,7 +28,7 @@ func attack() -> void:
 	var o: Vector2 = player.global_position
 	fx("arc", o, Color(1.0, 0.9, 0.5), {"radius": 46.0, "dir": aim, "half_angle": 0.7, "life": 0.16})
 	for e in WeaponUtil.enemies_in_arc(get_tree(), o, aim, 46.0, 42.0):
-		WeaponUtil.hit(e, Game.basic_hit("dawnbringer"), o, 120.0)
+		WeaponUtil.hit(e, Game.basic_hit(weapon_id), o, 120.0)
 
 func dash_attack() -> void:
 	var start: Vector2 = player.global_position
@@ -40,17 +40,20 @@ func dash_attack() -> void:
 func ability() -> void:
 	# Daybreak: an area of daylight that heals you and burns what stands in it
 	var c := cursor_target(90.0)
-	fx("ring", c, Color(1.0, 0.92, 0.55), {"radius": 80.0, "life": 0.5})
-	LightSource.spawn(game_world(), c, 170.0, 12.0, Color(1.0, 0.92, 0.6))
+	fx("ring", c, Color(1.0, 0.92, 0.55), {"radius": 110.0, "life": 0.5})
+	fx("ring", c, Color(1.0, 1.0, 0.8), {"radius": 60.0, "life": 0.8})
+	LightSource.spawn(game_world(), c, 190.0, 14.0, Color(1.0, 0.92, 0.6))
 	for p in get_tree().get_nodes_in_group("player"):
-		if is_instance_valid(p) and p.global_position.distance_to(c) <= 90.0:
-			p.heal(30.0)
-	for e in WeaponUtil.enemies_in_circle(get_tree(), c, 80.0):
-		WeaponUtil.hit(e, 3.5, c, 80.0)
-		Game.light_up(e, 10.0)
+		if is_instance_valid(p) and p.global_position.distance_to(c) <= 120.0:
+			p.heal(45.0)
+	for e in WeaponUtil.enemies_in_circle(get_tree(), c, 110.0):
+		WeaponUtil.hit(e, 4.5, c, 100.0)
+		Game.light_up(e, 12.0)
+		WeaponUtil.expose(e, 3.0)
 
 func ultimate() -> void:
 	# Solar Judgment: beams of light fall all over a wide area
 	var c := cursor_target(120.0)
 	LightSource.spawn(game_world(), c, 150.0, 6.0, Color(1.0, 0.95, 0.7))
-	rain(c, 90.0, 14, 2.6, 6.0, 24.0, Color(1.0, 0.9, 0.45), 0.4)
+	rain(c, 130.0, 24, 3.0, 7.5, 26.0, Color(1.0, 0.9, 0.45), 0.5)
+	ground_strike(c, 70.0, 1.4, 14.0, 320.0, Color(1.0, 0.95, 0.6), 1.2)          # the final judgment, a huge column of light

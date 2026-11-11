@@ -28,7 +28,7 @@ func attack() -> void:
 	fx("arc", o, Color(0.65, 0.35, 1.0), {"radius": 52.0, "dir": aim, "half_angle": 1.0, "life": 0.18})
 	var cut := 0
 	for e in WeaponUtil.enemies_in_arc(get_tree(), o, aim, 52.0, 58.0):
-		WeaponUtil.hit(e, Game.basic_hit("voidreaver"), o, 90.0)
+		WeaponUtil.hit(e, Game.basic_hit(weapon_id), o, 90.0)
 		cut += 1
 	if cut > 0:
 		player.heal(minf(3.0, 1.0 * cut))                # drinks what it cuts
@@ -43,26 +43,27 @@ func dash_attack() -> void:
 func ability() -> void:
 	# Rift: everything near the cursor is dragged in and held
 	var c := cursor_target(110.0)
-	fx("ring", c, Color(0.6, 0.3, 1.0), {"radius": 90.0, "life": 0.45})
+	fx("ring", c, Color(0.6, 0.3, 1.0), {"radius": 120.0, "life": 0.45})
 	await get_tree().create_timer(0.4).timeout
 	if !is_inside_tree():
 		return
-	for e in WeaponUtil.enemies_in_circle(get_tree(), c, 90.0):
-		WeaponUtil.hit(e, 3.0, c, 0.0)
+	for e in WeaponUtil.enemies_in_circle(get_tree(), c, 120.0):
+		WeaponUtil.hit(e, 4.0, c, 0.0)
 		if is_instance_valid(e) and !e.is_queued_for_deletion():
-			e.push((c - e.global_position).normalized() * 220.0, 0.35)
-			e.apply_slow(0.0, 1.4)
-			WeaponUtil.expose(e, 2.0)
+			e.push((c - e.global_position).normalized() * 260.0, 0.4)
+			e.apply_slow(0.0, 1.6)
+			WeaponUtil.expose(e, 3.0)
+	ground_strike(c, 40.0, 0.6, 8.0, 0.0, Color(0.6, 0.3, 1.0), 0.8)               # then the rift collapses in on them
 
 func ultimate() -> void:
 	# Event Horizon: five pulls in a row, dragging everything in and hurting it
-	for i in 5:
+	for i in 8:
 		if !is_inside_tree():
 			return
 		var o: Vector2 = player.global_position
-		fx("ring", o, Color(0.6, 0.3, 1.0), {"radius": 140.0, "life": 0.4})
-		for e in WeaponUtil.enemies_in_circle(get_tree(), o, 140.0):
-			WeaponUtil.hit(e, 3.5, o, 0.0)
+		fx("ring", o, Color(0.6, 0.3, 1.0), {"radius": 170.0, "life": 0.4})
+		for e in WeaponUtil.enemies_in_circle(get_tree(), o, 170.0):
+			WeaponUtil.hit(e, 3.8 + 0.3 * i, o, 0.0)                         # each pull hits a little harder than the last
 			if is_instance_valid(e) and !e.is_queued_for_deletion():
 				e.push((o - e.global_position).normalized() * 200.0, 0.3)
-		await get_tree().create_timer(0.5).timeout
+		await get_tree().create_timer(0.42).timeout

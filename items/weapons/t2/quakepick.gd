@@ -30,7 +30,7 @@ func attack() -> void:
 	fx("arc", o, Color(0.9, 0.7, 0.4), {"radius": 30.0, "dir": aim, "half_angle": 1.0, "life": 0.18})
 	player.shake(1.5, 0.1)
 	for e in WeaponUtil.enemies_in_arc(get_tree(), o, aim, 30.0, 60.0):
-		WeaponUtil.hit(e, 3.5, o, 160.0)
+		WeaponUtil.hit(e, Game.basic_hit(weapon_id), o, 160.0)
 	for i in 3:
 		WeaponUtil.hit_breakables(get_tree(), o + aim * 14.0, 26.0)
 

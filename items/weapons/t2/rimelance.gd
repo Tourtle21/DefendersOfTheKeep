@@ -20,7 +20,7 @@ func attack() -> void:
 	fx("line", o, Color(0.7, 0.9, 1.0), {"dir": aim, "length": 52.0, "width": 3.0, "life": 0.15})
 	for e in WeaponUtil.enemies_in_line(get_tree(), o, aim, 52.0, 9.0):
 		var tip: bool = (e.global_position - o).dot(aim) >= 32.0
-		WeaponUtil.hit(e, 4.5 if tip else 2.0, o, 160.0)
+		WeaponUtil.hit(e, Game.basic_hit(weapon_id) * (1.0 if tip else 0.45), o, 160.0)
 		_chill(e)
 
 func ability() -> void:

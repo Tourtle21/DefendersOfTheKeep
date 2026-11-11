@@ -32,9 +32,9 @@ func attack() -> void:
 		if along >= TIP_START:
 			fx("ring", o + aim * 40.0, Color(1.0, 0.85, 0.3), {"radius": 12.0, "life": 0.2})
 			player.shake(1.5, 0.12)
-			WeaponUtil.hit(e, Game.basic_hit("spear"), o, 200.0)       # tip hit
+			WeaponUtil.hit(e, Game.basic_hit(weapon_id), o, 200.0)       # tip hit
 		else:
-			WeaponUtil.hit(e, Game.basic_hit("spear") * 0.5, o, 120.0)
+			WeaponUtil.hit(e, Game.basic_hit(weapon_id) * 0.5, o, 120.0)
 
 func ability() -> void:
 	# Javelin: throw the spear at the cursor, pierces two enemies

@@ -41,7 +41,7 @@ func attack() -> void:
 	var o: Vector2 = player.global_position
 	fx("line", o, Color(1.0, 0.9, 0.9), {"dir": aim, "length": 46.0, "width": 2.0 + (2.0 if big else 0.0), "life": 0.12})
 	for e in WeaponUtil.enemies_in_line(get_tree(), o, aim, 46.0, 9.0):
-		WeaponUtil.hit(e, 5.0 if big else 2.0, o, 200.0 if big else 60.0)
+		WeaponUtil.hit(e, Game.basic_hit(weapon_id) * (2.5 if big else 1.0), o, 200.0 if big else 60.0)
 	if _combo >= 3:
 		_combo = 0
 

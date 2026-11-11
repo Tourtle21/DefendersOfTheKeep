@@ -24,7 +24,7 @@ func attack() -> void:
 	player.shake(2.0, 0.12)
 	fx("ring", c, Color(1.0, 0.5, 0.2), {"radius": 34.0, "life": 0.25})
 	for e in WeaponUtil.enemies_in_circle(get_tree(), c, 34.0):
-		WeaponUtil.hit(e, 4.5, o, 280.0, 0.4)
+		WeaponUtil.hit(e, Game.basic_hit(weapon_id), o, 280.0, 0.4)
 	WeaponUtil.hit_breakables(get_tree(), c, 30.0, ["stone"])
 	_fire(c, 20.0, 4.0)
 

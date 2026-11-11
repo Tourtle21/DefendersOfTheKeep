@@ -4,6 +4,7 @@ extends "res://items/weapons/t2/chainfangs.gd"
 
 func _init() -> void:
 	weapon_id = "soulreaper"
+	melee_share = 2.0 / 3.0                 # the melee takes two thirds of the attack damage, the extra projectile the rest
 	weapon_name = "Soulreaper"
 	icon_path = "res://items/weapons/icons/soulreaper.png"
 	attack_name = "Chain slash + piercing wave"
@@ -14,7 +15,7 @@ func _init() -> void:
 
 func attack() -> void:
 	super()
-	WeaponProjectile.shoot(game_world(), player.global_position + aim * 14.0, aim, 250.0, 2.0, Color(0.7, 0.5, 1.0), 0.5, 2, 80.0)
+	WeaponProjectile.shoot(game_world(), player.global_position + aim * 14.0, aim, 250.0, Game.basic_hit(weapon_id) / 3.0, Color(0.7, 0.5, 1.0), 0.5, 2, 80.0)
 
 func ability() -> void:
 	super()

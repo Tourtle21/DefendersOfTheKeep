@@ -50,6 +50,8 @@ func equip() -> void:
 func _ready() -> void:
 	tier = clampi(Fusion.tier_of(weapon_id) + bonus_tier, 1, 6)
 	awakened = bonus_tier
+	if Game.WEAPON_BASIC.has(weapon_id):
+		attack_cooldown = Game.basic_cd(weapon_id)            # the same table the stat screens read (also for fused weapons that inherit a base script)
 	var cd_mult := pow(0.92, awakened) * pow(0.95, Fusion.tier_of(weapon_id) - 1) * maxf(0.4, 1.0 - Game.bonus("weapon_cd"))        # fused weapons are also a little faster
 	attack_cooldown *= cd_mult
 	ability_cooldown *= cd_mult

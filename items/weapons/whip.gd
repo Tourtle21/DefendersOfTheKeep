@@ -27,7 +27,7 @@ func attack() -> void:
 	fx("arc", o, Color(0.8, 0.5, 0.3), {"radius": 46.0, "dir": aim, "half_angle": 0.35, "life": 0.15})
 	for e in WeaponUtil.enemies_in_arc(get_tree(), o, aim, 46.0, 20.0):
 		var d: float = e.global_position.distance_to(o)
-		var dmg := Game.basic_hit("whip")
+		var dmg := Game.basic_hit(weapon_id)
 		if d >= CRACK_START:
 			dmg *= 2.5
 			e.apply_slow(0.5, 0.8)
@@ -59,7 +59,11 @@ func ability() -> void:
 		best.push((o - best.global_position).normalized() * 330.0, 0.3)
 		best.apply_slow(0.0, 1.2)
 		WeaponUtil.expose(best, 1.5)
+		for e in WeaponUtil.enemies_in_circle(get_tree(), best.global_position, 46.0):      # the hook catches the pack around it too
+			if e != best and is_instance_valid(e):
+				e.push((o - e.global_position).normalized() * 220.0, 0.25)
+				e.apply_slow(0.2, 0.8)
 
 func ultimate() -> void:
 	# Tempest Lash: three big whip rings around you
-	pulse_around(3.0, 62.0, 200.0, 0.6, 3, 0.3, Color(0.9, 0.6, 0.3))
+	pulse_around(3.2, 72.0, 220.0, 0.6, 5, 0.25, Color(0.9, 0.6, 0.3))

@@ -1828,7 +1828,7 @@ func weapon_rarity(id: String) -> int:
 		return 6
 	var parts: Array = Fusion.parts_of(id)
 	if parts.size() == 2:
-		return mini(5, maxi(weapon_rarity(parts[0]), weapon_rarity(parts[1])) + 1)
+		return mini(6, maxi(weapon_rarity(parts[0]), weapon_rarity(parts[1])) + 1)      # always rarer than both parts
 	if id in ["sword", "pickaxe"]:
 		return 0
 	return clampi(WEAPON_LEVEL.get(id, 1) - 1, 0, 5)
@@ -1853,6 +1853,12 @@ const WEAPON_BASIC := {
 	"staff": {"hit": 4.8, "cd": 0.5}, "emberflail": {"hit": 5.8, "cd": 0.6},
 	"bogstaff": {"hit": 5.9, "cd": 0.55}, "crystalwand": {"hit": 6.0, "cd": 0.5},
 	"dawnbringer": {"hit": 3.9, "cd": 0.4}, "voidreaver": {"hit": 5.4, "cd": 0.55},
+	# fused weapons: the same rule, by the fusion's own (higher) rarity; their tier bonus (x1.35 per fusion tier, faster cooldown) comes on top
+	"bulwark": {"hit": 7.69, "cd": 0.80}, "chainfangs": {"hit": 2.88, "cd": 0.30}, "knightblade": {"hit": 3.08, "cd": 0.32}, "lance": {"hit": 3.64, "cd": 0.50},
+	"magmamaul": {"hit": 9.11, "cd": 0.85}, "prismstaff": {"hit": 7.33, "cd": 0.50}, "quakepick": {"hit": 4.36, "cd": 0.60}, "rapier": {"hit": 2.33, "cd": 0.28},
+	"rimelance": {"hit": 4.81, "cd": 0.50}, "spellblade": {"hit": 4.29, "cd": 0.40}, "sultanguard": {"hit": 2.88, "cd": 0.30}, "tempest": {"hit": 4.82, "cd": 0.45},
+	"warpbow": {"hit": 3.21, "cd": 0.30}, "witchstaff": {"hit": 6.00, "cd": 0.50}, "dragoonpike": {"hit": 4.81, "cd": 0.50}, "earthshaker": {"hit": 6.43, "cd": 0.60},
+	"juggernaut": {"hit": 8.57, "cd": 0.80}, "soulreaper": {"hit": 3.60, "cd": 0.30}, "starfall": {"hit": 4.80, "cd": 0.40}, "stormbow": {"hit": 3.60, "cd": 0.30}, "worldbreaker": {"hit": 9.60, "cd": 0.80},
 }
 ## The numbers a stat screen shows for a weapon's basic attack at a tier bonus: {hit, cd, dps} after all multipliers. {} if unknown.
 func basic_numbers(id: String, bonus: int) -> Dictionary:
