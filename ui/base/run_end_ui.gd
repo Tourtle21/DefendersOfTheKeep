@@ -6,6 +6,7 @@ const UiKit = preload("res://ui/cards/ui_kit.gd")
 const DrawsUi = preload("res://ui/base/draws_ui.gd")
 const TierCard = preload("res://ui/cards/tier_card.gd")
 const WeaponCard = preload("res://ui/cards/weapon_card.gd")
+const RewardActions = preload("res://ui/base/reward_actions.gd")
 var root_ctl: Control
 var title: Label
 var summary: Label
@@ -426,73 +427,8 @@ func _fill_footer(footer: VBoxContainer, opt: Dictionary, holder: Control, is_ke
 			tag.text = "Owned: +%d Shards" % opt.shards
 			tag.add_theme_color_override("font_color", UiKit.SKY)
 	footer.add_child(tag)
-	# the actions: ONE main button (what you most likely want) full width, and the other choices side by side under it
-	var main_btn: Button = null
-	var side: Array = []
-	if opt.result == "upgrade":
-		var cid := str(opt.id)
-		var is_weapon: bool = str(opt.get("kind", "card")) == "weapon"
-		var owned_next: bool = (Game.weapon_tier_unlocked(cid) if is_weapon else Game.card_tier(cid)) >= int(opt.tier)
-		var price: int = Game.weapon_tier_price(cid) if is_weapon else Game.card_upgrade_cost(cid)
-		main_btn = _action("Upgraded" if owned_next else "Upgrade  (%d)" % price, true, !owned_next and Game.meta.shards >= price, func():
-			if (Game.buy_weapon_tier(cid) if is_weapon else Game.upgrade_card(cid)):
-				Sfx.play_ui("reveal_3")
-				_refresh())
-	elif opt.result == "spare":
-		var can_up: bool = int(opt.tier) < Game.MAX_LEVEL
-		main_btn = _action(("Merge  -> T%d" % (int(opt.tier) + 1)) if can_up else "Max tier", true, Game.spare_can_merge(opt), func():
-			if Game.spare_merge(opt):
-				Sfx.play_ui("reveal_3")
-				_refresh())
-		main_btn.tooltip_text = "Adds this copy to your card: a copy of the same tier raises it one tier (up to the deepest level you have reached)."
-		if !Game.spare_pair(opt).is_empty() and can_up:
-			var comb := _action("Combine", false, true, func():
-				if Game.spare_combine(opt):
-					Sfx.play_ui("reveal_2")
-					_refresh())
-			comb.tooltip_text = "Two spare copies of the same card and tier make one spare a tier higher."
-			side.append(comb)
-		side.append(_action("Sell  +%d" % Game.spare_sell_value(opt), false, true, func():
-			Game.spare_sell(opt)
-			_refresh()))
-	elif opt.result == "offer":
-		main_btn = _action("Unlock  (%d)" % opt.cost, true, Game.meta.shards >= opt.cost, func():
-			if Game.unlock_offer(opt):
-				_refresh())
-		side.append(_action("Convert  +%d" % Game.offer_convert_value(opt), false, true, func():
-			Game.convert_offer(opt)
-			_refresh()))
-	if main_btn != null:
-		footer.add_child(main_btn)
-	if !side.is_empty():
-		var srow := HBoxContainer.new()
-		srow.add_theme_constant_override("separation", 6)
-		srow.custom_minimum_size.x = FOOTER_W
-		var th := UiKit.make_theme()
-		for b in side:
-			b.custom_minimum_size.x = 0.0                        # share the row equally; the width never depends on the text
-			b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			b.clip_text = true
-			for st in ["normal", "hover", "pressed", "disabled", "focus"]:
-				var sb: StyleBoxFlat = th.get_stylebox(st, "Button").duplicate()
-				sb.content_margin_left = 4.0                    # slim padding so "Combine" and "Sell +5" fit their half
-				sb.content_margin_right = 4.0
-				b.add_theme_stylebox_override(st, sb)
-			srow.add_child(b)
-		footer.add_child(srow)
-
-## One reward button, always the same width: the main one is highlighted, the others plain and smaller.
-func _action(text: String, main: bool, enabled: bool, cb: Callable) -> Button:
-	var b := Button.new()
-	b.text = text
-	b.disabled = !enabled
-	b.custom_minimum_size = Vector2(FOOTER_W, 34.0 if main else 28.0)
-	b.add_theme_font_size_override("font_size", UiKit.FONT_BODY if main else UiKit.FONT_SMALL)
-	if main and enabled:
-		for st in ["normal", "hover", "pressed"]:
-			b.add_theme_stylebox_override(st, UiKit.style(UiKit.GOLD_FILL, UiKit.GOLD, 6.0))
-	b.pressed.connect(cb)
-	return b
+	if opt.result in ["upgrade", "spare", "offer"]:
+		footer.add_child(RewardActions.build(opt, FOOTER_W, _refresh))          # the same buttons the Drawn tab has
 
 ## Show or hide the Flip all button without freeing its space (nothing below it moves).
 func _show_flip_all(on: bool) -> void:

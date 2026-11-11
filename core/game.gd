@@ -661,16 +661,18 @@ func waiting_draws() -> Array:
 		if res != "offer" and res != "spare":
 			continue
 		var key := "%s:%s:%s" % [pe.kind, pe.id, res]
-		var g: Dictionary = groups.get(key, {"kind": str(pe.kind), "id": str(pe.id), "tier": 1, "count": 0, "result": res})
+		var g: Dictionary = groups.get(key, {"kind": str(pe.kind), "id": str(pe.id), "tier": 1, "count": 0, "result": res, "entry": pe})      # entry: the real waiting draw the buttons act on
 		g.count = int(g.count) + 1
 		g.tier = maxi(int(g.tier), int(pe.get("tier", 1)))
 		groups[key] = g
 	for id in CARDS:
 		if upgrade_available(id):
 			groups["card:%s:upgrade" % id] = {"kind": "card", "id": id, "tier": card_tier(id) + 1, "count": 1, "result": "upgrade"}
+			groups["card:%s:upgrade" % id]["entry"] = {"kind": "card", "id": id, "tier": card_tier(id) + 1, "realm": card_level(id), "result": "upgrade"}
 	for id in owned_weapon_ids():
 		if can_buy_weapon_tier(id):
-			groups["weapon:%s:upgrade" % id] = {"kind": "weapon", "id": id, "tier": weapon_tier_unlocked(id) + 1, "count": 1, "result": "upgrade"}
+			groups["weapon:%s:upgrade" % id] = {"kind": "weapon", "id": id, "tier": weapon_tier_unlocked(id) + 1, "count": 1, "result": "upgrade",
+				"entry": {"kind": "weapon", "id": id, "tier": weapon_tier_unlocked(id) + 1, "realm": 1, "result": "upgrade"}}
 	return groups.values()
 
 func mark_seen(id: String, kind := "card") -> void:
@@ -774,7 +776,7 @@ func _drop_pending(entry: Dictionary) -> void:
 
 # ---------- spare copies: a duplicate of a card you own ----------
 # It waits in the vault. Merge it into your card (a copy of the SAME tier raises the card one tier, like merging in a
-# run: 1 + 1 = 2, 2 + 2 = 3), combine two spares of the same card and tier into one spare a tier higher, or sell it.
+# run: 1 + 1 = 2, 2 + 2 = 3; the merge draws that tier and you pay Shards to apply it), combine two spares of the same card and tier into one spare a tier higher, or sell it.
 
 func spare_sell_value(entry: Dictionary) -> int:
 	return convert_value(int(entry.tier), int(entry.get("realm", 1)))
@@ -782,13 +784,17 @@ func spare_sell_value(entry: Dictionary) -> int:
 ## A copy can be merged when it matches your card's tier and that tier is below what your deepest run has reached.
 func spare_can_merge(entry: Dictionary) -> bool:
 	fix_meta()
-	return owns_card(str(entry.id)) and card_tier(str(entry.id)) == int(entry.tier) and int(entry.tier) < mini(MAX_LEVEL, int(meta.get("best_level", 1)))
+	return owns_card(str(entry.id)) and card_tier(str(entry.id)) == int(entry.tier) and int(entry.tier) < mini(MAX_LEVEL, int(meta.get("best_level", 1))) \
+		and int(meta.tier_drawn.get(str(entry.id), 1)) < int(entry.tier) + 1        # (not when that tier is already drawn and waiting)
 
+## Merging a spare copy DRAWS the card's next tier (the copy leaves the pile); the tier is applied when you pay the Shards for the
+## upgrade, in the Drawn tab or on the reward screen, exactly like a tier-up drawn at the end of a run.
 func spare_merge(entry: Dictionary) -> bool:
 	if entry.get("result", "") != "spare" or !spare_can_merge(entry):
 		return false
-	meta.card_tiers[str(entry.id)] = int(entry.tier) + 1
-	entry.result = "merged"
+	meta.tier_drawn[str(entry.id)] = int(entry.tier) + 1
+	entry.tier = int(entry.tier) + 1
+	entry.result = "upgrade"
 	_drop_pending(entry)
 	save_meta()
 	return true

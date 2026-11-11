@@ -5,6 +5,8 @@ extends CanvasLayer
 const UiKit = preload("res://ui/cards/ui_kit.gd")
 var tab_id := "draws"
 const WeaponCard = preload("res://ui/cards/weapon_card.gd")
+const RewardActions = preload("res://ui/base/reward_actions.gd")
+const ACTIONS_H := 68.0           # room under each card for its buttons
 
 signal closed
 
@@ -19,7 +21,7 @@ func _ready() -> void:
 	add_to_group("tab_screen")
 	var sc := UiKit.screen(self, "Drawn Cards", func():
 		root_ctl.visible = false
-		closed.emit(), "Drawn but not used yet. A card leaves once you unlock it or apply its upgrade.", "draws")
+		closed.emit(), "Drawn but not used yet. Unlock, upgrade, merge or sell them here: a card leaves once you unlock it, upgrade it or sell it.", "draws")
 	root_ctl = sc.root
 	stats_label = sc.right
 	var panel := UiKit.panel()
@@ -71,7 +73,7 @@ func _refresh() -> void:
 			return str(a.id) < str(b.id)
 		return str(a.result) < str(b.result))
 	var area := grid_area.size if grid_area.size.x > 100 else get_viewport().get_visible_rect().size - Vector2(60, 200)
-	var gem_h := 18.0
+	var gem_h := 18.0 + ACTIONS_H
 	area.y -= gem_h * ceilf(sqrt(items.size() / 1.6))
 	var fit := UiKit.fit_cards(items.size(), area, 0.6, 8.0, 132.0)
 	var cols: int = fit.cols
@@ -100,9 +102,13 @@ func _refresh() -> void:
 		var tag: String = {"offer": "Unlock", "spare": "Spare", "upgrade": "Upgrade T%d" % int(h.tier)}.get(str(h.result), "")
 		count.text = ("%s x%d" % [tag, int(h.count)]) if int(h.count) > 1 else tag
 		count.position = Vector2(0, csize.y)
-		count.size = Vector2(csize.x, gem_h)
+		count.size = Vector2(csize.x, 18.0)
 		count.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		count.add_theme_font_size_override("font_size", UiKit.FONT_SMALL)
 		count.add_theme_color_override("font_color", UiKit.GOLD)
 		holder.add_child(count)
+		if h.has("entry"):                                           # unlock / convert, upgrade, merge / combine / sell, right here
+			var acts := RewardActions.build(h.entry, csize.x, _refresh)
+			acts.position = Vector2(0, csize.y + 20.0)
+			holder.add_child(acts)
 		grid_area.add_child(holder)
