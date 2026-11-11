@@ -63,23 +63,11 @@ const FUSED := {
 func _initialize() -> void:
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("res://ui/cards"))
 	if "only=frames" in OS.get_cmdline_user_args():
-		# every frame in its kind's look (spell / build), plus the weapon frame: icons and hand-painted art are left alone
-		var styles := {}
-		var game = root.get_node("Game")
-		for id in game.CARDS:
-			var c: Dictionary = game.CARDS[id]
-			styles[str(c.get("art", c.kind))] = "build" if c.kind == "build" else "spell"
-		for kind in ACCENTS:
-			save(make_frame(ACCENTS[kind], false, styles.get(kind, "spell")), "frame_%s" % kind)
-		for id in FUSED:
-			save(make_frame(FUSED[id][2], false, styles.get(id, "spell")), "frame_%s" % id)
-		save(make_frame(Color("b8c4d8"), false, "weapon"), "frame_weapon")
+		save_frames()
 		print("card frames written")
 		quit()
 		return
 	if "only=legend" in OS.get_cmdline_user_args():
-		for kind in ["meteor_shower", "stasis", "sunspire", "phoenix_shrine"]:
-			save(make_frame(ACCENTS[kind], false), "frame_%s" % kind)
 		save(make_meteor(), "icon_meteor_shower")
 		save(make_stasis(), "icon_stasis")
 		save(make_turret(Color("ffe070")), "icon_sunspire")
@@ -89,22 +77,18 @@ func _initialize() -> void:
 		return
 	if "only=fused" in OS.get_cmdline_user_args():
 		for id in FUSED:
-			save(make_frame(FUSED[id][2], false), "frame_%s" % id)
 			save(blend(parent_icon(FUSED[id][0]), parent_icon(FUSED[id][1])), "icon_%s" % id)
 		print("fused card art written")
 		quit()
 		return
 	if "only=night" in OS.get_cmdline_user_args():
 		# just the newest cards, so hand-painted art for the older ones is left alone
-		for kind in ["torch", "flare"]:
-			save(make_frame(ACCENTS[kind], false), "frame_%s" % kind)
 		save(make_torch(), "icon_torch")
 		save(make_flare(), "icon_flare")
 		print("night card art written")
 		quit()
 		return
-	for kind in ACCENTS:
-		save(make_frame(ACCENTS[kind], false), "frame_%s" % kind)
+	save_frames()
 	save(make_frame(Color("8a93b8"), true), "card_back")
 	save(make_flame(), "icon_fireball")
 	save(make_snowflake(), "icon_frost_ring")
@@ -159,6 +143,14 @@ func blend(a: Image, b: Image) -> Image:
 			img.set_pixel(x, y, src.get_pixel(x, y))
 	outline(img)
 	return img
+
+## The card frames: three designs (spell = rounded, build = brick, weapon = chamfered steel) in the seven rarity colours.
+## ui/cards/frame_<design>_<rarity 0-6>.png. The rarity colours come from Game.RARITIES.
+const RARITY_COLORS := [Color("c8ccd8"), Color("5fe07a"), Color("5aa8ff"), Color("b066ff"), Color("ff5a5a"), Color("ff9a30"), Color("ffe14a")]
+func save_frames() -> void:
+	for style in ["spell", "build", "weapon"]:
+		for r in RARITY_COLORS.size():
+			save(make_frame(RARITY_COLORS[r], false, style), "frame_%s_%d" % [style, r])
 
 func save(img: Image, name: String) -> void:
 	img.save_png(ProjectSettings.globalize_path("res://ui/cards/%s.png" % name))
@@ -291,7 +283,7 @@ func make_frame(accent: Color, is_back: bool, style := "spell") -> Image:
 						if style == "build":
 							band = accent.darkened(0.55 if (x / 3 + y / 2) % 2 == 0 else 0.25)           # bricks
 						elif style == "weapon":
-							band = Color("98a2b4") if (x + y) % 6 < 3 else Color("6c7688")               # brushed steel
+							band = (Color("98a2b4") if (x + y) % 6 < 3 else Color("6c7688")).lerp(accent, 0.7)     # brushed steel, tinted by the rarity
 						img.set_pixel(x, y, band)
 	if is_back:
 		# like the token back: big red gem in the middle

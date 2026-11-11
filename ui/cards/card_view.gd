@@ -135,7 +135,9 @@ func _ready() -> void:
 	_face.size = SIZE
 	_face.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_body.add_child(_face)
-	_face.add_child(_tex("res://ui/cards/frame_%s.png" % kind, Vector2.ZERO, SIZE))
+	var design := "weapon" if kind == "weapon" else ("build" if card.kind == "build" else "spell")      # the border design by kind ...
+	var rarity: int = Game.weapon_rarity(card_id) if kind == "weapon" else Game.card_rarity(card_id)  # ... and its colour by rarity
+	_face.add_child(_tex("res://ui/cards/frame_%s_%d.png" % [design, rarity], Vector2.ZERO, SIZE))
 	if kind == "weapon":
 		_weapon_art()
 	else:
@@ -157,7 +159,7 @@ func _ready() -> void:
 		cost.position = Vector2(10, 59)
 		cost.size = Vector2(76, 16)
 		_face.add_child(cost)
-	_face.add_child(_label(card.name, Vector2(10, 81), Vector2(76, 20), 11, weapon.get("accent", UiKit.WHITE) if kind == "weapon" else UiKit.WHITE))     # a weapon's name is in its rarity colour
+	_face.add_child(_label(card.name, Vector2(10, 81), Vector2(76, 20), 11, UiKit.WHITE))
 	var desc_text: String = card.desc
 	var desc_color := UiKit.TEXT_HINT
 	if twist != "" and Game.TWISTS.has(twist):

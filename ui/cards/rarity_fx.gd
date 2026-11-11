@@ -1,6 +1,6 @@
 extends Control
-## The glow, burst and sparkles around a revealed reward card. Rarer cards glow brighter, burst bigger and sparkle
-## more; Legendary cycles through every colour. Put it over a card-sized area (mouse is ignored).
+## The burst and sparkles when a reward card is revealed (no steady glow: the card's border colour already shows its rarity).
+## Rarer cards burst bigger and sparkle more; Legendary cycles through every colour. Put it over a card-sized area (mouse is ignored).
 
 var rarity := 0
 var _t := 0.0
@@ -28,9 +28,6 @@ func _process(delta: float) -> void:
 func _draw() -> void:
 	var col := _colour()
 	var c := size / 2.0
-	if rarity >= 1:
-		for i in 3:
-			draw_rect(Rect2(Vector2(-i * 2.0, -i * 2.0), size + Vector2(i * 4.0, i * 4.0)), Color(col, (0.30 + 0.06 * rarity) - i * 0.09), false, 2.0)
 	if _burst > 0.0:
 		var ring := (1.0 - _burst) * (70.0 + 22.0 * rarity)
 		draw_arc(c, ring, 0, TAU, 56, Color(col, _burst), 2.0 + rarity * 0.6)
