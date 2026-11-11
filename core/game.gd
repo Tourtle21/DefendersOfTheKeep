@@ -951,6 +951,27 @@ func note_weapon_tier(id: String, tier: int) -> void:
 	if tier > weapon_tier_unlocked(id):
 		meta.weapon_tiers[id] = mini(tier, 6)
 
+## Do you own this weapon (the sword and pickaxe from the start, others once unlocked or their fusion tier is)?
+func weapon_owned(id: String) -> bool:
+	return weapon_unlocked(id) if Fusion.tier_of(id) == 1 else fusion_tier_unlocked(Fusion.tier_of(id))
+
+## Shards for the next tier of a weapon you own, on the same curve as card tiers (8, 23, 42, 64, 89).
+func weapon_tier_price(id: String) -> int:
+	return int(round(8.0 * pow(weapon_tier_unlocked(id), 1.5)))
+
+## Can the next tier of this weapon be bought with Shards (owned, below this run's tier cap)?
+func can_buy_weapon_tier(id: String) -> bool:
+	return weapon_owned(id) and weapon_tier_unlocked(id) < mini(6, weapon_tier_cap())
+
+func buy_weapon_tier(id: String) -> bool:
+	fix_meta()
+	if !can_buy_weapon_tier(id) or meta.shards < weapon_tier_price(id):
+		return false
+	meta.shards -= weapon_tier_price(id)
+	note_weapon_tier(id, weapon_tier_unlocked(id) + 1)
+	save_meta()
+	return true
+
 ## Would this combine be allowed except that its tier has not been drawn yet?
 func combine_locked_by_draw(a: String) -> bool:
 	var id := entry_id(a)
@@ -971,7 +992,7 @@ func forge_preview(ea: String, eb: String) -> Dictionary:
 			elif t >= 6:
 				why = "Max tier."
 			elif combine_locked_by_draw(ea):
-				why = "Tier %d is locked. Draw it at the end of a run." % (t + 1)
+				why = "Tier %d is locked. Buy it with Shards in the Weapons tab, or draw it at the end of a run." % (t + 1)
 			return {"text": why, "ok": false, "kind": "combine", "result": ""}
 		var cost: Dictionary = combine_cost(ea)
 		var gained := weapon_twist(ida, t + 1)

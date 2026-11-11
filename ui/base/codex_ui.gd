@@ -174,8 +174,7 @@ func _cost_text(cost: Dictionary) -> String:
 	return ResIcons.bb(cost, 16)                  # resource icons with their amounts (the detail pane is a RichTextLabel)
 
 func _tier_unlocked(id: String, t: int) -> bool:
-	var owned: bool = Game.weapon_unlocked(id) if Fusion.tier_of(id) == 1 else Game.fusion_tier_unlocked(Fusion.tier_of(id))
-	return owned and t <= Game.weapon_tier_cap() and t <= Game.weapon_tier_unlocked(id)
+	return Game.weapon_owned(id) and t <= Game.weapon_tier_cap() and t <= Game.weapon_tier_unlocked(id)
 
 func _show_detail(id: String) -> void:
 	for c in action_row.get_children():
@@ -192,6 +191,15 @@ func _show_detail(id: String) -> void:
 			if Game.buy_weapon(id):
 				_refresh())
 		action_row.add_child(b)
+	if Game.can_buy_weapon_tier(id):                      # the next tier can be bought with Shards (drawing it at the end of a run is still free)
+		var nt: int = Game.weapon_tier_unlocked(id) + 1
+		var tb := Button.new()
+		tb.text = "Unlock tier %d for %d Shards  (you have %d)" % [nt, Game.weapon_tier_price(id), Game.meta.shards]
+		tb.disabled = Game.meta.shards < Game.weapon_tier_price(id)
+		tb.pressed.connect(func():
+			if Game.buy_weapon_tier(id):
+				_refresh())
+		action_row.add_child(tb)
 	if !_known(id):
 		detail.text = "[b]???[/b]\nNot found yet.\n" + ("Get it as a reward at the end of a run." if Fusion.tier_of(id) == 1 else "Fuse the right two weapons at the Forge to discover it.")
 		return
