@@ -57,6 +57,7 @@ func _ready() -> void:
 		add_child(CritterSpawner.new())
 	add_child(preload("res://ui/forge/forge_ui.gd").new())
 	add_child(preload("res://scenery/forge/forge.gd").new())
+	add_child(preload("res://scenery/gong/gong.gd").new())
 	add_child(preload("res://ui/forge/card_fuse_ui.gd").new())
 	add_child(preload("res://scenery/card_fuser/card_fuser.gd").new())
 	add_child(preload("res://world/chest_spawner.gd").new())
@@ -104,6 +105,7 @@ const DAWN_AT := 100.0             # and fades again (over 20 s)
 var clock := 0.0
 var _banner
 const GAME_SPEED := 0.8           # the whole game runs a little slower than real time (not in headless tests)
+var _gong_called := false          # the gong was hit: the next wave starts now, without waiting for the last one to be beaten
 const CLEAR_PATIENCE := 90.0      # the next wave waits this long past its time for the last one to be beaten
 var night_wave := false            # the wave being set up now is a night wave
 var _last_cycle_t := 0.0
@@ -325,10 +327,11 @@ func spawn_enemies(enemies, draw_lines := []) -> void:
 	night_wave = !night_wave                       # the next wave is the other kind, a long while from now
 	$SpawnTimer.wait_time = seconds_until(NIGHT_WAVE_AT if night_wave else DAY_WAVE_AT)
 	$SpawnTimer.start()
+	_gong_called = false
 	await $SpawnTimer.timeout
 	# never start the next wave on top of the last one: wait for it to be beaten (up to a limit)
 	var waited := 0.0
-	while is_inside_tree() and waited < CLEAR_PATIENCE and _wave_alive() > 0:
+	while is_inside_tree() and !_gong_called and waited < CLEAR_PATIENCE and _wave_alive() > 0:
 		Game.wave_waiting = true
 		Game.wave_eta_s = int(CLEAR_PATIENCE - waited)
 		await get_tree().create_timer(1.0).timeout
@@ -341,6 +344,16 @@ func spawn_enemies(enemies, draw_lines := []) -> void:
 	_begin_wave()
 	
 	
+
+## The gong above the well was struck: end the wait and start the next wave now.
+func call_next_wave() -> void:
+	if Game.run_over:
+		return
+	_gong_called = true                         # (also ends the wait for the last wave to be beaten)
+	Game.announce.emit("The gong rings: the next wave is coming!")
+	if !$SpawnTimer.is_stopped():
+		$SpawnTimer.stop()
+		$SpawnTimer.timeout.emit()
 
 ## The sword lying at the start is replaced by the weapon chosen in the Shard shop.
 func _apply_start_weapon() -> void:

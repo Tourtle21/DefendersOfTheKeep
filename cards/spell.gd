@@ -76,7 +76,7 @@ func _in_radius(group: String) -> Array:
 	var out := []
 	var nodes: Array = get_tree().get_nodes_in_group(group)
 	if group == "enemy":
-		nodes = nodes + get_tree().get_nodes_in_group("critter")      # spells can hit the rainbow sheep too
+		nodes = nodes + get_tree().get_nodes_in_group("critter") + get_tree().get_nodes_in_group("gong")      # spells can hit the rainbow sheep and the gong too
 	for n in nodes:
 		if n.global_position.distance_to(global_position) <= radius:
 			out.append(n)
