@@ -1869,7 +1869,7 @@ func basic_cd(id: String, fallback := 0.5) -> float:
 
 ## Damage multiplier of a weapon: +35% for every fusion tier above 1, +20% per bonus tier, and legendary weapons hit 50% harder.
 func weapon_power(id: String, bonus: int) -> float:
-	var rarity_bonus: float = 1.0 + 0.1 * minf(5.0, float(weapon_rarity(id))) if Fusion.tier_of(id) == 1 else 1.0       # rarer base weapons hit harder
+	var rarity_bonus: float = 1.0 + 0.1 * minf(5.0, float(weapon_rarity(id)))       # every weapon: rarer hits harder (a fused weapon is one step rarer than its rarest part), on top of the tier bonuses
 	return (1.0 + 0.2 * bonus) * (1.0 + 0.35 * (Fusion.tier_of(id) - 1)) * (1.5 if id in LEGENDARY_WEAPONS else 1.0) * rarity_bonus
 
 func is_legendary_card(id: String) -> bool:
