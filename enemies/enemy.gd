@@ -176,6 +176,7 @@ func _physics_process(delta):
 		elif !_ability(delta, aggro_target, dist):
 			_chase(delta)
 		_update_facing(delta, aggro_target.global_position - global_position)
+		_hit_guard(delta, aggro_target, dist)
 		if !has_crystal and global_position.distance_to(center) <= 14.0:
 			Game.damage_keep(keep_dps * delta)
 		_flip_sprite()
@@ -221,10 +222,14 @@ func is_behind(from: Vector2) -> bool:
 func _valid_target(p) -> bool:
 	return p != null and is_instance_valid(p) and !p.get("downed") and !p.get("is_in_tower")
 
+## Everything an enemy may turn on: the players, and the guards the Guards card summons (they draw enemies like a player does).
+func _aggro_candidates() -> Array:
+	return get_tree().get_nodes_in_group("player") + get_tree().get_nodes_in_group("guard")
+
 func _nearest_player(max_dist: float, front_only := false):
 	var best = null
 	var best_d := max_dist
-	for p in get_tree().get_nodes_in_group("player"):
+	for p in _aggro_candidates():
 		if _valid_target(p):
 			var d: float = p.global_position.distance_to(global_position)
 			if front_only and d > 1.0 and facing.dot((p.global_position - global_position) / d) < FRONT_DOT:
@@ -274,6 +279,16 @@ func _update_aggro(delta: float) -> void:
 		var p = _nearest_player(AGGRO_RANGE, true)
 		if p != null:
 			start_aggro(p)
+
+## Touching a guard hurts it (a guard is not a body, so the hitbox that hurts players never sees it).
+func _hit_guard(delta: float, t, dist: float) -> void:
+	_guard_cd -= delta
+	if t.is_in_group("guard") and dist <= 14.0 and _guard_cd <= 0.0:
+		_guard_cd = 0.9
+		t.take_damage(global_position, contact_damage * 0.4)
+		aggro_left = maxf(aggro_left, AGGRO_TIME * 0.5)          # it keeps at the guard while it is winning
+
+var _guard_cd := 0.0
 
 func _chase(delta: float) -> void:
 	var dir: Vector2 = (aggro_target.global_position - global_position).normalized()

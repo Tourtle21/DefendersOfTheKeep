@@ -28,7 +28,7 @@ func setup(card: Dictionary, target: Vector2, from: Vector2) -> void:
 		data = card
 	radius = card.radius
 	flight = 0.1 if card.kind == "flare" else max(0.15, from.distance_to(target) / card.speed)         # a Flare is just there, at your aim
-	effect_time = 0.4 if card.kind == "fireball" else card.duration
+	effect_time = 0.4 if card.kind == "fireball" else card.get("duration", 0.3)
 
 func _ready() -> void:
 	add_to_group("net")

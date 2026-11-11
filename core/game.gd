@@ -173,8 +173,8 @@ const CARDS := {
 	},
 	"guards": {
 		"name": "Guards", "mana": 30, "res": {"gold": 2}, "kind": "guards",
-		"radius": 20.0, "count": 3, "damage": 1.5, "duration": 15.0, "speed": 260.0,
-		"desc": "Summons guards that fight nearby enemies.",
+		"radius": 20.0, "count": 3, "damage": 1.2, "hp": 20.0, "speed": 260.0,
+		"desc": "Summons guards that draw enemies and fight them until they fall.",
 	},
 	"charm": {
 		"name": "Charm", "mana": 35, "res": {"gold": 3}, "kind": "charm",
@@ -1659,7 +1659,7 @@ func scaled(id: String, level: int) -> Dictionary:
 		e.radius = 0.2
 	elif c.kind == "guards":
 		e.damage = 0.5
-		e.duration = 0.25
+		e.hp = 0.7
 	if bk in ["barricade", "sentry", "torch"]:
 		e.erase("radius")                                           # that radius is just the footprint
 	for key in e:
