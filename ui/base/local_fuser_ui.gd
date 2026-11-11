@@ -45,12 +45,12 @@ func open() -> void:
 ## Called every physics frame with this player's controller.
 func poll(dev: int) -> void:
 	var b := _pad.read(dev)
-	var near: bool = Net.near_station(pl, Net.CARD_FUSER_POS)
+	var near: bool = Net.can_use_station(pl, Net.CARD_FUSER_POS)
 	if !is_open:
-		if b.up and near and !pl.is_in_tower and !pl.downed:
+		if b.up and near:
 			open()
 		return
-	if !near or pl.downed or pl.is_in_tower:
+	if !near:
 		close()
 		return
 	var n := Game.hand.size()

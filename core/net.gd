@@ -531,21 +531,37 @@ func _nearest_tower(pos: Vector2, max_dist: float):
 				best = c
 	return best
 
-func _set_base(pl, on: bool) -> void:
+const TOWER_SEAT := Vector2(0, -33)      # where a player stands inside a tower (relative to it)
+const TOWER_EXIT := Vector2(0, 17)       # and where they step out to
+
+## Enter (on) or leave (off) a tower: the ONE rule for player 1's door (scenery/tower/EnterArea.gd), split-screen players and LAN
+## clients. One person per tower; stepping out never lands beyond the keep's edge. Returns true if the player moved.
+func _set_base(pl, on: bool) -> bool:
 	if on and !pl.is_in_tower:
 		var tower = _tower_at_door(pl.global_position)
 		if tower == null:
-			return
+			return false
 		if Game.tower_taken(tower, pl):
 			Game.announce.emit("That tower is already in use.")          # one person per tower
-			return
+			return false
 		pl.is_in_tower = true
-		pl.global_position = tower.global_position - Vector2(0, 10)
+		pl.global_position = tower.global_position + TOWER_SEAT
 		Game.enter_base(pl)
+		return true
 	elif !on and pl.is_in_tower:
+		var tower = Game.current_tower(pl)
 		pl.is_in_tower = false
 		Game.exit_base(pl)
-		pl.global_position += Vector2(0, 40)
+		var out: Vector2 = (tower.global_position if tower != null else pl.global_position - TOWER_SEAT) + TOWER_EXIT
+		if out.length() > 110.0 and !Game.gate_open(out.angle()):
+			out = out.normalized() * 110.0
+		pl.global_position = out
+		return true
+	return false
+
+## Can this player use a station (the Forge, the Card Fuser) right now? One rule for player 1's key and the other players' d-pad.
+func can_use_station(pl, station: Vector2) -> bool:
+	return near_station(pl, station) and !pl.is_in_tower and !pl.downed
 
 func roster() -> Dictionary:
 	var r := {1: "Host"}

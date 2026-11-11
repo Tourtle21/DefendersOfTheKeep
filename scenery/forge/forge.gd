@@ -6,7 +6,7 @@ var hovering := false
 
 func _ready() -> void:
 	add_to_group("net")
-	position = Vector2(-62, 22)
+	position = Net.FORGE_POS
 	collision_layer = 0
 	collision_mask = 1
 	var shape := CollisionShape2D.new()
@@ -19,7 +19,7 @@ func _ready() -> void:
 	z_index = 2
 
 func _input(event: InputEvent) -> void:
-	if hovering and event.is_action_pressed("interact") and !(Game.draft_active and Game.draft_owner_slot == 0) and !Game.menu_open():
+	if event.is_action_pressed("interact") and Net.can_use_station(Game.world.get_node_or_null("Player"), Net.FORGE_POS) and !(Game.draft_active and Game.draft_owner_slot == 0) and !Game.menu_open():
 		var ui = get_tree().get_first_node_in_group("forge_ui")
 		if ui:
 			ui.open()

@@ -55,10 +55,10 @@ func open() -> void:
 func poll(dev: int) -> void:
 	var b := _pad.read(dev)
 	if !is_open:
-		if b.up and Net.near_station(pl, Net.FORGE_POS) and !pl.is_in_tower and !pl.downed:
+		if b.up and Net.can_use_station(pl, Net.FORGE_POS):
 			open()
 		return
-	if !Net.near_station(pl, Net.FORGE_POS) or pl.downed or pl.is_in_tower:
+	if !Net.can_use_station(pl, Net.FORGE_POS):
 		close()
 		return
 	var items := _items()

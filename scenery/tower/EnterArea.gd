@@ -1,35 +1,19 @@
 extends Area2D
+## The door of a tower for player 1. Entering and leaving is Net._set_base, the same rule every other player uses; this only
+## adds what is player 1's own: the camera, the draw order and the interior picture.
 var open = false
 var entered = false
 
 func _input(event: InputEvent) -> void:
 	if (open or entered) and event.is_action_pressed("interact") and !Game.menu_open():
-		if !entered and Game.tower_taken(get_parent(), get_parent().get_parent().get_node("Player")):
-			Game.announce.emit("That tower is already in use.")          # one person per tower
+		var player = get_parent().get_parent().get_node("Player")
+		if !Net._set_base(player, !entered):
 			return
-		entered = !entered
-		if entered:
-			get_parent().get_parent().get_node("Player").is_in_tower = true
-			Game.enter_base(get_parent().get_parent().get_node("Player"))
-			get_parent().get_parent().get_node("Player").z_index = 1
-			get_parent().get_parent().get_node("Player").position = global_position - Vector2(0, 10)
-			get_parent().get_parent().get_node("Player").base_zoom = 2.0
-			get_parent().get_parent().get_node("Player").get_node("Camera2D").position += Vector2(0, 100)
-		else:
-			get_parent().get_parent().get_node("Player").is_in_tower = false
-			Game.exit_base(get_parent().get_parent().get_node("Player"))
-			var out: Vector2 = global_position + Vector2(0, 40)
-			if out.length() > 110.0 and !Game.gate_open(out.angle()):
-				out = out.normalized() * 110.0         # stepping out must not land beyond the keep's edge (it would snap you back)
-			get_parent().get_parent().get_node("Player").position = out
-			get_parent().get_parent().get_node("Player").z_index = 0
-			get_parent().get_parent().get_node("Player").base_zoom = 5.0
-			get_parent().get_parent().get_node("Player").get_node("Camera2D").position += Vector2(0, -100)
-		get_parent().get_node("Sprite2D2").visible = entered
-		get_parent().get_node("CollisionShape2D2").disabled = !entered
-		get_parent().get_node("CollisionShape2D3").disabled = !entered
-		get_parent().get_node("CollisionShape2D4").disabled = !entered
-		get_parent().get_node("CollisionShape2D5").disabled = !entered
+		entered = player.is_in_tower
+		player.z_index = 1 if entered else 0
+		player.base_zoom = 2.0 if entered else 5.0
+		player.get_node("Camera2D").position += Vector2(0, 100 if entered else -100)
+		_show_interior(entered)
 
 ## Jump between towers while you stay inside the keep: the old tower closes, this one opens around you.
 func teleport_leave() -> void:
@@ -38,7 +22,7 @@ func teleport_leave() -> void:
 
 func teleport_arrive(player: Node) -> void:
 	entered = true
-	player.global_position = global_position - Vector2(0, 10)
+	player.global_position = get_parent().global_position + Net.TOWER_SEAT
 	_show_interior(true)
 
 func _show_interior(on: bool) -> void:
