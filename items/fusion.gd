@@ -31,7 +31,7 @@ const RECIPES := {
 
 const NAMES := {
 	"sword": "Sword", "pickaxe": "Pickaxe", "spear": "Spear", "hammer": "Hammer",
-	"bow": "Bow", "torch": "Hand Torch", "dawnbringer": "Dawnbringer", "voidreaver": "Voidreaver", "daggers": "Twin Daggers", "whip": "Whip", "shield": "Shield", "staff": "Staff",
+	"bow": "Bow", "torch": "Hand Torch", "dawnbringer": "Dawnbringer", "voidreaver": "Voidreaver", "mindbender": "Mindbender", "daggers": "Twin Daggers", "whip": "Whip", "shield": "Shield", "staff": "Staff",
 	"lance": "Siege Lance", "warpbow": "Warp Bow", "chainfangs": "Chain Fangs",
 	"bulwark": "Bulwark Maul", "knightblade": "Knight's Blade", "quakepick": "Quake Pick",
 	"tempest": "Tempest Lash", "rapier": "Rapier", "spellblade": "Spellblade",

@@ -45,6 +45,7 @@ const ACCENTS := {
 	"flare": Color("fff0a0"),
 	"meteor_shower": Color("ffb030"),
 	"stasis": Color("bfe6ff"),
+	"mass_conversion": Color("8fe6ff"),
 	"sunspire": Color("ffe070"),
 	"phoenix_shrine": Color("ff8a3a"),
 }
@@ -70,6 +71,7 @@ func _initialize() -> void:
 	if "only=legend" in OS.get_cmdline_user_args():
 		save(make_meteor(), "icon_meteor_shower")
 		save(make_stasis(), "icon_stasis")
+		save(make_conversion(), "icon_mass_conversion")
 		save(make_turret(Color("ffe070")), "icon_sunspire")
 		save(make_totem(Color("ff8a3a")), "icon_phoenix_shrine")
 		print("legendary card art written")
@@ -193,6 +195,20 @@ func make_stasis() -> Image:
 	for y in range(19, 24):
 		for x in range(14 - (24 - y) / 2 + 3, 18 + (24 - y) / 2 - 2):
 			img.set_pixel(x, y, Color("ffe9a0"))
+	outline(img)
+	return img
+
+func make_conversion() -> Image:
+	var img := new_img(32, 32)
+	disc(img, 16.0, 16.0, 11.0, Color("8fe6ff", 0.35))            # an eye in a ring of arrows pointing inward: a crowd turned
+	disc(img, 16.0, 16.0, 7.0, Color("e8fbff"))
+	disc(img, 16.0, 16.0, 4.5, Color("2a9ad0"))
+	disc(img, 16.0, 16.0, 2.0, Color("101830"))
+	for i in 6:
+		var a := i * TAU / 6.0
+		for r in range(11, 15):
+			var p := Vector2(16, 16) + Vector2.from_angle(a) * r
+			img.set_pixel(clampi(int(p.x), 0, 31), clampi(int(p.y), 0, 31), Color("ffe07a"))
 	outline(img)
 	return img
 

@@ -208,6 +208,11 @@ extends Resource
 		"texture": "res://items/weapons/icons/voidreaver.png",
 		"type": "item"
 	},
+	"mindbender": {
+		"path": "res://items/weapons/mindbender.tscn",
+		"texture": "res://items/weapons/icons/mindbender.png",
+		"type": "item"
+	},
 	"torch": {
 		"path": "res://items/weapons/torch.tscn",
 		"texture": "res://items/weapons/icons/torch.png",

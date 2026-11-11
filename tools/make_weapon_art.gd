@@ -14,6 +14,7 @@ func _initialize() -> void:
 	if "only=legend" in OS.get_cmdline_user_args():
 		save(dawnbringer(), "dawnbringer")
 		save(voidreaver(), "voidreaver")
+		save(mindbender(), "mindbender")
 		print("legendary weapon icons written")
 		quit()
 		return
@@ -195,6 +196,23 @@ func voidreaver() -> Image:
 		for dy in range(-int(w), int(w) + 1):
 			px(img, int(p.x), int(p.y) + dy + 3, Color("b080ff") if dy <= 0 else Color("6a3ac8"))
 	disc(img, 16.0, 8.0, 2.4, Color("9a5aff"))
+	return img
+
+func mindbender() -> Image:
+	var img := new_img()
+	# a slim gold scepter topped with a cyan eye inside a ring of prongs
+	rect(img, 15, 12, 16, 31, Color("b89030"))
+	rect(img, 15, 12, 15, 31, Color("e8c040"))
+	rect(img, 13, 22, 18, 23, Color("e8c040"))
+	disc(img, 16.0, 8.0, 6.2, Color("3a6a8a"))
+	disc(img, 16.0, 8.0, 4.6, Color("c8f4ff"))
+	disc(img, 16.0, 8.0, 2.6, Color("2a9ad0"))
+	disc(img, 16.0, 8.0, 1.2, Color("101830"))
+	for i in 5:
+		var ang := -PI / 2.0 + (i - 2) * 0.55
+		var tip := Vector2(16.0, 8.0) + Vector2.from_angle(ang) * 9.0
+		px(img, int(tip.x), int(tip.y), Color("e8c040"))
+		px(img, int(tip.x), int(tip.y) + 1, Color("e8c040"))
 	return img
 
 func torch() -> Image:

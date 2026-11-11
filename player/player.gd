@@ -31,6 +31,7 @@ var base_zoom = 5.0      # camera zoom before the UI-scale compensation (5 = nor
 var dash_velocity = Vector2.ZERO
 var dash_time = 0.0
 var speed_mult = 1.0
+var confused_time := 0.0             # > 0: your movement is reversed (a Prism Blinker's strike)
 var parry_time = 0.0
 var on_parry = Callable()
 var _saved_mask = 1
@@ -105,6 +106,9 @@ func respawn() -> void:
 	Game.announce.emit("You are back in the fight!")
 
 func _physics_process(delta):
+	if confused_time > 0.0:
+		confused_time -= delta
+		modulate = Color(0.85, 0.6, 1.0) if confused_time > 0.0 else Color.WHITE
 	if downed:
 		respawn_left -= delta
 		if respawn_left <= 0.0:
@@ -232,7 +236,7 @@ var _last_move_ms := -10000
 ## Which way a dash goes: the way you are moving (or were a moment ago). Standing still, it falls
 ## back to `fallback` (the cursor), so a dash always goes somewhere.
 func dash_dir(fallback: Vector2) -> Vector2:
-	var d: Vector2 = remote_input.move if remote_controlled else Input.get_vector(controls.left, controls.right, controls.up, controls.down)
+	var d: Vector2 = _move_input()
 	if d.length() > 0.1:
 		return d.normalized()
 	if _last_move.length() > 0.1 and Time.get_ticks_msec() - _last_move_ms < 400:
@@ -240,7 +244,7 @@ func dash_dir(fallback: Vector2) -> Vector2:
 	return fallback.normalized() if fallback.length() > 0.01 else Vector2.RIGHT
 
 func process_movement(delta):
-	var input_direction = remote_input.move if remote_controlled else Input.get_vector(controls.left, controls.right, controls.up, controls.down)
+	var input_direction = _move_input()
 	if input_direction.length() > 0.1:
 		_last_move = input_direction.normalized()
 		_last_move_ms = Time.get_ticks_msec()
@@ -332,6 +336,19 @@ func heal(amount: float) -> void:
 		return
 	var health_rect = get_parent().get_node("Hud/Control2/ColorRect/Health")
 	health_rect.size.x = min(health_rect.size.x + amount, 228.0)
+
+## What the player is steering this frame: reversed while confused.
+func _move_input() -> Vector2:
+	var v: Vector2 = remote_input.move if remote_controlled else Input.get_vector(controls.left, controls.right, controls.up, controls.down)
+	return -v if confused_time > 0.0 else v
+
+## Confuse: movement is reversed for a few seconds (the player is tinted purple meanwhile).
+func confuse(seconds: float) -> void:
+	if downed or is_in_tower:
+		return
+	if confused_time <= 0.0:
+		Game.announce.emit("Confused! Your movement is reversed.")
+	confused_time = maxf(confused_time, seconds)
 
 func take_damage(damage_origin: Vector2, damage := 30.0):
 	if downed or is_in_tower:

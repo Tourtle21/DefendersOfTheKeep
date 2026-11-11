@@ -54,6 +54,12 @@ const CARDS := {
 		"radius": 110.0, "damage": 14.0, "count": 10, "duration": 3.5, "speed": 170.0, "color": Color(1.0, 0.5, 0.15),
 		"desc": "LEGENDARY. Meteors rain over a wide area and light it up.",
 	},
+	"mass_conversion": {
+		"legendary": true,
+		"name": "Mass Conversion", "mana": 60, "res": {"gem": 2, "gold": 4}, "kind": "charm", "art": "mass_conversion",
+		"radius": 95.0, "duration": 25.0, "speed": 240.0, "color": Color(0.55, 0.9, 1.0),
+		"desc": "LEGENDARY. Every enemy in a wide area turns on its own side for a long while, and the rest fight them.",
+	},
 	"stasis": {
 		"legendary": true,
 		"name": "Stasis Field", "mana": 50, "res": {}, "kind": "stasis", "art": "stasis",
@@ -438,7 +444,7 @@ var run_stats := {"kills": 0, "gold": 0, "waves": 0, "bosses": 0}
 const SECTOR_ANGLES := {"s": 90.0, "se": 30.0, "ne": 330.0, "n": 270.0, "nw": 210.0, "sw": 150.0}
 var sectors_unlocked: Array = ["s"]
 const SECTOR_WEAPONS := {"se": "scimitar", "ne": "frostglaive", "n": "emberflail", "nw": "bogstaff", "sw": "crystalwand"}
-const SECTOR_CARDS := {"se": ["sandstorm", "iron_wall"], "ne": ["blizzard", "frost_totem"], "n": ["lava_pool", "ember_turret"], "nw": ["poison_cloud", "thorn_hedge"], "sw": ["crystal_spikes", "crystal_pylon"]}
+const SECTOR_CARDS := {"se": ["sandstorm", "iron_wall"], "ne": ["blizzard", "frost_totem"], "n": ["lava_pool", "ember_turret"], "nw": ["poison_cloud", "thorn_hedge"], "sw": ["crystal_spikes", "crystal_pylon", "mass_conversion"]}
 # build cards that need materials from two or more sectors: available once all are open
 const COMBO_CARDS := {
 	"storm_spire": ["se", "ne"], "magma_wall": ["se", "n"], "venom_tower": ["nw", "n"],
@@ -1777,12 +1783,12 @@ func card_available(id: String) -> bool:
 const REALM_LEVEL := {"s": 1, "se": 2, "ne": 3, "n": 4, "nw": 5, "sw": 6}
 # cards from the base realm that only appear a little deeper
 # Legendary cards and weapons cannot be bought or drawn from rewards. Beating the whole game unlocks one of them.
-const LEGENDARY_CARDS := ["meteor_shower", "stasis", "sunspire", "phoenix_shrine"]
-const LEGENDARY_WEAPONS := ["dawnbringer", "voidreaver"]
+const LEGENDARY_CARDS := ["meteor_shower", "stasis", "sunspire", "phoenix_shrine", "mass_conversion"]
+const LEGENDARY_WEAPONS := ["dawnbringer", "voidreaver", "mindbender"]
 # Reward cards at the end of a run, by the realms you opened. None unless you got past the first wave.
 const REWARD_COUNT := {1: 1, 2: 3, 3: 5, 4: 6, 5: 7, 6: 8}
 const WIN_REWARD_COUNT := 10
-const CARD_LEVEL_OVERRIDE := {"meteor_shower": 6, "stasis": 6, "sunspire": 6, "phoenix_shrine": 6, "aegis": 2, "guards": 2, "sentry": 2, "charm": 3, "mender": 1}
+const CARD_LEVEL_OVERRIDE := {"mass_conversion": 6, "meteor_shower": 6, "stasis": 6, "sunspire": 6, "phoenix_shrine": 6, "aegis": 2, "guards": 2, "sentry": 2, "charm": 3, "mender": 1}
 # about three new weapons per level so you learn them a few at a time (the realm weapons keep their own realm)
 const WEAPON_LEVEL := {"torch": 1, "spear": 1, "hammer": 1, "bow": 2, "daggers": 2, "scimitar": 2, "whip": 3, "shield": 3, "frostglaive": 3, "staff": 4, "emberflail": 4, "bogstaff": 5, "crystalwand": 6}
 
@@ -1858,7 +1864,7 @@ const WEAPON_BASIC := {
 	"whip": {"hit": 4.2, "cd": 0.5}, "shield": {"hit": 5.0, "cd": 0.7}, "frostglaive": {"hit": 3.75, "cd": 0.45},
 	"staff": {"hit": 4.8, "cd": 0.5}, "emberflail": {"hit": 5.8, "cd": 0.6},
 	"bogstaff": {"hit": 5.9, "cd": 0.55}, "crystalwand": {"hit": 6.0, "cd": 0.5},
-	"dawnbringer": {"hit": 3.9, "cd": 0.4}, "voidreaver": {"hit": 5.4, "cd": 0.55},
+	"dawnbringer": {"hit": 3.9, "cd": 0.4}, "voidreaver": {"hit": 5.4, "cd": 0.55}, "mindbender": {"hit": 5.0, "cd": 0.5},
 	# fused weapons: the same rule, by the fusion's own (higher) rarity; their tier bonus (x1.35 per fusion tier, faster cooldown) comes on top
 	"bulwark": {"hit": 7.69, "cd": 0.80}, "chainfangs": {"hit": 2.88, "cd": 0.30}, "knightblade": {"hit": 3.08, "cd": 0.32}, "lance": {"hit": 3.64, "cd": 0.50},
 	"magmamaul": {"hit": 9.11, "cd": 0.85}, "prismstaff": {"hit": 7.33, "cd": 0.50}, "quakepick": {"hit": 4.36, "cd": 0.60}, "rapier": {"hit": 2.33, "cd": 0.28},

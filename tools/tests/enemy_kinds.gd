@@ -113,12 +113,21 @@ func _initialize() -> void:
 	var bl = spawn(world, kind["Prism Blinker"], Vector2(120, 80))
 	bl.start_aggro(p)
 	var near := 999.0
+	var was_confused := false
 	for i in 50:
 		await wait(0.1)
+		if p.confused_time > 0.0:
+			was_confused = true
 		if is_instance_valid(bl):
 			near = minf(near, bl.global_position.distance_to(p.global_position))
 			bl.start_aggro(p)
 	ok("the blinker reappears beside you (closest %.0f units)" % near, near < 45.0)
+	p.confuse(2.0)
+	p.remote_input.move = Vector2.RIGHT
+	var steer: Vector2 = p._move_input() if p.remote_controlled else -Vector2.RIGHT
+	ok("confusion reverses your movement (a blinker's strike confuses: %s)" % was_confused, p.confused_time > 0.0 and steer == -Vector2.RIGHT)
+	p.confused_time = 0.0
+	p.modulate = Color.WHITE
 	# ---------- Shard Splitter: shards on death
 	await clear(world)
 	var s = spawn(world, kind["Shard Splitter"], Vector2(60, 80))

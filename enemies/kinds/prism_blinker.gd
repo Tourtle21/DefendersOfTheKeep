@@ -26,6 +26,8 @@ func _ability(delta: float, t, dist: float) -> bool:
 		for p in get_tree().get_nodes_in_group("player"):
 			if _valid_target(p) and p.global_position.distance_to(_dest) <= 30.0:
 				p.take_damage(_dest, 22.0 * power)
+				if p.has_method("confuse"):
+					p.confuse(3.0)                          # its prism strike scrambles you: your movement is reversed for a moment
 		_recover = 0.9
 		return true
 	if ability_cd <= 0.0 and dist > 50.0 and dist < 190.0:

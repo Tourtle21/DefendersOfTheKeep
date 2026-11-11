@@ -224,7 +224,7 @@ func _valid_target(p) -> bool:
 
 ## Everything an enemy may turn on: the players, and the guards the Guards card summons (they draw enemies like a player does).
 func _aggro_candidates() -> Array:
-	return get_tree().get_nodes_in_group("player") + get_tree().get_nodes_in_group("guard")
+	return get_tree().get_nodes_in_group("player") + get_tree().get_nodes_in_group("guard") + get_tree().get_nodes_in_group("ally").filter(func(a): return a != self)
 
 func _nearest_player(max_dist: float, front_only := false):
 	var best = null
@@ -280,12 +280,15 @@ func _update_aggro(delta: float) -> void:
 		if p != null:
 			start_aggro(p)
 
-## Touching a guard hurts it (a guard is not a body, so the hitbox that hurts players never sees it).
+## Touching a guard or a converted enemy hurts it (they are not bodies, so the hitbox that hurts players never sees them).
 func _hit_guard(delta: float, t, dist: float) -> void:
 	_guard_cd -= delta
-	if t.is_in_group("guard") and dist <= 14.0 and _guard_cd <= 0.0:
+	if dist <= 14.0 and _guard_cd <= 0.0 and (t.is_in_group("guard") or t.is_in_group("ally")):
 		_guard_cd = 0.9
-		t.take_damage(global_position, contact_damage * 0.4)
+		if t.is_in_group("guard"):
+			t.take_damage(global_position, contact_damage * 0.4)
+		else:
+			t.spell_damage(contact_damage * 0.4)
 		aggro_left = maxf(aggro_left, AGGRO_TIME * 0.5)          # it keeps at the guard while it is winning
 
 var _guard_cd := 0.0
@@ -353,14 +356,21 @@ func apply_affix(a: String) -> void:
 
 ## Charmed enemies hunt the nearest other enemy instead of the keep.
 func charm(time: float) -> void:
+	if dead:
+		return
 	charm_time = max(charm_time, time)
 	$Sprite2D.modulate = Color(0.6, 1.0, 0.7)
+	aggro_left = 0.0                      # whatever it was fighting, it is on your side now
+	aggro_target = null
+	if !is_in_group("ally"):
+		add_to_group("ally")              # the other enemies see it as something to fight (_aggro_candidates)
 
 func _charmed(delta: float) -> void:
 	charm_time -= delta
 	_charm_hit -= delta
 	if charm_time <= 0.0:
 		$Sprite2D.modulate = Color(1, 1, 1)
+		remove_from_group("ally")
 		return
 	var best = null
 	for e in get_tree().get_nodes_in_group("enemy"):
@@ -376,7 +386,7 @@ func _charmed(delta: float) -> void:
 		Game.move_on_map(self, to.normalized() * speed * 1.4, delta)
 	elif _charm_hit <= 0.0:
 		_charm_hit = 0.6
-		best.spell_damage(2.0 + level)
+		best.spell_damage((2.0 + level) * power)
 	if velocity.x < 0 and $Sprite2D.scale.x > 0:
 		$Sprite2D.scale.x = -1
 	elif velocity.x > 0 and $Sprite2D.scale.x < 0:
