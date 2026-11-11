@@ -237,7 +237,7 @@ func switch_weapon(pl) -> void:
 
 const FORGE_POS := Vector2(-62, 22)
 const CARD_FUSER_POS := Vector2(62, 22)        # the Card Fuser, across the keep from the Forge
-const STATION_REACH := 50.0          # how close to the Forge / Card Fuser a player must stand to use it
+const STATION_REACH := 31.0          # how close to the Forge / Card Fuser a player must stand to use it: player 1's area (22) plus the body, so players 2-4 reach exactly as far
 
 ## Is this player standing at the station (Net.FORGE_POS / Net.CARD_FUSER_POS)? The one reach check for every front-end.
 static func near_station(pl, station: Vector2) -> bool:
@@ -284,12 +284,12 @@ func _interact(pl) -> void:
 		_set_base(pl, true)
 		return
 	for c in get_tree().get_nodes_in_group("chest"):
-		if is_instance_valid(c) and !c.opened and c.global_position.distance_to(pl.global_position) <= 30.0:
+		if is_instance_valid(c) and !c.opened and c.global_position.distance_to(pl.global_position) <= 25.0:
 			Game.draft_owner_slot = int(pl.get_meta("local_slot", 0))
 			c.open_now()
 			return
 	for g in get_tree().get_nodes_in_group("generator"):
-		if is_instance_valid(g) and !Rep.is_puppet(g) and g.is_visible_in_tree() and g.global_position.distance_to(pl.global_position) <= 28.0:
+		if is_instance_valid(g) and !Rep.is_puppet(g) and g.is_visible_in_tree() and g.global_position.distance_to(pl.global_position) <= 26.0:
 			g.use(pl)
 			return
 	for p in get_tree().get_nodes_in_group("pickup"):

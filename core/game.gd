@@ -2067,7 +2067,8 @@ func start_draft(extra := 0) -> bool:
 		return false
 	var pool := []
 	for id in unlocked_cards:
-		pool.append(id)                              # a duplicate adds a copy to your hand and deck
+		if owns_card(id) and card_available(id) and !CARDS[id].get("fused", false):
+			pool.append(id)                          # only cards you own whose sectors are open (a duplicate adds a copy to your hand and deck)
 	if pool.is_empty():
 		return false
 	pool.shuffle()
