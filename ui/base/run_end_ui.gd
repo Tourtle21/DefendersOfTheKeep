@@ -168,7 +168,9 @@ func _refresh(earned: int = -1) -> void:
 		holder.add_child(fx)
 		col.add_child(holder)
 		var footer := VBoxContainer.new()
-		footer.alignment = BoxContainer.ALIGNMENT_CENTER
+		footer.alignment = BoxContainer.ALIGNMENT_BEGIN
+		footer.custom_minimum_size.y = 170.0              # room for the most buttons any card gets, so every card sits on the same line
+		col.alignment = BoxContainer.ALIGNMENT_BEGIN
 		col.add_child(footer)
 		shop_row.add_child(col)
 		if hidden:
