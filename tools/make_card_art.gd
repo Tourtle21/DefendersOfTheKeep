@@ -308,24 +308,27 @@ func make_frame(accent: Color, is_back: bool, style := "spell") -> Image:
 		for x in range(6, 42):
 			img.set_pixel(x, 50, accent.darkened(0.2))
 	# corner studs, like the token corners (round for spells, square rivets for buildings, diamonds for weapons)
+	var stud := accent.lerp(Color.WHITE, 0.12)          # the corner gems take the rarity colour too
+	var stud_hi := accent.lerp(Color.WHITE, 0.75)
+	var stud_dark := accent.darkened(0.55)
 	for c in [Vector2(3.5, 3.5), Vector2(W - 3.5, 3.5), Vector2(3.5, H - 3.5), Vector2(W - 3.5, H - 3.5)]:
 		match style:
 			"build":
 				for dy in range(-2, 2):
 					for dx in range(-2, 2):
-						img.set_pixel(int(c.x) + dx, int(c.y) + dy, BLACK if dx == -2 or dy == -2 or dx == 1 or dy == 1 else STUD)
-				img.set_pixel(int(c.x) - 1, int(c.y) - 1, STUD_HI)
+						img.set_pixel(int(c.x) + dx, int(c.y) + dy, stud_dark if dx == -2 or dy == -2 or dx == 1 or dy == 1 else stud)
+				img.set_pixel(int(c.x) - 1, int(c.y) - 1, stud_hi)
 			"weapon":
 				for dy in range(-3, 4):
 					for dx in range(-3, 4):
 						var d := absi(dx) + absi(dy)
 						if d <= 3:
-							img.set_pixel(clampi(int(c.x) + dx, 0, W - 1), clampi(int(c.y) + dy, 0, H - 1), BLACK if d == 3 else STUD)
-				img.set_pixel(int(c.x), int(c.y) - 1, STUD_HI)
+							img.set_pixel(clampi(int(c.x) + dx, 0, W - 1), clampi(int(c.y) + dy, 0, H - 1), stud_dark if d == 3 else stud)
+				img.set_pixel(int(c.x), int(c.y) - 1, stud_hi)
 			_:
-				disc(img, c.x, c.y, 3.6, BLACK)
-				disc(img, c.x, c.y, 2.7, STUD)
-				img.set_pixel(int(c.x) - 1, int(c.y) - 1, STUD_HI)
+				disc(img, c.x, c.y, 3.6, stud_dark)
+				disc(img, c.x, c.y, 2.7, stud)
+				img.set_pixel(int(c.x) - 1, int(c.y) - 1, stud_hi)
 	return img
 
 # ---------- icons (16x16) ----------
