@@ -82,7 +82,7 @@ func _ready() -> void:
 		_face.add_child(_label(str(card.mana), Vector2(11, 9), Vector2(24, 18), 14, UiKit.SKY, false))
 	# level / draft badge, top-right of the art window
 	# a draft badge ("NEW", "+1 copy") also shows the tier of the offered card
-	var tag := ("T%d %s" % [level, badge.replace(" copy", "")] if level > 1 else badge) if badge != "" else ("T%d" % level if level > 1 else "")
+	var tag := ("T%d %s" % [level, badge.replace(" copy", "")]) if badge != "" else ("T%d" % level)        # every card shows its tier, tier 1 too (as weapon cards do)
 	if tag != "":
 		var tl := _label(tag, Vector2(48, 9), Vector2(38, 18), 11, UiKit.GOLD_BRIGHT, false)
 		tl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
