@@ -23,11 +23,15 @@ func release_ability() -> void:
 	if !was:
 		return
 	var o: Vector2 = player.global_position
-	for i in 8:
-		var p := o + Vector2.from_angle(i * TAU / 8.0) * 62.0
-		ground_strike(p, 22.0, 0.25 + i * 0.04, 2.0 + stored * 0.8, 260.0, Color(0.85, 0.6, 0.3), 0.6, ["stone", "stick"])
+	for i in 12:
+		var p := o + Vector2.from_angle(i * TAU / 12.0) * 62.0
+		ground_strike(p, 24.0, 0.25 + i * 0.03, 2.4 + stored * 0.9, 280.0, Color(0.85, 0.6, 0.3), 0.7, ["stone", "stick"])
+	for i in 8:                                                    # a second, wider ring a beat later
+		var p2 := o + Vector2.from_angle(i * TAU / 8.0 + 0.4) * 112.0
+		ground_strike(p2, 26.0, 0.7 + i * 0.04, 2.0 + stored * 0.8, 260.0, Color(0.9, 0.65, 0.3), 0.6, ["stone", "stick"])
 
 func ultimate() -> void:
 	player.shield_time = max(player.shield_time, 6.0)
 	pulse_around(3.0, 58.0, 300.0, 0.6, 6, 1.0, Color(1.0, 0.85, 0.4))
-	rain(player.global_position, 90.0, 10, 3.0, 4.0, 22.0, Color(0.85, 0.5, 0.2), 0.5)
+	rain(player.global_position, 135.0, 20, 3.4, 4.6, 24.0, Color(0.85, 0.5, 0.2), 0.6)
+	ground_strike(player.global_position, 130.0, 2.2, 12.0, 420.0, Color(1.0, 0.7, 0.3), 1.4, ["stone", "stick"])      # the final quake

@@ -14,9 +14,11 @@ func _init() -> void:
 	ability_cooldown = 5.0
 
 func _on_warped(dest: Vector2) -> void:
-	for i in 3:
-		ground_strike(dest + Vector2.from_angle(i * TAU / 3.0 + randf() * 0.5) * 34.0, 20.0, 0.2 + i * 0.15, 3.0, 160.0, Color(0.7, 0.85, 1.0), 0.4)
+	for i in 6:                                                    # arriving calls a ring of lightning around you
+		ground_strike(dest + Vector2.from_angle(i * TAU / 6.0 + randf() * 0.3) * 40.0, 22.0, 0.2 + i * 0.1, 3.5, 180.0, Color(0.7, 0.85, 1.0), 0.5)
 
 func ultimate() -> void:
 	super()
-	rain(cursor_target(130.0), 70.0, 8, 2.0, 3.5, 22.0, Color(0.7, 0.85, 1.0), 0.4)
+	var c := cursor_target(130.0)
+	rain(c, 110.0, 18, 2.6, 4.2, 24.0, Color(0.7, 0.85, 1.0), 0.5)
+	ground_strike(c, 56.0, 1.6, 10.0, 260.0, Color(0.85, 0.95, 1.0), 1.0)          # and the one big bolt at the end

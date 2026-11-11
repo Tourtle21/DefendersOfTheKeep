@@ -40,9 +40,9 @@ func attack() -> void:
 
 func ability() -> void:
 	# Throwing Knives: three knives that expose whatever they hit
-	for i in 5:                                                    # five knives that expose and bleed
-		var d := aim.rotated((i - 2) * 0.14)
-		WeaponProjectile.shoot(game_world(), player.global_position + d * 8.0, d, 290.0, 1.1, Color(0.8, 0.85, 1.0), 0.36, 0, 60.0, {"expose_secs": 2.5, "bleed_ticks": 3, "bleed_dmg": 0.6})
+	for i in 3:
+		var d := aim.rotated((i - 1) * 0.16)
+		WeaponProjectile.shoot(game_world(), player.global_position + d * 8.0, d, 280.0, 1.0, Color(0.8, 0.85, 1.0), 0.36, 0, 60.0, {"expose_secs": 2.0})
 
 func dash_attack() -> void:
 	fx("line", player.global_position, Color(0.6, 0.5, 0.9), {"dir": aim, "length": 44.0, "width": 6.0, "life": 0.3})
@@ -59,8 +59,7 @@ func ultimate() -> void:
 	fx("ring", player.global_position, Color(0.7, 0.3, 0.9), {"radius": 150.0, "life": 0.5})
 	for e in WeaponUtil.enemies_in_circle(get_tree(), player.global_position, 150.0):
 		WeaponUtil.expose(e, 6.0)
-		WeaponUtil.bleed(get_tree(), e, 6, 0.8)                   # everything marked also bleeds
-	player.speed_mult = 1.5
+	player.speed_mult = 1.4
 	await get_tree().create_timer(6.0).timeout
 	if is_inside_tree():
 		player.speed_mult = 1.0

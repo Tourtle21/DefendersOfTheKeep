@@ -25,3 +25,15 @@ func ability() -> void:
 	for e in WeaponUtil.enemies_in_circle(get_tree(), player.global_position, 55.0):
 		WeaponUtil.expose(e, 4.0)
 		fx("ring", e.global_position, Color(0.7, 0.4, 1.0), {"radius": 12.0, "life": 0.4})
+
+func ultimate() -> void:
+	# Reap: a ring of dark light tears out of you, then the souls it freed rain back down on the whole area
+	var o: Vector2 = player.global_position
+	fx("ring", o, Color(0.7, 0.4, 1.0), {"radius": 170.0, "life": 0.6})
+	for e in WeaponUtil.enemies_in_circle(get_tree(), o, 170.0):
+		WeaponUtil.hit(e, 5.0, o, 200.0, 0.8)
+		WeaponUtil.expose(e, 5.0)
+		WeaponUtil.bleed(get_tree(), e, 8, 1.0)
+	for i in 8:
+		ground_strike(o + Vector2.from_angle(i * TAU / 8.0) * 100.0, 26.0, 0.5 + i * 0.07, 5.0, 220.0, Color(0.75, 0.45, 1.0), 0.5)
+	rain(o, 150.0, 16, 2.6, 4.5, 24.0, Color(0.7, 0.4, 1.0), 0.4)

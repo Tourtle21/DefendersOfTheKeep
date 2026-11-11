@@ -56,12 +56,12 @@ func _on_parry(_from: Vector2) -> void:
 	var o: Vector2 = player.global_position
 	player.shield_time = max(player.shield_time, 0.4)
 	player.shake(3.0, 0.25)
-	fx("ring", o, Color(1.0, 0.9, 0.4), {"radius": 64.0, "life": 0.4})
-	for e in WeaponUtil.enemies_in_circle(get_tree(), o, 64.0):
-		WeaponUtil.hit(e, 4.0, o, 340.0, 1.8)
+	fx("ring", o, Color(1.0, 0.9, 0.4), {"radius": 56.0, "life": 0.4})
+	for e in WeaponUtil.enemies_in_circle(get_tree(), o, 56.0):
+		WeaponUtil.hit(e, 3.5, o, 320.0, 1.6)
 	_ability_cd = min(_ability_cd, ability_cooldown * 0.2)    # perfect parry: mostly refunded
 
 func ultimate() -> void:
 	# Bastion: five seconds untouchable, with a shoving pulse every second
-	player.shield_time = max(player.shield_time, 5.2)
-	pulse_around(3.0, 52.0, 280.0, 0.4, 6, 0.85, Color(0.5, 0.7, 1.0))
+	player.shield_time = max(player.shield_time, 5.0)
+	pulse_around(2.5, 46.0, 270.0, 0.35, 5, 0.9, Color(0.5, 0.7, 1.0))

@@ -20,10 +20,14 @@ func attack() -> void:
 
 func ability() -> void:
 	var c := cursor_target(120.0)
-	fx("ring", c, Color(0.6, 0.9, 0.4), {"radius": 44.0, "life": 0.4})
-	for e in WeaponUtil.enemies_in_circle(get_tree(), c, 44.0):
-		WeaponUtil.expose(e, 5.0)
-		WeaponUtil.bleed(get_tree(), e, 6, 1.0)
+	fx("ring", c, Color(0.6, 0.9, 0.4), {"radius": 70.0, "life": 0.4})
+	_mud(c, 70.0, 7.0)
+	for e in WeaponUtil.enemies_in_circle(get_tree(), c, 70.0):
+		WeaponUtil.expose(e, 6.0)
+		WeaponUtil.hit(e, 3.0, c, 0.0)
+		WeaponUtil.bleed(get_tree(), e, 9, 1.0)
+	for i in 4:                                                    # four rotting pustules burst around the hex
+		ground_strike(c + Vector2.from_angle(i * TAU / 4.0 + 0.4) * 52.0, 20.0, 0.5 + i * 0.1, 3.0, 100.0, Color(0.55, 0.9, 0.3), 0.3)
 
 func dash_attack() -> void:
 	var from: Vector2 = player.global_position

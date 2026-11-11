@@ -66,4 +66,4 @@ func ability() -> void:
 
 func ultimate() -> void:
 	# Tempest Lash: three big whip rings around you
-	pulse_around(3.2, 72.0, 220.0, 0.6, 5, 0.25, Color(0.9, 0.6, 0.3))
+	pulse_around(3.0, 66.0, 210.0, 0.6, 4, 0.28, Color(0.9, 0.6, 0.3))
