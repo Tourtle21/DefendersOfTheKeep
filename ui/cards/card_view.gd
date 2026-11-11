@@ -199,6 +199,8 @@ func _ready() -> void:
 	_body.add_child(_sel_ring)
 	focus_entered.connect(func(): _ring.visible = true)
 	focus_exited.connect(func(): _ring.visible = false)
+	if !weapon.is_empty():
+		_apply()                                     # a weapon card that was picked / under the cursor before it entered the tree shows it now
 	mouse_entered.connect(func(): _hover = true; _apply())
 	mouse_exited.connect(func(): _hover = false; _apply())
 	gui_input.connect(_on_gui_input)
