@@ -2,11 +2,14 @@ extends Control
 ## The three stacked weapon frames, the same look as player 1's inventory (ui/hud/inventory): the weapon's icon, a tier badge,
 ## and the one in hand tinted blue. Used for players 2 to 4 in split screen and for a LAN client's own HUD.
 const UiKit = preload("res://ui/cards/ui_kit.gd")
+const ResIcons = preload("res://ui/cards/res_icons.gd")
 
 var slots: Array = []          # weapon entries, e.g. "spear" or "hammer:1:twin"
 var active := 0                # which of them is in hand
 var hint := ""                 # e.g. "D-pad down: merge Spear + Hammer" when two held weapons can merge
 var hint_ok := true
+var hint_cost := {}            # the merge cost, drawn as resource icons after the hint text
+var hint_tail := ""            # e.g. "(not enough in the keep)"
 var _icons := {}
 const FRAME_TEX := preload("res://ui/hud/inventory.png")
 
@@ -16,7 +19,9 @@ func _init() -> void:
 
 ## Show the merge hint for Game.held_merge's result (empty: no hint). `key` is the button that merges ("F", "D-pad down").
 func set_merge(m: Dictionary, key: String) -> void:
-	hint = "" if m.is_empty() else "%s: merge  %s  [%s]%s" % [key, m.text, Game.cost_line(m.cost), "" if m.ok else "  (not enough in the keep)"]
+	hint = "" if m.is_empty() else "%s: merge  %s" % [key, m.text]
+	hint_cost = {} if m.is_empty() else m.cost
+	hint_tail = "" if m.is_empty() or m.ok else "(not enough in the keep)"
 	hint_ok = m.get("ok", true)
 
 func _process(_delta: float) -> void:
@@ -53,3 +58,7 @@ func _draw() -> void:
 		var col := UiKit.GOOD if hint_ok else UiKit.WARN
 		draw_string_outline(font, at2, hint, HORIZONTAL_ALIGNMENT_LEFT, size.x - at2.x - 8.0, hs, 5, UiKit.BLACK)
 		draw_string(font, at2, hint, HORIZONTAL_ALIGNMENT_LEFT, size.x - at2.x - 8.0, hs, col)
+		var hx := at2.x + font.get_string_size(hint, HORIZONTAL_ALIGNMENT_LEFT, -1, hs).x + 8.0
+		hx = ResIcons.draw(self, Vector2(hx, at2.y), hint_cost, float(hs), hs, col)
+		if hint_tail != "":
+			draw_string(font, Vector2(hx, at2.y), hint_tail, HORIZONTAL_ALIGNMENT_LEFT, -1, hs, col)

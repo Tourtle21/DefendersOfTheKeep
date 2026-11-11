@@ -17,14 +17,14 @@ func _initialize() -> void:
 	var lp = world.get_children().filter(func(c): return c.get_script() and str(c.get_script().resource_path).ends_with("local_players.gd"))[0]
 	var p2 = lp.avatars[1]
 	await wait(0.3)
-	var label: Label = split._local_huds[0].info
-	ok("with nothing collected it says so (%s)" % label.text, label.text.begins_with("Carrying: 0 stone, 0 stick, 0 gold"))
+	var label: RichTextLabel = split._local_huds[0].info          # the line is icons + amounts (BBCode), so the test reads that
+	ok("with nothing collected it says so (%s)" % label.text, label.text.begins_with("Carrying: [img=") and label.text.contains("stone.png[/img]0") and label.text.contains("gold.png[/img]0"))
 	game.pick_up_resource("stone", p2)
 	game.pick_up_resource("stone", p2)
 	game.pick_up_resource("stick", p2)
 	await wait(0.3)
 	print("  ", label.text)
-	ok("after two stone and a stick it lists them", label.text.begins_with("Carrying: 2 stone, 1 stick"))
+	ok("after two stone and a stick it lists them", label.text.begins_with("Carrying: [img=") and label.text.contains("stone.png[/img]2") and label.text.contains("stick.png[/img]1"))
 	var UiKit = load("res://ui/cards/ui_kit.gd")
 	var tex = UiKit.weapon_icon("res://items/tools/pickaxe/pickaxe.png")
 	ok("the pickaxe icon is one frame of the sheet, not the whole sheet (%s)" % str(tex.get_size()), tex is AtlasTexture and tex.get_size().x < 64)

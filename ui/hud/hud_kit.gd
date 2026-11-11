@@ -16,10 +16,24 @@ static func outlined(text: String, size: int, color := UiKit.TEXT, outline := 4)
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return l
 
+## The same over-the-world text as a RichTextLabel (for lines that carry resource icons).
+static func outlined_rich(size: int, color := UiKit.TEXT, outline := 4) -> RichTextLabel:
+	var l := RichTextLabel.new()
+	l.bbcode_enabled = true
+	l.fit_content = true
+	l.scroll_active = false
+	l.autowrap_mode = TextServer.AUTOWRAP_OFF
+	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	l.add_theme_font_size_override("normal_font_size", size)
+	l.add_theme_color_override("default_color", color)
+	l.add_theme_color_override("font_outline_color", UiKit.OUTLINE)
+	l.add_theme_constant_override("outline_size", outline)
+	return l
+
 ## The top of every HUD: the resource line (top-left), the keep bar and the wave countdown (top-centre) and the
 ## announcement banner. Returns {info, keep_bar, keep_lbl, wave, banner}.
 static func top(parent: Control) -> Dictionary:
-	var info := outlined("", UiKit.FONT_HEAD)
+	var info := outlined_rich(UiKit.FONT_HEAD)
 	info.position = Vector2(12, 10)
 	parent.add_child(info)
 	var keep_bar := ProgressBar.new()
@@ -56,8 +70,10 @@ static func top(parent: Control) -> Dictionary:
 ## and moves the keep bar, wave countdown and banner down under it.
 static func fit_top(t: Dictionary, area: Vector2) -> void:
 	var narrow: bool = area.x < 900.0
-	var info: Label = t.info
-	info.add_theme_font_size_override("font_size", UiKit.FONT_SMALL + 1 if narrow else UiKit.FONT_HEAD)
+	var info: RichTextLabel = t.info
+	var fs: int = UiKit.FONT_SMALL + 1 if narrow else UiKit.FONT_HEAD
+	info.add_theme_font_size_override("normal_font_size", fs)
+	info.set_meta("icon_px", fs)
 	info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART if narrow else TextServer.AUTOWRAP_OFF
 	info.custom_minimum_size.x = (area.x - 280.0) if narrow else 0.0
 	info.reset_size()
@@ -72,7 +88,8 @@ static func fit_top(t: Dictionary, area: Vector2) -> void:
 ## Fill the top from plain numbers (the same for every player: the keep and the wave are shared).
 static func set_top(t: Dictionary, carried: Dictionary, keep_res: Dictionary, keep_hp: float, keep_max: float) -> void:
 	var line := Game.resource_line(carried, keep_res)
-	if line != t.info.text:
+	if line != t.info.get_meta("line", ""):
+		t.info.set_meta("line", line)
 		t.info.text = line
 		t.info.reset_size()
 	t.keep_bar.max_value = keep_max
@@ -159,7 +176,7 @@ static func upgrade_cards(box: Container, card_size: Vector2, pick: int, have: D
 	UiKit.clear(box)
 	var can_repair := Game.can_repair(have, keep_hp, keep_max)
 	var rc := TierCard.new()
-	rc.setup({"size": card_size, "title": "Repair", "glyph": "+", "lines": ["+%d keep" % Game.REPAIR_AMOUNT], "footer": Game.cost_line(Game.REPAIR_COST),
+	rc.setup({"size": card_size, "title": "Repair", "glyph": "+", "lines": ["+%d keep" % Game.REPAIR_AMOUNT], "footer_cost": Game.REPAIR_COST,
 		"accent": UiKit.KEEP_FILL, "locked": !can_repair, "tooltip": "Repair the keep +%d (%s)" % [Game.REPAIR_AMOUNT, Game.cost_line(Game.REPAIR_COST)], "blink": pick == 0})
 	rc.set_selected(can_repair)
 	_clickable(rc, on_repair, [])
@@ -176,7 +193,7 @@ static func upgrade_cards(box: Container, card_size: Vector2, pick: int, have: D
 				can = false
 		var c := TierCard.new()
 		c.setup({"size": card_size, "title": u.name, "glyph": UPGRADE_GLYPHS.get(id, "+"), "tier": mini(lvl, 6), "max_tier": 6, "badge": "Lv %d" % lvl,
-			"lines": [u.desc], "footer": Game.cost_line(cost).replace(",", ""), "accent": UiKit.SKY, "locked": !can,
+			"lines": [u.desc], "footer_cost": cost, "accent": UiKit.SKY, "locked": !can,
 			"tooltip": "%s: %s" % [u.name, u.desc], "blink": pick == n})
 		c.set_selected(can)
 		_clickable(c, on_buy, [id])

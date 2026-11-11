@@ -3,6 +3,7 @@ extends Control
 ## (ui/base/local_fuser_ui.gd) and LAN clients (net/client_view.gd): your hand, the result with its cost, the Fuse button
 ## and the recipes. Rules: Game.fuse_preview. fit(area) scales it like player 1's (area.x / 1100) and drops pieces to fit.
 
+const ResIcons = preload("res://ui/cards/res_icons.gd")
 const UiKit = preload("res://ui/cards/ui_kit.gd")
 const MAX_LEVEL := 3
 
@@ -15,6 +16,7 @@ var level := 0
 var hand_box: HBoxContainer
 var result_box: HBoxContainer
 var info: Label
+var cost_box: HBoxContainer
 var fuse_btn: Button
 var back_btn: Button
 var recipes_label: RichTextLabel
@@ -87,6 +89,9 @@ func _init(controller_keys := {}) -> void:
 	info = UiKit.label("", UiKit.FONT_BODY)
 	info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	rv.add_child(info)
+	cost_box = HBoxContainer.new()
+	cost_box.add_theme_constant_override("separation", 8)
+	rv.add_child(cost_box)
 	rv.add_child(_heading("3. Fuse"))
 	fuse_btn = _button("fuse", "Fuse", Vector2(150, 44))
 	fuse_btn.pressed.connect(func(): fuse_pressed.emit())
@@ -184,10 +189,14 @@ func render(state: Dictionary) -> void:
 	if picks.size() < 2:
 		info.text = "Pick two cards from your hand."
 	elif p.ok:
-		info.text = "Makes %s for %d gold.  Gold in the keep: %d" % [Game.CARDS[Game.entry_id(p.result)].name, p.cost.gold, state.get("gold", 0)]
+		info.text = "Makes %s" % Game.CARDS[Game.entry_id(p.result)].name
 	else:
 		info.text = p.reason
 	info.add_theme_color_override("font_color", UiKit.GOOD if p.ok else (UiKit.WARN if picks.size() == 2 else UiKit.TEXT))
+	UiKit.clear(cost_box)
+	if p.has("cost"):
+		cost_box.add_child(UiKit.label("Cost", UiKit.FONT_SMALL, UiKit.TEXT_DIM))
+		cost_box.add_child(ResIcons.row(p.cost, 18, UiKit.FONT_BODY, UiKit.TEXT, {"gold": state.get("gold", 0)}))
 	fuse_btn.disabled = !p.ok
 
 func preview() -> Dictionary:

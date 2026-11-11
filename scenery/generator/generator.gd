@@ -5,6 +5,8 @@ class_name ResourceGenerator
 ## that biome's resource into storage; press interact to collect everything at once.
 ## With nothing to collect, interact upgrades it (levels 1-5: faster and bigger storage), paid from the keep's stores.
 
+const ResIcons = preload("res://ui/cards/res_icons.gd")
+const UiKit = preload("res://ui/cards/ui_kit.gd")
 const MAX_LEVEL := 5
 const NET_SKIP := ["hovering"]
 
@@ -85,20 +87,15 @@ func use(who = null) -> String:
 		return "upgraded"
 	return "nothing"
 
-func _hint() -> String:
+## The hint above the generator: a sentence, and the cost (if any) drawn as icons after it.
+func _hint() -> Dictionary:
 	if level == 0:
-		return "E: activate (%s from stores)" % _cost_text(activate_cost())
+		return {"text": "E: activate", "cost": activate_cost()}
 	if stored > 0:
-		return "E: collect %d %s" % [stored, resource]
+		return {"text": "E: collect %d %s" % [stored, resource], "cost": {}}
 	if level < MAX_LEVEL:
-		return "E: upgrade to %d (%s from stores)" % [level + 1, _cost_text(upgrade_cost())]
-	return "Fully upgraded"
-
-func _cost_text(cost: Dictionary) -> String:
-	var parts := []
-	for k in cost:
-		parts.append("%d %s" % [cost[k], k])
-	return ", ".join(parts)
+		return {"text": "E: upgrade to %d" % (level + 1), "cost": upgrade_cost()}
+	return {"text": "Fully upgraded", "cost": {}}
 
 func _draw() -> void:
 	var active := level > 0
@@ -126,5 +123,11 @@ func _draw() -> void:
 			draw_string(ThemeDB.fallback_font, Vector2(-20, -h - 12), "%d/%d" % [stored, capacity()], HORIZONTAL_ALIGNMENT_CENTER, 40.0, 10, Color.WHITE)
 	if hovering:
 		draw_arc(Vector2.ZERO, 16.0, 0, TAU, 24, Color(1, 1, 0.5, 0.9), 1.5)
-		var t := _hint()
-		draw_string(ThemeDB.fallback_font, Vector2(-70, 24), t, HORIZONTAL_ALIGNMENT_CENTER, 140.0, 9, Color(1, 1, 0.8))
+		var hint := _hint()
+		var font := ThemeDB.fallback_font
+		var tw := font.get_string_size(hint.text, HORIZONTAL_ALIGNMENT_LEFT, -1, 9).x
+		var cw: float = ResIcons.width(hint.cost, 9.0, 9) + (6.0 if !hint.cost.is_empty() else 0.0)
+		var x0 := -(tw + cw) / 2.0
+		draw_string(font, Vector2(x0, 24), hint.text, HORIZONTAL_ALIGNMENT_LEFT, -1, 9, UiKit.WARM)
+		if !hint.cost.is_empty():
+			ResIcons.draw(self, Vector2(x0 + tw + 6.0, 24), hint.cost, 9.0, 9, UiKit.WARM)

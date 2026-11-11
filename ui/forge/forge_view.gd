@@ -4,6 +4,7 @@ extends Control
 ## and reacts to the signals with its own input (mouse, focus, or a controller polled by device id).
 ## fit(area) scales the screen like player 1's (area.x / 1100) and drops pieces one level at a time until it fits.
 
+const ResIcons = preload("res://ui/cards/res_icons.gd")
 const UiKit = preload("res://ui/cards/ui_kit.gd")
 const TierCard = preload("res://ui/cards/tier_card.gd")
 const ForgeLayout = preload("res://ui/forge/forge_layout.gd")
@@ -24,6 +25,7 @@ var store_title: Label
 var held_box: Container
 var store_box: Container
 var info: Label
+var cost_box: HBoxContainer
 var numbers: RichTextLabel
 var forge_btn: Button
 var store_btn: Button
@@ -120,6 +122,9 @@ func _init(controller_keys := {}, can_focus := false) -> void:
 	info = UiKit.label("", UiKit.FONT_BODY)
 	info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	rv.add_child(info)
+	cost_box = HBoxContainer.new()                  # "Cost" and the resource icons with their amounts (red when the keep is short)
+	cost_box.add_theme_constant_override("separation", 8)
+	rv.add_child(cost_box)
 	numbers = RichTextLabel.new()
 	numbers.bbcode_enabled = true
 	numbers.fit_content = true
@@ -235,6 +240,10 @@ func render(state: Dictionary) -> void:
 	var p := ForgeLayout.preview(list, picks)
 	info.text = p.text
 	info.add_theme_color_override("font_color", UiKit.GOOD if p.ok else (UiKit.WARN if picks.size() == 2 else UiKit.TEXT))
+	UiKit.clear(cost_box)
+	if p.has("cost"):
+		cost_box.add_child(UiKit.label("Cost", UiKit.FONT_SMALL, UiKit.TEXT_DIM))
+		cost_box.add_child(ResIcons.row(p.cost, 18, UiKit.FONT_BODY, UiKit.TEXT, Game.resources))
 	numbers.text = ""
 	var combine: bool = picks.size() == 2 and p.kind == "combine" and p.result != ""
 	if combine:

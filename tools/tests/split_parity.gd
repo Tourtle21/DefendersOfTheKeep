@@ -48,7 +48,7 @@ func _initialize() -> void:
 	var hud = split._local_huds[0]
 	await wait(0.3)
 	print("  HUD text: ", hud.info.text, " | ", hud.keep_lbl.text, " | hp fill ", hud.hp_fill.size.x)
-	ok("player 2's HUD shows what they carry and the keep's pool", hud.info.text.contains("Carrying:") and hud.info.text.contains("Keep:") and hud.info.text.contains("12 stone"))
+	ok("player 2's HUD shows what they carry and the keep's pool", hud.info.text.contains("Carrying:") and hud.info.text.contains("Keep:") and hud.info.text.contains("stone.png[/img]12"))        # (icons and amounts, no words)
 	ok("it has the keep bar and a full health bar", hud.keep_lbl.text.begins_with("Keep ") and is_equal_approx(hud.hp_fill.size.x, 228.0))
 	var r := extent(hud.root)
 	ok("the HUD sits inside player 2's view %s" % str(r), r.position.x >= -2.0 and r.end.x <= view.x + 2.0 and r.position.y >= -2.0 and r.end.y <= view.y + 2.0)

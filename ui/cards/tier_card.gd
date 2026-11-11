@@ -6,6 +6,7 @@ extends Control
 ##   var c := preload("res://ui/cards/tier_card.gd").new(); c.setup({"title": "Hammer", "icon": tex, "tier": 2, "max_tier": 6,
 ##       "lines": ["Left click: Smash"], "footer": "16 shards", "accent": Color(...), "locked": false})
 ## `pressed` fires on a left click; `set_selected` draws the gold selection frame.
+const ResIcons = preload("res://ui/cards/res_icons.gd")
 const UiKit = preload("res://ui/cards/ui_kit.gd")
 
 signal pressed(card)
@@ -120,7 +121,8 @@ func _draw() -> void:
 	var lfs := int(clampf(9.5 * u, 7.0, 13.0))
 	var pip_h := 16.0 * u if max_tier > 0 else 0.0
 	var foot: String = str(data.get("footer", ""))
-	var foot_h := 13.0 * u if foot != "" else 0.0
+	var foot_cost: Dictionary = data.get("footer_cost", {})                # a price: icons and amounts, drawn instead of the footer text
+	var foot_h := 13.0 * u if foot != "" or !foot_cost.is_empty() else 0.0
 	var room := h - ty - pip_h - foot_h - 9 * u
 	for l in lines:
 		if room < lfs:
@@ -137,7 +139,12 @@ func _draw() -> void:
 		ty += sz.y + 2 * u
 		room -= sz.y + 2 * u
 	# footer (price / state)
-	if foot != "":
+	if !foot_cost.is_empty():
+		var isz := clampf(11.0 * u, 8.0, 14.0)
+		var ffs := int(clampf(10.0 * u, 7.0, 13.0))
+		var cw := ResIcons.width(foot_cost, isz, ffs)
+		ResIcons.draw(self, Vector2((w - cw) / 2.0, h - 8 * u - pip_h - 2 * u), foot_cost, isz, ffs, Color(data.get("footer_color", UiKit.WARM), dim))
+	elif foot != "":
 		var fc: Color = data.get("footer_color", UiKit.WARM)
 		draw_string(font, Vector2(8 * u, h - 8 * u - pip_h - 2 * u), foot, HORIZONTAL_ALIGNMENT_CENTER, w - 16 * u, int(clampf(10.0 * u, 7.0, 13.0)), Color(fc, dim))
 	# tier gems

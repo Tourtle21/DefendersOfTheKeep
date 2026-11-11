@@ -4,6 +4,7 @@ class_name CodexUi
 ## numbers, how to get it (chest pool, sector drop or fusion recipe), and what awakening
 ## adds. Weapons you have not met yet show as ???.
 
+const ResIcons = preload("res://ui/cards/res_icons.gd")
 const UiKit = preload("res://ui/cards/ui_kit.gd")
 var tab_id := "weapons"
 const TierCard = preload("res://ui/cards/tier_card.gd")
@@ -170,10 +171,7 @@ func _where(id: String) -> String:
 	return ""
 
 func _cost_text(cost: Dictionary) -> String:
-	var parts := []
-	for k in cost:
-		parts.append("%d %s" % [cost[k], k])
-	return ", ".join(parts)
+	return ResIcons.bb(cost, 16)                  # resource icons with their amounts (the detail pane is a RichTextLabel)
 
 func _tier_unlocked(id: String, t: int) -> bool:
 	var owned: bool = Game.weapon_unlocked(id) if Fusion.tier_of(id) == 1 else Game.fusion_tier_unlocked(Fusion.tier_of(id))

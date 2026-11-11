@@ -11,7 +11,7 @@ var _daylight: PointLight2D
 var info: Label
 var hp_bar: ProgressBar
 var top: Dictionary               # the shared HUD top (ui/hud/hud_kit.gd)
-var carry_label: Label:
+var carry_label: RichTextLabel:
 	get: return top.info
 var radar: Control
 var base_box: VBoxContainer

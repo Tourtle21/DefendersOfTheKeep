@@ -1004,15 +1004,9 @@ func held_merge(entries: Array) -> Dictionary:
 
 ## "3 stone, 0 stick, 0 gold, 2 iron": a resource table for the HUD (stone, stick and gold always listed, others when > 0).
 static func resource_text(table: Dictionary) -> String:
-	var parts := []
-	for k in ["stone", "stick", "gold"]:
-		parts.append("%d %s" % [int(table.get(k, 0)), k])
-	for k in table:
-		if !(k in ["stone", "stick", "gold"]) and int(table[k]) > 0:
-			parts.append("%d %s" % [int(table[k]), k])
-	return ", ".join(parts)
+	return preload("res://ui/cards/res_icons.gd").stock_bb(table)
 
-## The resource line every HUD shows top-left.
+## The resource line every HUD shows top-left, as BBCode: icons and amounts, never abbreviations.
 static func resource_line(carried_table: Dictionary, keep_table: Dictionary) -> String:
 	return "Carrying: %s     Keep: %s" % [resource_text(carried_table), resource_text(keep_table)]
 

@@ -7,7 +7,7 @@ var selected := -1          # index into Game.hand (click-to-aim fallback)
 var dragging := -1          # index being dragged from the hand
 var ghost: CardView
 var top: Dictionary         # the shared HUD top (ui/hud/hud_kit.gd): resource line, keep bar, wave countdown, banner
-var info_label: Label:
+var info_label: RichTextLabel:
 	get: return top.info
 var wave_label: Label:
 	get: return top.wave

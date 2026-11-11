@@ -10,7 +10,7 @@ var pl: Node
 var slot := 1
 var root: Control
 var top: Dictionary
-var info: Label:
+var info: RichTextLabel:
 	get: return top.info
 var keep_bar: ProgressBar:
 	get: return top.keep_bar

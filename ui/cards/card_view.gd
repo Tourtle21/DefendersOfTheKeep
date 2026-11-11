@@ -3,6 +3,7 @@ class_name CardView
 ## One card in the hand: pixel-art frame + icon (see tools/make_card_art.gd),
 ## text on top. Flips in like the wave tokens, lifts on hover, and can be dragged
 ## (the drag itself is handled by ui/base/base_ui.gd).
+const ResIcons = preload("res://ui/cards/res_icons.gd")
 const UiKit = preload("res://ui/cards/ui_kit.gd")
 
 signal pressed_down(view: CardView)
@@ -86,17 +87,12 @@ func _ready() -> void:
 		var tl := _label(tag, Vector2(48, 9), Vector2(38, 18), 11, UiKit.GOLD_BRIGHT, false)
 		tl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 		_face.add_child(tl)
-	# resource costs under the icon
-	var parts := []
-	var short_parts := []
-	for t in card.res:
-		parts.append("%d %s" % [card.res[t], t])
-		short_parts.append("%d%s" % [card.res[t], {"stone": "st", "stick": "sk", "gold": "g"}.get(t, t.substr(0, 2))])
-	if parts.size() > 0:
-		var cost_text := ", ".join(parts)
-		if cost_text.length() > 13:
-			cost_text = " ".join(short_parts)
-		_face.add_child(_label(cost_text, Vector2(10, 60), Vector2(76, 14), 10, UiKit.WARM))
+	# resource costs under the icon: an icon and an amount for each
+	if !card.res.is_empty():
+		var cost := ResIcons.row(card.res, 12, 11, UiKit.WARM)
+		cost.position = Vector2(10, 59)
+		cost.size = Vector2(76, 16)
+		_face.add_child(cost)
 	_face.add_child(_label(card.name, Vector2(10, 81), Vector2(76, 20), 11, UiKit.WHITE))
 	var desc_text: String = card.desc
 	var desc_color := UiKit.TEXT_HINT

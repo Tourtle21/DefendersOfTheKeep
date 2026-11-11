@@ -29,13 +29,7 @@ static func icon(id: String) -> Texture2D:
 	var info: Dictionary = load("res://world/item_info.tres").items.get(id, {})
 	return UiKit.weapon_icon(str(info.texture)) if info.has("texture") else null
 
-static func cost_text(cost: Dictionary) -> String:
-	var parts := []
-	for k in cost:
-		parts.append("%d %s (have %d)" % [cost[k], k, Game.resources.get(k, 0)])
-	return ", ".join(parts)
-
-## What the picked pair would make: Game.forge_preview plus the text every Forge screen shows (with the cost).
+## What the picked pair would make: Game.forge_preview plus the text every Forge screen shows; p.cost is shown by the screen as resource icons.
 static func preview(list: Array, picks: Array) -> Dictionary:
 	var none := {"ok": false, "kind": "", "result": ""}
 	if picks.size() == 1:
@@ -47,9 +41,7 @@ static func preview(list: Array, picks: Array) -> Dictionary:
 	var p: Dictionary = Game.forge_preview(list[picks[0]].entry, list[picks[1]].entry)
 	if p.get("note", "") != "":
 		p.text += "  " + p.note
-	if p.has("cost"):
-		p.text += "\nCost: " + cost_text(p.cost)
-	return p
+	return p                                   # (the cost is drawn as icons by the screen from p.cost)
 
 ## Real numbers for the weapon now and one tier up (green). Each tier of bonus gives +20% damage and -8% cooldowns.
 static func numbers_text(info: Dictionary, bonus: int) -> String:
