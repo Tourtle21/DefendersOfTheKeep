@@ -1120,7 +1120,7 @@ func restart_run() -> void:
 	get_tree().reload_current_scene()
 
 func max_mana() -> float:
-	return 100.0 + 25.0 * upgrade_levels.get("max_mana", 0) + bonus("mana_max")
+	return 25.0 + 25.0 * upgrade_levels.get("max_mana", 0) + bonus("mana_max")
 
 ## How many players are in this game: you, co-op friends over LAN and local split-screen players.
 func player_count() -> int:

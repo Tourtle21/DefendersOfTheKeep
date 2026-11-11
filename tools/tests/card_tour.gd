@@ -45,8 +45,10 @@ func _initialize() -> void:
 	await wait(0.5)
 	net._set_base(p1, true)
 	net._set_base(p2, true)
-	game.mana = 100.0
 	game.resources = {"stone": 40, "stick": 40, "gold": 40}
+	game.hand = [game.make_entry("frost_ring", 1, ""), game.make_entry("frost_ring", 1, ""), game.make_entry("fireball", 1, ""), game.make_entry("torch", 1, "")]
+	game.hand_changed.emit()
+	await step("0. MANA: the run starts with %.0f mana (cap %.0f), regenerating %.1f per second" % [game.mana, game.max_mana(), game.mana_regen()])
 	await step("1. START: both players are in the keep and share one hand of cards (%s)" % str(game.hand))
 	for who in [[p1, "PLAYER 1", Vector2(220, 120)], [p2, "PLAYER 2", Vector2(-220, 120)]]:
 		var spell: String = ""
@@ -54,9 +56,12 @@ func _initialize() -> void:
 			if !game.is_build(game.entry_id(e)):
 				spell = e
 				break
-		await step("%s is about to cast %s" % [who[1], spell])
+		while !game.can_cast(spell):
+			print("   waiting for mana: %.0f / %.0f needed" % [game.mana, game.CARDS[game.entry_id(spell)].mana])
+			await wait(3.0)
+		await step("%s is about to cast %s (mana %.0f)" % [who[1], spell, game.mana])
 		game.cast(spell, who[2], who[0])
-		await step("%s cast it: the card left the shared hand, the deck still holds it" % who[1])
+		await step("%s cast it: the card left the shared hand, the deck still holds it (mana now %.0f)" % [who[1], game.mana])
 	game._draw_time = 99.0
 	await step("the keep draws a replacement card while they are inside")
 	# chests: a pair of Fireballs in the hand so the x2 and Combine show
