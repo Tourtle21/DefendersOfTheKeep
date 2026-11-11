@@ -15,7 +15,8 @@ signal closed
 const UiKit = preload("res://ui/cards/ui_kit.gd")
 var tab_id := "cards"
 const TierCard = preload("res://ui/cards/tier_card.gd")
-var grid_area: Control
+var grid_area: Control          # the spells column
+var build_area: Control         # the buildings column
 var tier_row: HBoxContainer
 var _focus_id := ""
 var _views := {}
@@ -38,12 +39,25 @@ func _ready() -> void:
 	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	left.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	body.add_child(left)
-	grid_area = Control.new()
-	grid_area.clip_contents = true
-	grid_area.resized.connect(func():              # the panel settles after first layout: redraw the grid at its real size
-		if root_ctl != null and root_ctl.visible:
-			_refresh.call_deferred())
-	left.add_child(grid_area)
+	var cols_box := HBoxContainer.new()                 # spells on the left, buildings on the right
+	cols_box.add_theme_constant_override("separation", 14)
+	left.add_child(cols_box)
+	var mk := func(title: String) -> Control:
+		var col := VBoxContainer.new()
+		col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		col.add_theme_constant_override("separation", 6)
+		cols_box.add_child(col)
+		col.add_child(UiKit.heading(title, UiKit.FONT_HEAD))
+		var area := Control.new()
+		area.clip_contents = true
+		area.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		area.resized.connect(func():              # the panel settles after first layout: redraw at its real size
+			if root_ctl != null and root_ctl.visible:
+				_refresh.call_deferred())
+		col.add_child(area)
+		return area
+	grid_area = mk.call("SPELLS")
+	build_area = mk.call("BUILDINGS")
 	var side := UiKit.panel(UiKit.RESULT_BG)
 	side.custom_minimum_size = Vector2(470, 0)
 	side.size_flags_horizontal = Control.SIZE_SHRINK_END
@@ -74,9 +88,10 @@ func open() -> void:
 
 func _refresh() -> void:
 	shards_label.text = "Shards: %d" % Game.meta.shards
-	for c in grid_area.get_children():
-		grid_area.remove_child(c)
-		c.queue_free()
+	for area in [grid_area, build_area]:
+		for c in area.get_children():
+			area.remove_child(c)
+			c.queue_free()
 	_views.clear()
 	var ids: Array = Game.CARDS.keys().filter(func(id): return !Game.CARDS[id].get("fused", false))
 	var order := {}
@@ -86,9 +101,20 @@ func _refresh() -> void:
 		var ra: int = Game.card_rarity(a)
 		var rb: int = Game.card_rarity(b)
 		return ra < rb or (ra == rb and order[a] < order[b]))
-	var area: Vector2 = grid_area.size if grid_area.size.x > 100 else get_viewport().get_visible_rect().size - Vector2(470, 190)
-	area.y -= 16.0 * ceili(sqrt(ids.size() / 1.6))      # room for the gem row under each card
-	var fit := UiKit.fit_cards(ids.size(), area, 0.6, 6.0, 132.0)
+	var spells: Array = ids.filter(func(id): return !Game.is_build(id))
+	var builds: Array = ids.filter(func(id): return Game.is_build(id))
+	var biggest := maxi(spells.size(), builds.size())          # both columns use the same card size
+	_place(spells, grid_area, biggest)
+	_place(builds, build_area, biggest)
+	_show_detail()
+	if _focus_id != "" and _views.has(_focus_id) and root_ctl.visible and get_viewport().gui_get_focus_owner() == null:
+		_views[_focus_id].grab_focus.call_deferred()      # the cards were rebuilt: keep the controller's place
+
+## Lay out `ids` as cards in `target` (one column of the collection), as big as fit without scrolling.
+func _place(ids: Array, target: Control, size_for: int) -> void:
+	var area: Vector2 = target.size if target.size.x > 100 else (get_viewport().get_visible_rect().size - Vector2(470, 190)) * Vector2(0.5, 1.0)
+	area.y -= 16.0 * ceili(sqrt(size_for / 1.6))      # room for the gem row under each card
+	var fit := UiKit.fit_cards(size_for, area, 0.6, 6.0, 132.0)
 	var cols: int = fit.cols
 	var csize: Vector2 = fit.size
 	var k := csize.x / CardView.SIZE.x
@@ -144,12 +170,9 @@ func _refresh() -> void:
 			holder.add_child(frame)
 		view.focus_entered.connect(func(): _focus_id = id)
 		_views[id] = view
-		grid_area.add_child(holder)
+		target.add_child(holder)
 		if view is CardView:
 			view.set_state(false, owned)               # the card keeps its own dimming on hover (it resets modulate itself)
-	_show_detail()
-	if _focus_id != "" and _views.has(_focus_id) and root_ctl.visible and get_viewport().gui_get_focus_owner() == null:
-		_views[_focus_id].grab_focus.call_deferred()      # the cards were rebuilt: keep the controller's place
 
 func _num_block(id: String, tier: int, next_tier: int) -> String:
 	var cur := Game.card_numbers(id, tier)
