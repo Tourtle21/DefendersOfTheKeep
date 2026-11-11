@@ -14,7 +14,7 @@ func _init() -> void:
 	preview_ability = {"kind": "circle", "range": 110.0, "radius": 34.0}
 	preview_dash = 50.0
 	preview_ultimate = {"kind": "self", "radius": 100.0}
-	attack_cooldown = 0.55
+	attack_cooldown = Game.basic_cd("bogstaff")
 	ability_cooldown = 6.0
 	dash_cooldown = 4.0
 	reach = 12.0
@@ -25,7 +25,7 @@ func _mud(pos: Vector2, r: float, secs: float, factor := 0.4) -> void:
 
 func attack() -> void:
 	thrust(5.0, 0.2)
-	WeaponProjectile.shoot(game_world(), player.global_position + aim * 10.0, aim, 210.0, 1.0, Color(0.5, 0.85, 0.3), 0.9, 0, 40.0, {"bleed_ticks": 4, "bleed_dmg": 0.8})
+	WeaponProjectile.shoot(game_world(), player.global_position + aim * 10.0, aim, 210.0, Game.basic_hit("bogstaff"), Color(0.5, 0.85, 0.3), 0.9, 0, 40.0, {"bleed_ticks": 4, "bleed_dmg": 0.8})
 
 func ability() -> void:
 	var c := cursor_target(110.0)

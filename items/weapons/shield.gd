@@ -16,7 +16,7 @@ func _init() -> void:
 	dash_cooldown = 5.0
 	preview_dash = 55.0
 	icon_path = "res://items/weapons/icons/shield.png"
-	attack_cooldown = 0.7
+	attack_cooldown = Game.basic_cd("shield")
 	ability_cooldown = 8.0
 	reach = 9.0
 	icon_scale = 0.6
@@ -26,7 +26,7 @@ func attack() -> void:
 	var o: Vector2 = player.global_position
 	fx("arc", o, Color(0.5, 0.7, 1.0), {"radius": 22.0, "dir": aim, "half_angle": 1.0, "life": 0.15})
 	for e in WeaponUtil.enemies_in_arc(get_tree(), o, aim, 22.0, 65.0):
-		WeaponUtil.hit(e, 1.0, o, 300.0, 0.5)
+		WeaponUtil.hit(e, Game.basic_hit("shield"), o, 300.0, 0.5)
 
 func dash_attack() -> void:
 	# Shield Charge: rush forward, shoving and briefly stunning whatever you hit

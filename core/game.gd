@@ -91,7 +91,7 @@ const CARDS := {
 	"blizzard": {
 		"element": "ice",
 		"name": "Blizzard", "mana": 25, "res": {"frost": 1}, "kind": "zone", "art": "blizzard",
-		"radius": 60.0, "duration": 5.0, "dps": 1.0, "slow": 0.2, "speed": 220.0, "color": Color(0.8, 0.95, 1.0),
+		"radius": 60.0, "duration": 5.0, "dps": 2.6, "slow": 0.2, "speed": 220.0, "color": Color(0.8, 0.95, 1.0),
 		"desc": "Squall that nearly freezes enemies.",
 	},
 	"lava_pool": {
@@ -109,7 +109,7 @@ const CARDS := {
 	"crystal_spikes": {
 		"element": "pierce",
 		"name": "Crystal Spikes", "mana": 25, "res": {"gem": 1}, "kind": "spikes", "art": "crystal_spikes",
-		"radius": 24.0, "damage": 5.0, "duration": 1.2, "speed": 200.0, "color": Color(0.8, 0.6, 1.0),
+		"radius": 24.0, "damage": 12.0, "duration": 1.2, "speed": 200.0, "color": Color(0.8, 0.6, 1.0),
 		"desc": "Three spikes erupt in a triangle.",
 	},
 	"aegis": {
@@ -162,7 +162,7 @@ const CARDS := {
 	},
 	"thorn_hedge": {
 		"name": "Thorn Hedge", "mana": 0, "res": {"moss": 3}, "kind": "build", "build": "barricade", "art": "thorn_hedge",
-		"radius": 18.0, "hp": 40.0, "thorns": 2.0, "duration": 0.0, "speed": 260.0, "color": Color(0.4, 0.75, 0.3),
+		"radius": 18.0, "hp": 95.0, "thorns": 3.0, "duration": 0.0, "speed": 260.0, "color": Color(0.4, 0.75, 0.3),
 		"desc": "Wall that hurts enemies chewing on it.",
 	},
 	"crystal_pylon": {
@@ -1842,9 +1842,35 @@ func rarity_name(r: int) -> String:
 func rarity_color(r: int) -> Color:
 	return RARITIES[clampi(r, 0, 6)].color
 
+## The basic attack of each base weapon: damage per hit (the main hit; weapons scale it for tips, backstabs and charge) and seconds
+## between attacks. ONE place: the weapon scripts read it and the stat screens show it, so they cannot disagree. Tuned so the damage
+## per second rises with rarity (about 6, 8, 10, 12.5, 15, 18 for Common .. Ancient, 22 Legendary) once the rarity bonus in
+## weapon_power is applied; abilities, dashes and ultimates get the same bonus.
+const WEAPON_BASIC := {
+	"spear": {"hit": 2.7, "cd": 0.45}, "hammer": {"hit": 5.1, "cd": 0.85}, "torch": {"hit": 2.7, "cd": 0.45},
+	"daggers": {"hit": 1.6, "cd": 0.22}, "scimitar": {"hit": 2.2, "cd": 0.3}, "bow": {"hit": 2.6, "cd": 0.3},
+	"whip": {"hit": 4.2, "cd": 0.5}, "shield": {"hit": 5.0, "cd": 0.7}, "frostglaive": {"hit": 3.75, "cd": 0.45},
+	"staff": {"hit": 4.8, "cd": 0.5}, "emberflail": {"hit": 5.8, "cd": 0.6},
+	"bogstaff": {"hit": 5.9, "cd": 0.55}, "crystalwand": {"hit": 6.0, "cd": 0.5},
+	"dawnbringer": {"hit": 3.9, "cd": 0.4}, "voidreaver": {"hit": 5.4, "cd": 0.55},
+}
+## The numbers a stat screen shows for a weapon's basic attack at a tier bonus: {hit, cd, dps} after all multipliers. {} if unknown.
+func basic_numbers(id: String, bonus: int) -> Dictionary:
+	if !WEAPON_BASIC.has(id):
+		return {}
+	var cd := basic_cd(id) * pow(0.92, bonus) * pow(0.95, Fusion.tier_of(id) - 1)
+	var hit := basic_hit(id) * weapon_power(id, bonus)
+	return {"hit": hit, "cd": cd, "dps": hit / cd}
+
+func basic_hit(id: String, fallback := 1.0) -> float:
+	return float(WEAPON_BASIC.get(id, {}).get("hit", fallback))
+func basic_cd(id: String, fallback := 0.5) -> float:
+	return float(WEAPON_BASIC.get(id, {}).get("cd", fallback))
+
 ## Damage multiplier of a weapon: +35% for every fusion tier above 1, +20% per bonus tier, and legendary weapons hit 50% harder.
 func weapon_power(id: String, bonus: int) -> float:
-	return (1.0 + 0.2 * bonus) * (1.0 + 0.35 * (Fusion.tier_of(id) - 1)) * (1.5 if id in LEGENDARY_WEAPONS else 1.0)
+	var rarity_bonus: float = 1.0 + 0.1 * minf(5.0, float(weapon_rarity(id))) if Fusion.tier_of(id) == 1 else 1.0       # rarer base weapons hit harder
+	return (1.0 + 0.2 * bonus) * (1.0 + 0.35 * (Fusion.tier_of(id) - 1)) * (1.5 if id in LEGENDARY_WEAPONS else 1.0) * rarity_bonus
 
 func is_legendary_card(id: String) -> bool:
 	return CARDS.has(id) and CARDS[id].get("legendary", false)

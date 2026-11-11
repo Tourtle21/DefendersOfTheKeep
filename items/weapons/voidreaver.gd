@@ -15,7 +15,7 @@ func _init() -> void:
 	preview_ultimate = {"kind": "self", "radius": 140.0}
 	preview_dash = 70.0
 	icon_path = "res://items/weapons/icons/voidreaver.png"
-	attack_cooldown = 0.55
+	attack_cooldown = Game.basic_cd("voidreaver")
 	ability_cooldown = 8.0
 	dash_cooldown = 4.0
 	ultimate_cooldown = 55.0
@@ -28,7 +28,7 @@ func attack() -> void:
 	fx("arc", o, Color(0.65, 0.35, 1.0), {"radius": 52.0, "dir": aim, "half_angle": 1.0, "life": 0.18})
 	var cut := 0
 	for e in WeaponUtil.enemies_in_arc(get_tree(), o, aim, 52.0, 58.0):
-		WeaponUtil.hit(e, 3.2, o, 90.0)
+		WeaponUtil.hit(e, Game.basic_hit("voidreaver"), o, 90.0)
 		cut += 1
 	if cut > 0:
 		player.heal(minf(3.0, 1.0 * cut))                # drinks what it cuts

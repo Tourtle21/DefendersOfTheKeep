@@ -15,14 +15,14 @@ func _init() -> void:
 	dash_cooldown = 4.0
 	preview_ability = {"kind": "circle", "range": 100.0, "radius": 26.0}
 	icon_path = "res://items/weapons/icons/staff.png"
-	attack_cooldown = 0.5
+	attack_cooldown = Game.basic_cd("staff")
 	ability_cooldown = 5.0
 	reach = 12.0
 	icon_scale = 0.6
 
 func attack() -> void:
 	thrust(5.0, 0.2)
-	WeaponProjectile.shoot(game_world(), player.global_position + aim * 10.0, aim, 230.0, 2.0, Color(0.6, 0.45, 1.0), 1.2, 0, 60.0)
+	WeaponProjectile.shoot(game_world(), player.global_position + aim * 10.0, aim, 230.0, Game.basic_hit("staff"), Color(0.6, 0.45, 1.0), 1.2, 0, 60.0)
 
 func ability() -> void:
 	# Arcane Burst: a blast at the cursor after a short delay (lead moving targets)

@@ -19,7 +19,7 @@ func _init() -> void:
 	preview_ultimate = {"kind": "self", "radius": 120.0}
 	preview_dash = 55.0
 	icon_path = "res://items/weapons/icons/torch.png"
-	attack_cooldown = 0.45
+	attack_cooldown = Game.basic_cd("torch")
 	ability_cooldown = 8.0
 	dash_cooldown = 4.0
 	ultimate_cooldown = 55.0
@@ -31,7 +31,7 @@ func attack() -> void:
 	var o: Vector2 = player.global_position
 	fx("arc", o, Color(1.0, 0.6, 0.2), {"radius": 36.0, "dir": aim, "half_angle": 0.6, "life": 0.15})
 	for e in WeaponUtil.enemies_in_arc(get_tree(), o, aim, 36.0, 35.0):
-		WeaponUtil.hit(e, 1.6, o, 70.0)
+		WeaponUtil.hit(e, Game.basic_hit("torch"), o, 70.0)
 		if is_instance_valid(e) and !e.is_queued_for_deletion():
 			WeaponUtil.bleed(get_tree(), e, 3, 0.6)          # it keeps burning for a moment
 

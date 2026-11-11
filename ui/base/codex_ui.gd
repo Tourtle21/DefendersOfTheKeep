@@ -225,7 +225,11 @@ func _show_detail(id: String) -> void:
 	var txt := "[b]%s[/b]   tier [color=#ffd23a][b]%d[/b][/color]%s\n" % [Fusion.display_name(id), t, "" if tier_ok else "   [color=#ff9a7a](locked)[/color]"]
 	txt += "[color=#c9d3f2]%s[/color]\n\n" % _where(id)
 	txt += "[b]Element[/b]  %s\n" % (String(inst.get("element")).capitalize() if str(inst.get("element")) not in ["", "<null>", "Null"] else "Physical")
-	txt += "Damage  [color=#ffd23a][b]x%.1f[/b][/color]\n\n" % Game.weapon_power(id, bonus)
+	txt += "Damage  [color=#ffd23a][b]x%.2f[/b][/color]  (tier and rarity bonus)\n" % Game.weapon_power(id, bonus)
+	var bn: Dictionary = Game.basic_numbers(id, bonus)
+	if !bn.is_empty():
+		txt += "Basic attack  [color=#ffd23a][b]%.1f[/b][/color] per hit, every %.2fs  =  [color=#6df08a][b]%.1f damage per second[/b][/color]\n" % [bn.hit, bn.cd, bn.dps]
+	txt += "\n"
 	var moves := [["Left click", inst.attack_name, inst.attack_cooldown, 1], ["Shift", inst.dash_name, inst.dash_cooldown, 1],
 		["Right click", inst.ability_name, inst.ability_cooldown, 2], ["Space", inst.ultimate_name, inst.ultimate_cooldown, 3]]
 	for m in moves:

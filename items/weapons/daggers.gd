@@ -18,7 +18,7 @@ func _init() -> void:
 	preview_ability = {"kind": "line", "length": 100.0}
 	preview_dash = 44.0
 	icon_path = "res://items/weapons/icons/daggers.png"
-	attack_cooldown = 0.22
+	attack_cooldown = Game.basic_cd("daggers")
 	ability_cooldown = 5.0
 	reach = 9.0
 	icon_scale = 0.5
@@ -34,9 +34,9 @@ func attack() -> void:
 			fx("ring", e.global_position, Color(1.0, 0.3, 0.3), {"radius": 16.0, "life": 0.25})
 			player.shake(2.0, 0.15)
 			_dash_cd = max(0.0, _dash_cd - dash_cooldown * 0.5)
-			WeaponUtil.hit(e, 3.6, o, 100.0)          # backstab
+			WeaponUtil.hit(e, Game.basic_hit("daggers") * 3.0, o, 100.0)          # backstab (3x)
 		else:
-			WeaponUtil.hit(e, 1.2, o, 60.0)
+			WeaponUtil.hit(e, Game.basic_hit("daggers"), o, 60.0)
 
 func ability() -> void:
 	# Throwing Knives: three knives that expose whatever they hit

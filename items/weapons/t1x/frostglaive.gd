@@ -14,7 +14,7 @@ func _init() -> void:
 	preview_ability = {"kind": "line", "length": 112.0}
 	preview_dash = 90.0
 	preview_ultimate = {"kind": "self", "radius": 130.0}
-	attack_cooldown = 0.45
+	attack_cooldown = Game.basic_cd("frostglaive")
 	ability_cooldown = 6.0
 	dash_cooldown = 4.0
 	reach = 12.0
@@ -30,7 +30,7 @@ func attack() -> void:
 	var o: Vector2 = player.global_position
 	fx("arc", o, Color(0.7, 0.9, 1.0), {"radius": 30.0, "dir": aim, "half_angle": 0.9, "life": 0.15})
 	for e in WeaponUtil.enemies_in_arc(get_tree(), o, aim, 30.0, 55.0):
-		var dmg := 1.8 * (1.5 if WeaponUtil.is_exposed(e) else 1.0)
+		var dmg := Game.basic_hit("frostglaive") * (1.5 if WeaponUtil.is_exposed(e) else 1.0)
 		WeaponUtil.hit(e, dmg, o, 80.0)
 		_chill(e)
 

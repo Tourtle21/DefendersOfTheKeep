@@ -22,7 +22,7 @@ func _init() -> void:
 	dash_cooldown = 5.0
 	preview_dash = 70.0
 	icon_path = "res://items/weapons/icons/hammer.png"
-	attack_cooldown = 0.85
+	attack_cooldown = Game.basic_cd("hammer")
 	ability_cooldown = 7.0
 	reach = 10.0
 	icon_scale = 0.65
@@ -37,7 +37,7 @@ func attack() -> void:
 	fx("ring", c, Color(1.0, 0.6, 0.2), {"radius": 26.0, "life": 0.25})
 	player.shake(1.5, 0.12)
 	for e in WeaponUtil.enemies_in_circle(get_tree(), c, 26.0):
-		WeaponUtil.hit(e, 3.0, o, 260.0)
+		WeaponUtil.hit(e, Game.basic_hit("hammer"), o, 260.0)
 	WeaponUtil.hit_breakables(get_tree(), c, 26.0, ["stone"])   # good at breaking rocks
 
 func use_ability() -> void:

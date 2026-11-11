@@ -15,7 +15,7 @@ func _init() -> void:
 	preview_ability = {"kind": "line", "length": 140.0}
 	preview_dash = 50.0
 	preview_ultimate = {"kind": "self", "radius": 52.0}
-	attack_cooldown = 0.3
+	attack_cooldown = Game.basic_cd("scimitar")
 	ability_cooldown = 5.0
 	dash_cooldown = 4.0
 	reach = 11.0
@@ -28,7 +28,7 @@ func attack() -> void:
 	var o: Vector2 = player.global_position
 	fx("arc", o, Color(0.95, 0.8, 0.45), {"radius": 30.0, "dir": aim, "half_angle": 1.2, "life": 0.14})
 	for e in WeaponUtil.enemies_in_arc(get_tree(), o, aim, 30.0, 70.0):
-		WeaponUtil.hit(e, 1.6, o, 60.0)
+		WeaponUtil.hit(e, Game.basic_hit("scimitar"), o, 60.0)
 		WeaponUtil.bleed(get_tree(), e, 3, 0.7)
 
 func ability() -> void:

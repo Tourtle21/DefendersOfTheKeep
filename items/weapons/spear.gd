@@ -18,7 +18,7 @@ func _init() -> void:
 	preview_ability = {"kind": "line", "length": 130.0}
 	preview_dash = 80.0
 	icon_path = "res://items/weapons/icons/spear.png"
-	attack_cooldown = 0.45
+	attack_cooldown = Game.basic_cd("spear")
 	ability_cooldown = 6.0
 	reach = 13.0
 	icon_scale = 0.65
@@ -32,9 +32,9 @@ func attack() -> void:
 		if along >= TIP_START:
 			fx("ring", o + aim * 40.0, Color(1.0, 0.85, 0.3), {"radius": 12.0, "life": 0.2})
 			player.shake(1.5, 0.12)
-			WeaponUtil.hit(e, 5.0, o, 200.0)       # tip hit
+			WeaponUtil.hit(e, Game.basic_hit("spear"), o, 200.0)       # tip hit
 		else:
-			WeaponUtil.hit(e, 2.5, o, 120.0)
+			WeaponUtil.hit(e, Game.basic_hit("spear") * 0.5, o, 120.0)
 
 func ability() -> void:
 	# Javelin: throw the spear at the cursor, pierces two enemies

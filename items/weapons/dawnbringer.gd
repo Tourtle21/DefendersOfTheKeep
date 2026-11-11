@@ -16,7 +16,7 @@ func _init() -> void:
 	preview_ultimate = {"kind": "circle", "range": 120.0, "radius": 90.0}
 	preview_dash = 60.0
 	icon_path = "res://items/weapons/icons/dawnbringer.png"
-	attack_cooldown = 0.4
+	attack_cooldown = Game.basic_cd("dawnbringer")
 	ability_cooldown = 9.0
 	dash_cooldown = 3.5
 	ultimate_cooldown = 50.0
@@ -28,7 +28,7 @@ func attack() -> void:
 	var o: Vector2 = player.global_position
 	fx("arc", o, Color(1.0, 0.9, 0.5), {"radius": 46.0, "dir": aim, "half_angle": 0.7, "life": 0.16})
 	for e in WeaponUtil.enemies_in_arc(get_tree(), o, aim, 46.0, 42.0):
-		WeaponUtil.hit(e, 3.0, o, 120.0)
+		WeaponUtil.hit(e, Game.basic_hit("dawnbringer"), o, 120.0)
 
 func dash_attack() -> void:
 	var start: Vector2 = player.global_position

@@ -15,7 +15,7 @@ func _init() -> void:
 	preview_ability = {"kind": "circle", "range": 90.0, "radius": 30.0}
 	preview_dash = 60.0
 	preview_ultimate = {"kind": "self", "radius": 70.0}
-	attack_cooldown = 0.6
+	attack_cooldown = Game.basic_cd("emberflail")
 	ability_cooldown = 6.0
 	dash_cooldown = 5.0
 	reach = 11.0
@@ -33,7 +33,7 @@ func attack() -> void:
 	var c: Vector2 = o + aim * 26.0
 	fx("arc", o, Color(1.0, 0.5, 0.2), {"radius": 32.0, "dir": aim, "half_angle": 1.0, "life": 0.18})
 	for e in WeaponUtil.enemies_in_arc(get_tree(), o, aim, 34.0, 60.0):
-		WeaponUtil.hit(e, 2.5, o, 140.0)
+		WeaponUtil.hit(e, Game.basic_hit("emberflail"), o, 140.0)
 	_fire(c, 14.0, 3.0)
 
 func ability() -> void:

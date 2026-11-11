@@ -17,7 +17,7 @@ func _init() -> void:
 	preview_ability = {"kind": "line", "length": 110.0}
 	preview_dash = 60.0
 	icon_path = "res://items/weapons/icons/whip.png"
-	attack_cooldown = 0.5
+	attack_cooldown = Game.basic_cd("whip")
 	ability_cooldown = 6.0
 	reach = 12.0
 
@@ -27,9 +27,9 @@ func attack() -> void:
 	fx("arc", o, Color(0.8, 0.5, 0.3), {"radius": 46.0, "dir": aim, "half_angle": 0.35, "life": 0.15})
 	for e in WeaponUtil.enemies_in_arc(get_tree(), o, aim, 46.0, 20.0):
 		var d: float = e.global_position.distance_to(o)
-		var dmg := 1.0
+		var dmg := Game.basic_hit("whip")
 		if d >= CRACK_START:
-			dmg = 2.5
+			dmg *= 2.5
 			e.apply_slow(0.5, 0.8)
 			fx("ring", e.global_position, Color(1.0, 0.85, 0.3), {"radius": 10.0, "life": 0.2})
 		if WeaponUtil.is_exposed(e):

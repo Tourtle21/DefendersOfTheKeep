@@ -48,6 +48,10 @@ static func numbers_text(info: Dictionary, bonus: int) -> String:
 	var r: int = Game.weapon_rarity(str(info.id))
 	var fz: float = pow(0.95, Fusion.tier_of(str(info.id)) - 1)
 	var lines := ["[color=#%s][b]%s[/b][/color] weapon" % [Game.rarity_color(r).to_html(false), Game.rarity_name(r)], "Damage  [color=#ffd23a][b]x%.1f[/b][/color]  ->  [color=#6df08a][b]x%.1f[/b][/color]" % [Game.weapon_power(str(info.id), bonus), Game.weapon_power(str(info.id), bonus + 1)]]
+	var now: Dictionary = Game.basic_numbers(str(info.id), bonus)
+	var nxt: Dictionary = Game.basic_numbers(str(info.id), bonus + 1)
+	if !now.is_empty():
+		lines.append("Damage per second  [color=#ffd23a][b]%.1f[/b][/color]  ->  [color=#6df08a][b]%.1f[/b][/color]   (%.1f per hit)" % [now.dps, nxt.dps, now.hit])
 	for c in cds:
 		if c[2] == "":
 			continue

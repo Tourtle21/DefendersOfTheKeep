@@ -21,7 +21,7 @@ func _init() -> void:
 	dash_cooldown = 4.0
 	preview_ability = {"kind": "line", "length": 120.0}
 	icon_path = "res://items/weapons/icons/bow.png"
-	attack_cooldown = 0.3
+	attack_cooldown = Game.basic_cd("bow")
 	ability_cooldown = 6.0
 	reach = 9.0
 
@@ -61,7 +61,7 @@ func release_item() -> void:
 	_attack_cd = attack_cooldown
 	var ratio: float = min(1.0, _draw_t / FULL_DRAW)
 	var perfect := _draw_t >= FULL_DRAW and _draw_t <= PERFECT_END
-	var dmg := 1.0 + 2.0 * ratio
+	var dmg := Game.basic_hit("bow") * (0.33 + 0.67 * ratio)
 	var speed := 200.0 + 160.0 * ratio
 	var col := Color(0.9, 0.8, 0.5)
 	if perfect:
