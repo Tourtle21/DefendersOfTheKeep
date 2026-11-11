@@ -16,9 +16,11 @@ var selected := false
 var _hover := false
 var _pulse := 0.0
 var _pulse_tw: Tween
+var _frame_tex: Texture2D           # the card-style frame picture, loaded once in setup
 
 func setup(d: Dictionary):
 	data = d
+	_frame_tex = load(str(d.frame)) if d.has("frame") else null
 	custom_minimum_size = d.get("size", Vector2(120, 168))
 	size = custom_minimum_size
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
@@ -65,6 +67,9 @@ func _gem(center: Vector2, r: float, fill: Color, outline: Color, filled: bool) 
 
 func _draw() -> void:
 	if data.is_empty():
+		return
+	if data.has("frame"):
+		_draw_card_face()
 		return
 	var w := size.x
 	var h := size.y
@@ -159,6 +164,10 @@ func _draw() -> void:
 			var gc := Color(accent.lightened(0.2), dim) if owned else UiKit.PANEL.lightened(0.15)
 			var oc := UiKit.CURSOR if nxt and !locked else (Color(accent, dim) if owned else UiKit.MUTED_DARK)
 			_gem(Vector2(gx + i * gr * 2.2, gy), gr, gc, oc, owned)
+	_draw_overlays(w, h, art, locked)
+
+## Locked dimming, the padlock, hover, the upgrade blink, the controller focus ring and the gold selection frame: the same on every card style.
+func _draw_overlays(w: float, h: float, art: Rect2, locked: bool) -> void:
 	if locked:
 		draw_rect(Rect2(0, 0, w, h), Color(UiKit.BLACK, 0.25))
 	if data.get("lock", false):                        # a padlock over the art window
@@ -176,3 +185,64 @@ func _draw() -> void:
 		draw_rect(Rect2(-3, -3, w + 6, h + 6), UiKit.SKY, false, 3.0)
 	if selected:
 		draw_rect(Rect2(-1, -1, w + 2, h + 2), UiKit.GOLD_BRIGHT, false, 3.0)
+
+## The card style: the same layout as a spell or building card (ui/cards/card_view.gd) - the kind's frame picture, the art window,
+## the name banner, the description box, the tier badge top-right - so a weapon looks like the other cards. data.frame is the
+## frame picture (weapons use frame_weapon.png: chamfered corners and a steel border); data.accent colours a thin rarity line
+## just inside it. title / icon / glyph / lines / footer / footer_cost / tier work as in the other style.
+func _draw_card_face() -> void:
+	var accent: Color = data.get("accent", UiKit.ACCENT)
+	var locked: bool = data.get("locked", false)
+	var dim := 0.45 if locked else 1.0
+	var font := ThemeDB.fallback_font
+	var k := minf(size.x / 48.0, size.y / 80.0)                                # the frame is 48 x 80 art pixels
+	var o := (size - Vector2(48.0, 80.0) * k) / 2.0
+	draw_texture_rect(_frame_tex, Rect2(o, Vector2(48.0, 80.0) * k), false, Color(UiKit.WHITE, dim))
+	draw_rect(Rect2(o + Vector2(3.5, 3.5) * k, Vector2(41.0, 73.0) * k), Color(accent, dim), false, maxf(1.0, 0.8 * k))
+	# art window
+	var art := Rect2(o + Vector2(6, 6) * k, Vector2(35, 31) * k)
+	var tex = data.get("icon")
+	if tex != null:
+		var ts: Vector2 = tex.get_size()
+		var ik := minf((art.size.x - 4) / ts.x, (art.size.y - 4) / ts.y)
+		ik = maxf(1.0, floorf(ik)) if ik >= 1.0 else ik
+		var dr := Vector2(ts.x * ik, ts.y * ik)
+		draw_texture_rect(tex, Rect2(art.position + (art.size - dr) / 2.0, dr), false, Color(UiKit.WHITE, dim))
+	elif data.has("glyph"):
+		draw_string(font, art.position + Vector2(0, art.size.y * 0.72), str(data.glyph), HORIZONTAL_ALIGNMENT_CENTER, art.size.x, int(art.size.y * 0.7), Color(accent, dim))
+	# tier badge, top-right of the art window
+	var tier: int = int(data.get("tier", 0))
+	var bfs := clampi(int(5.5 * k), 8, 16)
+	if tier > 0:
+		var bp := art.position + Vector2(0, bfs + 1.0)
+		draw_string_outline(font, bp, "T%d" % tier, HORIZONTAL_ALIGNMENT_RIGHT, art.size.x - 2.0, bfs, 3, UiKit.BLACK)
+		draw_string(font, bp, "T%d" % tier, HORIZONTAL_ALIGNMENT_RIGHT, art.size.x - 2.0, bfs, Color(UiKit.GOLD_BRIGHT, dim))
+	# name banner
+	var title: String = str(data.get("title", ""))
+	var tfs := clampi(int(5.5 * k), 7, 16)
+	while tfs > 7 and font.get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1, tfs).x > 41.0 * k:
+		tfs -= 1
+	draw_string(font, o + Vector2(0, 48.3 * k), title, HORIZONTAL_ALIGNMENT_CENTER, 48.0 * k, tfs, Color(UiKit.WHITE, dim))
+	# description box: the lines, then the footer (a state or a price) at the bottom
+	var lfs := clampi(int(4.6 * k), 7, 13)
+	var ty := o.y + 54.5 * k + lfs
+	var bottom := o.y + 73.5 * k
+	var foot: String = str(data.get("footer", ""))
+	var foot_cost: Dictionary = data.get("footer_cost", {})
+	var has_foot := foot != "" or !foot_cost.is_empty()
+	var lw := 40.0 * k
+	for l in data.get("lines", []):
+		var txt := str(l)
+		var sz := font.get_multiline_string_size(txt, HORIZONTAL_ALIGNMENT_CENTER, lw, lfs, 2)
+		if ty + sz.y - lfs > bottom - (lfs + 1.0 if has_foot else 0.0):
+			break
+		draw_multiline_string(font, Vector2(o.x + 4.0 * k, ty), txt, HORIZONTAL_ALIGNMENT_CENTER, lw, lfs, 2, Color(UiKit.GOOD if txt.begins_with("+") else UiKit.TEXT_HINT, dim))
+		ty += sz.y + 1.0
+	var fc := Color(data.get("footer_color", UiKit.WARM), dim)
+	if !foot_cost.is_empty():
+		var isz := float(lfs)
+		var cw := ResIcons.width(foot_cost, isz, lfs)
+		ResIcons.draw(self, Vector2(o.x + (48.0 * k - cw) / 2.0, bottom - 1.0), foot_cost, isz, lfs, fc)
+	elif foot != "":
+		draw_string(font, Vector2(o.x + 4.0 * k, bottom - 1.0), foot, HORIZONTAL_ALIGNMENT_CENTER, lw, lfs, fc)
+	_draw_overlays(size.x, size.y, art, locked)

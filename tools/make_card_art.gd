@@ -62,6 +62,21 @@ const FUSED := {
 
 func _initialize() -> void:
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("res://ui/cards"))
+	if "only=frames" in OS.get_cmdline_user_args():
+		# every frame in its kind's look (spell / build), plus the weapon frame: icons and hand-painted art are left alone
+		var styles := {}
+		var game = root.get_node("Game")
+		for id in game.CARDS:
+			var c: Dictionary = game.CARDS[id]
+			styles[str(c.get("art", c.kind))] = "build" if c.kind == "build" else "spell"
+		for kind in ACCENTS:
+			save(make_frame(ACCENTS[kind], false, styles.get(kind, "spell")), "frame_%s" % kind)
+		for id in FUSED:
+			save(make_frame(FUSED[id][2], false, styles.get(id, "spell")), "frame_%s" % id)
+		save(make_frame(Color("b8c4d8"), false, "weapon"), "frame_weapon")
+		print("card frames written")
+		quit()
+		return
 	if "only=legend" in OS.get_cmdline_user_args():
 		for kind in ["meteor_shower", "stasis", "sunspire", "phoenix_shrine"]:
 			save(make_frame(ACCENTS[kind], false), "frame_%s" % kind)
@@ -245,17 +260,39 @@ func outline(img: Image) -> void:
 
 # ---------- card frame ----------
 
-func make_frame(accent: Color, is_back: bool) -> Image:
+## Card frames come in three looks so the kind of card reads at a glance (the accent colour is per card):
+##   "spell"  rounded corners, round studs, a smooth accent border (the original look)
+##   "build"  square corners, a brick-pattern border and square rivets: stone and timber
+##   "weapon" chamfered corners, a steel border and diamond studs
+func in_chamfer(x: int, y: int, x0: int, y0: int, x1: int, y1: int, c: int) -> bool:
+	if x < x0 or x > x1 or y < y0 or y > y1:
+		return false
+	return !(x - x0 + y - y0 < c or x1 - x + y - y0 < c or x - x0 + y1 - y < c or x1 - x + y1 - y < c)
+
+func frame_shape(style: String, x: int, y: int, x0: int, y0: int, x1: int, y1: int, r: int) -> bool:
+	match style:
+		"build":
+			return in_round(x, y, x0, y0, x1, y1, 1)
+		"weapon":
+			return in_chamfer(x, y, x0, y0, x1, y1, r + 2)
+	return in_round(x, y, x0, y0, x1, y1, r)
+
+func make_frame(accent: Color, is_back: bool, style := "spell") -> Image:
 	var img := new_img(W, H)
 	for y in H:
 		for x in W:
-			if in_round(x, y, 0, 0, W - 1, H - 1, 4):
+			if frame_shape(style, x, y, 0, 0, W - 1, H - 1, 4):
 				img.set_pixel(x, y, BLACK)
-				if in_round(x, y, 1, 1, W - 2, H - 2, 3):
+				if frame_shape(style, x, y, 1, 1, W - 2, H - 2, 3):
 					img.set_pixel(x, y, NAVY)
-					# accent inner border
-					if !in_round(x, y, 3, 3, W - 4, H - 4, 2):
-						img.set_pixel(x, y, accent.darkened(0.35))
+					# the border band
+					if !frame_shape(style, x, y, 3, 3, W - 4, H - 4, 2):
+						var band := accent.darkened(0.35)
+						if style == "build":
+							band = accent.darkened(0.55 if (x / 3 + y / 2) % 2 == 0 else 0.25)           # bricks
+						elif style == "weapon":
+							band = Color("98a2b4") if (x + y) % 6 < 3 else Color("6c7688")               # brushed steel
+						img.set_pixel(x, y, band)
 	if is_back:
 		# like the token back: big red gem in the middle
 		var gem := [
@@ -278,11 +315,25 @@ func make_frame(accent: Color, is_back: bool) -> Image:
 		# accent underline in the banner
 		for x in range(6, 42):
 			img.set_pixel(x, 50, accent.darkened(0.2))
-	# corner studs, like the token corners
+	# corner studs, like the token corners (round for spells, square rivets for buildings, diamonds for weapons)
 	for c in [Vector2(3.5, 3.5), Vector2(W - 3.5, 3.5), Vector2(3.5, H - 3.5), Vector2(W - 3.5, H - 3.5)]:
-		disc(img, c.x, c.y, 3.6, BLACK)
-		disc(img, c.x, c.y, 2.7, STUD)
-		img.set_pixel(int(c.x) - 1, int(c.y) - 1, STUD_HI)
+		match style:
+			"build":
+				for dy in range(-2, 2):
+					for dx in range(-2, 2):
+						img.set_pixel(int(c.x) + dx, int(c.y) + dy, BLACK if dx == -2 or dy == -2 or dx == 1 or dy == 1 else STUD)
+				img.set_pixel(int(c.x) - 1, int(c.y) - 1, STUD_HI)
+			"weapon":
+				for dy in range(-3, 4):
+					for dx in range(-3, 4):
+						var d := absi(dx) + absi(dy)
+						if d <= 3:
+							img.set_pixel(clampi(int(c.x) + dx, 0, W - 1), clampi(int(c.y) + dy, 0, H - 1), BLACK if d == 3 else STUD)
+				img.set_pixel(int(c.x), int(c.y) - 1, STUD_HI)
+			_:
+				disc(img, c.x, c.y, 3.6, BLACK)
+				disc(img, c.x, c.y, 2.7, STUD)
+				img.set_pixel(int(c.x) - 1, int(c.y) - 1, STUD_HI)
 	return img
 
 # ---------- icons (16x16) ----------
