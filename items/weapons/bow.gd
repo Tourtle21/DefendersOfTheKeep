@@ -90,11 +90,13 @@ func ability() -> void:
 func ultimate() -> void:
 	# Arrow Storm: two seconds of rapid fire toward the cursor (you can still move)
 	player.speed_mult = 0.6
-	for i in 20:
+	for i in 13:                                                   # a shorter storm than before (13 shots), then a finale
 		if !is_inside_tree():
 			return
 		var d := aim.rotated(randf_range(-0.18, 0.18))
-		WeaponProjectile.shoot(game_world(), player.global_position + d * 8.0, d, 320.0, 1.5, Color(1.0, 0.85, 0.4), 0.9, 0, 70.0)
+		WeaponProjectile.shoot(game_world(), player.global_position + d * 8.0, d, 320.0, 1.7, Color(1.0, 0.85, 0.4), 0.9, 0, 70.0)
 		await get_tree().create_timer(0.1).timeout
+	if is_inside_tree():                                           # finale: one big arrow slams down at the cursor
+		ground_strike(cursor_target(150.0), 38.0, 0.4, 4.0, 200.0, Color(1.0, 0.9, 0.4), 0.4)
 	if is_inside_tree():
 		player.speed_mult = 1.0
