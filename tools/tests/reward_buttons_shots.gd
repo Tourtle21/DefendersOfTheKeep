@@ -20,6 +20,11 @@ func _initialize() -> void:
 		if a.begins_with("hold="): HOLD = float(a.substr(5))
 	var game = root.get_node("Game")
 	game.save_path = "user://rbs_save.json"
+	game._menu_done = true
+	game._local_devices = []
+	var world = load("res://world/world.tscn").instantiate()
+	root.add_child(world)
+	await wait(1.5)
 	game.fix_meta()
 	game.meta.shards = 120
 	game.meta.best_level = 4
@@ -29,11 +34,6 @@ func _initialize() -> void:
 	game.meta.weapon_tiers = {}                   # (a fresh demo every time: nothing bought yet)
 	game.meta.pending = []
 	game.meta.tier_drawn = {"w:sword": 2, "frost_ring": 2}
-	game._menu_done = true
-	game._local_devices = []
-	var world = load("res://world/world.tscn").instantiate()
-	root.add_child(world)
-	await wait(1.5)
 	game.run_stats = {"kills": 80, "gold": 120, "waves": 10, "bosses": 2}
 	game.sectors_unlocked = ["s", "se", "ne", "n"]
 	var spare1 := {"kind": "card", "id": "fireball", "tier": 1, "realm": 1, "result": "spare", "shards": 0}
