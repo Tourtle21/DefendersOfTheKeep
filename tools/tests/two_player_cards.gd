@@ -25,7 +25,7 @@ func _initialize() -> void:
 	var p2 = lp.avatars[1]
 	game.enter_base(p1)
 	game.enter_base(p2)
-	ok("a run starts with 15 mana (%.0f)" % game.mana, game.mana == 15.0)
+	ok("a run starts with 25 mana (%.0f)" % game.mana, game.mana == 25.0)
 	game.mana = 100.0
 	game.resources = {"stone": 99, "stick": 99, "gold": 99}
 	# ---- start

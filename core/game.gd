@@ -1174,7 +1174,7 @@ func start_run() -> void:
 	run_stats = {"kills": 0, "gold": 0, "waves": 0, "bosses": 0}
 	sectors_unlocked = ["s"]
 	unlocked_cards = meta.unlocked.duplicate()
-	mana = 15.0
+	mana = 25.0
 	resources = {"stone": int(bonus("start_mats")), "stick": int(bonus("start_mats")), "gold": 0}
 	carried = {"stone": 0, "stick": 0, "gold": 0}
 	upgrade_levels = {}
