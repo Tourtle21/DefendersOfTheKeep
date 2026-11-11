@@ -15,6 +15,8 @@ var keys := {}                         # controller labels {"take": "A", "combin
 var row: HBoxContainer
 var hand_row: HBoxContainer
 var combine_row: HFlowContainer
+var deck_title: Label
+var deck_row: HBoxContainer
 var title: Label
 var hand_title: Label
 var choice_views: Array = []
@@ -59,6 +61,13 @@ func _init(controller_keys := {}) -> void:
 	hand_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	hand_row.add_theme_constant_override("separation", 12)
 	box.add_child(hand_row)
+	deck_title = UiKit.label("", UiKit.FONT_SMALL, UiKit.TEXT_HINT)
+	deck_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(deck_title)
+	deck_row = HBoxContainer.new()                      # the whole deck, one card each with how many copies you hold (x2, x3 ...)
+	deck_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	deck_row.add_theme_constant_override("separation", 6)
+	box.add_child(deck_row)
 	combine_row = HFlowContainer.new()                  # the Combine buttons live here, under the hand, never between cards
 	combine_row.alignment = FlowContainer.ALIGNMENT_CENTER
 	combine_row.add_theme_constant_override("h_separation", 10)
@@ -80,13 +89,13 @@ func _tight() -> bool:
 func card_scale() -> float:
 	var n := maxi(3, Game.draft_options.size())
 	var by_width: float = (size.x * 0.92 - 24.0 * (n - 1)) / (n * CardView.SIZE.x)
-	var overhead := 150.0 if _tight() else 250.0            # title, panel edges, the Combine row
+	var overhead := 200.0 if _tight() else 330.0            # title, panel edges, the Combine row
 	var by_height: float = (size.y * 0.9 - overhead) / (CardView.SIZE.y * (1.0 + HAND_SCALE))
 	return clampf(minf(by_width, by_height), 0.35, MAX_SCALE)
 
 ## Show the current choices and hand. `cur` is a controller's cursor (-1: none).
 func render(cur := -1) -> void:
-	var key := str(Game.draft_options) + str(cur) + str(Game.hand) + str(size)
+	var key := str(Game.draft_options) + str(cur) + str(Game.hand) + str(Game.deck) + str(size)
 	if key == _key:
 		return
 	var first := !_key.begins_with(str(Game.draft_options))
@@ -116,6 +125,26 @@ func render(cur := -1) -> void:
 			v.flip_in(i * 0.1)
 	UiKit.clear(hand_row)
 	UiKit.clear(combine_row)
+	UiKit.clear(deck_row)
+	var ds := cs * 0.5
+	var ids: Array = Game.deck.keys()
+	ids.sort_custom(func(a, b): return (Game.is_build(a) as int) < (Game.is_build(b) as int) if Game.is_build(a) != Game.is_build(b) else str(a) < str(b))
+	deck_title.text = "Your deck (copies you hold - more copies come up more often)" if !ids.is_empty() else ""
+	deck_title.visible = !_tight() and !ids.is_empty()
+	for id in ids:
+		var dw := Control.new()
+		dw.custom_minimum_size = CardView.SIZE * ds
+		var dv := CardView.new()
+		dv.setup(id, 1)
+		dv.scale = Vector2(ds, ds)
+		dv.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		dw.add_child(dv)
+		var mult := UiKit.label("x%d" % int(Game.deck[id]), UiKit.FONT_SMALL, UiKit.GOLD_BRIGHT)
+		mult.position = Vector2(2, CardView.SIZE.y * ds - 20.0)
+		mult.add_theme_color_override("font_outline_color", UiKit.BLACK)
+		mult.add_theme_constant_override("outline_size", 4)
+		dw.add_child(mult)
+		deck_row.add_child(dw)
 	_sub.visible = !_tight()
 	var groups: Array = Game.hand_groups()
 	hand_title.text = "Your cards" if !groups.is_empty() else "Your hand is empty"

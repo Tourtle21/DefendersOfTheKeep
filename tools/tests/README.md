@@ -71,3 +71,4 @@ stored weapon) is covered by the same rules in `Net.forge_*`.
 Local split screen: `split_two_pads.gd` (two simulated controllers, 22 checks: each controller drives only its own player; pickup, fighting, towers and cards, one person per tower, the forge, pause, damage).
 
 `card_fuser.gd`: the Card Fuser (opposite the Forge): recipes, gold cost, same-tier rule, the screen, the `card_fuse` net command's range check, casting a fused card.
+| two_player_cards.gd | two players share the hand and deck: start (4-card deck, full hand of 5), both cast, 4-card chest, deck row with copy counts, merge, keepsake carried to the next run |

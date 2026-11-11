@@ -110,7 +110,7 @@ func _initialize() -> void:
 	draft.fit_view(V); draft.view.render()
 	var dui = lp.draft_uis[1]
 	dui.view.fit(V); dui.view.render(-1)
-	await wait(0.4)
+	await wait(0.8)
 	var draft_p1 := sig(draft.view)
 	var options: Array = game.draft_options.duplicate()
 	same("chest draft: player 1 = player 2", draft_p1, sig(dui.view))
@@ -158,7 +158,7 @@ func _initialize() -> void:
 	cv.fuser_view.visible = false
 	net.last_snapshot.draft = options
 	net.last_snapshot.t = 2
-	await wait(0.6)
+	await wait(0.9)
 	same("chest draft: player 1 = LAN client", draft_p1, sig(cv.draft_view))
 	print("ui_parity: %s" % ("all screens match" if fails == 0 else "%d FAIL" % fails))
 	cv.queue_free()
