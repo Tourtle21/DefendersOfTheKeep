@@ -26,7 +26,7 @@ const HAND_SIZE := 5
 const SPELL_SLOTS := 3        # the hand is drawn from two decks: 3 spell slots + 2 build slots
 const BUILD_SLOTS := 2
 const MAX_LEVEL := 6          # six tiers, one per place on the map
-const DRAFT_SIZE := 4          # a chest offers four cards
+const DRAFT_SIZE := 3
 
 # kind is handled in cards/spell.gd. "res" is a cost in pooled resources.
 const CARDS := {
@@ -533,23 +533,10 @@ func shards_for_run() -> int:
 	var base: float = 6.0 + run_stats.waves * 3.0 + run_stats.kills * 0.1 + run_stats.gold / 20.0 + run_stats.bosses * 6.0 + (level_reached() - 1) * 4.0
 	return int(base * (1.0 + bonus("shard_bonus")))
 
-## The rarest card you found in a chest this run (not one you started with): it starts the next run in your deck.
-func pick_keepsake() -> void:
-	var starts := start_cards()
-	var best := ""
-	for id in deck:
-		if id in starts or CARDS.get(id, {}).get("fused", false):
-			continue
-		if best == "" or card_rarity(id) > card_rarity(best):
-			best = id
-	if best != "":
-		meta["keepsake"] = best
-
 func end_run(reason: String) -> void:
 	if run_over:
 		return
 	run_over = true
-	pick_keepsake()
 	var earned := shards_for_run()
 	meta.shards += earned
 	meta.best_wave = max(meta.best_wave, run_stats.waves)
@@ -619,7 +606,6 @@ func win_run() -> void:
 	if run_over:
 		return
 	run_over = true
-	pick_keepsake()
 	var earned := shards_for_run() + 30
 	meta.shards += earned
 	meta.best_wave = max(meta.best_wave, run_stats.waves)
@@ -1197,12 +1183,9 @@ func start_run() -> void:
 	deck = {}
 	for id in start_cards():
 		deck[id] = 1                           # two spells and two buildings of your choice, tier 1 (they grow toward the unlocked tier); the rest come from chests
-	var keep_id: String = str(meta.get("keepsake", ""))
-	if keep_id != "" and keep_id in meta.unlocked and CARDS.has(keep_id) and !deck.has(keep_id):
-		deck[keep_id] = 1                      # the best card of your last run comes along
 	draft_active = false
 	hand = []
-	for i in HAND_SIZE:
+	for i in 3:
 		add_to_hand(draw_card())
 	deck_changed.emit()
 	_draw_time = 0.0

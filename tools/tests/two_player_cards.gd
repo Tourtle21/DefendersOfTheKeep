@@ -1,7 +1,6 @@
 extends SceneTree
-## Two players share the keep's hand and deck: both cast, both open chests, every rule holds. Checks the start (4-card deck, full
-## hand of 5 = 3 spells + 2 buildings), casts by player 1 and player 2 (the card leaves the hand, the deck keeps it, a new one is
-## drawn), the 4-card chest, copies counted in the deck (x2), merging a pair, and the best chest card carrying into the next run.
+## Two players share the keep's hand and deck: both cast, both open chests, every rule holds. Checks the start (4-card deck, hand of 3), casts by player 1 and player 2 (the card leaves the hand, the deck keeps it, a new one is
+## drawn), the 3-card chest, copies counted in the deck (x2), and merging a pair.
 func wait(sec: float) -> void:
 	await create_timer(sec, true, false, true).timeout
 func ok(n: String, c: bool) -> void:
@@ -30,7 +29,7 @@ func _initialize() -> void:
 	game.resources = {"stone": 99, "stick": 99, "gold": 99}
 	# ---- start
 	ok("the run starts with the four starting cards, one copy each (%s)" % str(game.deck), game.deck.size() == 4 and game.deck.values().all(func(v): return v == 1))
-	ok("the hand starts full: %d cards, %d spells + %d buildings" % [game.hand.size(), game.hand_count(false), game.hand_count(true)], game.hand.size() == 5 and game.hand_count(false) == 3 and game.hand_count(true) == 2)
+	ok("the hand starts with %d cards" % game.hand.size(), game.hand.size() == 3)
 	# ---- both players cast from the shared hand
 	var spell1: String = game.hand.filter(func(e): return !game.is_build(game.entry_id(e)))[0]
 	var n0: int = game.hand.size()
@@ -50,7 +49,7 @@ func _initialize() -> void:
 	game.add_to_hand("fireball")
 	game.draft_active = false
 	ok("a chest opens", game.start_draft())
-	ok("it offers four different cards (%d)" % game.draft_options.size(), game.draft_options.size() == 4 and game.draft_options.map(func(e): return game.entry_id(e)).size() == 4)
+	ok("it offers three different cards (%d)" % game.draft_options.size(), game.draft_options.size() == 3 and game.draft_options.map(func(e): return game.entry_id(e)).size() == 3)
 	var view = load("res://ui/base/draft_view.gd").new()
 	root.add_child(view)
 	view.fit(Vector2(1100, 700))
@@ -69,10 +68,4 @@ func _initialize() -> void:
 	var pick: String = game.draft_options[0]
 	game.take_draft_card(pick)
 	ok("player 2 can take a card too, the deck counts the copy", game.deck.get(game.entry_id(pick), 0) >= 1 and !game.draft_active)
-	# ---- the best chest card comes along next run
-	game.deck = {"fireball": 1, "frost_ring": 1, "barricade": 1, "torch": 1, "aegis": 1}
-	game.pick_keepsake()
-	ok("the best card from the chests is the keepsake (%s)" % game.meta.keepsake, game.meta.keepsake == "aegis")
-	game.start_run()
-	ok("the next run's deck starts with it (%s)" % str(game.deck.keys()), game.deck.has("aegis") and game.deck.size() == 5)
 	quit()
