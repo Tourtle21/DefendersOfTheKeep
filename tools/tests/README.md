@@ -26,7 +26,7 @@ Known quirks: do not name `Game`-dependent `class_name`s inside these files (com
 | quick_merge.gd | merge two held weapons anywhere (player 1, player 2+), forge hands / storage areas, fusing hand cards in the keep |
 | weapon_rules.gd | every fusion is rarer than both parts, out-damages them; damage per second rises with rarity; every weapon in the basic-attack table |
 | gong_roster.gd | the gong starts the next wave; per-level enemy roster (three kinds, phased in, older buffed but weaker); chests offer only owned cards from open sectors; players 2-4 reach as far as player 1 |
-| enemy_kinds.gd | the six upper-level enemy kinds each have their own move (bomber fuse, charger lane, burrower dive, lobber puddles, blinker ring, shard burst) |
+| enemy_kinds.gd | the six upper-level enemy kinds each have their own move (bomber fuse, charger lane, burrower dive, lobber puddles, blinker ring, shard burst), each with its own sheet, also built that way on a LAN client |
 | boss_frost_wyrm.gd | bosses are tougher; the Frost Wyrm burrows, is then exposed, raises pillars that stop its breath, and charges |
 | forge_shots.gd | window screenshots of the forge areas and the merge hint |
 | ui_parity.gd | every shared screen (Forge, Card Fuser, chest choice, HUD top, upgrade cards) built through player 1, a split-screen player and a LAN client view (fake snapshot) gives the same tree |

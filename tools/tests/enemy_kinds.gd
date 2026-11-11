@@ -130,4 +130,22 @@ func _initialize() -> void:
 		if n.get_script() != null and str(n.get_script().resource_path).ends_with("enemy_projectile.gd"):
 			seen += 1
 	ok("it bursts into shards when it dies (%d shards)" % seen, seen >= 6)
+	# ---------- LAN: the spawn record carries the kind's script, so a client builds the same enemy with the same sheet
+	await clear(world)
+	var rec_ok := true
+	for k in kind:
+		if !kind[k].has("script"):
+			continue
+		var e = spawn(world, kind[k], Vector2(0, 80))
+		var rec: Dictionary = root.get_node("Rep")._spawn_record(1, e, {})
+		var clone = (load(rec.scene) as PackedScene).instantiate()
+		if rec.has("script"):
+			clone.set_script(load(rec.script))
+		world.get_node("Enemies").add_child(clone)
+		var same: bool = rec.get("script", "") == e.get_script().resource_path and clone.get_node("Sprite2D").texture == e.get_node("Sprite2D").texture
+		if !same or !e.get_node("Sprite2D").texture.resource_path.begins_with("res://enemies/kinds/"):
+			rec_ok = false
+			print("  LAN mismatch: ", k)
+		clone.queue_free()
+	ok("a LAN client builds each new kind with its own script and sheet", rec_ok)
 	quit()

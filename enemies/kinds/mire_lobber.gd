@@ -2,6 +2,7 @@ extends Enemy
 ## Mire Lobber (swamp): keeps its distance and lobs bombs of bog water. A ring shows where each one lands; it bursts a second later and
 ## leaves a poisonous puddle. Keep moving and stay out of the puddles.
 
+const ART := "res://enemies/kinds/mire_lobber.png"
 var _lob_cd := 2.0
 var _windup := 0.0
 var _aim_at := Vector2.ZERO

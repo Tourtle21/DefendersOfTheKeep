@@ -2,6 +2,7 @@ extends Enemy
 ## Magma Charger (volcano): a hulking brute that paws the ground (a red lane shows where), then charges down it. Sidestep the lane and it
 ## thunders past, then stands winded for a moment: that is when to hit it.
 
+const ART := "res://enemies/kinds/magma_charger.png"
 var _hit := false
 
 func _ready() -> void:

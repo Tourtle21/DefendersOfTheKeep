@@ -2,6 +2,7 @@ extends Enemy
 ## Prism Blinker (caverns): a fast shard-skinned runner that vanishes in a flash and reappears next to you. A purple ring marks where
 ## it will land for a moment before it does: be somewhere else, then punish it, it is fragile.
 
+const ART := "res://enemies/kinds/prism_blinker.png"
 var _dest := Vector2.ZERO
 
 func _ready() -> void:

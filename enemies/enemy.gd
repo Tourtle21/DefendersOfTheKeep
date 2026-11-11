@@ -108,6 +108,9 @@ func _draw() -> void:
 			draw_arc(c, 2.4, 0, TAU, 10, col.darkened(0.1), 1.3)
 
 func _ready():
+	var art = get_script().get_script_constant_map().get("ART")      # a kind with its own sheet (enemies/kinds/): same frames layout as its base
+	if art != null and has_node("Sprite2D"):
+		$Sprite2D.texture = load(art)
 	queue_redraw()
 	add_to_group("enemy")
 	add_to_group("net")

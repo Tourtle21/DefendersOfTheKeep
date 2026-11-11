@@ -174,6 +174,9 @@ func _spawn_record(id: int, n: Node, state: Dictionary) -> Dictionary:
 	var rec := {"id": id, "state": state, "parent": "."}
 	if n.scene_file_path != "":
 		rec["scene"] = n.scene_file_path
+		var sp: String = n.get_script().resource_path if n.get_script() != null else ""
+		if sp.begins_with("res://enemies/kinds/"):
+			rec["script"] = sp                  # a base scene given its own moves and sheet: the client builds the same
 	else:
 		rec["script"] = n.get_script().resource_path
 	var par := n.get_parent()
@@ -426,6 +429,8 @@ func _client_spawn(rec: Dictionary) -> void:
 	var n: Node
 	if rec.has("scene"):
 		n = (load(rec.scene) as PackedScene).instantiate()
+		if rec.has("script"):
+			n.set_script(load(rec.script))
 	else:
 		n = (load(rec.script) as GDScript).new()
 	n.set_meta("net_puppet", true)

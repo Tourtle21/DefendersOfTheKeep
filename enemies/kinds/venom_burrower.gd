@@ -2,6 +2,7 @@ extends Enemy
 ## Venom Burrower (swamp): a scarab that dives into the mud when you are close, untouchable, and tunnels toward you. Where it will
 ## surface a green ring appears for a moment: step out of it, then hit it while it is stuck in the open.
 
+const ART := "res://enemies/kinds/venom_burrower.png"
 var _dive := 0.0
 var _spot := Vector2.ZERO
 var _locked := false

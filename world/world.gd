@@ -213,14 +213,14 @@ const ROSTER := {
 	2: [{"name": "runner", "label": "Runner"}, {"name": "spitter", "label": "Spitter"}, {"name": "golem", "label": "Golem"}],
 	3: [{"name": "splitter", "label": "Splitter"}, {"name": "frost_imp", "label": "Frost Imp"}, {"name": "brute", "label": "Brute"}],
 	4: [{"name": "ember_imp", "label": "Ember Imp"},
-		{"name": "goblin", "script": "res://enemies/kinds/cinder_bomber.gd", "label": "Cinder Bomber", "tint": Color(1.0, 0.55, 0.25), "scale": 1.1},
-		{"name": "brute", "script": "res://enemies/kinds/magma_charger.gd", "label": "Magma Charger", "tint": Color(1.0, 0.45, 0.3), "scale": 1.15}],
+		{"name": "goblin", "script": "res://enemies/kinds/cinder_bomber.gd", "label": "Cinder Bomber", "scale": 1.1},
+		{"name": "brute", "script": "res://enemies/kinds/magma_charger.gd", "label": "Magma Charger", "scale": 1.15}],
 	5: [{"name": "bog_lurker", "label": "Bog Lurker"},
-		{"name": "scarab", "script": "res://enemies/kinds/venom_burrower.gd", "label": "Venom Burrower", "tint": Color(0.5, 1.0, 0.4), "scale": 1.12},
-		{"name": "spitter", "script": "res://enemies/kinds/mire_lobber.gd", "label": "Mire Lobber", "tint": Color(0.55, 0.9, 0.35), "scale": 1.1}],
+		{"name": "scarab", "script": "res://enemies/kinds/venom_burrower.gd", "label": "Venom Burrower", "scale": 1.12},
+		{"name": "spitter", "script": "res://enemies/kinds/mire_lobber.gd", "label": "Mire Lobber", "scale": 1.1}],
 	6: [{"name": "crystal_guard", "label": "Crystal Guard"},
-		{"name": "runner", "script": "res://enemies/kinds/prism_blinker.gd", "label": "Prism Blinker", "tint": Color(0.85, 0.6, 1.0)},
-		{"name": "splitter", "script": "res://enemies/kinds/shard_splitter.gd", "label": "Shard Splitter", "tint": Color(0.8, 0.65, 1.0), "scale": 1.12}],
+		{"name": "runner", "script": "res://enemies/kinds/prism_blinker.gd", "label": "Prism Blinker"},
+		{"name": "splitter", "script": "res://enemies/kinds/shard_splitter.gd", "label": "Shard Splitter", "scale": 1.12}],
 }
 const INTRO_WAVE := [1, 2, 4]             # the wave of a level on which its 1st, 2nd and 3rd new kind first show up (every kind gets at least one wave before the boss)
 const LEVEL_POWER_STEP := 0.5             # each level's own kinds are this much tougher (health and damage) than the level before ...

@@ -1,6 +1,7 @@
 extends Enemy
 ## Shard Splitter (caverns): a crystal slime that shatters when it dies, throwing shards in every direction. Kill it at range, or
 ## from the far side of cover, and the shards fall short.
+const ART := "res://enemies/kinds/shard_splitter.png"
 
 func _ready() -> void:
 	max_health = 7.0

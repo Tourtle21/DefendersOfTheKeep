@@ -2,6 +2,7 @@ extends Enemy
 ## Cinder Bomber (volcano): a goblin packed with embers. When it gets close it lights a fuse (a red ring shows the blast) and keeps
 ## creeping at you, then goes off. Counter: kill it before the fuse runs out and it fizzles; or just get out of the ring.
 
+const ART := "res://enemies/kinds/cinder_bomber.png"
 const BLAST := 46.0
 var _fuse := 0.0
 
