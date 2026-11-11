@@ -26,6 +26,7 @@ func _initialize() -> void:
 	game.meta.unlocked = ["fireball", "frost_ring", "barricade", "spike_trap", "torch"]
 	game.meta.card_tiers = {"fireball": 1}
 	game.meta.weapons = []
+	game.meta.weapon_tiers = {}                   # (a fresh demo every time: nothing bought yet)
 	game.meta.pending = []
 	game.meta.tier_drawn = {"w:sword": 2, "frost_ring": 2}
 	game._menu_done = true
@@ -54,6 +55,10 @@ func _initialize() -> void:
 		root.get_texture().get_image().save_png("%s/reward_before_flip.png" % OUT)
 	re._flip_all()
 	await wait(7.0)
+	var widths := []
+	for c in re.shop_row.get_children():
+		widths.append("%d" % c.size.x)
+	print("column widths: ", widths, "  (all the same: ", widths.all(func(w): return w == widths[0]), ")")
 	print("=== every reward button: Unlock + Convert (new card, new weapon), Upgrade (card tier, weapon tier), Merge + Combine pair + Sell (spare copies)")
 	if OUT != "":
 		await RenderingServer.frame_post_draw

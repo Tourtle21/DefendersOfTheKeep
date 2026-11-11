@@ -507,8 +507,17 @@ func _fill_footer(footer: VBoxContainer, opt: Dictionary, holder: Control, is_ke
 	if !side.is_empty():
 		var srow := HBoxContainer.new()
 		srow.add_theme_constant_override("separation", 6)
+		srow.custom_minimum_size.x = FOOTER_W
+		var th := UiKit.make_theme()
 		for b in side:
-			b.custom_minimum_size.x = (FOOTER_W - 6.0 * (side.size() - 1)) / side.size()
+			b.custom_minimum_size.x = 0.0                        # share the row equally; the width never depends on the text
+			b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			b.clip_text = true
+			for st in ["normal", "hover", "pressed", "disabled", "focus"]:
+				var sb: StyleBoxFlat = th.get_stylebox(st, "Button").duplicate()
+				sb.content_margin_left = 4.0                    # slim padding so "Combine" and "Sell +5" fit their half
+				sb.content_margin_right = 4.0
+				b.add_theme_stylebox_override(st, sb)
 			srow.add_child(b)
 		footer.add_child(srow)
 
