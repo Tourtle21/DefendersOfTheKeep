@@ -194,9 +194,11 @@ static func pulses(tree: SceneTree, world: Node, player: Node, dmg: float, radiu
 		await tree.create_timer(interval).timeout
 
 ## Many telegraphed strikes scattered around a point over a duration.
-static func rain(tree: SceneTree, world: Node, center: Vector2, radius: float, count: int, duration: float, dmg: float, strike_r: float, color: Color, stun := 0.0) -> void:
+static func rain(tree: SceneTree, world: Node, center: Vector2, radius: float, count: int, duration: float, dmg: float, strike_r: float, color: Color, stun := 0.0, each := Callable()) -> void:
 	for i in count:
 		var p := center + Vector2.from_angle(randf() * TAU) * randf_range(0.0, radius)
+		if each.is_valid():
+			each.call(p)                        # (the weapon tiers draw their own strike at each point)
 		ground_strike(tree, world, p, strike_r, 0.45, dmg, 140.0, color, stun)
 		await tree.create_timer(duration / count).timeout
 

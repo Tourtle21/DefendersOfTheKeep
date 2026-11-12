@@ -103,6 +103,10 @@ func _initialize() -> void:
 	await wait(1.2)
 	world.get_node("SpawnTimer").start(9999.0)
 	player = world.get_node("Player")
+	for n in world.get_children():                  # the keep's towers shoot the dummies: take them out
+		if str(n.name).begins_with("Tower"):
+			n.queue_free()
+	await wait(0.1)
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("only="):
 			only = a.substr(5)

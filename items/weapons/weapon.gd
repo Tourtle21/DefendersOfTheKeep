@@ -209,8 +209,8 @@ func ultimate() -> void:
 func pulse_around(dmg: float, radius: float, knock: float, stun: float, count: int, interval: float, color := Color(1, 1, 1)) -> void:
 	WeaponUtil.pulses(get_tree(), game_world(), player, dmg, radius, knock, stun, count, interval, color)
 
-func rain(center: Vector2, radius: float, count: int, duration: float, dmg: float, strike_r: float, color: Color, stun := 0.0) -> void:
-	WeaponUtil.rain(get_tree(), game_world(), center, radius, count, duration, dmg, strike_r, color, stun)
+func rain(center: Vector2, radius: float, count: int, duration: float, dmg: float, strike_r: float, color: Color, stun := 0.0, each := Callable()) -> void:
+	WeaponUtil.rain(get_tree(), game_world(), center, radius, count, duration, dmg, strike_r, color, stun, each)
 
 func use_dash() -> void:
 	_claim()

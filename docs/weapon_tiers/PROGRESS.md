@@ -7,3 +7,4 @@ DONE sword
 DONE pickaxe
 DONE torch
 DONE chainfangs
+DONE spear
