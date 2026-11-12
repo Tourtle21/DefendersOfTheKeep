@@ -10,3 +10,6 @@ DONE chainfangs
 DONE spear
 DONE hammer
 DONE rapier
+DONE warpbow
+CLAIM juggernaut
+DONE bulwark

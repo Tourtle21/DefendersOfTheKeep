@@ -8,6 +8,7 @@ var brace_speed := 0.4
 var _braced := false
 var _stored := 0
 var _brace_t := 0.0
+var brace_secs := 3.0                # how long a brace may last (a shield bash at tier 3+ extends it, see tiers/bulwark.gd)
 
 func _init() -> void:
 	hold_ability = true
@@ -50,13 +51,25 @@ func use_ability() -> void:
 	_braced = true
 	_stored = 0
 	_brace_t = 0.0
+	brace_secs = 3.0
 	player.speed_mult = brace_speed
 	player.parry_time = 99.0
 	player.on_parry = _on_absorb
 	fx("ring", player.global_position, Color(0.6, 0.75, 1.0), {"radius": 20.0, "life": 0.3})
 
+func use_item() -> void:
+	if _braced and tier >= 3:                  # weapon tiers: a shield bash while braced (the module answers true when it handled the click)
+		_claim()
+		if _attack_cd > 0.0:
+			return
+		if WeaponTiers.run(self, "bash") == true:
+			_attack_cd = attack_cooldown * 0.6
+			return
+	super()
+
 func _on_absorb(_from: Vector2) -> void:
 	_stored = min(max_store, _stored + 1)
+	WeaponTiers.run(self, "absorb", [_from])
 	player.parry_time = 99.0         # stay braced
 	player.shake(1.5, 0.1)
 	fx("ring", player.global_position, Color(1.0, 0.9, 0.5), {"radius": 14.0 + 4.0 * _stored, "life": 0.25})
@@ -65,7 +78,7 @@ func _process(delta: float) -> void:
 	super(delta)
 	if _braced:
 		_brace_t += delta
-		if _brace_t >= 3.0:
+		if _brace_t >= brace_secs:
 			release_ability()
 
 func release_ability() -> void:
@@ -78,11 +91,13 @@ func release_ability() -> void:
 	_ability_cd = ability_cooldown
 	var o: Vector2 = player.global_position
 	var r := 30.0 + 8.0 * _stored
+	_st["released"] = _stored
 	fx("ring", o, Color(1.0, 0.85, 0.4), {"radius": r, "life": 0.4})
 	player.shake(2.0 + _stored, 0.25)
 	for e in WeaponUtil.enemies_in_circle(get_tree(), o, r):
 		WeaponUtil.hit(e, 2.0 + 1.5 * _stored, o, 240.0 + 40.0 * _stored, 0.5 + 0.2 * _stored)
 	_stored = 0
+	WeaponTiers.run(self, "release")
 
 func dash_attack() -> void:
 	fx("line", player.global_position, Color(0.6, 0.75, 1.0), {"dir": aim, "length": 60.0, "width": 10.0, "life": 0.25})
@@ -96,4 +111,6 @@ func _on_dash_hit(e) -> void:
 func ultimate() -> void:
 	# Quake Fortress: untouchable for four seconds with a stunning pulse each second
 	player.shield_time = max(player.shield_time, 4.0)
+	if tier >= 5 and WeaponTiers.run(self, "fortress") == true:        # weapon tiers: Citadel Pulse replaces the plain pulses
+		return
 	pulse_around(2.0, 52.0, 280.0, 0.5, 4, 1.0, Color(0.6, 0.75, 1.0))

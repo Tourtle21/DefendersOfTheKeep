@@ -180,8 +180,110 @@ func t_rapier() -> void:
 	ok("rapier Finisher: the 6th thrust pierces through at tier 6 %s, not at tier 5 %s" % [fin[6], fin[5]], fin[6] and !fin[5])
 	await draw_smoke("rapier")
 
+func t_bulwark() -> void:
+	var w
+	# Counterweight: a blow absorbed while braced shoves the attacker and pops a star
+	w = await equip("bulwark", 2, false)
+	var d = dummy(P + Vector2(14, 0))
+	w.use_ability()
+	await wait(0.1)
+	d.knock_time = 0.0
+	player.take_damage(d.global_position, 10.0)
+	var r = await watch(0.4)
+	ok("bulwark Counterweight: tier 2 absorbed blow shoves the attacker (knock %.2f) and pops a star %s; stored %d" % [d.knock_time, r.kinds.has("star"), w._stored], r.kinds.has("star") and w._stored == 1)
+	w.release_ability()
+	# Fortress Slam: the 3rd maul reaches a dummy at 46 px (outside the 32 arc); a braced click is a bash and extends the brace
+	var hits := []
+	w = await equip("bulwark", 3, false)
+	var far = dummy(P + Vector2(46, 0))
+	for i in 3:
+		var h0 := lost(far)
+		click(w)
+		await wait(0.5)
+		hits.append(lost(far) - h0)
+		await wait(0.5)
+	w = await equip("bulwark", 3, false)
+	var near = dummy(P + Vector2(18, 0))
+	w.use_ability()
+	await wait(0.1)
+	var secs0: float = w.brace_secs
+	click(w)
+	await wait(0.2)
+	var bash: float = lost(near)
+	ok("bulwark Fortress Slam: only the 3rd maul reaches 46 px %s; a braced click bashes (%.1f) and extends the brace %.1f -> %.1f" % [hits, bash, secs0, w.brace_secs], hits[0] < 0.1 and hits[1] < 0.1 and hits[2] > 1.0 and bash > 0.5 and w.brace_secs > secs0)
+	w.release_ability()
+	# Overpressure: 5 stored charges fire a cone beyond the release ring; Bulldozer slams at the end of the dash
+	var cone := {}
+	for t in [3, 4]:
+		w = await equip("bulwark", t, false)
+		var dd = dummy(P + Vector2(86, 0))
+		w.use_ability()
+		await wait(0.1)
+		w._stored = 5
+		w.release_ability()
+		await wait(0.5)
+		cone[t] = lost(dd)
+	ok("bulwark Overpressure: tier 4 cone hits a dummy at 86 px (%.1f), tier 3 does not (%.1f)" % [cone[4], cone[3]], cone[4] > 5.0 and cone[3] < 0.1)
+	var dz := {}
+	for t in [3, 4]:
+		w = await equip("bulwark", t, false)
+		var dd = dummy(P + Vector2(55, 0))
+		w.use_dash()
+		var rr = await watch(0.9)
+		dz[t] = [rr.kinds.has("shock"), snappedf(lost(dd), 0.1)]
+	ok("bulwark Bulldozer: tier 4 dash slams with a shock %s and hits harder than tier 3 %s" % [dz[4], dz[3]], dz[4][0] and !dz[3][0] and dz[4][1] > dz[3][1] + 4.0)
+	# Citadel Pulse: tier 5 throws shard rings and eats enemy shots; tier 4 does neither
+	var cit := {}
+	for t in [4, 5]:
+		w = await equip("bulwark", t, false)
+		var dd = dummy(P + Vector2(80, 0))
+		var shot = load("res://enemies/spitter/enemy_projectile.gd").new()
+		shot.position = P + Vector2(30, 0)
+		shot.damage = 0.0
+		shot.life = 99.0
+		world.add_child(shot)
+		w.use_ultimate()
+		var ids := {}
+		for i in 80:
+			await wait(0.05)
+			for n in world.get_children():
+				if n.get_script() != null and str(n.get_script().resource_path).ends_with("items/weapons/projectile.gd"):
+					ids[n.get_instance_id()] = true
+		cit[t] = [ids.size(), is_instance_valid(shot) and !shot.is_queued_for_deletion(), snappedf(lost(dd), 0.1)]
+		if is_instance_valid(shot):
+			shot.queue_free()
+	ok("bulwark Citadel Pulse: tier 5 shard rings %s (>= 12) and the shot is eaten; tier 4 %s" % [cit[5], cit[4]], cit[5][0] >= 12 and !cit[5][1] and cit[4][0] == 0 and cit[4][1])
+	# Titan's Judgment: the great slam when the fortress ends
+	var ti := {}
+	for t in [5, 6]:
+		w = await equip("bulwark", t, false)
+		var dd = dummy(P + Vector2(70, 0))
+		w.use_ultimate()
+		var seen := {}
+		for i in 96:
+			await wait(0.05)
+			fx_kinds(seen)
+		ti[t] = [snappedf(lost(dd), 0.1), seen.has("flash"), seen.has("sigil")]
+	ok("bulwark Titan's Judgment: tier 6 flash + extra damage %s vs tier 5 %s" % [ti[6], ti[5]], ti[6][1] and !ti[5][1] and ti[6][0] > ti[5][0] + 10.0)
+	# Finisher: the 6th maul rings twice (a shock r 52)
+	var fin := {}
+	for t in [5, 6]:
+		w = await equip("bulwark", t, false)
+		var saw := false
+		for i in 6:
+			click(w)
+			await wait(0.5)
+			if i == 5 and has_fx("shock", 52.0):
+				saw = true
+			await wait(0.3)
+		fin[t] = saw
+	ok("bulwark Finisher: the 6th maul rings twice at tier 6 %s, not at tier 5 %s" % [fin[6], fin[5]], fin[6] and !fin[5])
+	await draw_smoke("bulwark")
+
 func run() -> void:
 	if want("chainfangs"):
 		await t_chainfangs()
 	if want("rapier"):
 		await t_rapier()
+	if want("bulwark"):
+		await t_bulwark()
