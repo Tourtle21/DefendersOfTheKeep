@@ -210,7 +210,7 @@ static func glow_color(st, base: Color) -> Color:
 ## Every physics frame, after the kind's own work.
 static func tick(st, delta: float) -> void:
 	match id_of(st):
-		"crystal_pylon", "storm_spire", "magma_wall", "venom_tower", "prism_tower", "healing_grove", "sunspire", "phoenix_shrine", "healing_lantern", "beacon_turret":
+		"crystal_pylon", "storm_spire", "magma_wall", "venom_tower", "prism_tower", "healing_grove", "sunspire", "phoenix_shrine", "healing_lantern", "beacon_turret", "bonfire_wall", "spiked_sentry":
 			C.tick(st, delta)
 		"barricade":
 			tick_barricade(st, delta)
@@ -234,7 +234,7 @@ static func tick(st, delta: float) -> void:
 ## A gnawer chews a barricade-kind wall (called once per gnawing enemy, every 0.5 s).
 static func on_gnaw(st, e) -> void:
 	match id_of(st):
-		"crystal_pylon", "storm_spire", "magma_wall", "venom_tower", "prism_tower", "healing_grove", "sunspire", "phoenix_shrine", "healing_lantern", "beacon_turret":
+		"crystal_pylon", "storm_spire", "magma_wall", "venom_tower", "prism_tower", "healing_grove", "sunspire", "phoenix_shrine", "healing_lantern", "beacon_turret", "bonfire_wall", "spiked_sentry":
 			C.on_gnaw(st, e)
 		"iron_wall":
 			on_gnaw_iron_wall(st, e)
@@ -258,7 +258,7 @@ static func guard_mult(st) -> float:
 ## Sentry family: a multiplier on the wait between shots.
 static func interval_mult(st) -> float:
 	match id_of(st):
-		"crystal_pylon", "storm_spire", "magma_wall", "venom_tower", "prism_tower", "healing_grove", "sunspire", "phoenix_shrine", "healing_lantern", "beacon_turret":
+		"crystal_pylon", "storm_spire", "magma_wall", "venom_tower", "prism_tower", "healing_grove", "sunspire", "phoenix_shrine", "healing_lantern", "beacon_turret", "bonfire_wall", "spiked_sentry":
 			return C.interval_mult(st)
 		"ember_turret":
 			return EMBER_OD_RATE if st._od > 0.0 else 1.0
@@ -268,7 +268,7 @@ static func interval_mult(st) -> float:
 ## Sentry family: a multiplier on the damage of the direct hit.
 static func shot_mult(st, target) -> float:
 	match id_of(st):
-		"crystal_pylon", "storm_spire", "magma_wall", "venom_tower", "prism_tower", "healing_grove", "sunspire", "phoenix_shrine", "healing_lantern", "beacon_turret":
+		"crystal_pylon", "storm_spire", "magma_wall", "venom_tower", "prism_tower", "healing_grove", "sunspire", "phoenix_shrine", "healing_lantern", "beacon_turret", "bonfire_wall", "spiked_sentry":
 			return C.shot_mult(st, target)
 		"sentry":
 			return shot_mult_sentry(st, target)
@@ -280,7 +280,7 @@ static func shot_mult(st, target) -> float:
 ## Sentry family: after the normal damage, slow, poison, twin and blast code of one shot (`shot_to`/`shot_t`/`aim` are set).
 static func on_shot(st, target) -> void:
 	match id_of(st):
-		"crystal_pylon", "storm_spire", "magma_wall", "venom_tower", "prism_tower", "healing_grove", "sunspire", "phoenix_shrine", "healing_lantern", "beacon_turret":
+		"crystal_pylon", "storm_spire", "magma_wall", "venom_tower", "prism_tower", "healing_grove", "sunspire", "phoenix_shrine", "healing_lantern", "beacon_turret", "bonfire_wall", "spiked_sentry":
 			C.on_shot(st, target)
 		"sentry":
 			on_shot_sentry(st, target)
@@ -324,7 +324,7 @@ static func heal_mult(st, p) -> float:
 ## Mender: a multiplier on how much of its healing budget a heal uses up (the World Tree is generous).
 static func budget_mult(st) -> float:
 	match id_of(st):
-		"crystal_pylon", "storm_spire", "magma_wall", "venom_tower", "prism_tower", "healing_grove", "sunspire", "phoenix_shrine", "healing_lantern", "beacon_turret":
+		"crystal_pylon", "storm_spire", "magma_wall", "venom_tower", "prism_tower", "healing_grove", "sunspire", "phoenix_shrine", "healing_lantern", "beacon_turret", "bonfire_wall", "spiked_sentry":
 			return C.budget_mult(st)
 		_:
 			return 1.0
@@ -332,7 +332,7 @@ static func budget_mult(st) -> float:
 ## A freshly set up building (data is the tier's fresh card): the place for stats the plain card cannot express (a brighter light).
 static func on_setup(st) -> void:
 	match id_of(st):
-		"crystal_pylon", "storm_spire", "magma_wall", "venom_tower", "prism_tower", "healing_grove", "sunspire", "phoenix_shrine", "healing_lantern", "beacon_turret":
+		"crystal_pylon", "storm_spire", "magma_wall", "venom_tower", "prism_tower", "healing_grove", "sunspire", "phoenix_shrine", "healing_lantern", "beacon_turret", "bonfire_wall", "spiked_sentry":
 			C.on_setup(st)
 		_:
 			pass
@@ -340,7 +340,7 @@ static func on_setup(st) -> void:
 ## The building has just gone up a tier (its stats are already the new tier's).
 static func on_promote(st, new_tier: int) -> void:
 	match id_of(st):
-		"crystal_pylon", "storm_spire", "magma_wall", "venom_tower", "prism_tower", "healing_grove", "sunspire", "phoenix_shrine", "healing_lantern", "beacon_turret":
+		"crystal_pylon", "storm_spire", "magma_wall", "venom_tower", "prism_tower", "healing_grove", "sunspire", "phoenix_shrine", "healing_lantern", "beacon_turret", "bonfire_wall", "spiked_sentry":
 			C.on_promote(st, new_tier)
 		"barricade":
 			on_promote_barricade(st, new_tier)
@@ -354,7 +354,7 @@ static func on_promote(st, new_tier: int) -> void:
 ## The building is going away (destroyed, spent, or removed). `hp <= 0` means enemies destroyed it.
 static func on_expire(st) -> void:
 	match id_of(st):
-		"crystal_pylon", "storm_spire", "magma_wall", "venom_tower", "prism_tower", "healing_grove", "sunspire", "phoenix_shrine", "healing_lantern", "beacon_turret":
+		"crystal_pylon", "storm_spire", "magma_wall", "venom_tower", "prism_tower", "healing_grove", "sunspire", "phoenix_shrine", "healing_lantern", "beacon_turret", "bonfire_wall", "spiked_sentry":
 			C.on_expire(st)
 		_:
 			pass
