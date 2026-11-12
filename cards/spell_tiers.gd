@@ -32,6 +32,8 @@ static func effect_time(s, base: float) -> float:
 	match String(s.data.get("id", "")):
 		"fireball":
 			return 1.6 if tier_of(s) >= 5 else base
+		"gold_magnet":
+			return MAGNET_STORM_TIME if tier_of(s) >= 5 else base
 	return base
 
 ## Runs once when the spell lands, right after its additions: the extra effects and sounds of the tier.
@@ -53,6 +55,8 @@ static func tick(s, delta: float) -> void:
 			tick_flare(s, tier_of(s), delta)
 		"rejuvenation":
 			tick_rejuvenation(s, tier_of(s), delta)
+		"gold_magnet":
+			tick_gold_magnet(s, tier_of(s), delta)
 
 # ---------------------------------------------------------------- Fireball
 
@@ -416,3 +420,79 @@ static func tick_rejuvenation(s, tier: int, delta: float) -> void:
 			for p in players:
 				p.heal(hps * REJUV_FINALE)
 				p.shield_time = maxf(p.shield_time, 2.0)
+
+# ---------------------------------------------------------------- Gold Magnet
+
+const MAGNET_REACH := 1.6
+const MAGNET_LUCK := 0.25
+const MAGNET_TRIBUTE_PER := 5
+const MAGNET_TRIBUTE_MAX := 4
+const MAGNET_STORM_TIME := 2.5
+const COIN_DMG := [0.0, 0.0, 0.0, 0.0, 2.5, 4.0]
+const GOLD := Color(1.0, 0.85, 0.25)
+
+## Gather what is in reach into the keep's pool: coins (tier 1), more of them in range (2), loose resources (3), a lucky double (4),
+## coins hurled at the nearest enemy (5). Returns how many coins were taken.
+static func magnet_sweep(s, tier: int, reach: float) -> int:
+	var c: Vector2 = s.global_position
+	var w: Node = s.get_parent()
+	var taken := 0
+	var lucky := false
+	var hurled := false
+	for g in s.get_tree().get_nodes_in_group("gold"):
+		if !is_instance_valid(g) or g.is_queued_for_deletion() or g.global_position.distance_to(c) > reach:
+			continue
+		var at: Vector2 = g.global_position
+		g.collect_to_pool()
+		taken += 1
+		s._coins += 1
+		if tier >= 2:
+			var to: Vector2 = Game.crystal_position() - at
+			WeaponFx.spawn(w, "line", at, GOLD, {"dir": to.normalized(), "length": 30.0, "width": 2.0, "life": 0.25})
+		if tier >= 4 and !is_copy(s) and randf() < MAGNET_LUCK:
+			Game.add_resource("gold", 1)
+			lucky = true
+			WeaponFx.spawn(w, "star", at, GOLD, {"radius": 10.0, "count": 4, "spin": 1.0, "life": 0.3})
+		if tier >= 5 and COIN_DMG[tier - 1] > 0.0:
+			var best = null
+			for e in s.get_tree().get_nodes_in_group("enemy"):
+				if is_instance_valid(e) and e.global_position.distance_to(at) <= 160.0 and (best == null or e.global_position.distance_to(at) < best.global_position.distance_to(at)):
+					best = e
+			if best != null:
+				var dir: Vector2 = best.global_position - at
+				WeaponProjectile.shoot(w, at, dir, 220.0, COIN_DMG[tier - 1], GOLD, minf(1.2, dir.length() / 220.0 + 0.1), 0, 30.0)
+				WeaponFx.spawn(w, "burst", best.global_position, GOLD, {"radius": 8.0, "life": 0.2})
+				hurled = true
+	if tier >= 3:                                                    # haul: loose resources come too (never weapons)
+		for n in s.get_tree().get_nodes_in_group("pickup"):
+			if !is_instance_valid(n) or n.is_queued_for_deletion() or n.get("item_info") == null or n.global_position.distance_to(c) > reach:
+				continue
+			if str(n.item_info.items[n.item_type].get("type", "")) == "resource":
+				WeaponFx.spawn(w, "motes", n.global_position, GOLD, {"radius": 8.0, "count": 4, "rise": 16.0, "life": 0.5})
+				Game.add_resource(n.item_type, 1)
+				n.queue_free()
+				taken += 1
+	if taken > 0:
+		Sfx.play("coin")
+	if hurled:
+		Sfx.play("whoosh")
+	return taken
+
+## Tier 5: the spell stays and keeps sweeping, so coins that drop inside it are taken; tier 6 ends with a tribute.
+static func tick_gold_magnet(s, tier: int, delta: float) -> void:
+	if tier < 5:
+		return
+	var since: float = s.age - s.flight
+	s._sweep_t += delta
+	if s._sweep_t >= 0.2:
+		s._sweep_t = 0.0
+		magnet_sweep(s, tier, s.radius)
+	if tier >= 6 and !s._finale_done and !is_copy(s) and since >= s.effect_time - 0.05:
+		s._finale_done = true
+		var w: Node = s.get_parent()
+		magnet_sweep(s, tier, s.radius * 2.2)
+		WeaponFx.spawn(w, "flash", s.position, GOLD, {"radius": s.radius * 1.4, "life": 0.4})
+		WeaponFx.spawn(w, "ripple", s.position, GOLD, {"radius": s.radius * 2.2, "rings": 3, "life": 0.7})
+		WeaponFx.spawn(w, "motes", s.position, GOLD, {"radius": s.radius, "count": 16, "rise": 40.0, "life": 0.9})
+		Sfx.play("ultimate")
+		Game.add_resource("gold", mini(MAGNET_TRIBUTE_MAX, s._coins / MAGNET_TRIBUTE_PER))

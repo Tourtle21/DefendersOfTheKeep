@@ -68,7 +68,7 @@ func _initialize() -> void:
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("only="):
 			only = a.substr(5)
-	for id in ["fireball", "frost_ring", "flare", "rejuvenation"]:
+	for id in ["fireball", "frost_ring", "flare", "rejuvenation", "gold_magnet"]:
 		if only == "" or only == id:
 			await call(id)
 			await clear()
@@ -372,3 +372,95 @@ func rejuvenation() -> void:
 	p.shield_time = 0.0
 	p.global_position = Vector2(0, 700)
 	ok("tier 6 sends heal waves (ripples) and ends by healing and shielding, tier 3 does not (%s)" % str(tl), tl[6][0] >= 1 and tl[3][0] == 0 and tl[6][1] > 1.0 and tl[3][1] == 0.0 and tl[6][2] > tl[3][2])
+
+# ================================================================== Gold Magnet
+func coins(c: Vector2, n: int, spread: float) -> void:
+	for i in n:
+		var coin = load("res://collectables/gold/gold_coin.gd").new()
+		coin.position = c + Vector2.from_angle(i * 2.4) * spread
+		world.add_child(coin)
+func gold_magnet() -> void:
+	print("-- gold_magnet")
+	var c := Vector2(0, 300)
+	for n in get_nodes_in_group("gold"):
+		n.queue_free()
+	# Reach (tier 2): coins out to 1.6 r
+	var rc := {}
+	for t in [1, 2]:
+		var s0 = spell("gold_magnet", t, c)
+		var r: float = s0.radius
+		s0.queue_free()
+		coins(c, 1, r * 0.9)
+		coins(c + Vector2(0, 0), 1, r * 1.4)
+		await wait(0.1)
+		var g0: int = game.resources.get("gold", 0)
+		spell("gold_magnet", t, c)
+		await wait(0.5)
+		rc[t] = game.resources.get("gold", 0) - g0
+		for n in get_nodes_in_group("gold"):
+			n.queue_free()
+		await clear()
+	ok("tier 2 reaches coins out to 1.6 radius, tier 1 only the near one (%s)" % str(rc), rc[1] == 1 and rc[2] == 2)
+	# Haul (tier 3): loose resources come too
+	var hl := {}
+	for t in [2, 3]:
+		var pk = load("res://collectables/collectable.tscn").instantiate()
+		pk.item_type = "stone"
+		pk.item_info = load("res://world/item_info.tres")
+		pk.position = c + Vector2(10, 0)
+		world.add_child(pk)
+		var st0: int = game.resources.get("stone", 0)
+		await wait(0.1)
+		spell("gold_magnet", t, c)
+		await wait(0.5)
+		hl[t] = game.resources.get("stone", 0) - st0
+		if is_instance_valid(pk):
+			pk.queue_free()
+		await clear()
+	ok("tier 3 hauls loose resources into the pool, tier 2 does not (%s)" % str(hl), hl[3] == 1 and hl[2] == 0)
+	# Fortune (tier 4): a quarter of the coins count double, never for a copy
+	var fo := {}
+	for k in [[3, false], [4, false], [4, true]]:
+		var g0: int = game.resources.get("gold", 0)
+		coins(c, 200, 10.0)
+		await wait(0.1)
+		var sp = spell("gold_magnet", k[0], c, true, {"copy": k[1]})
+		await wait(0.5)
+		fo[str(k)] = game.resources.get("gold", 0) - g0
+		for n in get_nodes_in_group("gold"):
+			n.queue_free()
+		await clear()
+	ok("tier 4 pays a lucky double on about a quarter of 200 coins, tier 3 and a copy do not (%s)" % str(fo), fo["[3, false]"] == 200 and fo["[4, true]"] == 200 and fo["[4, false]"] > 225 and fo["[4, false]"] < 275)
+	# Coin storm (tier 5): coins are hurled at enemies, and it stays 2.5 s
+	var cs := {}
+	for t in [4, 5]:
+		var e = dummy(c + Vector2(60, 0))
+		coins(c, 5, 10.0)
+		await wait(0.1)
+		var sp = spell("gold_magnet", t, c)
+		var n := 0
+		var seen := {}
+		var el := 0.0
+		var alive_at_1 := false
+		while el < 1.2:
+			await wait(0.05)
+			el += 0.05
+			for nd in world.get_children():
+				if nd.get_script() != null and str(nd.get_script().resource_path).ends_with("projectile.gd") and !seen.has(nd.get_instance_id()):
+					seen[nd.get_instance_id()] = true
+					n += 1
+		cs[t] = [n, is_instance_valid(sp), snappedf(dealt(e), 0.1)]
+		await clear()
+	ok("tier 5 hurls the coins and stays; tier 4 does neither (%s)" % str(cs), cs[5][0] >= 3 and cs[5][1] and cs[5][2] > 0.0 and !cs[4][1])
+	# Treasure surge (tier 6): tribute at the end
+	var ts := {}
+	for cp in [false, true]:
+		var g0: int = game.resources.get("gold", 0)
+		var sp = spell("gold_magnet", 6, c, true, {"copy": cp})
+		coins(c, 12, 10.0)
+		var seen := await fx_seen(3.2)
+		ts[cp] = [seen.has("ripple"), game.resources.get("gold", 0) - g0]
+		for n in get_nodes_in_group("gold"):
+			n.queue_free()
+		await clear()
+	ok("tier 6 ends with a flash and a tribute of 1 gold per 5 coins (max 4), a copy does not (%s)" % str(ts), ts[false][0] and ts[false][1] >= 14 and !ts[true][0] and ts[true][1] == 12)

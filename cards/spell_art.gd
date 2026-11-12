@@ -13,7 +13,7 @@ static func jit(i: int, salt := 0.0) -> float:
 
 ## Cards that have their own body art here: the plain fill and rings are drawn softer under it.
 static func has_body(id: String) -> bool:
-	return id in ["fireball", "frost_ring", "flare", "rejuvenation"]
+	return id in ["fireball", "frost_ring", "flare", "rejuvenation", "gold_magnet"]
 
 static func draw_flight(s, t: float, col: Color) -> void:
 	match String(s.data.get("id", "")):
@@ -32,6 +32,8 @@ static func draw(s, since: float, col: Color) -> void:
 			draw_flare(s, since, col)
 		"rejuvenation":
 			draw_rejuvenation(s, since, col)
+		"gold_magnet":
+			draw_gold_magnet(s, since, col)
 
 ## A flame as one polygon: a wide base, a belly, and a tip that leans with `sway`.
 static func flame(s, base: Vector2, w: float, h: float, col: Color, sway := 0.0) -> void:
@@ -336,3 +338,71 @@ static func draw_rejuvenation(s, since: float, _col: Color) -> void:
 		var u3 := fposmod(since * 0.4 + jit(i), 1.0)
 		var q2 := Vector2.from_angle(jit(i, 2.0) * TAU) * r * 0.8 * jit(i, 3.0) + Vector2(0, -u3 * 18.0)
 		s.draw_circle(q2, 1.6, Color(LEAF, 0.9 * (1.0 - u3) * fade))
+
+# ---------------------------------------------------------------- Gold Magnet
+
+const GOLD := Color(1.0, 0.85, 0.25)
+const MAGNET_RED := Color(0.85, 0.2, 0.2)
+const STEEL := Color(0.8, 0.85, 0.95)
+
+## A horseshoe magnet: a thick red arc with steel tips.
+static func horseshoe(s, c: Vector2, rot: float, size: float, red: Color, alpha: float) -> void:
+	var a0 := rot + deg_to_rad(-100.0) + PI / 2.0
+	s.draw_arc(c, size, a0, a0 + deg_to_rad(200.0), 14, Color(red, alpha), size * 0.35)
+	for e in [a0, a0 + deg_to_rad(200.0)]:
+		s.draw_circle(c + Vector2.from_angle(e) * size, size * 0.32, Color(STEEL, alpha))
+
+static func draw_gold_magnet(s, since: float, _col: Color) -> void:
+	var tier := int(s.data.get("tier", 1))
+	if tier < 2:
+		return
+	var r: float = s.radius
+	var life: float = s.effect_time
+	var fade := clampf((life - since) / 0.5, 0.0, 1.0) * clampf(since / 0.1 + 0.3, 0.0, 1.0)
+	var spin := since * TAU
+	if tier >= 5:                                                   # a golden whirlpool: three arms with coin sparks
+		for k in 3:
+			var pts := PackedVector2Array()
+			for i in 8:
+				var u := i / 7.0
+				pts.append(Vector2.from_angle(since * 2.2 + k * TAU / 3.0 + u * 2.5) * lerpf(r * 0.1, r * 0.9, u))
+			s.draw_polyline(pts, Color(GOLD, 0.5 * fade), 2.0)
+			var spark := fposmod(since * 0.8 + k * 0.33, 1.0)
+			s.draw_circle(pts[clampi(int(spark * 7.0), 0, 7)], 2.0, Color(1.0, 0.95, 0.6, fade))
+	if tier >= 6:                                                   # a solar coin: engraved rings, turning rays, mini coins
+		s.draw_circle(Vector2.ZERO, r * 0.6, Color(GOLD, 0.25 * fade))
+		s.draw_arc(Vector2.ZERO, r * 0.5, 0, TAU, 32, Color(1.0, 0.95, 0.6, 0.6 * fade), 1.5)
+		for i in 24:
+			var a := i * TAU / 24.0
+			s.draw_arc(Vector2.ZERO, r * 0.42, a, a + 0.09, 3, Color(1.0, 0.95, 0.6, 0.5 * fade), 1.0)
+		for i in 12:
+			var d := Vector2.from_angle(since * 0.8 + i * TAU / 12.0)
+			s.draw_line(d * r * 0.62, d * r * 0.95, Color(1.0, 0.95, 0.6, 0.4 * fade), 2.0)
+		for i in 8:
+			s.draw_circle(Vector2.from_angle(-since * 1.2 + i * TAU / 8.0) * r * 0.8, 3.0, Color(GOLD, 0.9 * fade))
+		for i in 8:
+			var u2 := fposmod(since * 0.7 + jit(i), 1.0)
+			s.draw_circle(Vector2((jit(i, 1.0) - 0.5) * 12.0, -u2 * r * 0.9), 1.5, Color(1.0, 0.95, 0.6, 0.8 * (1.0 - u2) * fade))
+	# tier 2: the real reach is a dotted ring at 1.6 r, a horseshoe magnet spins in the middle, field lines slide inward
+	var reach := r * 1.6
+	for i in 40:
+		var a2 := i * TAU / 40.0
+		s.draw_arc(Vector2.ZERO, reach, a2, a2 + 0.07, 3, Color(GOLD, 0.5 * fade), 1.0)
+	for i in 6:
+		var a3 := i * TAU / 6.0
+		var ph := fposmod(since * 1.5 + i / 6.0, 1.0)
+		var rr := lerpf(r * 0.95, r * 0.2, ph)
+		s.draw_arc(Vector2.ZERO, rr, a3, a3 + 0.25, 4, Color(GOLD, 0.6 * fade * (1.0 - ph * 0.5)), 1.5)
+	var white := tier >= 6
+	horseshoe(s, Vector2.ZERO, spin, 12.0, MAGNET_RED.lerp(Color(1, 0.95, 0.7), 0.7) if white else MAGNET_RED, fade)
+	if tier >= 3:                                                   # a second magnet, opposed, and twinkling gold on the rim
+		horseshoe(s, Vector2.ZERO, spin + PI, 12.0, MAGNET_RED.lerp(Color(1, 0.95, 0.7), 0.7) if white else MAGNET_RED, fade)
+		for i in 4:
+			var tw := 0.5 + 0.5 * sin(since * 6.0 + jit(i) * 6.0)
+			s.draw_circle(Vector2.from_angle(jit(i, 7.0) * TAU) * r, 1.0 + 1.5 * tw, Color(1.0, 0.95, 0.6, tw * fade))
+	if tier >= 4:                                                   # three coins orbit and a gold ring breathes
+		for i in 3:
+			var p := Vector2.from_angle(since * 2.4 + i * TAU / 3.0) * r * 0.35
+			s.draw_circle(p, 3.0, Color(GOLD, fade))
+			s.draw_circle(p + Vector2(-1, -1), 1.0, Color(1, 1, 0.8, fade))
+		s.draw_arc(Vector2.ZERO, r * (0.9 + 0.05 * sin(since * 5.0)), 0, TAU, 40, Color(GOLD, 0.5 * fade), 1.5)

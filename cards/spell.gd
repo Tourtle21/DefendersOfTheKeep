@@ -25,6 +25,8 @@ var _seen := {}
 var _finale_done := false
 var _ray_hit := {}
 var _landed_fx := false
+var _coins := 0
+var _sweep_t := 0.0
 var _house := {}
 var _warded := {}
 var _vine_t := 0.0
@@ -180,8 +182,7 @@ func _physics_process(delta: float) -> void:
 				queue_free()
 				return
 			elif data.kind == "magnet":
-				for g in _in_radius("gold"):
-					g.collect_to_pool()
+				SpellTiers.magnet_sweep(self, SpellTiers.tier_of(self), radius * (SpellTiers.MAGNET_REACH if SpellTiers.tier_of(self) >= 2 else 1.0))
 		queue_redraw()
 		return
 	match data.kind:
