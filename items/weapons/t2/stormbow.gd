@@ -14,6 +14,7 @@ func _init() -> void:
 	ability_cooldown = 5.0
 
 func _on_warped(dest: Vector2) -> void:
+	WeaponTiers.run(self, "warped", [dest])                      # tier module: bolts fall, charges near the arrival detonate, the gate line shocks
 	for i in 6:                                                    # arriving calls a ring of lightning around you
 		ground_strike(dest + Vector2.from_angle(i * TAU / 6.0 + randf() * 0.3) * 40.0, 22.0, 0.2 + i * 0.1, 3.5, 180.0, Color(0.7, 0.85, 1.0), 0.5)
 

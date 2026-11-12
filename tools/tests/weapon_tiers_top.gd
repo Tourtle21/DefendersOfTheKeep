@@ -771,6 +771,110 @@ func t_worldbreaker() -> void:
 	await clear()
 	await draw_smoke("worldbreaker")
 
+func t_stormbow() -> void:
+	var w
+	var mod = load("res://items/weapons/tiers/stormbow.gd")
+	# Charged Gates (entry, tier 3): a full-draw hit charges and jumps; the warp bolts fall; arrival detonates charges
+	w = await equip("stormbow", 3, false)
+	await face(Vector2(1, 0))
+	var a1 = dummy(P + Vector2(60, 0))
+	var a2 = dummy(P + Vector2(60, 40))
+	await shoot_arrow(w)
+	await wait(0.6)
+	ok("stormbow Charged Arrows: the hit leaves %d charge and the bolt jumps to the neighbour (%.1f taken)" % [mod.charges(a1), lost(a2)], mod.charges(a1) >= 1 and lost(a2) > 0.0)
+	var dt := {}
+	for t in [3]:
+		w = await equip("stormbow", t, false)
+		await face(Vector2(1, 0))
+		var tgt = dummy(P + Vector2(70, 0))
+		tgt.set_meta("charge", 3)
+		w.use_ability()
+		await wait(0.2)
+		var seen := {}
+		w.use_ability()
+		for i in 16:
+			await wait(0.05)
+			fx_kinds(seen)
+		await wait(0.4)
+		dt[t] = [lost(tgt), seen.get("bolt", 0), mod.charges(tgt)]
+	ok("stormbow Arrival Thunderclap: the 3 charges near the arrival cost %.1f (>= 3 H worth), bolt fx %d, charges left %d" % [dt[3][0], dt[3][1], dt[3][2]], dt[3][0] >= 3.0 * 3.6 * 0.9 and dt[3][1] >= 6 and dt[3][2] <= 1)
+	w = await equip("stormbow", 3, false)
+	await face(Vector2(1, 0))
+	var sp = dummy(P + Vector2(0, 8))
+	w.use_dash()
+	await wait(1.4)
+	ok("stormbow Static Step: the dash spark charged a dummy standing at the start (%d charges, %.1f taken)" % [mod.charges(sp), lost(sp)], mod.charges(sp) >= 1)
+	# Storm Gate (tier 4): a line between two gates
+	var gl := {}
+	for t in [3, 4]:
+		w = await equip("stormbow", t, false)
+		await face(Vector2(1, 0))
+		w.use_ability()
+		await wait(0.2)
+		await face(Vector2(1, 0.9))
+		w.use_ability()
+		await wait(0.2)
+		var anchors := []
+		for g in w._st.gates:
+			if int(g.kind) == 0:
+				anchors.append(g.pos)
+		var mid: Vector2 = anchors[0].lerp(anchors[anchors.size() - 1], 0.5) if anchors.size() >= 2 else P
+		var ld = dummy(mid)
+		await wait(1.6)
+		gl[t] = [lost(ld), mod.charges(ld), anchors.size()]
+	ok("stormbow Storm Gate: a dummy on the line takes %.1f and gains %d charge at tier 4 (tier 3: %.1f, %d); %d gates" % [gl[4][0], gl[4][1], gl[3][0], gl[3][1], gl[4][2]], gl[4][0] > 1.0 and gl[4][1] >= 1 and gl[3][0] == 0.0 and gl[4][2] >= 2)
+	# Thunderhead (tier 5)
+	var th := {}
+	for t in [4, 5]:
+		w = await equip("stormbow", t, false)
+		await face(Vector2(1, 0))
+		var tc = dummy(P + Vector2(70, 0))
+		tc.set_meta("charge", 4)
+		w.use_ultimate()
+		var bolts := {}
+		for i in 220:
+			await wait(0.05)
+			if i * 0.05 > 4.3:
+				for b in fx_list("bolt"):
+					if b.length == 70.0 and b.width == 3.0:
+						bolts[b.get_instance_id()] = true
+		th[t] = bolts.size()
+	ok("stormbow Thunderhead: tier 5 cloud strikes %d times in the 6 s window (tier 4: %d)" % [th[5], th[4]], th[5] >= 6 and th[4] == 0)
+	# Tempest Archer (tier 6)
+	w = await equip("stormbow", 6, false)
+	await face(Vector2(1, 0))
+	var arch1 = dummy(P + Vector2(60, 0))
+	var arch2 = dummy(P + Vector2(60, 40))
+	w.use_ultimate()
+	await wait(6.2)
+	var chained := lost(arch2)
+	arch2.health = HP
+	await shoot_arrow(w)
+	await wait(0.6)
+	var chain_hit := lost(arch2)
+	var seen6 := {}
+	var peak := 0
+	var j := 0.0
+	var prev := lost(arch1)
+	var big := 0.0
+	var flash90 := false
+	for i in 260:
+		await wait(0.05)
+		fx_kinds(seen6)
+		peak = maxi(peak, own_proj())
+		for f in fx_list("flash"):
+			if f.radius == 90.0:
+				flash90 = true
+		var l := lost(arch1)
+		if i > 150:
+			big = maxf(big, l - prev)
+		prev = l
+	ok("stormbow Tempest Archer: arrows chain (neighbour took %.1f), bolts fell (%s), the Judgement flash 90 %s, biggest hit %.1f, peak projectiles %d <= 40" % [chain_hit, seen6.has("bolt"), flash90, big, peak], chain_hit > 0.0 and seen6.has("bolt") and flash90 and peak <= 40)
+	await clear()
+	await draw_smoke("stormbow")
+	w = await equip("warpbow", 3, false)
+	ok("stormbow: the Warp Bow still has its own module (%s)" % w.weapon_id, w.weapon_id == "warpbow")
+
 func aura_data_state() -> float:
 	for n in world.get_children():
 		if n.get_script() != null and str(n.get_script().resource_path).ends_with("weapon_aura.gd"):
@@ -790,3 +894,5 @@ func run() -> void:
 		await t_prismstaff()
 	if only == "" or only == "worldbreaker":
 		await t_worldbreaker()
+	if only == "" or only == "stormbow":
+		await t_stormbow()
