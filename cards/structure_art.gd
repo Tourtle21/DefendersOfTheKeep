@@ -11,7 +11,7 @@ const GOLD := Color(1.0, 0.85, 0.4)
 ## True when the card has its own drawing (and has drawn it).
 static func draw(st, col: Color) -> bool:
 	match String(st.data.get("id", "")):
-		"crystal_pylon", "storm_spire", "magma_wall", "venom_tower", "prism_tower", "healing_grove", "sunspire", "phoenix_shrine":
+		"crystal_pylon", "storm_spire", "magma_wall", "venom_tower", "prism_tower", "healing_grove", "sunspire", "phoenix_shrine", "healing_lantern", "beacon_turret":
 			return AC.draw(st, col)
 		"barricade":
 			draw_barricade(st, col)
