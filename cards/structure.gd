@@ -32,6 +32,18 @@ var adds: Array = []        # everything it has added so far, stacked (Game.adds
 var light_radius := 0.0     # > 0: this building is a light source at night (torches, and glowing turrets); group "light"
 var _glow: GlowLight
 var _rearm := 0.0
+# --- tier abilities (cards/structure_tiers.gd): host-only state is underscored, what a client must draw is public ---
+var _timers := {}           # named clocks, see StructureTiers.pace
+var _seen := {}             # enemies seen last tick, see StructureTiers.deaths
+var _thr := {}              # hp thresholds, see StructureTiers.threshold
+var _fx_t := 0.0
+var _invuln := 0.0          # > 0: takes no damage
+var _shots := 0             # sentry family: shots fired so far
+var _triggers := 0          # spike trap: times it has been stepped on
+var charge := 0.0           # 0..1, an ability about to fire (the building glows with it)
+var aim := Vector2.ZERO     # direction of the last shot (turret barrels)
+var lit := false            # a flame is burning
+var fx_pulse := 1.0         # seconds since the last ability pulse, capped at 1 (the drawing flashes while it is small)
 
 func setup(card: Dictionary, pos: Vector2) -> void:
 	data = card
@@ -180,6 +192,7 @@ func promote() -> void:
 	uses = int(data.get("uses", uses))
 	flash = 0.4
 	WeaponFx.spawn(get_parent(), "ring", global_position, Color(1.0, 0.85, 0.3), {"radius": radius + 10.0, "life": 0.4})
+	StructureTiers.on_promote(self, tier)
 
 func _ready() -> void:
 	add_to_group("structure")
@@ -214,6 +227,8 @@ func _near_enemies(r: float) -> Array:
 
 func _physics_process(delta: float) -> void:
 	_age += delta
+	fx_pulse = minf(fx_pulse + delta, 1.0)
+	_invuln = maxf(0.0, _invuln - delta)
 	flash = max(0.0, flash - delta)
 	shot_t = max(0.0, shot_t - delta)
 	if "regrow" in adds and hp < max_hp:
@@ -235,7 +250,8 @@ func _physics_process(delta: float) -> void:
 				_tick = 0.0
 				var gnawing := _near_enemies(radius + 9.0)
 				for e in gnawing:
-					hp -= 1.0 if !(e is Boss) else 4.0
+					hp -= (1.0 if !(e is Boss) else 4.0) * StructureTiers.guard_mult(self)
+					StructureTiers.on_gnaw(self, e)
 					if data.get("thorns", 0.0) > 0.0:
 						e.spell_damage(data.thorns, data.get("element", ""))
 				if gnawing.size() > 0:
@@ -250,16 +266,19 @@ func _physics_process(delta: float) -> void:
 				if hit.size() > 0:
 					for e in hit:
 						e.spell_damage(data.damage, data.get("element", ""), true)
-						e.apply_slow(data.slow, 0.6)
+						StructureTiers.keep_slow(e, data.slow, 0.6)
 						if "venom" in adds:
 							WeaponUtil.bleed(get_tree(), e, 4, data.damage * 0.3)
 					flash = 0.2
+					_triggers += 1
 					uses -= 1
+					StructureTiers.on_trigger(self, hit)
 					if uses <= 0:
+						StructureTiers.on_last_use(self)
 						_expire()
 						return
 		"sentry":
-			if _tick >= data.get("interval", 0.7):
+			if _tick >= data.get("interval", 0.7) * StructureTiers.interval_mult(self):
 				var best = null
 				for e in _near_enemies(data.range):
 					if !Game.defence_sees(e, global_position):
@@ -270,7 +289,9 @@ func _physics_process(delta: float) -> void:
 					_tick = 0.0
 					shot_to = best.global_position
 					shot_t = 0.12
-					best.spell_damage(data.damage, data.get("element", ""))
+					aim = (best.global_position - global_position).normalized()
+					_shots += 1
+					best.spell_damage(data.damage * StructureTiers.shot_mult(self, best), data.get("element", ""))
 					if data.has("slow") and best.has_method("apply_slow"):
 						best.apply_slow(data.slow, 1.2)
 					if data.get("poison", 0.0) > 0.0:
@@ -289,6 +310,7 @@ func _physics_process(delta: float) -> void:
 							if e != best:
 								e.spell_damage(blast * 0.5, data.get("element", ""), true)
 						WeaponFx.spawn(get_parent(), "burst", best.global_position, _color(), {"radius": 16.0, "life": 0.2})
+					StructureTiers.on_shot(self, best)
 		"torch":
 			if _tick >= 0.5:
 				_tick = 0.0
@@ -302,14 +324,15 @@ func _physics_process(delta: float) -> void:
 		"mender":
 			for p in get_tree().get_nodes_in_group("player"):
 				if is_instance_valid(p) and p.global_position.distance_to(global_position) <= radius and p.needs_health():
-					p.heal(data.heal_per_sec * delta)             # only a hurt player in range uses up its healing
+					p.heal(data.heal_per_sec * delta * StructureTiers.heal_mult(self, p))             # only a hurt player in range uses up its healing
 					_healed += data.heal_per_sec * delta
 			if _heal_budget > 0.0 and _healed >= _heal_budget:
 				_expire()                                    # it has healed all it had
 				return
 		"totem":
 			for e in _near_enemies(radius):
-				e.apply_slow(data.slow, 0.3)
+				StructureTiers.keep_slow(e, data.slow, 0.3)
+	StructureTiers.tick(self, delta)
 	ceiling()                 # keeps the synced tier_cap current for co-op clients
 	queue_redraw()
 
@@ -325,6 +348,7 @@ func _expire() -> void:
 		for e in _near_enemies(radius + 24.0):
 			e.spell_damage(3.0 * pow(1.6, tier - 1), "", true)
 		WeaponFx.spawn(get_parent(), "ring", global_position, Color(1.0, 0.6, 0.3), {"radius": radius + 24.0, "life": 0.35})
+	StructureTiers.on_expire(self)
 	WeaponFx.spawn(get_parent(), "burst", global_position, _color(), {"radius": radius, "life": 0.25})
 	queue_free()
 
@@ -370,6 +394,8 @@ func _draw() -> void:
 	if flash > 0.0:
 		col = col.lerp(Color.WHITE, 0.6)
 	draw_circle(Vector2(0, radius * 0.5), radius * 0.9, Color(0, 0, 0, 0.25))
+	if StructureArt.draw(self, col):                   # a card with its own art draws it all; the rest use the plain look below
+		return
 	match kind:
 		"barricade":
 			draw_rect(Rect2(-radius, -radius * 0.8, radius * 2.0, radius * 1.6), Color.BLACK)
