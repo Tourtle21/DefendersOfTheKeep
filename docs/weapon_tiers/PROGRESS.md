@@ -16,3 +16,8 @@ DONE bulwark
 DONE bow
 DONE daggers
 DONE knightblade
+CLAIM lance
+CLAIM quakepick
+CLAIM rimelance
+CLAIM sultanguard
+DONE scimitar

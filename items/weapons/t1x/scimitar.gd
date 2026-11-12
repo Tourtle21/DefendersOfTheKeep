@@ -33,6 +33,9 @@ func attack() -> void:
 
 func ability() -> void:
 	thrust(8.0, 0.2)
+	if weapon_id == "scimitar" and tier >= 2:          # Wide Crescent (items/weapons/tiers/scimitar.gd): a big wave, longer and deeper
+		WeaponProjectile.shoot(game_world(), player.global_position + aim * 12.0, aim, 260.0, 2.5, Color(0.95, 0.8, 0.45), 0.7, 5, 80.0, {"bleed_ticks": 6, "bleed_dmg": 0.8, "style": "crescent", "size": 1.4, "trail": 4})
+		return
 	WeaponProjectile.shoot(game_world(), player.global_position + aim * 12.0, aim, 260.0, 2.5, Color(0.95, 0.8, 0.45), 0.55, 3, 80.0, {"bleed_ticks": 4, "bleed_dmg": 0.8})
 
 func dash_attack() -> void:

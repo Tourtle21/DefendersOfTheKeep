@@ -460,7 +460,92 @@ func t_daggers() -> void:
 	ok("daggers: the backstab still refunds the dash cooldown at tier 6 (%.2f left)" % w._dash_cd, w._dash_cd < 3.0)
 	await draw_smoke("daggers")
 
+func t_scimitar() -> void:
+	var w
+	w = await equip("scimitar", 2, false)
+	var ds := []
+	for i in 5:
+		ds.append(dummy(P + Vector2(25 + 28 * i, 0)))
+	w.use_ability()
+	await wait(0.1)
+	var steps := []
+	var lasts := []
+	for d in ds:
+		lasts.append(lost(d))
+		steps.append(0)
+	for i in 100:
+		await wait(0.05)
+		for k in 5:
+			var l := lost(ds[k])
+			if l > lasts[k] + 0.01:
+				steps[k] += 1
+				lasts[k] = l
+	ok("scimitar Wide Crescent: tier 2 wave cuts and bleeds all five dummies (bleed hits after the wave: %s, need >= 5 each)" % [steps], steps.all(func(x): return x >= 5))
+	var dd := {}
+	for t in [2, 3]:
+		w = await equip("scimitar", t, false)
+		var d = dummy(P + Vector2(25, 0))
+		var per := []
+		var seen := {}
+		for i in 3:
+			w._attack_cd = 0.0
+			var h0 := lost(d)
+			w.use_item()
+			for k in 8:
+				await wait(0.05)
+				fx_kinds(seen)
+			await wait(1.8)                    # let the bleed run out
+			per.append(snappedf(lost(d) - h0, 0.1))
+		dd[t] = [per, seen]
+	ok("scimitar Dune Dance: tier 3 third slash is a double swing (%s, slash fx %s); tier 2 %s" % [dd[3][0], dd[3][1].has("slash"), dd[2][0]], dd[3][1].has("slash") and !dd[2][1].has("slash") and dd[3][0][2] > dd[3][0][0] + 0.8)
+	var af := {}
+	for t in [3, 4]:
+		w = await equip("scimitar", t, false)
+		var d = dummy(P + Vector2(50.0 / 3.0, 18))
+		w.use_dash()
+		await wait(1.0)
+		af[t] = lost(d)
+	ok("scimitar Afterimages: tier 4 an afterimage cuts a dummy beside the path (%.1f vs %.1f)" % [af[4], af[3]], af[4] > af[3] + 1.0)
+	var sd := {}
+	for t in [4, 5, 6]:
+		w = await equip("scimitar", t, false)
+		var d = dummy(P + Vector2(40, 0))
+		var far = dummy(P + Vector2(90, 0))
+		w.use_ultimate()
+		var hz := 0.0
+		var hz_at := -1.0
+		var seen := {}
+		var crescents := 0
+		for i in 130:
+			await wait(0.05)
+			fx_kinds(seen)
+			for f in world.get_children():
+				if f.get_script() == null:
+					continue
+				var sp: String = str(f.get_script().resource_path)
+				if sp.ends_with("hazard.gd") and hz == 0.0:
+					hz = f.radius
+					hz_at = i * 0.05
+				if sp.ends_with("projectile.gd") and f.style == "crescent":
+					crescents = maxi(crescents, count_script("projectile.gd"))
+		sd[t] = {"hz": hz, "at": hz_at, "seen": seen, "cres": crescents, "far": lost(far)}
+	ok("scimitar Sandstorm: tier 5 sand zone r%.0f at %.1f s and a vortex (%s); tier 4 none (%.0f)" % [sd[5].hz, sd[5].at, sd[5].seen.has("vortex"), sd[4].hz], sd[5].hz == 52.0 and sd[5].seen.has("vortex") and sd[4].hz == 0.0 and sd[5].at >= 1.3 and sd[5].at <= 1.8)
+	ok("scimitar Desert Wrath: tier 6 pillar %s and %d crescents; far dummy takes more (%.1f vs %.1f); tier 5 none (%s, %d)" % [sd[6].seen.has("pillar"), sd[6].cres, sd[6].far, sd[5].far, sd[5].seen.has("pillar"), sd[5].cres], sd[6].seen.has("pillar") and sd[6].cres >= 6 and !sd[5].seen.has("pillar") and sd[6].far > sd[5].far + 1.0)
+	w = await equip("scimitar", 6, false)
+	var d6 = dummy(P + Vector2(25, 0))
+	var maxp := 0
+	for i in 6:
+		w._attack_cd = 0.0
+		w.use_item()
+		await wait(0.1)
+		maxp = maxi(maxp, count_script("projectile.gd"))
+		await wait(0.35)
+	ok("scimitar Finisher: the sixth slash at tier 6 throws a wave (%d projectiles alive)" % maxp, maxp >= 1)
+	await draw_smoke("scimitar")
+
 func run() -> void:
+	if only == "" or only == "scimitar":
+		await t_scimitar()
 	if only == "" or only == "daggers":
 		await t_daggers()
 	if only == "" or only == "bow":
