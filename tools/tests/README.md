@@ -31,6 +31,7 @@ Known quirks: do not name `Game`-dependent `class_name`s inside these files (com
 | forge_shots.gd | window screenshots of the forge areas and the merge hint |
 | ui_parity.gd | every shared screen (Forge, Card Fuser, chest choice, HUD top, upgrade cards) built through player 1, a split-screen player and a LAN client view (fake snapshot) gives the same tree |
 | single_source.gd | (no game, 1 s) fails when a known single-source helper is written again, or UI code adds raw colours / font sizes over its budget |
+| weapon_art.gd | (no game, 1 s) every weapon with per-tier art (items/weapons/art/) has tiers 1..6 that differ pairwise and by a visible number of pixels, the same canvas size, tier 1 = the icon file |
 | split_tour.gd | slow window tour of the split screen (HUDs, fight, merge hint, both Forges, chests, towers); n=2..4, hold=seconds, saves PNGs |
 
 ## Two-process network test

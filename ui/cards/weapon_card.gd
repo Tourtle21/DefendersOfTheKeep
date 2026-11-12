@@ -7,14 +7,12 @@ extends RefCounted
 const UiKit = preload("res://ui/cards/ui_kit.gd")
 
 ## The weapon's icon (the sword and pickaxe are sprite sheets: UiKit.weapon_icon shows their first frame), or null.
-## From tier 2 the icon is the tier's art (WeaponArt: polished, a glow ring, sparkles...), the same picture the weapon has in the hand.
+## From tier 2 the icon is the tier's own drawing (WeaponArt / WeaponTierArt: more parts each tier), the same picture the weapon has in the hand.
 static func icon(id: String, tier := 1) -> Texture2D:
 	var info: Dictionary = load("res://world/item_info.tres").items.get(id, {})
 	if !info.has("texture"):
 		return null
-	if tier >= 2 and !UiKit.WEAPON_SHEETS.has(str(info.texture)):
-		return WeaponArt.hud_icon(id, tier, str(info.texture))
-	return UiKit.weapon_icon(str(info.texture))
+	return WeaponArt.hud_icon(id, tier, str(info.texture))     # tier 1: the icon file (first frame of a sheet); higher tiers: that tier's art
 
 static func make(id: String, tier: int, size: Vector2, extra := {}) -> CardView:
 	var data := {"title": Fusion.display_name(id), "icon": icon(id, tier), "accent": Game.rarity_color(Game.weapon_rarity(id))}

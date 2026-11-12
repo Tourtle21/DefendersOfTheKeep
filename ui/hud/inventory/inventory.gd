@@ -9,9 +9,15 @@ var current_item = null
 func equip(item) -> void:
 	has_item = true
 	current_item = item
-	$LeftHand.texture = load(item.texture)
-	$LeftHand.region_enabled = true
-	$LeftHand.region_rect = Rect2(Vector2.ZERO, Vector2(32, 32))
+	var wid: String = str(item.get("id", ""))
+	if wid != "" and Fusion.NAMES.has(wid) and item.get("type", "") == "item":
+		# a weapon: the picture of its own tier (WeaponArt), not the tier 1 icon file
+		$LeftHand.texture = WeaponArt.hud_icon(wid, Game.weapon_tier_of(str(item.get("entry", wid))), str(item.texture))
+		$LeftHand.region_enabled = false
+	else:
+		$LeftHand.texture = load(item.texture)
+		$LeftHand.region_enabled = true
+		$LeftHand.region_rect = Rect2(Vector2.ZERO, Vector2(32, 32))
 	$LeftHand.scale = Vector2(3.5, 3.5)
 	$LeftHand.visible = true
 	_set_badge(item)

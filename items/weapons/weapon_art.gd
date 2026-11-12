@@ -6,6 +6,8 @@ class_name WeaponArt
 ## The colours of a weapon come from its tiers module (`palette()` returns [main, hot, core]), else from its rarity.
 
 static var _cache := {}
+const TierArt = preload("res://items/weapons/art/weapon_tier_art.gd")
+const UiKit = preload("res://ui/cards/ui_kit.gd")
 
 ## [main, hot, core] of a weapon.
 static func palette(id: String) -> Array:
@@ -15,6 +17,8 @@ static func palette(id: String) -> Array:
 	var rim: Color = Game.rarity_color(Game.weapon_rarity(id))
 	return [rim, rim.lightened(0.3), Color(1, 1, 1)]
 
+## The weapon's picture at `tier`. Tier 1 is its icon file; from tier 2 a weapon with custom art (WeaponTierArt) gets that tier's own
+## drawing (different parts, not an overlay), with a faint glow at tiers 5 and 6 only. A weapon without custom art keeps the old overlay.
 static func icon(id: String, tier: int, path := "") -> Texture2D:
 	if path == "":
 		path = _path_of(id)
@@ -22,17 +26,50 @@ static func icon(id: String, tier: int, path := "") -> Texture2D:
 	if _cache.has(key):
 		return _cache[key]
 	var base: Texture2D = load(path)
+	if UiKit.WEAPON_SHEETS.has(path):
+		base = UiKit.weapon_icon(path)           # the sword and pickaxe are sprite sheets: tier 1 is the first frame
 	if tier < 2 or base == null:
 		_cache[key] = base
 		return base
-	var img: Image = base.get_image()
-	if img == null:
-		return base
-	img.convert(Image.FORMAT_RGBA8)
-	var out := _compose(img, id, tier)
-	var tex := ImageTexture.create_from_image(out)
+	var tex: Texture2D = null
+	if TierArt.has(id):
+		var art: Image = TierArt.image(id, tier)
+		_finish(art, id, tier)
+		tex = ImageTexture.create_from_image(art)
+	else:
+		var img: Image = base.get_image()
+		if img == null:
+			return base
+		img.convert(Image.FORMAT_RGBA8)
+		tex = ImageTexture.create_from_image(_compose(img, id, tier))
 	_cache[key] = tex
 	return tex
+
+## A faint glow round the finished drawing: tier 5 a thin one, tier 6 a thin gold one and two sparkles. Nothing below tier 5.
+static func _finish(img: Image, id: String, tier: int) -> void:
+	if tier < 5:
+		return
+	var src := img.duplicate() as Image
+	var glow: Color = (palette(id)[0] as Color).lerp(Color(1.0, 0.9, 0.5), 0.35 if tier == 5 else 0.6)
+	var a := 0.28 if tier == 5 else 0.42
+	for y in img.get_height():
+		for x in img.get_width():
+			if _opaque(src, x, y):
+				continue
+			var near := false
+			for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1), Vector2i(1, 1), Vector2i(-1, -1), Vector2i(1, -1), Vector2i(-1, 1)]:
+				if _opaque(src, x + d.x, y + d.y):
+					near = true
+					break
+			if near:
+				_over(img, x, y, Color(glow, a))
+	if tier >= 6:
+		var w := img.get_width()
+		var spots := [Vector2i(w - 5, 4), Vector2i(4, w / 2 + 2)]
+		for s in spots:
+			for off in [Vector2i(0, 0), Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+				if !_opaque(src, s.x + off.x, s.y + off.y):
+					_over(img, s.x + off.x, s.y + off.y, Color(1, 1, 0.85, 0.9 if off == Vector2i.ZERO else 0.45))
 
 static func hud_icon(id: String, tier: int, path := "") -> Texture2D:
 	return icon(id, tier, path)

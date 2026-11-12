@@ -43,3 +43,14 @@ Where a design asked for something the old scripts cannot give a module, the old
 - Spellblade: the Spellblade's own blades are drawn by its WeaponAura from `aura.data` ({ph, n, r, sp, sph, av}); the old `_draw` still draws the storm blades for Starfall (it extends the same script) until Starfall's module uses `Spellblade.draw_blades(a, c)`.
 - Tempest: the Thunderhead strikes a random enemy (and charges it) when nothing is charged, because the opening Storm clap spends every charge; Stormlord's mega-clap is 3.0 per charge (twice the normal clap), absolute damage like the old clap.
 - Bog Staff: `WeaponUtil.rot_mult` is applied in `WeaponUtil.bleed` for element poison (the Witch Staff can reuse `rot_add`, `rot_stacks`, `rot_burst` of tiers/bogstaff.gd). Beasts rise from kills by a direct hit (not from poison-tick kills). With Miasma the stacks cycle through bursts, so the count on one enemy rarely stays at 5.
+
+## Weapon art per tier (items/weapons/art/, WeaponArt)
+- ONE art module: `items/weapons/art/weapon_tier_art.gd` (`WeaponTierArt.image(id, tier)` -> 32x32 Image, outlined, tip up, grip bottom centre). The pixel kit is
+  `weapon_paint.gd` (px, rect, disc, ring, ellipse, line, poly, diamond, gem, column, outline). Pictures are drawn at run time and cached per id:tier in `WeaponArt.icon`.
+- Base weapons live in `art/base_art.gd`, fused weapons in `art/fused_art.gd`. To give a weapon its own art add `func draw_<id>(p: Paint, t: int) -> void` to one of them;
+  the dispatcher finds it by name. A weapon without that function falls back to the old glow overlay of `WeaponArt._compose`.
+- FUSED weapons are drawn from scratch: `draw_<fused id>` gets an empty canvas and never receives or composes the parents' icons. Optional `func size_<id>() -> int`
+  gives another canvas size. Tier 1 of a weapon stays its icon file (WeaponArt returns the PNG at tier 1); tiers 2+ use the drawings, with only a faint glow at 5 and 6.
+- Everything that shows a weapon calls `WeaponArt.hud_icon(id, tier, path)`: the code-drawn weapon (`Weapon._attach_visual`), the HUD inventory slot, the split-screen /
+  LAN slots (`weapon_slots.gd`), and the weapon cards (codex, Forge, draws, rewards: `WeaponCard.icon`).
+- Contact sheet: `tools/make_weapon_tier_art.gd -- ids=a,b out=/path.png scale=6`. Test: `tools/tests/weapon_art.gd`.

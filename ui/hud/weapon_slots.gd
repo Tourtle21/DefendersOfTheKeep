@@ -10,7 +10,6 @@ var hint := ""                 # e.g. "D-pad down: merge Spear + Hammer" when tw
 var hint_ok := true
 var hint_cost := {}            # the merge cost, drawn as resource icons after the hint text
 var hint_tail := ""            # e.g. "(not enough in the keep)"
-var _icons := {}
 const FRAME_TEX := preload("res://ui/hud/inventory.png")
 
 func _init() -> void:
@@ -43,10 +42,9 @@ func _draw() -> void:
 		var info: Dictionary = Game.weapon_info(entry)
 		var path: String = info.get("texture", "")
 		if path != "":
-			if !_icons.has(path):
-				_icons[path] = load(path)
+			var tex: Texture2D = WeaponArt.hud_icon(str(info.id), Game.weapon_tier_of(entry), path)      # the tier's own drawing
 			var isz := 112.0 * k
-			draw_texture_rect_region(_icons[path], Rect2(rect.position + (rect.size - Vector2(isz, isz)) / 2.0, Vector2(isz, isz)), Rect2(0, 0, 32, 32))
+			draw_texture_rect(tex, Rect2(rect.position + (rect.size - Vector2(isz, isz)) / 2.0, Vector2(isz, isz)), false)
 		var fs := int(20.0 * k * 1.6)
 		var label := "T%d" % Game.weapon_tier_of(entry)
 		var at := rect.position + Vector2(6.0 * k, frame - 6.0 * k)
