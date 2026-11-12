@@ -34,6 +34,14 @@ static func effect_time(s, base: float) -> float:
 			return 1.6 if tier_of(s) >= 5 else base
 		"gold_magnet":
 			return MAGNET_STORM_TIME if tier_of(s) >= 5 else base
+		"charm":
+			var t := tier_of(s)
+			if t >= 5:
+				return maxf(6.0, float(s.data.get("duration", 6.0)))
+			if t >= 3:
+				return maxf(3.0, float(s.data.get("duration", 6.0)) * 0.5)
+			if t >= 2:
+				return 1.0
 	return base
 
 ## Runs once when the spell lands, right after its additions: the extra effects and sounds of the tier.
@@ -59,6 +67,8 @@ static func tick(s, delta: float) -> void:
 			tick_gold_magnet(s, tier_of(s), delta)
 		"aegis":
 			tick_aegis(s, tier_of(s), delta)
+		"charm":
+			tick_charm(s, tier_of(s), delta)
 
 # ---------------------------------------------------------------- Fireball
 
@@ -577,3 +587,95 @@ static func tick_aegis(s, tier: int, delta: float) -> void:
 				e.spell_damage(3.0 * AEGIS_PULSE[5], "", true)
 				if is_instance_valid(e) and e.has_method("push"):
 					e.push((away.normalized() if away.length() > 0.5 else Vector2.RIGHT) * 160.0, 0.25)
+
+# ---------------------------------------------------------------- Charm
+
+const CHARM_BLAST := [0.0, 0.0, 0.0, 4.0, 7.0, 12.0]
+const CHARM_SPREAD_MAX := 6
+const CHARM_POWER := [1.0, 1.5, 1.5, 1.5, 1.5, 1.5]
+const PINK := Color(1.0, 0.5, 0.7)
+
+static func _can_charm(e) -> bool:
+	return is_instance_valid(e) and e.has_method("charm") and !(e.get("charm_time") != null and e.charm_time > 0.0)
+
+## Landing: charm what is in the area (with the tier's devotion), and from tier 6 crown a Favourite. Returns whether the spell stays to be drawn / keep working.
+static func land_charm(s) -> bool:
+	var dur: float = s.data.get("duration", 6.0)
+	if String(s.data.get("id", "")) != "charm":
+		for e in s._in_radius("enemy"):
+			if e.has_method("charm"):
+				e.charm(dur)
+		return false
+	var tier := tier_of(s)
+	var w: Node = s.get_parent()
+	var blast: float = CHARM_BLAST[tier - 1]
+	var best = null
+	for e in s._in_radius("enemy"):
+		if e.has_method("charm"):
+			e.charm(dur, CHARM_POWER[tier - 1], blast)
+			if best == null or float(e.max_health) > float(best.max_health):
+				best = e
+	if tier >= 2:
+		WeaponFx.spawn(w, "motes", s.position, PINK, {"radius": s.radius, "count": 8, "rise": 30.0, "life": 0.9})
+		WeaponFx.spawn(w, "star", s.position, Color(1.0, 0.75, 0.85), {"radius": s.radius * 0.6, "count": 5, "spin": 1.0, "life": 0.4})
+		Sfx.play("cast")
+	if tier >= 6 and !is_copy(s):
+		WeaponFx.spawn(w, "flash", s.position, Color(1.0, 0.7, 0.6), {"radius": s.radius, "life": 0.4})
+		WeaponFx.spawn(w, "ripple", s.position, Color(1.0, 0.85, 0.4), {"radius": s.radius * 1.4, "rings": 3, "life": 0.7})
+		WeaponFx.spawn(w, "star", s.position, Color(1.0, 0.85, 0.4), {"radius": s.radius, "count": 8, "spin": 1.0, "life": 0.5})
+		Sfx.play("ultimate")
+		if best != null:                                             # royal decree: the strongest becomes the Favourite
+			best.charm(dur * 2.0, 3.0 * (1.25 if "potent" in s.data.get("adds", []) else 1.0), blast)
+			best.charm_time = maxf(best.charm_time, dur * 2.0)
+			if best._charm_scale == 1.0:
+				best.scale *= 1.3
+				best._charm_scale = 1.3
+			s._fav = best
+			s.favourite_on = true
+			s.favourite_pos = best.global_position
+	return tier >= 2
+
+static func tick_charm(s, tier: int, delta: float) -> void:
+	var since: float = s.age - s.flight
+	var dur: float = s.data.get("duration", 6.0)
+	var w: Node = s.get_parent()
+	var c: Vector2 = s.global_position
+	if tier >= 3 and since < maxf(3.0, dur * 0.5):                    # charm field: whoever steps in is charmed too
+		s._field_t += delta
+		if s._field_t >= 0.2:
+			s._field_t = 0.0
+			for e in s._in_radius("enemy"):
+				if _can_charm(e):
+					e.charm(dur, CHARM_POWER[tier - 1], CHARM_BLAST[tier - 1])
+					WeaponFx.spawn(w, "burst", e.global_position, PINK, {"radius": 10.0, "life": 0.2})
+	if tier >= 5:                                                    # contagion: charmed enemies infect a neighbour
+		s._pulse_t += delta
+		if s._pulse_t >= 0.5:
+			s._pulse_t = 0.0
+			for a in s.get_tree().get_nodes_in_group("ally"):
+				if s._spread >= CHARM_SPREAD_MAX:
+					break
+				if !is_instance_valid(a) or a.get("charm_time") == null or a.charm_time <= 0.0:
+					continue
+				var victim = null
+				for e in s.get_tree().get_nodes_in_group("enemy"):
+					if _can_charm(e) and e.global_position.distance_to(a.global_position) <= 32.0 and (victim == null or e.global_position.distance_to(a.global_position) < victim.global_position.distance_to(a.global_position)):
+						victim = e
+				if victim != null:
+					s._spread += 1
+					victim.charm(3.0, 1.0, 0.0)
+					var to: Vector2 = victim.global_position - a.global_position
+					WeaponFx.spawn(w, "line", a.global_position, PINK, {"dir": to.normalized(), "length": to.length(), "width": 2.0, "life": 0.25})
+					WeaponFx.spawn(w, "burst", victim.global_position, PINK, {"radius": 10.0, "life": 0.2})
+					Sfx.play("whoosh")
+	if tier >= 6 and s.favourite_on:                                  # the Favourite: crowned, and it leaves a trail
+		var f = s._fav
+		if f == null or !is_instance_valid(f) or f.get("dead") == true or f.charm_time <= 0.0:
+			s.favourite_on = false
+			s._fav = null
+		else:
+			s.favourite_pos = f.global_position
+			s._sfx_t -= delta
+			if s._sfx_t <= 0.0:
+				s._sfx_t = 0.5
+				WeaponFx.spawn(w, "burst", f.global_position, PINK, {"radius": 10.0, "life": 0.25})

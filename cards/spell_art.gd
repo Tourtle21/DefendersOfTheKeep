@@ -13,7 +13,7 @@ static func jit(i: int, salt := 0.0) -> float:
 
 ## Cards that have their own body art here: the plain fill and rings are drawn softer under it.
 static func has_body(id: String) -> bool:
-	return id in ["fireball", "frost_ring", "flare", "rejuvenation", "gold_magnet", "aegis"]
+	return id in ["fireball", "frost_ring", "flare", "rejuvenation", "gold_magnet", "aegis", "charm"]
 
 static func draw_flight(s, t: float, col: Color) -> void:
 	match String(s.data.get("id", "")):
@@ -36,6 +36,8 @@ static func draw(s, since: float, col: Color) -> void:
 			draw_gold_magnet(s, since, col)
 		"aegis":
 			draw_aegis(s, since, col)
+		"charm":
+			draw_charm(s, since, col)
 
 ## A flame as one polygon: a wide base, a belly, and a tip that leans with `sway`.
 static func flame(s, base: Vector2, w: float, h: float, col: Color, sway := 0.0) -> void:
@@ -478,3 +480,76 @@ static func draw_aegis(s, since: float, _col: Color) -> void:
 		if tier < 5:
 			s.draw_line(Vector2(0, -7 + hov), Vector2(0, 5 + hov), Color(WARD_GOLD, fade), 2.0)
 			s.draw_line(Vector2(-5, -2 + hov), Vector2(5, -2 + hov), Color(WARD_GOLD, fade), 2.0)
+
+# ---------------------------------------------------------------- Charm
+
+const PINK := Color(1.0, 0.5, 0.7)
+const ROSE := Color(1.0, 0.75, 0.85)
+const MINT := Color(0.5, 1.0, 0.7)
+const CROWN_GOLD := Color(1.0, 0.85, 0.4)
+
+## A heart: two round lobes and a point.
+static func heart(canvas, p: Vector2, size: float, col: Color) -> void:
+	canvas.draw_circle(p + Vector2(-size * 0.5, -size * 0.3), size * 0.55, col)
+	canvas.draw_circle(p + Vector2(size * 0.5, -size * 0.3), size * 0.55, col)
+	canvas.draw_colored_polygon(PackedVector2Array([p + Vector2(-size * 1.0, -size * 0.1), p + Vector2(size * 1.0, -size * 0.1), p + Vector2(0, size * 1.0)]), col)
+
+static func heart_outline(canvas, p: Vector2, size: float, rot: float, col: Color, width: float) -> void:
+	var pts := PackedVector2Array()
+	for i in 25:
+		var t := i * TAU / 24.0
+		var x := 16.0 * pow(sin(t), 3.0)
+		var y := -(13.0 * cos(t) - 5.0 * cos(2.0 * t) - 2.0 * cos(3.0 * t) - cos(4.0 * t))
+		pts.append(p + Vector2(x, y).rotated(rot) * size / 16.0)
+	canvas.draw_polyline(pts, col, width)
+
+static func draw_charm(s, since: float, _col: Color) -> void:
+	var tier := int(s.data.get("tier", 1))
+	if tier < 2:
+		return
+	var r: float = s.radius
+	var life: float = s.effect_time
+	var fade := clampf((life - since) / 0.6, 0.0, 1.0)
+	# tier 2: hearts round the rim, a faint heart in the middle, and a heart rising from each charmed enemy
+	for i in 6:
+		heart(s, Vector2.from_angle(i * TAU / 6.0) * r, 2.5, Color(PINK, 0.9 * fade))
+	heart_outline(s, Vector2.ZERO, r * 0.4, 0.0, Color(PINK, 0.35 * fade), 1.0)
+	if since < 1.0:
+		for e in s.get_tree().get_nodes_in_group("enemy"):
+			if is_instance_valid(e) and e.get("charm_time") != null and e.charm_time > 0.0 and e.global_position.distance_to(s.global_position) <= r + 10.0:
+				heart(s, e.global_position - s.global_position + Vector2(0, -14.0 - 14.0 * since), 3.0, Color(PINK, 1.0 - since))
+	if tier >= 3:                                                   # a pulsing field, three dashed rings turning opposite ways, rising hearts
+		s.draw_circle(Vector2.ZERO, r, Color(MINT.lerp(PINK, 0.5 + 0.3 * sin(since * 4.0)), 0.12 * fade))
+		for k in 3:
+			var rr := r * (0.9 - 0.2 * k)
+			var dir := 1.0 if k % 2 == 0 else -1.0
+			for i in 16:
+				var a := dir * since * 0.8 + i * TAU / 16.0
+				s.draw_arc(Vector2.ZERO, rr, a, a + 0.14, 3, Color(PINK, 0.5 * fade), 1.0)
+		for i in 6:
+			var u := fposmod(since * 0.4 + jit(i), 1.0)
+			heart(s, Vector2.from_angle(jit(i, 2.0) * TAU) * r * 0.8 * jit(i, 3.0) + Vector2(0, -u * 20.0), 2.0, Color(PINK, 0.8 * (1.0 - u) * fade))
+	if tier >= 4:                                                   # a big turning heart and eight spark hearts
+		heart_outline(s, Vector2.ZERO, r * 0.5, sin(since) * 0.3, Color(PINK, 0.9 * fade), 2.0)
+		heart_outline(s, Vector2.ZERO, r * 0.45, sin(since) * 0.3, Color(1, 1, 1, 0.4 * fade), 1.0)
+		for i in 8:
+			heart(s, Vector2.from_angle(since * 1.1 + i * TAU / 8.0) * r * 0.7, 1.8, Color(ROSE, 0.9 * fade))
+	if tier >= 5:                                                   # pink vapour and petals on the rim
+		for i in 10:
+			var vp := Vector2(sin(since * 0.4 + jit(i) * 6.0), cos(since * 0.3 + jit(i, 1.0) * 6.0)) * r * 0.7 * jit(i, 2.0)
+			s.draw_circle(vp, 5.0 + 4.0 * jit(i, 3.0), Color(PINK, 0.12 * fade))
+		for i in 12:
+			var d := Vector2.from_angle(i * TAU / 12.0)
+			s.draw_colored_polygon(PackedVector2Array([d * r, d * (r + 7.0) + d.orthogonal() * 3.0, d * (r + 11.0), d * (r + 7.0) - d.orthogonal() * 3.0]), Color(ROSE, 0.6 * fade))
+	if tier >= 6:                                                   # a gold field, falling hearts, and a crown over the Favourite
+		s.draw_circle(Vector2.ZERO, r, Color(CROWN_GOLD, 0.1 * fade))
+		for i in 24:
+			var a2 := since * 0.5 + i * TAU / 24.0
+			s.draw_arc(Vector2.ZERO, r * 1.02, a2, a2 + 0.14, 3, Color(CROWN_GOLD, 0.8 * fade), 1.5)
+		for i in 16:
+			var u2 := fposmod(since * 0.25 + jit(i, 4.0), 1.0)
+			heart(s, Vector2((jit(i, 5.0) - 0.5) * r * 1.6, -r * 0.6 + u2 * r * 1.2), 2.0, Color(CROWN_GOLD, 0.8 * sin(u2 * PI) * fade))
+		if s.favourite_on:
+			var fp: Vector2 = s.favourite_pos - s.global_position + Vector2(0, -22.0)
+			s.draw_colored_polygon(PackedVector2Array([fp + Vector2(-5, 4), fp + Vector2(-5, -3), fp + Vector2(-2.5, 0), fp + Vector2(0, -5), fp + Vector2(2.5, 0), fp + Vector2(5, -3), fp + Vector2(5, 4)]), CROWN_GOLD)
+			s.draw_arc(fp + Vector2(0, 2), 12.0, 0, TAU, 20, Color(CROWN_GOLD, 0.8), 1.5)

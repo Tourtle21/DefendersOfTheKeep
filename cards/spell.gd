@@ -25,6 +25,11 @@ var _seen := {}
 var _finale_done := false
 var _ray_hit := {}
 var _landed_fx := false
+var _spread := 0
+var _fav = null
+var _field_t := 0.0
+var favourite_pos := Vector2.ZERO     # tier 6 Charm: where the Favourite is (public, so a client draws the crown)
+var favourite_on := false
 var _repel_t := 0.0
 var _pulse_t := 0.0
 var _sfx_t := 0.0
@@ -178,12 +183,11 @@ func _physics_process(delta: float) -> void:
 				queue_free()
 				return
 			elif data.kind == "charm":
-				for e in _in_radius("enemy"):
-					if e.has_method("charm"):
-						e.charm(data.duration)
+				var stays := SpellTiers.land_charm(self)
 				WeaponFx.spawn(get_parent(), "ring", position, Color(0.5, 1.0, 0.7), {"radius": radius, "life": 0.5})
-				queue_free()
-				return
+				if !stays:
+					queue_free()
+					return
 			elif data.kind == "magnet":
 				SpellTiers.magnet_sweep(self, SpellTiers.tier_of(self), radius * (SpellTiers.MAGNET_REACH if SpellTiers.tier_of(self) >= 2 else 1.0))
 		queue_redraw()

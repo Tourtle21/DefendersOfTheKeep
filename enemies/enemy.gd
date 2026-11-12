@@ -28,6 +28,9 @@ var knock_time = 0.0
 var slow_time = 0.0
 var charm_time = 0.0     # >0: fights for the defenders (Charm card)
 var _charm_hit := 0.0
+var charm_power := 1.0   # a charmed enemy's devotion: hits this much harder (Charm card tiers)
+var charm_blast := 0.0   # > 0: when it dies charmed, it bursts and hurts the enemies that are not charmed (Heartbreak)
+var _charm_scale := 1.0  # (the Favourite of a Royal Decree is bigger while charmed)
 var _unstick := Unstick.new()
 
 # --- fighting back: enemies notice you, turn on you when hit, and have a move of their own ---
@@ -360,10 +363,12 @@ func apply_affix(a: String) -> void:
 	queue_redraw()
 
 ## Charmed enemies hunt the nearest other enemy instead of the keep.
-func charm(time: float) -> void:
+func charm(time: float, power := 1.0, blast := 0.0) -> void:
 	if dead:
 		return
 	charm_time = max(charm_time, time)
+	charm_power = maxf(charm_power, power)
+	charm_blast = maxf(charm_blast, blast)
 	$Sprite2D.modulate = Color(0.6, 1.0, 0.7)
 	aggro_left = 0.0                      # whatever it was fighting, it is on your side now
 	aggro_target = null
@@ -376,6 +381,11 @@ func _charmed(delta: float) -> void:
 	if charm_time <= 0.0:
 		$Sprite2D.modulate = Color(1, 1, 1)
 		remove_from_group("ally")
+		charm_power = 1.0
+		charm_blast = 0.0
+		if _charm_scale != 1.0:
+			scale /= _charm_scale
+			_charm_scale = 1.0
 		return
 	var best = null
 	for e in get_tree().get_nodes_in_group("enemy"):
@@ -388,10 +398,10 @@ func _charmed(delta: float) -> void:
 		return
 	var to: Vector2 = best.global_position - global_position
 	if to.length() > 14.0:
-		Game.move_on_map(self, to.normalized() * speed * 1.4, delta)
+		Game.move_on_map(self, to.normalized() * speed * 1.4 * minf(charm_power, 1.15), delta)
 	elif _charm_hit <= 0.0:
 		_charm_hit = 0.6
-		best.spell_damage((2.0 + level) * power)
+		best.spell_damage((2.0 + level) * power * charm_power)
 	if velocity.x < 0 and $Sprite2D.scale.x > 0:
 		$Sprite2D.scale.x = -1
 	elif velocity.x > 0 and $Sprite2D.scale.x < 0:
@@ -424,6 +434,13 @@ func die() -> void:
 	if dead:
 		return
 	dead = true
+	if charm_time > 0.0 and charm_blast > 0.0:        # heartbreak: a charmed enemy that falls hurts the ones that are not charmed
+		WeaponFx.spawn(Game.world, "flash", global_position, Color(1.0, 0.5, 0.7), {"radius": 30.0, "life": 0.3})
+		WeaponFx.spawn(Game.world, "burst", global_position, Color(1.0, 0.5, 0.7), {"radius": 30.0, "life": 0.3})
+		Sfx.play("big_hit")
+		for e in get_tree().get_nodes_in_group("enemy"):
+			if e != self and is_instance_valid(e) and e.global_position.distance_to(global_position) <= 40.0 and !(e.get("charm_time") != null and e.charm_time > 0.0):
+				e.spell_damage(charm_blast, "", true)
 	Game.record_kill()
 	WeaponFx.spawn(Game.world, "burst", global_position, Color(1.0, 0.85, 0.6), {"radius": 14.0, "life": 0.3})
 	GoldCoin.spawn(get_parent().get_parent(), global_position, randi_range(1, 2) + level - 1)

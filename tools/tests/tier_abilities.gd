@@ -68,7 +68,7 @@ func _initialize() -> void:
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("only="):
 			only = a.substr(5)
-	for id in ["fireball", "frost_ring", "flare", "rejuvenation", "gold_magnet", "aegis"]:
+	for id in ["fireball", "frost_ring", "flare", "rejuvenation", "gold_magnet", "aegis", "charm"]:
 		if only == "" or only == id:
 			await call(id)
 			await clear()
@@ -546,3 +546,78 @@ func aegis() -> void:
 	rect.size.x = 228.0
 	p.global_position = Vector2(0, 700)
 	ok("tier 6 heals players inside and ends in a shatter that hurts and shoves, a copy does not shatter (%s)" % str(sa), sa[false][0] > 2.0 and sa[false][1] > 5.0 and sa[false][2] > 100.0 and sa[true][1] == 0.0)
+
+# ================================================================== Charm
+func charm() -> void:
+	print("-- charm")
+	var c := Vector2(0, 300)
+	var is_charmed := func(e) -> bool: return is_instance_valid(e) and e.charm_time > 0.0
+	# Infatuation (tier 2)
+	var inf := {}
+	for t in [1, 2]:
+		var e = dummy(c + Vector2(10, 0))
+		spell("charm", t, c)
+		await wait(0.4)
+		inf[t] = e.charm_power
+		await clear()
+	ok("tier 2 charms with devotion (charm_power 1.5), tier 1 does not (%s)" % str(inf), inf[2] == 1.5 and inf[1] == 1.0)
+	# Charm field (tier 3): an enemy that arrives later is charmed
+	var cf := {}
+	for t in [2, 3]:
+		var s0 = spell("charm", t, c)
+		await wait(0.5)
+		var late = dummy(c + Vector2(10, 0))
+		await wait(1.0)
+		cf[t] = is_charmed.call(late)
+		await clear()
+	ok("tier 3 keeps charming whoever steps in, tier 2 does not (%s)" % str(cf), cf[3] and !cf[2])
+	# Heartbreak (tier 4): a charmed enemy that dies hurts its uncharmed neighbour
+	var hb := {}
+	for t in [3, 4]:
+		var a = dummy(c, 1.0)
+		var b = dummy(c + Vector2(20, 0))
+		var s0 = spell("charm", t, c, true, {"duration": 20.0})
+		await wait(0.4)
+		b.charm_time = 0.0
+		b.charm_power = 1.0
+		b.remove_from_group("ally")
+		a.spell_damage(5.0)
+		await wait(0.2)
+		hb[t] = snappedf(dealt(b), 0.1)
+		await clear()
+	ok("tier 4 heartbreak: a charmed enemy's death hurts its neighbour, tier 3 does not (%s)" % str(hb), hb[4] >= 3.9 and hb[3] == 0.0)
+	# Contagion (tier 5): the charm spreads along a row
+	var ct := {}
+	for t in [4, 5]:
+		var row := []
+		for i in 3:
+			row.append(dummy(c + Vector2(i * 25.0, 0)))
+		var s0 = spell("charm", t, c, true, {"radius": 12.0, "duration": 20.0})
+		await wait(3.0)
+		ct[t] = row.map(func(e): return is_charmed.call(e))
+		await clear()
+	ok("tier 5: charm spreads to neighbours; tier 4 only the first is charmed (%s)" % str(ct), ct[5].all(func(x): return x) and ct[4][0] and !ct[4][2])
+	# Royal decree (tier 6): the strongest becomes the Favourite
+	var rd := {}
+	for cp in [false, true]:
+		var weak = dummy(c + Vector2(-10, 0), 50.0)
+		var strong = dummy(c + Vector2(10, 0), 500.0)
+		strong.max_health = 500.0
+		weak.max_health = 50.0
+		var s0 = spell("charm", 6, c, true, {"duration": 10.0, "copy": cp})
+		await wait(0.5)
+		rd[cp] = [strong.charm_power, snappedf(strong.scale.x / weak.scale.x, 0.01), s0.favourite_on and s0.favourite_pos.distance_to(strong.global_position) < 20.0]
+		await clear()
+	ok("tier 6 crowns the strongest enemy as the Favourite (power 3, bigger), a copy does not (%s)" % str(rd), rd[false][0] >= 3.0 and rd[false][1] > 1.25 and rd[false][2] and rd[true][0] < 3.0)
+	var boss_ok := true
+	var bs = load("res://enemies/boss/boss.tscn")
+	if bs != null:
+		var bsi = bs.instantiate()
+		bsi.position = c
+		world.add_child(bsi)
+		spell("charm", 6, c)
+		await wait(0.5)
+		boss_ok = is_instance_valid(bsi)
+		bsi.queue_free()
+		await clear()
+	ok("a boss in the area is left alone without errors", boss_ok)
