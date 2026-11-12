@@ -48,6 +48,12 @@ var vis := {}               # card-specific things a client must draw (plain num
 var _tdata := {}             # host-only per-card state of the second batch of tier abilities (cards/structure_tiers_c.gd)
 var invuln_view := false   # barricade tier 6: untouchable for a moment (the drawing shows a dome)
 var _wind_used := false
+var _focus_id := 0          # sentry tier 3: the target it has been shooting, and how many shots in a row
+var _focus_n := 0
+var _mark_id := 0           # sentry tier 6: the enemy it has marked
+var mark_pos := Vector2.ZERO  # ... where it is (public, so a client draws the mark)
+var mark_on := false
+var alert := false          # sentry tier 5: a visible enemy is weak enough to be executed (the eye glows)
 
 func setup(card: Dictionary, pos: Vector2) -> void:
 	data = card
@@ -288,6 +294,9 @@ func _physics_process(delta: float) -> void:
 				for e in _near_enemies(data.range):
 					if !Game.defence_sees(e, global_position):
 						continue                      # in the dark it only sees what is lit (a torch next to it helps)
+					if StructureTiers.prefer(self, e):
+						best = e                      # (a marked enemy comes first)
+						break
 					if best == null or e.global_position.distance_to(global_position) < best.global_position.distance_to(global_position):
 						best = e
 				if best != null:

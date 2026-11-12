@@ -22,6 +22,9 @@ static func draw(st, col: Color) -> bool:
 		"torch":
 			draw_torch(st, col)
 			return true
+		"sentry":
+			draw_sentry(st, col)
+			return true
 		_:
 			return false
 
@@ -315,3 +318,105 @@ static func draw_torch(st, _col: Color) -> void:
 	if st.fx_pulse < 0.3:
 		st.draw_arc(Vector2.ZERO, TORCH_ARC_R, 0, TAU, 24, Color(1.0, 0.7, 0.3, 0.8 * (1.0 - st.fx_pulse / 0.3)), 1.5)
 const TORCH_ARC_R := 20.0
+
+# ---------------------------------------------------------------- Sentry
+const SENTRY_PIPS := 6
+const BOLT := Color(1.0, 0.95, 0.7)
+const STEEL := Color(0.65, 0.68, 0.75)
+
+## A ring of `n` dashes round the structure.
+static func dashed_ring(st, r: float, col: Color, n: int, spin := 0.0) -> void:
+	for i in n:
+		var a := spin + i * TAU / float(n)
+		st.draw_arc(Vector2.ZERO, r, a, a + TAU / float(n) * 0.5, 4, col, 1.0)
+
+const DARK_STEEL := Color(0.3, 0.32, 0.38)
+
+## Which way a turret faces: where it last shot, drifting a little when idle.
+static func facing(st) -> Vector2:
+	var base: Vector2 = st.aim if st.aim != Vector2.ZERO else Vector2.from_angle(-PI / 2.0)
+	if st.shot_t > 0.0:
+		return base
+	return base.rotated(0.35 * sin(st._age * 0.8))
+
+static func draw_sentry(st, col: Color) -> void:
+	var t: int = st.tier
+	var age: float = st._age
+	var dir := facing(st)
+	var perp := dir.orthogonal()
+	var head := Vector2(0, -5.0)
+	var recoil: float = 2.0 * clampf(st.shot_t / 0.12, 0.0, 1.0) if t >= 4 else 0.0
+	var top := -3.0 - (6.0 if t >= 6 else 0.0)
+	if t >= 2:                                                    # a stone footing
+		st.draw_colored_polygon(PackedVector2Array([Vector2(-10, 7), Vector2(-7, 10), Vector2(7, 10), Vector2(10, 7), Vector2(7, 5), Vector2(-7, 5)]), Color(0.55, 0.55, 0.58))
+	if t >= 4:                                                    # tripod legs
+		for sx in [-1.0, 1.0]:
+			st.draw_line(Vector2(sx * 5, 6), Vector2(sx * 9, 11), Color.BLACK, 2.0)
+			st.draw_line(Vector2(sx * 5, 6), Vector2(sx * 9, 11), DARK_STEEL, 1.0)
+	if t >= 6:                                                    # laurel wings and a faint range ring
+		for sx in [-1.0, 1.0]:
+			st.draw_colored_polygon(PackedVector2Array([Vector2(sx * 7, -1), Vector2(sx * 15, -9), Vector2(sx * 12, -2), Vector2(sx * 15, 3), Vector2(sx * 8, 4)]), Color(1.0, 0.85, 0.4, 0.85))
+			st.draw_polyline(PackedVector2Array([Vector2(sx * 7, -1), Vector2(sx * 15, -9), Vector2(sx * 12, -2), Vector2(sx * 15, 3), Vector2(sx * 8, 4)]), Color.BLACK, 1.0)
+		dashed_ring(st, float(st.data.get("range", 110.0)), Color(1.0, 0.9, 0.6, 0.15), 40)
+	# the post
+	box(st, Rect2(-7, top, 14, 10.0 - top - 3.0 + 0.0), col.darkened(0.3))
+	if t >= 3:                                                    # brass bands
+		for y in [top + 2.0, 4.0]:
+			st.draw_line(Vector2(-6, y), Vector2(6, y), col, 1.0)
+	if t >= 5:                                                    # bolted steel plates, a black and gold stripe
+		for sx in [-1.0, 1.0]:
+			st.draw_rect(Rect2(sx * 3.5 - 2.0, top + 1.0, 4, 7.0 - top - 3.0 + 3.0), STEEL.darkened(0.15))
+			st.draw_line(Vector2(sx * 3.5 - 2.0, top + 1.0), Vector2(sx * 3.5 + 2.0, top + 1.0), Color.WHITE, 1.0)
+			rivet(st, Vector2(sx * 3.5, top + 3.0), STEEL.lightened(0.4), 0.7)
+		st.draw_line(Vector2(-7, 2), Vector2(7, 2), Color.BLACK, 1.5)
+		st.draw_line(Vector2(-7, 3.2), Vector2(7, 3.2), GOLD, 1.0)
+	if t >= 6:                                                    # a roof, a banner and glowing runes
+		st.draw_colored_polygon(PackedVector2Array([Vector2(-9, top), Vector2(0, top - 9), Vector2(9, top)]), Color(0.45, 0.3, 0.25))
+		st.draw_polyline(PackedVector2Array([Vector2(-9, top), Vector2(0, top - 9), Vector2(9, top), Vector2(-9, top)]), GOLD, 1.0)
+		st.draw_line(Vector2(0, top - 9), Vector2(0, top - 15), Color.BLACK, 1.5)
+		var wv := sin(age * 3.0)
+		st.draw_colored_polygon(PackedVector2Array([Vector2(0, top - 15), Vector2(6 + wv, top - 14), Vector2(0, top - 11)]), Color(0.4, 0.7, 1.0))
+		for i in 3:
+			st.draw_line(Vector2(-5 + i * 5, top + 3.0), Vector2(-5 + i * 5, top + 7.0), Color(0.7, 0.9, 1.0, 0.5 + 0.4 * sin(age * 3.0 + i)), 1.0)
+	# the head: a crossbow from tier 2
+	var hc := head - dir * recoil
+	st.draw_circle(hc, 5.5, Color.BLACK)
+	st.draw_circle(hc, 4.5, col)
+	if t >= 2:
+		var front := hc + dir * 7.0
+		var limb := [front + perp * 7.0 - dir * 3.0, front + perp * 3.5 - dir * 0.6, front, front - perp * 3.5 - dir * 0.6, front - perp * 7.0 - dir * 3.0]
+		st.draw_polyline(PackedVector2Array(limb), Color.BLACK, 3.0)
+		st.draw_polyline(PackedVector2Array(limb), STEEL, 1.6)
+		st.draw_line(limb[0], limb[4], Color(0.95, 0.95, 0.9, 0.7), 1.0)
+		st.draw_line(hc, front + dir * 3.0, Color.BLACK, 3.0)
+		st.draw_line(hc, front + dir * 3.0, BOLT if st.shot_t <= 0.0 else Color(0.5, 0.45, 0.3), 1.4)
+		if t >= 3:                                                # a scope with a glinting lens
+			var s0 := hc + perp * 3.0 + dir * 1.0
+			st.draw_line(s0, s0 + dir * 6.0, Color.BLACK, 3.0)
+			st.draw_line(s0, s0 + dir * 6.0, STEEL.darkened(0.2), 1.8)
+			st.draw_circle(s0 + dir * 6.0, 1.3, Color(0.6, 0.9, 1.0, 0.6 + 0.4 * sin(age * 4.0)))
+		if t >= 5:                                                # a red eye that burns when something can be executed
+			st.draw_circle(hc, 2.0, Color(1.0, 0.3, 0.25, 1.0 if st.alert else 0.4))
+	if t >= 4:                                                    # a quiver of five arrows
+		for i in 5:
+			var x := 9.0 + i * 1.3
+			st.draw_line(Vector2(x, -4), Vector2(x + 1.0, 5), Color(0.8, 0.7, 0.5), 1.0)
+			st.draw_line(Vector2(x, -4), Vector2(x - 1.0, -6), Color(0.9, 0.3, 0.3), 1.0)
+	if t >= 3:                                                    # focus pips
+		for i in SENTRY_PIPS:
+			var lit: bool = i < int(round(st.charge * SENTRY_PIPS))
+			st.draw_circle(Vector2((i - 2.5) * 3.6, -16.0 - (6.0 if t >= 6 else 0.0)), 1.3, Color(1.0, 0.85, 0.4) if lit else Color(0.2, 0.2, 0.25, 0.8))
+	if st.shot_t > 0.0:                                           # the shot
+		var to: Vector2 = st.shot_to - st.global_position
+		st.draw_line(hc + dir * 7.0, to, Color(col.lightened(0.5), 0.9) if t == 1 else Color(1.0, 0.95, 0.7, 0.9), 2.0)
+	if t >= 6 and st.mark_on:                                     # the mark on its prey
+		var mp: Vector2 = st.mark_pos - st.global_position
+		var pulse := 1.0 + 0.15 * sin(age * 8.0)
+		st.draw_arc(mp, 7.0 * pulse, 0, TAU, 16, Color(1.0, 0.3, 0.25, 0.9), 1.5)
+		for i in 4:
+			var d := Vector2.from_angle(i * PI / 2.0)
+			st.draw_line(mp + d * 5.0 * pulse, mp + d * 10.0 * pulse, Color(1.0, 0.3, 0.25, 0.9), 1.5)
+		var dist := mp.length()
+		if dist > 14.0:
+			for i in int(dist / 8.0):
+				st.draw_circle(mp.normalized() * (8.0 + i * 8.0) + Vector2(0, -5), 0.7, Color(1.0, 0.4, 0.3, 0.45))

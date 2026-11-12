@@ -210,6 +210,8 @@ static func tick(st, delta: float) -> void:
 			tick_spike_trap(st, delta)
 		"torch":
 			tick_torch(st, delta)
+		"sentry":
+			tick_sentry(st, delta)
 		_:
 			pass
 
@@ -244,6 +246,8 @@ static func shot_mult(st, target) -> float:
 	match id_of(st):
 		"crystal_pylon", "storm_spire", "magma_wall", "venom_tower", "prism_tower", "healing_grove", "sunspire", "phoenix_shrine":
 			return C.shot_mult(st, target)
+		"sentry":
+			return shot_mult_sentry(st, target)
 		_:
 			return 1.0
 
@@ -252,8 +256,18 @@ static func on_shot(st, target) -> void:
 	match id_of(st):
 		"crystal_pylon", "storm_spire", "magma_wall", "venom_tower", "prism_tower", "healing_grove", "sunspire", "phoenix_shrine":
 			C.on_shot(st, target)
+		"sentry":
+			on_shot_sentry(st, target)
 		_:
 			pass
+
+## Sentry family: true for a target the turret should shoot before any other (a marked enemy).
+static func prefer(st, e) -> bool:
+	match id_of(st):
+		"sentry":
+			return st.mark_on and e.get_instance_id() == st._mark_id
+		_:
+			return false
 
 ## Spike trap: after the enemies on the plate were hit (`hit` is that array).
 static func on_trigger(st, hit: Array) -> void:
@@ -540,3 +554,93 @@ static func tick_torch(st, delta: float) -> void:
 static func on_promote_torch(st, new_tier: int) -> void:
 	if new_tier >= 6 and st._glow != null:
 		st._glow.color = glow_color(st, st._glow.color)
+
+# ---------------------------------------------------------------- Sentry
+const SENTRY_PIERCE := 0.6
+const SENTRY_PIERCE_LEN := 45.0
+const SENTRY_FOCUS := 0.15
+const SENTRY_FOCUS_MAX := 6
+const SENTRY_VOLLEY_EVERY := 6
+const SENTRY_EXEC := 3.0
+const SENTRY_EXEC_AT := 0.25
+const SENTRY_MARK_T := 8.0
+const SENTRY_MARK_LEN := 6.0
+const BOLT := Color(1.0, 0.95, 0.7)
+const BRASS := Color(0.9, 0.8, 0.4)
+
+static func shot_mult_sentry(st, target) -> float:
+	var t: int = st.tier
+	var m := 1.0
+	if t >= 3:                                                     # 3 Focus fire: the same target again and again takes more
+		var id: int = target.get_instance_id()
+		if id != st._focus_id:
+			st._focus_id = id
+			st._focus_n = 0
+		else:
+			st._focus_n = mini(st._focus_n + 1, SENTRY_FOCUS_MAX)
+		m *= 1.0 + SENTRY_FOCUS * st._focus_n
+		st.charge = st._focus_n / float(SENTRY_FOCUS_MAX)
+	st._timers["exec"] = 0.0
+	if t >= 5 and float(target.health) <= SENTRY_EXEC_AT * float(target.max_health):     # 5 Executioner
+		m *= SENTRY_EXEC
+		st._timers["exec"] = 1.0
+	return m
+
+static func on_shot_sentry(st, target) -> void:
+	var t: int = st.tier
+	if t < 2 or !is_instance_valid(target):
+		return
+	var w := world_of(st)
+	var pos: Vector2 = st.global_position
+	var tp: Vector2 = target.global_position
+	var to: Vector2 = tp - pos
+	var dmg: float = st.data.damage
+	# 2 Piercing bolt: the bolt flies on and hits what stands behind the target
+	WeaponFx.spawn(w, "line", pos + Vector2(0, -5), BOLT, {"dir": to.normalized(), "length": to.length(), "width": 2.0, "life": 0.14})
+	for e in WeaponUtil.enemies_in_line(st.get_tree(), tp, st.aim, SENTRY_PIERCE_LEN, 6.0):
+		if e != target and !_dead(e):
+			e.spell_damage(dmg * SENTRY_PIERCE, st.data.get("element", ""))
+	WeaponFx.spawn(w, "burst", tp, BOLT, {"radius": 8.0 + 2.0 * st._focus_n if t >= 3 else 8.0, "life": 0.2})
+	sfx(st, "whoosh", 0.25)
+	if t >= 4 and st._shots % SENTRY_VOLLEY_EVERY == 0:             # 4 Volley: every sixth shot is a fan of five bolts
+		for k in range(-2, 3):
+			WeaponProjectile.shoot(w, pos + Vector2(0, -5), st.aim.rotated(k * 0.15), 320.0, dmg * 0.5, BRASS, 0.5, 0, 50.0)
+		WeaponFx.spawn(w, "ring", pos + Vector2(0, -5) + st.aim * 8.0, BRASS, {"radius": 14.0, "life": 0.25})
+		Sfx.play("big_hit")
+	if float(st._timers.get("exec", 0.0)) > 0.0:
+		WeaponFx.spawn(w, "flash", tp, Color(1.0, 0.45, 0.4), {"radius": 16.0, "life": 0.3})
+		WeaponFx.spawn(w, "shards", tp, Color(1.0, 0.4, 0.35), {"radius": 16.0, "count": 6, "life": 0.3})
+		Sfx.play("big_hit")
+
+static func tick_sentry(st, delta: float) -> void:
+	var t: int = st.tier
+	if t >= 5 and pace(st, "look", 0.25, delta):                   # the executioner's eye glows when something is weak enough
+		var weak := false
+		for e in enemies(st, st.data.range):
+			if float(e.health) <= SENTRY_EXEC_AT * float(e.max_health) and Game.defence_sees(e, st.global_position):
+				weak = true
+				break
+		st.alert = weak
+	if t >= 6:                                                      # 6 Hunter's mark: the toughest enemy in sight takes 40% more from everything
+		var now := Time.get_ticks_msec() / 1000.0
+		var m = instance_from_id(st._mark_id) if st._mark_id != 0 else null
+		if m != null and is_instance_valid(m) and !_dead(m) and m.has_meta("marked_until") and float(m.get_meta("marked_until")) > now:
+			st.mark_on = true
+			st.mark_pos = m.global_position
+		else:
+			st.mark_on = false
+		if pace(st, "mark", SENTRY_MARK_T, delta):
+			var pick = null
+			for e in enemies(st, st.data.range):
+				if Game.defence_sees(e, st.global_position) and (pick == null or float(e.max_health) > float(pick.max_health)):
+					pick = e
+			if pick != null:
+				pick.set_meta("marked_until", now + SENTRY_MARK_LEN)
+				st._mark_id = pick.get_instance_id()
+				st.mark_on = true
+				st.mark_pos = pick.global_position
+				var w := world_of(st)
+				WeaponFx.spawn(w, "star", pick.global_position, Color(1.0, 0.3, 0.25), {"radius": 12.0, "count": 4, "spin": 1.2, "life": 0.5})
+				var to: Vector2 = pick.global_position - st.global_position
+				WeaponFx.spawn(w, "line", st.global_position + Vector2(0, -5), Color(1.0, 0.35, 0.3), {"dir": to.normalized(), "length": to.length(), "width": 1.0, "life": 0.4})
+				Sfx.play("cast")
