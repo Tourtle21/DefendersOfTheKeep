@@ -13,7 +13,7 @@ static func jit(i: int, salt := 0.0) -> float:
 
 ## Cards that have their own body art here: the plain fill and rings are drawn softer under it.
 static func has_body(id: String) -> bool:
-	return id in ["fireball", "frost_ring"]
+	return id in ["fireball", "frost_ring", "flare"]
 
 static func draw_flight(s, t: float, col: Color) -> void:
 	match String(s.data.get("id", "")):
@@ -28,6 +28,8 @@ static func draw(s, since: float, col: Color) -> void:
 			draw_fireball(s, since, col)
 		"frost_ring":
 			draw_frost_ring(s, since, col)
+		"flare":
+			draw_flare(s, since, col)
 
 ## A flame as one polygon: a wide base, a belly, and a tip that leans with `sway`.
 static func flame(s, base: Vector2, w: float, h: float, col: Color, sway := 0.0) -> void:
@@ -196,3 +198,61 @@ static func draw_frost_ring(s, since: float, col: Color) -> void:
 		var left: float = life - since
 		if left < 1.0 and left > 0.0:
 			s.draw_arc(Vector2.ZERO, lerpf(0.2, 1.0, left) * r, 0, TAU, 40, Color(1, 1, 1, 0.9), 2.0)
+
+# ---------------------------------------------------------------- Flare
+
+## A tapered ray: wide at the start, a point at the end.
+static func ray(s, from: Vector2, dir: Vector2, len: float, w0: float, w1: float, col: Color) -> void:
+	var o := dir.orthogonal()
+	s.draw_colored_polygon(PackedVector2Array([from + o * w0 * 0.5, from + dir * len + o * w1 * 0.5, from + dir * len - o * w1 * 0.5, from - o * w0 * 0.5]), col)
+
+static func draw_flare(s, since: float, _col: Color) -> void:
+	var tier := int(s.data.get("tier", 1))
+	if tier < 2:
+		return
+	var r: float = s.radius
+	var life: float = s.effect_time
+	var fade := clampf((life - since) / 1.0, 0.0, 1.0) * clampf(since / 0.2, 0.0, 1.0)
+	var sun := Color(1.0, 0.9, 0.5)
+	var amber := Color(1.0, 0.65, 0.2)
+	if tier >= 4:                                                   # a corona of flame tongues, a two-layer glow
+		s.draw_circle(Vector2.ZERO, r, Color(sun, 0.12 * fade))
+		s.draw_circle(Vector2.ZERO, r * 0.6, Color(amber, 0.12 * fade))
+		for i in 12:
+			var a := i * TAU / 12.0
+			var n := Vector2.from_angle(a)
+			var h := (8.0 + 6.0 * jit(i, 4.0)) * (0.8 + 0.2 * sin(since * 8.0 + i))
+			s.draw_colored_polygon(PackedVector2Array([n * r + n.orthogonal() * 3.0, n * (r + h), n * r - n.orthogonal() * 3.0]), Color(amber, 0.6 * fade))
+	if tier >= 3:                                                   # two opposite rays sweep round like a lighthouse
+		var a2 := SpellTiers.ray_angle(since)
+		for k in 2:
+			var d := Vector2.from_angle(a2 + k * PI)
+			ray(s, Vector2.ZERO, d, r, 9.0, 2.0, Color(sun, 0.45 * fade))
+			s.draw_line(Vector2.ZERO, d * r, Color(1, 0.98, 0.9, 0.8 * fade), 1.0)
+	# tier 2: a lens-flare star (eight rays at tier 6), a white core and a halo
+	var rays := 4 if tier >= 6 else 2
+	for i in rays:
+		var d2 := Vector2.from_angle(since * 0.6 + i * PI / float(rays))
+		ray(s, Vector2.ZERO, d2, r * 0.4, 5.0, 0.0, Color(sun, 0.8 * fade))
+		ray(s, Vector2.ZERO, -d2, r * 0.4, 5.0, 0.0, Color(sun, 0.8 * fade))
+	s.draw_circle(Vector2.ZERO, r * 0.25, Color(sun, 0.3 * fade))
+	s.draw_circle(Vector2.ZERO, 3.0, Color(1, 0.98, 0.9, fade))
+	if tier >= 5:                                                   # two small suns orbit and shoot
+		s.draw_arc(Vector2.ZERO, r * 0.6, 0, TAU, 32, Color(sun, 0.15 * fade), 1.0)
+		for i in 2:
+			var ang: float = s.age * SpellTiers.FLARE_SUN_SPEED + i * PI
+			var p := Vector2.from_angle(ang) * r * 0.6
+			for k in 3:
+				s.draw_circle(Vector2.from_angle(ang - 0.16 * (k + 1)) * r * 0.6, 2.0 - k * 0.5, Color(amber, 0.6 * fade))
+			s.draw_circle(p, 7.0, Color(amber, 0.5 * fade))
+			s.draw_circle(p, 4.0, Color(1, 0.98, 0.9, fade))
+	if tier >= 6:                                                   # a sunrise, a double halo, a crown
+		var pulse := 0.25 + 0.1 * sin(since * 2.0)
+		for i in 10:
+			var d3 := Vector2.from_angle(deg_to_rad(lerpf(-160.0, -20.0, i / 9.0)))
+			s.draw_line(d3 * r * 0.2, d3 * r * 1.1, Color(1.0, 0.85, 0.3, pulse * fade), 2.0)
+		s.draw_circle(Vector2.ZERO, r * 0.4, Color(1.0, 0.85, 0.3, 0.15 * fade))
+		s.draw_arc(Vector2.ZERO, r * 1.04, 0, TAU, 48, Color(1.0, 0.85, 0.3, 0.8 * fade), 1.5)
+		for i in 16:
+			var n2 := Vector2.from_angle(i * TAU / 16.0)
+			s.draw_line(n2 * r * 1.04, n2 * r * 1.12, Color(1.0, 0.85, 0.3, 0.8 * fade), 2.0)

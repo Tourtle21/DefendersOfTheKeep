@@ -68,7 +68,7 @@ func _initialize() -> void:
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("only="):
 			only = a.substr(5)
-	for id in ["fireball", "frost_ring"]:
+	for id in ["fireball", "frost_ring", "flare"]:
 		if only == "" or only == id:
 			await call(id)
 			await clear()
@@ -217,3 +217,79 @@ func frost_ring() -> void:
 		fin[cp] = [seen.has("ripple"), game.get_node_or_null("/root") != null and load("res://items/weapons/weapon_util.gd").is_exposed(e)]
 		await clear()
 	ok("tier 6 ends in absolute zero (ripple, exposed), a copy does not (%s)" % str(fin), fin[false][0] and fin[false][1] and !fin[true][0])
+
+# ================================================================== Flare
+func flare() -> void:
+	print("-- flare")
+	var c := Vector2(0, 300)
+	var d0 = game.stats_of("flare")
+	# Dazzle (tier 2)
+	var dz := {}
+	for t in [1, 2]:
+		var e = dummy(c + Vector2(10, 0))
+		spell("flare", t, c, true, {"duration": 30.0})
+		await wait(0.6)
+		dz[t] = e.slow_mult
+		await clear()
+	ok("tier 2 dazzles (slower), tier 1 does not (%s)" % str(dz), dz[2] <= 0.81 and dz[1] == 1.0)
+	# Searing rays (tier 3): more damage than the plain burn
+	var rs := {}
+	for t in [2, 3]:
+		var s = spell("flare", t, c, true, {"duration": 30.0})
+		var r: float = s.radius
+		var es := []
+		for k in 8:
+			es.append(dummy(c + Vector2.from_angle(k * TAU / 8.0) * r * 0.7))
+		await wait(5.0)
+		var total := 0.0
+		for e in es:
+			total += dealt(e)
+		rs[t] = [snappedf(total, 0.1), s._ray_hit.size()]
+		await clear()
+	ok("tier 3 beams sweep round and hit harder (%s)" % str(rs), rs[3][0] > rs[2][0] * 1.5 and rs[3][1] > 0 and rs[2][1] == 0)
+	# Solar pulse (tier 4): enemies are shoved outward
+	var pu := {}
+	for t in [3, 4]:
+		var e = dummy(c + Vector2(30, 0))
+		e.set_physics_process(true)
+		spell("flare", t, c, true, {"duration": 30.0})
+		await wait(1.4)
+		pu[t] = snappedf(e.global_position.x - c.x, 1.0)
+		await clear()
+	ok("tier 4 pulses push enemies out (distance from the centre %s)" % str(pu), pu[4] > pu[3] + 5.0)
+	# Orbiting suns (tier 5): bolts
+	var su := {}
+	for t in [4, 5]:
+		var es := []
+		for k in 3:
+			es.append(dummy(c + Vector2.from_angle(k * 2.0) * 40.0))
+		spell("flare", t, c, true, {"duration": 30.0})
+		var n := 0
+		var seen := {}
+		var el := 0.0
+		while el < 3.0:
+			await wait(0.05)
+			el += 0.05
+			for nd in world.get_children():
+				if nd.get_script() != null and str(nd.get_script().resource_path).ends_with("projectile.gd") and !seen.has(nd.get_instance_id()):
+					seen[nd.get_instance_id()] = true
+					n += 1
+		su[t] = n
+		await clear()
+	ok("tier 5 suns shoot (%s bolts in 3 s; the keep towers add a few at both tiers)" % str(su), su[5] >= su[4] + 3)
+	# Daybreak (tier 6): a finale, and the flare follows the aimer
+	var fin := {}
+	for cp in [false, true]:
+		var e = dummy(c + Vector2(100, 0))
+		var s = spell("flare", 6, c, true, {"duration": 1.5, "copy": cp})
+		var r6: float = s.radius
+		e.global_position = c + Vector2(r6 * 1.2, 0)
+		var seen := await fx_seen(2.0)
+		fin[cp] = [seen.has("star") and seen.has("flash"), snappedf(dealt(e), 0.1)]
+		await clear()
+	ok("tier 6 ends in daybreak (flash, star, big hit), a copy does not (%s)" % str(fin), fin[false][0] and fin[false][1] > 3.0 and !fin[true][0])
+	var p = world.get_node("Player")
+	var fl = spell("flare", 6, c, true, {"duration": 5.0})
+	fl.caster = p
+	await wait(0.5)
+	ok("the flare still follows the aimer (%s vs %s)" % [str(fl.position), str(p.aim_point())], fl.position.distance_to(p.aim_point()) < 1.0)

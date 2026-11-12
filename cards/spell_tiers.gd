@@ -49,6 +49,8 @@ static func tick(s, delta: float) -> void:
 			tick_fireball(s, tier_of(s), delta)
 		"frost_ring":
 			tick_frost_ring(s, tier_of(s), delta)
+		"flare":
+			tick_flare(s, tier_of(s), delta)
 
 # ---------------------------------------------------------------- Fireball
 
@@ -238,3 +240,98 @@ static func _finale_frost_ring(s, bite: float, inside: Array) -> void:
 			e.apply_slow(0.0, 1.5)
 		WeaponUtil.expose(e, 2.5)
 		e.spell_damage(bite * 4.0, "ice", true)
+
+# ---------------------------------------------------------------- Flare
+
+const FLARE_RAY_SPEED := 1.3
+const FLARE_RAY_ARC := 0.14
+const FLARE_PULSE := 3.0
+const FLARE_SUN_SPEED := 1.8
+const FLARE_SUN_INTERVAL := 0.8
+const SUN := Color(1.0, 0.9, 0.5)
+const AMBER := Color(1.0, 0.65, 0.2)
+
+## The sweeping beam's angle, from the time since landing (the drawing and the damage use the same one).
+static func ray_angle(since: float) -> float:
+	return since * FLARE_RAY_SPEED
+
+## Where tier 5's orbiting sun `i` (0 or 1) is.
+static func sun_pos(s, i: int) -> Vector2:
+	return s.global_position + Vector2.from_angle(s.age * FLARE_SUN_SPEED + i * PI) * s.radius * 0.6
+
+## Night light: a higher flare shines a little wider and (tier 6) brighter.
+static func flare_light(s) -> Array:
+	if String(s.data.get("id", "")) != "flare":
+		return [1.0, 0.65]
+	var t := tier_of(s)
+	return [1.15 if t >= 4 else 1.0, 0.8 if t >= 6 else 0.65]
+
+static func tick_flare(s, tier: int, delta: float) -> void:
+	if tier < 2:
+		return
+	var since: float = s.age - s.flight
+	var c: Vector2 = s.global_position
+	var r: float = s.radius
+	var dps: float = s.data.dps
+	var w: Node = s.get_parent()
+	var inside: Array = s._in_radius("enemy")
+	if since < delta * 1.5:                                          # (the first frame after landing)
+		WeaponFx.spawn(w, "star", s.position, SUN, {"radius": r * 0.5, "count": 4, "spin": 1.5, "life": 0.4})
+		Sfx.play("cast")
+	for e in inside:                                                 # dazzle: 20% slower
+		if e.has_method("apply_slow"):
+			e.apply_slow(0.8, 0.3)
+	if tier >= 3:                                                    # searing rays: a beam pair sweeps round
+		var a := ray_angle(since)
+		for e in inside:
+			var rel: Vector2 = e.global_position - c
+			if rel.length() < 3.0:
+				continue
+			var ang := rel.angle()
+			if absf(angle_difference(ang, a)) <= FLARE_RAY_ARC or absf(angle_difference(ang, a + PI)) <= FLARE_RAY_ARC:
+				var id: int = e.get_instance_id()
+				if s.age - float(s._ray_hit.get(id, -9.0)) >= 0.4:
+					s._ray_hit[id] = s.age
+					WeaponFx.spawn(w, "burst", e.global_position, AMBER, {"radius": 8.0, "life": 0.2})
+					e.spell_damage(dps * 2.0, "fire", true)
+	if tier >= 4 and since >= 1.0 + s._pulse_n * FLARE_PULSE:         # solar pulse every 3 s, the first a second in
+		s._pulse_n += 1
+		WeaponFx.spawn(w, "ripple", s.position, AMBER, {"radius": r, "rings": 2, "life": 0.6})
+		Sfx.play("whoosh")
+		for e in inside:
+			if !is_instance_valid(e):
+				continue
+			var away: Vector2 = e.global_position - c
+			e.spell_damage(dps * 1.5, "fire", true)
+			if is_instance_valid(e) and e.has_method("push"):
+				e.push((away.normalized() if away.length() > 0.5 else Vector2.RIGHT) * 90.0, 0.15)
+	if tier >= 5:                                                    # two suns circle and shoot
+		for i in 2:
+			s._sun_t[i] += delta
+			if s._sun_t[i] >= FLARE_SUN_INTERVAL:
+				var from := sun_pos(s, i)
+				var best = null
+				for e in inside:
+					if is_instance_valid(e) and (best == null or e.global_position.distance_to(from) < best.global_position.distance_to(from)):
+						best = e
+				if best != null:
+					s._sun_t[i] = 0.0
+					var to: Vector2 = best.global_position - from
+					WeaponFx.spawn(w, "line", from, AMBER, {"dir": to.normalized(), "length": to.length(), "width": 2.5, "life": 0.12})
+					WeaponProjectile.shoot(w, from, to, 260.0, dps * 1.6, AMBER, minf(1.2, to.length() / 260.0 + 0.2), 0, 40.0)
+					WeaponFx.spawn(w, "burst", best.global_position, AMBER, {"radius": 8.0, "life": 0.2})
+	if tier >= 6:
+		for p in s._in_radius("player"):                             # daybreak: its light mends
+			if p.has_method("heal"):
+				p.heal(dps * 0.5 * delta)
+		if !s._finale_done and !is_copy(s) and since >= s.effect_time - 0.05:
+			s._finale_done = true
+			WeaponFx.spawn(w, "flash", s.position, Color(1.0, 0.85, 0.3), {"radius": r * 1.4, "life": 0.4})
+			WeaponFx.spawn(w, "ripple", s.position, Color(1.0, 0.85, 0.3), {"radius": r * 1.8, "rings": 3, "life": 0.7})
+			WeaponFx.spawn(w, "star", s.position, SUN, {"radius": r * 1.2, "count": 8, "spin": 1.0, "life": 0.5})
+			Sfx.play("ultimate")
+			LightSource.spawn(w, s.position, r * 2.0, 6.0, SUN)
+			for e in WeaponUtil.enemies_in_circle(s.get_tree(), c, r * 1.4):
+				e.spell_damage(dps * 6.0, "fire", true)
+			for e in WeaponUtil.enemies_in_circle(s.get_tree(), c, r * 2.0):
+				Game.light_up(e, 6.0)

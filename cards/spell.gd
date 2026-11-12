@@ -23,6 +23,9 @@ var _nova_clock := 0.0
 var _novas := 0
 var _seen := {}
 var _finale_done := false
+var _ray_hit := {}
+var _pulse_n := 0
+var _sun_t := [0.0, 0.4]
 
 func setup(card: Dictionary, target: Vector2, from: Vector2) -> void:
 	data = card
@@ -132,11 +135,12 @@ func _physics_process(delta: float) -> void:
 			_apply_twist()
 			SpellTiers.on_land(self)
 			if data.get("night", false) and data.kind in ["flare", "zone"] and data.get("element", "") == "fire":
-				light_radius = radius                      # the landed spell is a light source until it ends
+				var lit_by := SpellTiers.flare_light(self) if data.kind == "flare" else [1.0, 0.65]
+				light_radius = radius * lit_by[0]          # the landed spell is a light source until it ends
 				add_to_group("light")
 				if _glow != null:
-					_glow.texture_scale = maxf(0.1, radius * 2.0 / 128.0)
-					_glow.base_energy = 0.65
+					_glow.texture_scale = maxf(0.1, light_radius * 2.0 / 128.0)
+					_glow.base_energy = lit_by[1]
 			if data.kind == "fireball":
 				var lit := SpellTiers.fireball_light(self)
 				LightSource.spawn(get_parent(), position, radius * lit[0], lit[1], Color(1.0, 0.7, 0.3))      # the blast lights the area for a while
