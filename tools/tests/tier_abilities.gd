@@ -68,7 +68,7 @@ func _initialize() -> void:
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("only="):
 			only = a.substr(5)
-	for id in ["fireball", "frost_ring", "flare"]:
+	for id in ["fireball", "frost_ring", "flare", "rejuvenation"]:
 		if only == "" or only == id:
 			await call(id)
 			await clear()
@@ -293,3 +293,82 @@ func flare() -> void:
 	fl.caster = p
 	await wait(0.5)
 	ok("the flare still follows the aimer (%s vs %s)" % [str(fl.position), str(p.aim_point())], fl.position.distance_to(p.aim_point()) < 1.0)
+
+# ================================================================== Rejuvenation
+func rejuvenation() -> void:
+	print("-- rejuvenation")
+	var c := Vector2(0, 300)
+	var p = world.get_node("Player")
+	var rect = world.get_node("Hud/Control2/ColorRect/Health")
+	var make_guard := func(pos: Vector2):
+		var g = load("res://cards/guard.gd").new()
+		g.setup(game.scaled("guards", 1), pos)
+		world.add_child(g)
+		g.set_physics_process(false)
+		g.hp = 5.0
+		return g
+	# Shared mending (tier 2): guards are healed
+	var gm := {}
+	for t in [1, 2]:
+		var g = make_guard.call(c + Vector2(10, 0))
+		spell("rejuvenation", t, c, true, {"duration": 20.0})
+		await wait(2.0)
+		gm[t] = snappedf(g.hp, 0.1)
+		g.queue_free()
+		await clear()
+	ok("tier 2 heals guards inside, tier 1 does not (%s)" % str(gm), gm[2] > 5.5 and gm[1] == 5.0)
+	# Mending roots (tier 3): buildings are repaired
+	var mr := {}
+	for t in [2, 3]:
+		var st = load("res://cards/structure.gd").new()
+		st.setup(game.stats_of(game.make_entry("barricade", 1, "")), c + Vector2(10, 0))
+		world.add_child(st)
+		await wait(0.1)
+		st.hp = st.max_hp * 0.5
+		spell("rejuvenation", t, c, true, {"duration": 20.0})
+		await wait(2.0)
+		mr[t] = snappedf(st.hp / st.max_hp, 0.01)
+		st.queue_free()
+		await clear()
+	ok("tier 3 mends buildings inside, tier 2 does not (%s)" % str(mr), mr[3] > 0.52 and mr[2] == 0.5)
+	# Sprout ward (tier 4): stepping in shields you, once per six seconds
+	var wd := {}
+	for t in [3, 4]:
+		p.global_position = Vector2(300, 600)
+		p.shield_time = 0.0
+		spell("rejuvenation", t, c, true, {"duration": 20.0})
+		await wait(0.4)
+		p.global_position = c + Vector2(5, 0)
+		await wait(0.3)
+		var first: float = p.shield_time
+		p.shield_time = 0.0
+		p.global_position = Vector2(300, 600)
+		await wait(0.3)
+		p.global_position = c + Vector2(5, 0)
+		await wait(0.3)
+		wd[t] = [snappedf(first, 0.1), snappedf(p.shield_time, 0.1)]
+		p.global_position = Vector2(0, 700)
+		await clear()
+	ok("tier 4 shields a player who steps in, but not again within 6 s; tier 3 never (%s)" % str(wd), wd[4][0] >= 0.5 and wd[4][1] < 0.3 and wd[3][0] == 0.0)
+	# Vines (tier 5): slow and thorns
+	var vn := {}
+	for t in [4, 5]:
+		var e = dummy(c + Vector2(10, 0))
+		spell("rejuvenation", t, c, true, {"duration": 20.0})
+		await wait(1.5)
+		vn[t] = [snappedf(e.slow_mult, 0.01), snappedf(dealt(e), 0.1)]
+		await clear()
+	ok("tier 5 vines slow and hurt, tier 4 does neither (%s)" % str(vn), vn[5][0] <= 0.61 and vn[5][1] > 0.0 and vn[4][0] == 1.0 and vn[4][1] == 0.0)
+	# Tree of life (tier 6): heal waves every 2 s, and the finale heals and shields
+	var tl := {}
+	for t in [3, 6]:
+		p.global_position = c + Vector2(5, 0)
+		rect.size.x = 20.0
+		spell("rejuvenation", t, c, true, {"duration": 3.0})
+		var kinds := await fx_seen(3.3)
+		tl[t] = [kinds.get("ripple", 0), snappedf(p.shield_time, 0.1), snappedf(rect.size.x, 1.0)]
+		await clear()
+	rect.size.x = 228.0
+	p.shield_time = 0.0
+	p.global_position = Vector2(0, 700)
+	ok("tier 6 sends heal waves (ripples) and ends by healing and shielding, tier 3 does not (%s)" % str(tl), tl[6][0] >= 1 and tl[3][0] == 0 and tl[6][1] > 1.0 and tl[3][1] == 0.0 and tl[6][2] > tl[3][2])

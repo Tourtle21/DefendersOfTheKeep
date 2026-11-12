@@ -51,6 +51,8 @@ static func tick(s, delta: float) -> void:
 			tick_frost_ring(s, tier_of(s), delta)
 		"flare":
 			tick_flare(s, tier_of(s), delta)
+		"rejuvenation":
+			tick_rejuvenation(s, tier_of(s), delta)
 
 # ---------------------------------------------------------------- Fireball
 
@@ -275,7 +277,8 @@ static func tick_flare(s, tier: int, delta: float) -> void:
 	var dps: float = s.data.dps
 	var w: Node = s.get_parent()
 	var inside: Array = s._in_radius("enemy")
-	if since < delta * 1.5:                                          # (the first frame after landing)
+	if !s._landed_fx:                                                # (once, the first frame after landing)
+		s._landed_fx = true
 		WeaponFx.spawn(w, "star", s.position, SUN, {"radius": r * 0.5, "count": 4, "spin": 1.5, "life": 0.4})
 		Sfx.play("cast")
 	for e in inside:                                                 # dazzle: 20% slower
@@ -335,3 +338,81 @@ static func tick_flare(s, tier: int, delta: float) -> void:
 				e.spell_damage(dps * 6.0, "fire", true)
 			for e in WeaponUtil.enemies_in_circle(s.get_tree(), c, r * 2.0):
 				Game.light_up(e, 6.0)
+
+# ---------------------------------------------------------------- Rejuvenation
+
+const REJUV_GUARD := 0.5
+const REJUV_STRUCT := 0.25
+const REJUV_WARD := 1.0
+const REJUV_WARD_CD := 6.0
+const REJUV_VINE := 0.15
+const REJUV_WAVE := 2.0
+const REJUV_FINALE := 3.0
+const LEAF := Color(0.4, 1.0, 0.5)
+const LIGHT_GREEN := Color(0.7, 1.0, 0.7)
+
+static func tick_rejuvenation(s, tier: int, delta: float) -> void:
+	if tier < 2:
+		return
+	var since: float = s.age - s.flight
+	var hps: float = s.data.heal_per_sec
+	var w: Node = s.get_parent()
+	var c: Vector2 = s.global_position
+	var r: float = s.radius
+	if !s._landed_fx:
+		s._landed_fx = true
+		WeaponFx.spawn(w, "motes", s.position, LEAF, {"radius": r, "count": 10, "rise": 26.0, "life": 0.9})
+		WeaponFx.spawn(w, "ring", s.position, LEAF, {"radius": r, "life": 0.3})
+		Sfx.play("cast")
+	for g in s.get_tree().get_nodes_in_group("guard"):               # shared mending: guards are healed too
+		if is_instance_valid(g) and g.global_position.distance_to(c) <= r:
+			g.hp = minf(g.max_hp, g.hp + hps * REJUV_GUARD * delta)
+	if tier >= 3:                                                    # mending roots: buildings are repaired
+		for st in s.get_tree().get_nodes_in_group("structure"):
+			if is_instance_valid(st) and st.global_position.distance_to(c) <= r and st.hp < st.max_hp:
+				st.hp = minf(st.max_hp, st.hp + hps * REJUV_STRUCT * delta)
+				var id: int = st.get_instance_id()
+				if since - float(s._house.get(id, -9.0)) >= 1.5:
+					s._house[id] = since
+					WeaponFx.spawn(w, "motes", st.global_position, LEAF, {"radius": 10.0, "count": 4, "rise": 14.0, "life": 0.6})
+	var players: Array = s._in_radius("player")
+	if tier >= 4:                                                    # sprout ward: a player who steps in is shielded for a moment
+		for p in players:
+			var pid: int = p.get_instance_id()
+			if !s._warded.has(pid) or since - float(s._warded[pid]) > REJUV_WARD_CD:
+				s._warded[pid] = since
+				p.shield_time = maxf(p.shield_time, REJUV_WARD)
+				WeaponFx.spawn(w, "star", p.global_position, LIGHT_GREEN, {"radius": 16.0, "count": 6, "spin": 1.5, "life": 0.4})
+				Sfx.play("unlock")
+	if tier >= 5:                                                    # entangling vines
+		var foes: Array = s._in_radius("enemy")
+		for e in foes:
+			if e.has_method("apply_slow"):
+				e.apply_slow(0.6, 0.3)
+		s._vine_t += delta
+		if s._vine_t >= 0.5:
+			s._vine_t = 0.0
+			for e in foes:
+				if is_instance_valid(e):
+					e.spell_damage(hps * REJUV_VINE, "", true)
+					if foes.size() < 5 and is_instance_valid(e):
+						WeaponFx.spawn(w, "burst", e.global_position, LEAF, {"radius": 8.0, "life": 0.2})
+	if tier >= 6:                                                    # tree of life: a heal wave every two seconds
+		s._wave_t += delta
+		if s._wave_t >= REJUV_WAVE:
+			s._wave_t = 0.0
+			WeaponFx.spawn(w, "ripple", s.position, LIGHT_GREEN, {"radius": r, "rings": 2, "life": 0.6})
+			WeaponFx.spawn(w, "motes", s.position, LEAF, {"radius": r, "count": 12, "rise": 30.0, "life": 0.9})
+			for p in players:
+				p.heal(hps * 1.0)
+			for g in s.get_tree().get_nodes_in_group("guard"):
+				if is_instance_valid(g) and g.global_position.distance_to(c) <= r:
+					g.hp = minf(g.max_hp, g.hp + hps * 1.0)
+		if !s._finale_done and !is_copy(s) and since >= s.effect_time - 0.05:
+			s._finale_done = true
+			WeaponFx.spawn(w, "star", s.position, Color(1.0, 0.85, 0.3), {"radius": r, "count": 8, "spin": 1.0, "life": 0.5})
+			WeaponFx.spawn(w, "flash", s.position, LIGHT_GREEN, {"radius": r * 0.7, "life": 0.4})
+			Sfx.play("ultimate")
+			for p in players:
+				p.heal(hps * REJUV_FINALE)
+				p.shield_time = maxf(p.shield_time, 2.0)

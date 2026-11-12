@@ -24,6 +24,11 @@ var _novas := 0
 var _seen := {}
 var _finale_done := false
 var _ray_hit := {}
+var _landed_fx := false
+var _house := {}
+var _warded := {}
+var _vine_t := 0.0
+var _wave_t := 0.0
 var _pulse_n := 0
 var _sun_t := [0.0, 0.4]
 

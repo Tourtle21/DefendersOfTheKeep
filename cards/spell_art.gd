@@ -13,7 +13,7 @@ static func jit(i: int, salt := 0.0) -> float:
 
 ## Cards that have their own body art here: the plain fill and rings are drawn softer under it.
 static func has_body(id: String) -> bool:
-	return id in ["fireball", "frost_ring", "flare"]
+	return id in ["fireball", "frost_ring", "flare", "rejuvenation"]
 
 static func draw_flight(s, t: float, col: Color) -> void:
 	match String(s.data.get("id", "")):
@@ -30,6 +30,8 @@ static func draw(s, since: float, col: Color) -> void:
 			draw_frost_ring(s, since, col)
 		"flare":
 			draw_flare(s, since, col)
+		"rejuvenation":
+			draw_rejuvenation(s, since, col)
 
 ## A flame as one polygon: a wide base, a belly, and a tip that leans with `sway`.
 static func flame(s, base: Vector2, w: float, h: float, col: Color, sway := 0.0) -> void:
@@ -256,3 +258,81 @@ static func draw_flare(s, since: float, _col: Color) -> void:
 		for i in 16:
 			var n2 := Vector2.from_angle(i * TAU / 16.0)
 			s.draw_line(n2 * r * 1.04, n2 * r * 1.12, Color(1.0, 0.85, 0.3, 0.8 * fade), 2.0)
+
+# ---------------------------------------------------------------- Rejuvenation
+
+const LEAF := Color(0.4, 1.0, 0.5)
+const PETAL := Color(1.0, 0.75, 0.85)
+const BARK := Color(0.45, 0.3, 0.18)
+
+static func draw_rejuvenation(s, since: float, _col: Color) -> void:
+	var tier := int(s.data.get("tier", 1))
+	if tier < 2:
+		return
+	var r: float = s.radius
+	var life: float = s.effect_time
+	var fade := clampf((life - since) / 1.0, 0.0, 1.0) * clampf(since / 0.3, 0.0, 1.0)
+	var sway := sin(since * 1.5) * 1.5
+	if tier >= 6:                                                   # a gold glow and a ring pulse with each heal wave
+		s.draw_circle(Vector2.ZERO, r * 0.5, Color(1.0, 0.85, 0.3, 0.15 * fade))
+		var wv := fposmod(since, 2.0) / 2.0
+		s.draw_arc(Vector2.ZERO, r * wv, 0, TAU, 40, Color(1.0, 0.85, 0.3, 0.6 * (1.0 - wv) * fade), 1.5)
+	if tier >= 3:                                                   # roots fan out under everything, with sprouts
+		for i in 6:
+			var a := i * TAU / 6.0 + 0.2
+			var d := Vector2.from_angle(a)
+			var o := d.orthogonal()
+			var mid := d * r * 0.45 + o * r * 0.12 * (1.0 if i % 2 == 0 else -1.0)
+			var tip := d * r * 0.9
+			s.draw_polyline(PackedVector2Array([Vector2.ZERO, mid, tip]), Color(BARK, 0.5 * fade), 2.0)
+			s.draw_line(mid, mid + Vector2(0, -4), Color(LEAF, 0.8 * fade), 1.0)
+			s.draw_line(tip * 0.8, tip * 0.8 + Vector2(0, -3), Color(LEAF, 0.8 * fade), 1.0)
+	if tier >= 5:                                                   # vines climb in from the rim
+		var grow := minf(1.0, since * 1.5)
+		for i in 8:
+			var a2 := i * TAU / 8.0
+			var pts := PackedVector2Array()
+			for k in 6:
+				var u := k / 5.0 * grow
+				var rad := lerpf(r, r * 0.25, u)
+				pts.append(Vector2.from_angle(a2 + u * 1.2) * rad)
+			s.draw_polyline(pts, Color(LEAF, 0.7 * fade), 1.5)
+			if pts.size() > 2:
+				var q := pts[2]
+				s.draw_colored_polygon(PackedVector2Array([q, q + Vector2(2.5, -2), q + Vector2(0.5, 2.5)]), Color(0.3, 0.7, 0.3, 0.8 * fade))
+	if tier <= 3:                                                   # a six-petal flower that breathes
+		var k := 1.0 + 0.08 * sin(since * 2.0)
+		for i in 6:
+			var d2 := Vector2.from_angle(i * TAU / 6.0)
+			var pt := d2 * r * 0.14 * k
+			var o2 := d2.orthogonal() * r * 0.06 * k
+			s.draw_colored_polygon(PackedVector2Array([pt - d2 * r * 0.14 * k, pt + o2, pt + d2 * r * 0.14 * k, pt - o2]), Color(PETAL, 0.9 * fade))
+		s.draw_circle(Vector2.ZERO, 3.0, Color(1.0, 0.9, 0.3, fade))
+	else:                                                           # a sapling, a young tree, then a full tree
+		var trunk_w := 3.0 if tier == 4 else (4.0 if tier == 5 else 6.0)
+		var trunk_h := 12.0 if tier == 4 else (16.0 if tier == 5 else 22.0)
+		s.draw_rect(Rect2(-trunk_w / 2.0, -trunk_h, trunk_w, trunk_h), Color(BARK, fade))
+		var top := Vector2(sway, -trunk_h)
+		if tier == 4:
+			s.draw_circle(top, 6.0, Color(LEAF, fade))
+			s.draw_circle(top + Vector2(-5, 3), 5.0, Color(LEAF.darkened(0.15), fade))
+			s.draw_circle(top + Vector2(5, 3), 5.0, Color(LEAF.darkened(0.15), fade))
+			s.draw_circle(top + Vector2(-1.5, -2), 2.0, Color(0.7, 1.0, 0.7, 0.8 * fade))
+		elif tier == 5:
+			for k2 in 3:
+				s.draw_circle(top + Vector2((k2 - 1) * 7.0, 2.0 - (1 if k2 == 1 else 0) * 5.0), 8.0, Color(LEAF.darkened(0.1 * k2), fade))
+		else:
+			s.draw_line(Vector2(0, -trunk_h * 0.6), Vector2(-8, -trunk_h * 0.9), Color(BARK, fade), 2.0)
+			s.draw_line(Vector2(0, -trunk_h * 0.5), Vector2(8, -trunk_h * 0.85), Color(BARK, fade), 2.0)
+			for k3 in 7:
+				var off := Vector2(cos(k3 * 1.9) * 9.0, sin(k3 * 2.3) * 6.0)
+				s.draw_circle(top + off + Vector2(0, -6), 7.0 + (k3 % 4), Color(Color(0.25, 0.75, 0.3).lerp(LEAF, (k3 % 3) / 2.0), 0.9 * fade))
+			for k4 in 5:
+				s.draw_circle(top + Vector2(cos(k4 * 2.7) * 11.0, -6.0 + sin(k4 * 1.3) * 8.0), 1.6, Color(PETAL, fade))
+			for k5 in 12:
+				var u2 := fposmod(since * 0.35 + jit(k5), 1.0)
+				s.draw_circle(Vector2((jit(k5, 1.0) - 0.5) * r * 1.4 + sin(u2 * 6.0) * 4.0, -trunk_h - 6.0 + u2 * (trunk_h + 12.0)), 1.2, Color(PETAL, 0.8 * fade * (1.0 - u2)))
+	for i in 6:                                                     # leaf motes rise from the disc
+		var u3 := fposmod(since * 0.4 + jit(i), 1.0)
+		var q2 := Vector2.from_angle(jit(i, 2.0) * TAU) * r * 0.8 * jit(i, 3.0) + Vector2(0, -u3 * 18.0)
+		s.draw_circle(q2, 1.6, Color(LEAF, 0.9 * (1.0 - u3) * fade))
