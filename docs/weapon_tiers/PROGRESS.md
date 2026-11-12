@@ -44,3 +44,6 @@ DONE crystalwand
 CLAIM prismstaff
 DONE spellblade
 DONE tempest
+DONE prismstaff
+CLAIM dawnbringer
+CLAIM bogstaff
