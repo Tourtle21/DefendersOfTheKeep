@@ -752,3 +752,451 @@ func draw_whip(p: Paint, t: int) -> void:
 		p.gem(tip.x + 0.5, 2.5, 2.2, Color("e04060"))
 		p.px(int(tip.x) + 1, 0, Color("ff9a2a"))
 		p.px(int(tip.x), 0, Color("ffd45a"))
+
+# ------------------------------------------------------------------------------------------------------------------- shield
+
+func _studs(p: Paint, cx: float, cy: float, r: float, n: int, c: Color, off := 0.0) -> void:
+	for a in n:
+		var q := Vector2(cx, cy) + Vector2.from_angle(off + a * TAU / float(n)) * r
+		p.px(int(q.x), int(q.y), c)
+
+func draw_shield(p: Paint, t: int) -> void:
+	var blue := Color("3b6fd0")
+	var blue_l := Color("5b8ae8")
+	if t == 1:
+		p.disc(16.0, 16.0, 13.0, Paint.IRON)
+		p.disc(16.0, 16.0, 10.0, blue)
+		p.disc(15.0, 15.0, 6.0, blue_l)
+		p.disc(16.0, 16.0, 3.0, Paint.GOLD)
+		_studs(p, 16, 16, 11.5, 8, Color("c8d0d8"), 0.0)
+		return
+	# tier 2: a thick steel rim with a bevel and 12 rivets, a quartered field with a gold cross band, a domed steel boss
+	var rim := Paint.IRON if t < 5 else Color("c8d0d8")
+	var reach := 13.0 if t < 4 else 13.5
+	if t >= 4:
+		# tier 4: four steel spikes at the compass points
+		for a in 4:
+			var d := Vector2.from_angle(a * TAU / 4.0)
+			for k in 3:
+				var q := Vector2(16, 16) + d * (13.0 + k)
+				p.px(int(q.x), int(q.y), Paint.STEEL if k < 2 else Paint.STEEL_L)
+				var q2 := Vector2(16, 16) + d * (13.0 + k) + d.orthogonal() * 1.0
+				if k == 0:
+					p.px(int(q2.x), int(q2.y), Paint.STEEL_D)
+					var q3 := Vector2(16, 16) + d * (13.0 + k) - d.orthogonal() * 1.0
+					p.px(int(q3.x), int(q3.y), Paint.STEEL_D)
+	p.disc(16.0, 16.0, reach, rim)
+	p.ring(16.0, 16.0, reach, 1.5, Paint.STEEL_L if t < 6 else Paint.GOLD_L)
+	p.ring(16.0, 16.0, reach - 2.5, 1.2, Paint.IRON_D if t < 6 else Paint.GOLD_D)
+	p.disc(16.0, 16.0, 10.0, blue)
+	p.disc(15.0, 15.0, 6.5, blue_l)
+	# a cross band
+	p.rect(15, 6, 16, 26, Paint.GOLD)
+	p.rect(6, 15, 26, 16, Paint.GOLD)
+	p.rect(15, 6, 15, 26, Paint.GOLD_L)
+	p.rect(6, 15, 26, 15, Paint.GOLD_L)
+	p.disc(16.0, 16.0, 4.0, Paint.STEEL)
+	p.disc(15.5, 15.5, 2.6, Paint.STEEL_L)
+	p.disc(16.0, 16.0, 1.0, Paint.IRON_D)
+	_studs(p, 16, 16, 11.5, 12, Paint.STEEL_L, 0.2)
+	# tier 3: a heraldic red quarter, gold rivets on the cross, a spike in the boss
+	if t >= 3:
+		for y in range(7, 16):
+			for x in range(7, 16):
+				if Vector2(x + 0.5 - 16.0, y + 0.5 - 16.0).length() < 9.5 and Vector2(x + 0.5 - 16.0, y + 0.5 - 16.0).length() > 4.2:
+					p.px(x, y, Color("b03030") if (x + y) % 5 != 0 else Color("d04848"))
+		for y in range(17, 26):
+			for x in range(17, 26):
+				if Vector2(x + 0.5 - 16.0, y + 0.5 - 16.0).length() < 9.5 and Vector2(x + 0.5 - 16.0, y + 0.5 - 16.0).length() > 4.2:
+					p.px(x, y, Color("b03030") if (x + y) % 5 != 0 else Color("d04848"))
+		p.rect(15, 6, 16, 26, Paint.GOLD)
+		p.rect(6, 15, 26, 16, Paint.GOLD)
+		p.rect(15, 6, 15, 26, Paint.GOLD_L)
+		p.rect(6, 15, 26, 15, Paint.GOLD_L)
+		p.disc(16.0, 16.0, 4.0, Paint.STEEL)
+		p.disc(15.5, 15.5, 2.6, Paint.STEEL_L)
+		p.px(15, 15, Paint.WHITE)
+		_studs(p, 16, 16, 7.5, 4, Paint.WHITE, 0.785)
+	# tier 4: a gold rim, bigger rivets, rim notches
+	if t >= 4:
+		p.ring(16.0, 16.0, reach, 1.3, Paint.GOLD)
+		p.ring(16.0, 16.0, reach - 1.3, 1.0, Paint.GOLD_L)
+		_studs(p, 16, 16, 11.0, 8, Paint.GOLD_L, 0.39)
+	# tier 5: gems at the compass points of the rim and gold flames on the quarters
+	if t >= 5:
+		for a in 4:
+			var q := Vector2(16, 16) + Vector2.from_angle(a * TAU / 4.0 + 0.0) * 10.8
+			p.gem(q.x, q.y, 1.5, Color("5be0ff") if a % 2 == 0 else Color("e04060"))
+		p.disc(16.0, 16.0, 3.0, Paint.GOLD)
+		p.disc(15.5, 15.5, 1.6, Paint.GOLD_L)
+	# tier 6: a golden rim, radiant spikes between the compass spikes, a crowned jewel at the boss
+	if t >= 6:
+		p.ring(16.0, 16.0, reach, 2.0, Paint.GOLD)
+		p.ring(16.0, 16.0, reach, 1.0, Paint.GOLD_L)
+		for a in 4:
+			var d := Vector2.from_angle(a * TAU / 4.0 + 0.785)
+			for k in 2:
+				var q := Vector2(16, 16) + d * (13.5 + k)
+				p.px(int(q.x), int(q.y), Paint.GOLD if k == 0 else Paint.GOLD_L)
+		p.gem(16.0, 16.0, 2.4, Color("5be0ff"))
+		p.px(15, 15, Paint.WHITE)
+
+# ----------------------------------------------------------------------------------------------------------------- frostglaive
+
+func _glaive_blade(p: Paint, y0: int, y1: int, bulge: float, base: float, light: Color, dark: Color) -> void:
+	# a pointed leaf: needle tip at y0, widest about 60% down, narrowing into the collar at y1
+	for y in range(y0, y1 + 1):
+		var u := float(y - y0) / float(y1 - y0)
+		var half: float = 0.3 + (bulge - 0.3) * sin(pow(u, 1.35) * PI * 0.98)
+		for x in range(int(15.5 - half), int(16.5 + half) + 1):
+			p.px(x, y, light if x <= 15 else dark)
+
+func draw_frostglaive(p: Paint, t: int) -> void:
+	var shaft := Color("5a7a9a")
+	var ice_l := Color("cfeaff")
+	var ice_d := Color("8fc4ee")
+	if t == 1:
+		p.rect(15, 12, 16, 30, shaft)
+		for y in range(2, 14):
+			var half: float = 2.0 + sin((y - 2) / 11.0 * PI) * 4.0
+			for x in range(int(15.5 - half), int(16.5 + half) + 1):
+				p.px(x, y, ice_l if x <= 15 else ice_d)
+		return
+	var top: int = [0, 2, 1, 0, 0, 0, 0][t]
+	var bulge: float = [0.0, 4.0, 3.6, 4.2, 4.6, 5.0, 5.4][t]
+	# tier 2: a longer, deeper blade with a central ridge, a frosted shaft with ice-blue wraps, a spiked butt
+	p.rect(15, 12, 16, 30, shaft)
+	p.rect(15, 12, 15, 30, Color("7a9aba"))
+	_glaive_blade(p, top, 14, bulge, 2.0, ice_l, ice_d)
+	for y in range(top + 3, 14):
+		p.px(15, y, Color("ffffff"))
+		p.px(16, y, Color("6aa8dc"))
+	p.rect(13, 14, 18, 15, Color("3a5a7a"))
+	p.rect(13, 14, 18, 14, Color("7a9aba"))
+	for y in [19, 22, 25]:
+		p.rect(15, y, 16, y, Color("cfeaff"))
+	p.rect(14, 29, 17, 31, Color("8fc4ee"))
+	p.px(15, 31, Color("ffffff"))
+	# tier 3: jagged ice teeth along the blade edge and a collar of frosted crystals
+	if t >= 3:
+		for y in range(top + 4, 12, 3):
+			var half: float = 2.0 + sin(float(y - top) / float(14 - top) * PI) * bulge
+			p.px(int(15.5 - half) - 1, y, ice_l)
+			p.px(int(16.5 + half) + 1, y + 1, ice_d)
+		for sx in [11, 20]:
+			p.line(Vector2(sx, 16), Vector2(sx + (2 if sx < 15 else -2), 13), Color("cfeaff"), 1)
+		p.rect(13, 16, 18, 16, Color("6aa8dc"))
+	# tier 4: a hooked back-blade spur and frost crystals growing from the collar
+	if t >= 4:
+		for k in 5:
+			p.px(21 + k, 8 + k, ice_d)
+			p.px(21 + k, 9 + k, ice_l if k < 3 else ice_d)
+		p.px(26, 13, Color("ffffff"))
+		for k in 3:
+			p.px(11 - k, 15 + k, Color("8fc4ee"))
+		p.rect(13, 14, 18, 14, Color("e8f4ff"))
+	# tier 5: icicles hang from the blade edge, a crystal in the collar, silver wraps on the shaft
+	if t >= 5:
+		for sx in [8, 10, 22, 24]:
+			p.line(Vector2(sx, 11), Vector2(sx, 14 + (sx % 3)), Color("8fc4ee"), 1)
+		p.gem(15.5, 16.5, 1.8, Color("5be0ff"))
+		for y in [20, 23, 26]:
+			p.rect(15, y, 16, y, Color("e8f4ff"))
+	# tier 6: a huge crystal blade tipped with a snowflake star, floating ice shards and silver-gold trim
+	if t >= 6:
+		for sx in [4, 27]:
+			p.diamond(sx + 0.0, 9.0, 1.2, 2.2, Color("e8f4ff"))
+		p.diamond(5.5, 20.0, 1.0, 1.8, Color("8fc4ee"))
+		p.diamond(26.0, 21.0, 1.0, 1.8, Color("8fc4ee"))
+		p.px(15, 0, Color.WHITE)
+		p.px(16, 0, Color.WHITE)
+		p.rect(13, 14, 18, 14, Paint.GOLD_L)
+		p.rect(14, 28, 17, 28, Paint.GOLD_L)
+
+# -------------------------------------------------------------------------------------------------------------------- staff
+
+func draw_staff(p: Paint, t: int) -> void:
+	var violet := Color("7f5bff")
+	var violet_l := Color("cbb8ff")
+	if t == 1:
+		p.rect(15, 11, 16, 30, Paint.WOOD)
+		p.rect(15, 11, 15, 30, Paint.WOOD_L)
+		p.line(Vector2(11, 3), Vector2(11, 8), Paint.WOOD, 2)
+		p.line(Vector2(20, 3), Vector2(20, 8), Paint.WOOD, 2)
+		p.rect(11, 9, 20, 10, Paint.WOOD)
+		p.disc(16.0, 6.0, 5.0, violet)
+		p.disc(14.5, 4.5, 1.6, violet_l)
+		return
+	var orb_r: float = [0.0, 5.0, 5.2, 5.6, 5.6, 6.0, 6.3][t]
+	var cy := 6.0 if t < 5 else 7.0
+	# tier 2: a wrapped shaft with a gold cradle holding the bigger orb, silver butt cap
+	p.rect(15, 11, 16, 30, Paint.WOOD)
+	p.rect(15, 11, 15, 30, Paint.WOOD_L)
+	for y in range(14, 28, 3):
+		p.rect(15, y, 16, y, Paint.WOOD_D)
+	p.rect(14, 29, 17, 31, Paint.IRON)
+	p.rect(14, 29, 17, 29, Paint.STEEL_L)
+	p.line(Vector2(10, 3), Vector2(10, 9), Paint.GOLD, 2)
+	p.line(Vector2(21, 3), Vector2(21, 9), Paint.GOLD_D, 2)
+	p.rect(10, 10, 21, 11, Paint.GOLD)
+	p.rect(10, 10, 21, 10, Paint.GOLD_L)
+	p.disc(16.0, cy, orb_r, violet)
+	p.disc(14.5, cy - 1.5, 1.6, violet_l)
+	p.disc(17.5, cy + 1.5, 1.2, Color("5a3ad0"))
+	# tier 3: prongs rise into curved horns with sharp tips, the orb shows an inner swirl, a gold collar and a ruby
+	if t >= 3:
+		p.line(Vector2(10, 3), Vector2(8, 0), Paint.GOLD_L, 1)
+		p.line(Vector2(21, 3), Vector2(23, 0), Paint.GOLD_L, 1)
+		p.px(9, 1, Paint.GOLD)
+		p.px(22, 1, Paint.GOLD)
+		p.line(Vector2(15, cy - 2), Vector2(17, cy + 1), Color("e0d0ff"), 1)
+		p.rect(14, 13, 17, 14, Paint.GOLD)
+		p.gem(15.5, 15.5, 1.3, Color("e04060"))
+	# tier 4: two crystals float beside the orb, gold bands on the shaft
+	if t >= 4:
+		p.diamond(5.0, 11.0, 1.4, 2.4, Color("b090ff"))
+		p.diamond(26.5, 8.0, 1.4, 2.4, Color("b090ff"))
+		p.px(5, 10, Paint.WHITE)
+		p.px(26, 7, Paint.WHITE)
+		for y in [19, 24]:
+			p.rect(15, y, 16, y, Paint.GOLD)
+	# tier 5: a crown of three prongs each side around a bigger orb, runes glowing on the shaft
+	if t >= 5:
+		p.line(Vector2(7, 3), Vector2(7, 10), Paint.GOLD, 1)
+		p.line(Vector2(24, 3), Vector2(24, 10), Paint.GOLD_D, 1)
+		p.px(7, 2, Paint.GOLD_L)
+		p.px(24, 2, Paint.GOLD_L)
+		for y in [17, 22, 27]:
+			p.px(15, y, Color("cbb8ff"))
+		p.gem(15.5, 16.2, 1.5, Color("5be0ff"))
+	# tier 6: a golden shaft, a halo of shards round a radiant orb, a jewelled butt
+	if t >= 6:
+		p.rect(15, 15, 16, 28, Paint.GOLD_D)
+		p.rect(15, 15, 15, 28, Paint.GOLD)
+		for y in range(16, 28, 3):
+			p.rect(15, y, 16, y, Paint.GOLD_L)
+		p.disc(16.0, cy, 3.0, Color("e8d8ff"))
+		p.disc(15.0, cy - 1.0, 1.4, Paint.WHITE)
+		for a in 6:
+			var q := Vector2(16, cy) + Vector2.from_angle(a * TAU / 6.0 + 0.3) * 9.5
+			p.px(int(q.x), int(q.y), Color("e8d8ff"))
+			p.px(int(q.x) + 1, int(q.y), Color("b090ff"))
+		p.gem(15.5, 30.0, 1.4, Color("e04060"))
+
+# ----------------------------------------------------------------------------------------------------------------- emberflail
+
+func draw_emberflail(p: Paint, t: int) -> void:
+	var chain := Color("8f9db0")
+	if t == 1:
+		p.rect(15, 15, 16, 30, Paint.WOOD)
+		p.line(Vector2(15.5, 15), Vector2(10, 9), chain, 1)
+		p.line(Vector2(10, 9), Vector2(14, 5), chain, 1)
+		p.disc(16.0, 6.0, 5.0, Color("b02a10"))
+		p.disc(16.0, 6.0, 3.6, Color("ff6a1a"))
+		p.disc(15.0, 5.0, 1.6, Color("ffd23a"))
+		for a in 6:
+			var q := Vector2(16, 6) + Vector2.from_angle(a * TAU / 6.0) * 5.5
+			p.px(int(q.x), int(q.y), Color("ff9a2a"))
+		return
+	var cx := 18.0
+	var cy := 7.0 if t >= 3 else 6.0
+	var br: float = [0.0, 5.0, 5.2, 6.0, 6.0, 6.3, 6.8][t]
+	# tier 2: a spiked iron-banded ball: eight iron spikes round the molten ball, a heavier two-link chain, a wrapped handle with a guard and cap
+	p.rect(15, 15, 16, 30, Paint.WOOD)
+	p.rect(15, 15, 15, 30, Paint.WOOD_L)
+	for y in range(19, 29, 3):
+		p.rect(15, y, 16, y, Paint.WOOD_D)
+	p.rect(13, 15, 18, 16, Paint.IRON_D)
+	p.rect(13, 15, 18, 15, Paint.IRON)
+	p.rect(14, 29, 17, 31, Paint.IRON)
+	for pt in [Vector2(15.5, 15), Vector2(12.0, 12.0), Vector2(10.0, 9.0), Vector2(11.5, 6.5), Vector2(14.0, 5.0)]:
+		p.rect(int(pt.x), int(pt.y), int(pt.x) + 1, int(pt.y) + 1, chain if int(pt.x + pt.y) % 2 == 0 else Paint.STEEL_L)
+	p.line(Vector2(15.5, 15), Vector2(10, 9), chain, 1)
+	p.line(Vector2(10, 9), Vector2(14, 5), chain, 1)
+	for a in 8:
+		var d := Vector2.from_angle(a * TAU / 8.0 + 0.2)
+		for k in range(int(br), int(br) + 3):
+			var q := Vector2(cx, cy) + d * float(k)
+			p.px(int(q.x), int(q.y), Paint.STEEL if k < int(br) + 2 else Paint.STEEL_L)
+	p.disc(cx, cy, br, Color("b02a10"))
+	p.disc(cx, cy, br - 1.4, Color("ff6a1a"))
+	p.disc(cx - 1.0, cy - 1.0, br - 3.2, Color("ffd23a"))
+	# tier 3: lava cracks across the ball and a molten glow ring
+	if t >= 3:
+		p.line(Vector2(cx - 4, cy + 1), Vector2(cx + 1, cy - 2), Color("ffee88"), 1)
+		p.line(Vector2(cx + 1, cy - 2), Vector2(cx + 4, cy + 3), Color("ffee88"), 1)
+		p.ring(cx, cy, br, 1.0, Color("7a1a08"))
+		p.rect(13, 17, 18, 17, Paint.IRON)
+		p.rect(15, 18, 16, 18, Paint.IRON_D)
+	# tier 4: a second chain, flames licking from the ball, gold bands on the handle
+	if t >= 4:
+		p.ring(cx, cy, br, 1.6, Color("7a1a08"))
+		p.disc(cx, cy, br - 2.4, Color("ff6a1a"))
+		p.disc(cx - 1.0, cy - 1.0, br - 3.6, Color("ffd23a"))
+		for a in 8:
+			var d := Vector2.from_angle(a * TAU / 8.0 + 0.6)
+			var q := Vector2(cx, cy) + d * (br + 1.0)
+			p.px(int(q.x), int(q.y), Paint.STEEL)
+			q = Vector2(cx, cy) + d * (br + 2.0)
+			p.px(int(q.x), int(q.y), Paint.STEEL_L)
+		for pt in [Vector2(16.5, 16.0), Vector2(19.0, 15.0), Vector2(21.5, 13.0), Vector2(23.0, 11.0), Vector2(23.5, 9.0)]:
+			p.rect(int(pt.x), int(pt.y), int(pt.x) + 1, int(pt.y) + 1, chain if int(pt.x + pt.y) % 2 == 0 else Paint.STEEL_L)
+		p.rect(15, 21, 16, 21, Paint.GOLD)
+		p.rect(15, 26, 16, 26, Paint.GOLD)
+	# tier 5: obsidian horns in the ball and a gold-capped handle with an ember gem
+	if t >= 5:
+		for a in [1.0, 2.1, 4.2, 5.3]:
+			var d := Vector2.from_angle(a)
+			p.px(int(cx + d.x * (br - 2.0)), int(cy + d.y * (br - 2.0)), Color("2a1a1a"))
+			p.px(int(cx + d.x * (br - 1.0)), int(cy + d.y * (br - 1.0)), Color("2a1a1a"))
+		p.rect(13, 15, 18, 15, Paint.GOLD)
+		p.gem(15.5, 24.0, 1.4, Color("ff6a1a"))
+	# tier 6: a white-hot heart in the ball, a corona of flame, a golden handle
+	if t >= 6:
+		p.disc(cx - 1.0, cy - 1.0, 2.2, Color("fffbe0"))
+		for k in 5:
+			var q := Vector2(cx, cy) + Vector2.from_angle(-PI / 2.0 + (k - 2) * 0.55) * (br + 3.0)
+			p.px(int(q.x), int(q.y), Color("ff9a2a"))
+			p.px(int(q.x), int(q.y) - 1, Color("ffd23a"))
+		p.rect(15, 16, 16, 28, Paint.GOLD_D)
+		p.rect(15, 16, 15, 28, Paint.GOLD)
+		for y in range(18, 28, 3):
+			p.rect(15, y, 16, y, Paint.GOLD_L)
+
+# ----------------------------------------------------------------------------------------------------------------- bogstaff
+
+func draw_bogstaff(p: Paint, t: int) -> void:
+	var bark := Color("5a4a2a")
+	var bark_l := Color("7a6a3a")
+	var green := Color("3f7a2a")
+	var lime := Color("b8f070")
+	if t == 1:
+		p.line(Vector2(15, 30), Vector2(17, 12), bark, 2)
+		p.line(Vector2(17, 12), Vector2(13, 8), bark, 2)
+		p.line(Vector2(17, 12), Vector2(21, 8), bark, 2)
+		p.disc(16.0, 6.0, 4.5, green)
+		p.disc(14.8, 4.8, 1.6, lime)
+		return
+	var orb_r: float = [0.0, 4.5, 5.0, 5.2, 5.4, 5.6, 6.2][t]
+	var oy := 6.0
+	# tier 2: a knotted gnarled shaft with lighter bark, a bigger twig claw cradling the orb, a green vine winding up the shaft and a root-foot
+	p.line(Vector2(15, 30), Vector2(17, 12), bark, 2)
+	p.line(Vector2(17, 12), Vector2(12, 8), bark, 2)
+	p.line(Vector2(17, 12), Vector2(22, 8), bark, 2)
+	p.line(Vector2(12, 8), Vector2(11, 4), bark, 2)
+	p.line(Vector2(22, 8), Vector2(23, 4), bark, 2)
+	for y in range(14, 30, 4):
+		p.px(15 + (30 - y) / 9, y, bark_l)
+	for y in [17, 22, 26]:
+		p.px(14 + (30 - y) / 9, y, Color("2a2010"))
+	p.line(Vector2(14, 30), Vector2(12, 31), bark, 1)
+	p.line(Vector2(16, 30), Vector2(19, 31), bark, 1)
+	p.disc(16.0, oy, orb_r, green)
+	p.disc(14.6, oy - 1.4, 1.7, lime)
+	p.disc(17.5, oy + 1.5, 1.4, Color("2a5a1c"))
+	for k in 7:
+		var y := 28 - k * 2
+		p.px(int(15.5 + (30 - y) / 9.0 + sin(k * 1.4) * 1.5), y, Color("5aa83a"))
+	# tier 3: hanging moss strands off the claws, two red mushrooms on the shaft, swirls in the orb
+	if t >= 3:
+		for sx in [11, 12, 22, 23]:
+			p.line(Vector2(sx, 8), Vector2(sx - 1 + (sx % 2) * 2, 12 + (sx % 3)), Color("6a9a3a"), 1)
+		p.rect(12, 19, 14, 19, Color("c03030"))
+		p.px(13, 20, Color("f2e8d8"))
+		p.rect(18, 24, 20, 24, Color("c03030"))
+		p.px(19, 25, Color("f2e8d8"))
+		p.px(13, 19, Color("f2e8d8"))
+		p.line(Vector2(14, 7), Vector2(18, 4), Color("8ed050"), 1)
+	# tier 4: a third claw rises in the middle (three-pronged crown), the orb gets glowing eyes, spores rise
+	if t >= 4:
+		p.line(Vector2(17, 12), Vector2(16, 1), bark, 1)
+		p.px(15, 6, Color("ffe84a"))
+		p.px(18, 6, Color("ffe84a"))
+		p.px(15, 7, Color("2a2010"))
+		for q in [Vector2(6, 6), Vector2(27, 4), Vector2(8, 13), Vector2(26, 12)]:
+			p.disc(q.x, q.y, 1.0, Color("b8f070"))
+	# tier 5: lily blossoms on the claw tips, toxic drips beneath the orb, thorned vines
+	if t >= 5:
+		for q in [Vector2(11, 3), Vector2(23, 3)]:
+			p.disc(q.x, q.y, 1.6, Color("f08ac0"))
+			p.px(int(q.x), int(q.y), Color("ffe84a"))
+		for q in [Vector2(14, 12), Vector2(19, 13)]:
+			p.px(int(q.x), int(q.y), Color("b8f070"))
+			p.px(int(q.x), int(q.y) + 1, Color("6ac030"))
+		for y in range(15, 29, 5):
+			p.px(18, y, Color("2a5a1c"))
+			p.px(12, y + 2, Color("2a5a1c"))
+	# tier 6: a giant bog-heart orb with glowing veins, a ring of spores, a root-wrapped golden collar
+	if t >= 6:
+		for a in 6:
+			var d := Vector2.from_angle(a * TAU / 6.0 + 0.4)
+			p.line(Vector2(16, oy) + d * 1.5, Vector2(16, oy) + d * 5.0, Color("d8ff90"), 1)
+		p.disc(16.0, oy, 1.5, Color("fffbe0"))
+		for a in 8:
+			var q := Vector2(16, oy) + Vector2.from_angle(a * TAU / 8.0) * 9.0
+			p.px(int(q.x), int(q.y), Color("d8ff90") if a % 2 == 0 else Color("b8f070"))
+		p.rect(14, 13, 18, 14, Paint.GOLD)
+		p.px(16, 13, Paint.GOLD_L)
+
+# ------------------------------------------------------------------------------------------------------------------ crystalwand
+
+func _crystal(p: Paint, cx: float, y0: int, y1: int, half_max: float, light: Color, dark: Color) -> void:
+	# a pointed lens-shaped crystal, tip up, from y0 to y1
+	for y in range(y0, y1 + 1):
+		var u := float(y - y0) / float(y1 - y0)
+		var half := half_max * minf(1.0, u / 0.45) * (1.0 - maxf(0.0, u - 0.85) * 3.0) + 0.3
+		for x in range(int(cx - half + 0.5), int(cx + half + 0.5) + 1):
+			p.px(x, y, light if x <= int(cx) else dark)
+	p.px(int(cx), y0 + 1, Color(1, 1, 1))
+
+func draw_crystalwand(p: Paint, t: int) -> void:
+	var light := Color("d9bfff")
+	var dark := Color("9a6fe0")
+	if t == 1:
+		p.rect(15, 14, 16, 30, Color("6a5a8a"))
+		for y in range(2, 15):
+			var half: float = 1.0 + (7 - abs(y - 8)) * 0.6
+			for x in range(int(15.5 - half), int(16.5 + half) + 1):
+				p.px(x, y, light if x <= 15 else dark)
+		return
+	# tier 2: a taller, sharper crystal in a gold collar, a wrapped shaft, a pommel jewel
+	p.rect(15, 14, 16, 30, Color("6a5a8a"))
+	p.rect(15, 14, 15, 30, Color("8a7aaa"))
+	for y in range(18, 28, 3):
+		p.rect(15, y, 16, y, Color("3a2a5a"))
+	p.rect(14, 12, 17, 14, Paint.GOLD)
+	p.rect(14, 12, 17, 12, Paint.GOLD_L)
+	p.rect(14, 14, 17, 14, Paint.GOLD_D)
+	_crystal(p, 15.5, 0, 12, 3.0, light, dark)
+	p.line(Vector2(14, 8), Vector2(15, 4), Color("f2e8ff"), 1)
+	p.rect(14, 29, 17, 31, Paint.GOLD)
+	p.gem(15.5, 30.0, 1.1, Color("e04060"))
+	# tier 3: two small crystals sprout from the collar on either side and the hilt gets a guard
+	if t >= 3:
+		_crystal(p, 10.0, 4, 13, 2.0, Color("e8d8ff"), Color("b88aff"))
+		_crystal(p, 21.5, 5, 13, 2.0, Color("e8d8ff"), Color("b88aff"))
+		p.rect(11, 14, 20, 14, Paint.GOLD_D)
+		p.rect(12, 15, 19, 15, Paint.GOLD)
+		p.rect(15, 18, 16, 18, Paint.GOLD)
+	# tier 4: a second ring of crystals at the base and a glowing core in the main one
+	if t >= 4:
+		_crystal(p, 6.0, 8, 14, 1.5, Color("d9bfff"), Color("9a6fe0"))
+		_crystal(p, 26.0, 9, 14, 1.5, Color("d9bfff"), Color("9a6fe0"))
+		p.rect(15, 5, 16, 9, Color("fff0ff"))
+		p.rect(15, 24, 16, 24, Paint.GOLD)
+	# tier 5: a crown of crystals, gold inlay on the shaft, a brighter core
+	if t >= 5:
+		_crystal(p, 12.5, 0, 11, 1.6, Color("f4e8ff"), Color("c8a0ff"))
+		_crystal(p, 19.0, 1, 11, 1.6, Color("f4e8ff"), Color("c8a0ff"))
+		p.rect(15, 20, 16, 20, Paint.GOLD)
+		p.rect(15, 27, 16, 27, Paint.GOLD)
+		p.gem(15.5, 12.8, 1.2, Color("5be0ff"))
+	# tier 6: floating shards orbit the cluster, a white-gold core and a golden shaft
+	if t >= 6:
+		for q in [Vector2(3.5, 3.0), Vector2(28.0, 2.5), Vector2(3.0, 19.0), Vector2(28.5, 18.0)]:
+			p.diamond(q.x, q.y, 1.0, 1.8, Color("e8d8ff"))
+		p.rect(15, 15, 16, 28, Paint.GOLD_D)
+		p.rect(15, 15, 15, 28, Paint.GOLD)
+		for y in range(17, 28, 3):
+			p.rect(15, y, 16, y, Paint.GOLD_L)
+		p.rect(15, 4, 16, 8, Color.WHITE)
