@@ -42,12 +42,16 @@ static var twist := ""
 ## True while a glowing weapon is in hand: its hits light the enemy (see Game.light_up).
 static var lit := false
 static var _twist_hits := 0
+## The weapon that last called _claim() (weapon tiers: hit hook).
+static var owner = null
+static var _rider := false
 
 ## Damage an enemy; optional knockback impulse and stun (seconds).
 static var _hit_frame := -1
 static var _hit_targets := 0
 
-static func hit(e: Node, dmg: float, from: Vector2, knock := 0.0, stun := 0.0, elem := "", aoe := false) -> void:
+## `quiet`: no twist, no tier hook and no hit-stop (echoes, ticks and chain jumps of the weapon tiers).
+static func hit(e: Node, dmg: float, from: Vector2, knock := 0.0, stun := 0.0, elem := "", aoe := false, quiet := false) -> void:
 	if !_alive(e):
 		return
 	if lit:
@@ -61,19 +65,58 @@ static func hit(e: Node, dmg: float, from: Vector2, knock := 0.0, stun := 0.0, e
 	if _hit_targets >= 2:
 		aoe = true
 	var dir: Vector2 = (e.global_position - from).normalized()
-	if dmg >= 5.0:
+	if dmg >= 5.0 and !quiet:
 		Game.hit_stop(0.06)
 	if "hit_from" in e:
 		e.hit_from = from
 	e.spell_damage(dmg * power, elem if elem != "" else element, aoe)
-	if twist != "":
+	if twist != "" and !quiet:
 		_apply_twist(e, dmg * power)
+	if !quiet and !_rider and owner != null and is_instance_valid(owner):
+		_rider = true
+		WeaponTiers.run(owner, "on_hit", [e, dmg])
+		_rider = false
 	if !_alive(e):
 		return
 	if knock > 0.0:
 		e.push(dir * knock, 0.12)
 	if stun > 0.0:
 		e.apply_slow(0.0, stun)
+
+## A stun that cannot be chained: at most 2 s of every 3 s per enemy; bosses are only slowed.
+static func stun(e: Node, secs: float) -> void:
+	if !_alive(e):
+		return
+	var now := Time.get_ticks_msec() / 1000.0
+	if e.is_in_group("boss"):
+		if e.has_method("apply_slow"):
+			e.apply_slow(0.35, secs)
+		return
+	if e.has_meta("stun_cd_until") and e.get_meta("stun_cd_until") > now:
+		return
+	secs = minf(secs, 2.0)
+	e.set_meta("stun_cd_until", now + 3.0)
+	if e.has_method("apply_slow"):
+		e.apply_slow(0.0, secs)
+
+## The nearest living enemy within r of pos (not one of `skip`), or null.
+static func nearest(tree: SceneTree, pos: Vector2, r: float, skip: Array = []):
+	var best = null
+	var bd := 1.0e9
+	for e in enemies_in_circle(tree, pos, r):
+		if e in skip:
+			continue
+		var d: float = e.global_position.distance_to(pos)
+		if d < bd:
+			bd = d
+			best = e
+	return best
+
+## Up to n distinct enemies within r of pos, in a shuffled order.
+static func random_enemies(tree: SceneTree, pos: Vector2, r: float, n: int) -> Array:
+	var all := enemies_in_circle(tree, pos, r)
+	all.shuffle()
+	return all.slice(0, n)
 
 static func _apply_twist(e: Node, dmg: float) -> void:
 	if !_alive(e):

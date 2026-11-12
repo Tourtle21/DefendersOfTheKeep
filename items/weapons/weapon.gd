@@ -43,6 +43,9 @@ var _dash_dmg := 0.0
 var _dash_radius := 12.0
 var _dash_knock := 0.0
 var _dash_hit := []
+var _st := {}                  # host-only state of the weapon's tier module (items/weapons/tiers/<id>.gd)
+var _aura                      # the WeaponAura node of a tier 2+ weapon
+var _verb_ms := {}             # verb -> when it last started (see verb())
 
 func equip() -> void:
 	pass
@@ -63,6 +66,7 @@ func _ready() -> void:
 	if light_radius <= 0.0:
 		light_radius = float(LIGHT_WEAPONS.get(weapon_id, 0.0))
 	WeaponUtil.lit = light_radius > 0.0
+	WeaponUtil.owner = self
 	_util_power = WeaponUtil.power
 	_util_lit = WeaponUtil.lit
 	if light_radius > 0.0:
@@ -72,13 +76,16 @@ func _ready() -> void:
 	z_index = 5
 	player = get_parent().get_parent()
 	sprite = Sprite2D.new()
-	sprite.texture = load(icon_path)
+	sprite.texture = WeaponArt.icon(weapon_id, tier, icon_path)
 	sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	sprite.rotation = PI / 2.0     # icons are drawn tip-up; point the tip along +x
 	sprite.position = Vector2(reach, 0)
 	sprite.scale = Vector2(icon_scale, icon_scale)
 	add_child(sprite)
 	_follow()
+	_st = {}
+	WeaponTiers.run(self, "equip")
+	WeaponAura.attach(self)
 
 func _follow() -> void:
 	global_position = player.global_position + Vector2(0, -3)
@@ -94,12 +101,14 @@ func _process(delta: float) -> void:
 	_ult_cd = max(0.0, _ult_cd - delta)
 	_follow()
 	queue_redraw()
+	WeaponTiers.run(self, "tick", [delta])
 	if Time.get_ticks_msec() / 1000.0 < _dash_until:
 		for e in WeaponUtil.enemies_in_circle(get_tree(), player.global_position, _dash_radius):
 			if !(e in _dash_hit):
 				_dash_hit.append(e)
 				WeaponUtil.hit(e, _dash_dmg, player.global_position, _dash_knock)
 				_on_dash_hit(e)
+				WeaponTiers.run(self, "dash_hit", [e])
 
 var _util_power := 1.0
 var _util_lit := false
@@ -111,14 +120,26 @@ func _claim() -> void:
 	WeaponUtil.element = element
 	WeaponUtil.twist = twist
 	WeaponUtil.lit = _util_lit
+	WeaponUtil.owner = self
+
+## Which verb was used last (attack 0.35 s, ability 1.0 s, dash 0.4 s, ultimate 3.0 s), "attack" when none is open. Flavour only.
+func verb() -> String:
+	var now := Time.get_ticks_msec()
+	for v in [["ultimate", 3000], ["ability", 1000], ["dash", 400], ["attack", 350]]:
+		if _verb_ms.has(v[0]) and now - int(_verb_ms[v[0]]) < int(v[1]):
+			return v[0]
+	return "attack"
 
 func use_item() -> void:
 	_claim()
 	if _attack_cd > 0.0:
 		return
 	_attack_cd = attack_cooldown
+	_verb_ms["attack"] = Time.get_ticks_msec()
 	Sfx.play("whoosh", 0.15)
+	WeaponTiers.run(self, "pre_attack")
 	attack()
+	WeaponTiers.run(self, "attack")
 
 func ability_unlocked() -> bool:
 	return tier >= 2
@@ -142,8 +163,11 @@ func use_ability() -> void:
 	if _ability_cd > 0.0:
 		return
 	_ability_cd = ability_cooldown
+	_verb_ms["ability"] = Time.get_ticks_msec()
 	Sfx.play("cast", 0.05, 0.8)
+	WeaponTiers.run(self, "pre_ability")
 	ability()
+	WeaponTiers.run(self, "ability")
 
 ## (seconds left, total cooldown, display name) for the ability HUD.
 func cd_info(slot: String) -> Array:
@@ -174,7 +198,10 @@ func use_ultimate() -> void:
 	_ult_cd = ultimate_cooldown
 	Sfx.play("ultimate", 0.02)
 	player.shake(3.0, 0.3)
+	_verb_ms["ultimate"] = Time.get_ticks_msec()
+	WeaponTiers.run(self, "pre_ultimate")
 	ultimate()
+	WeaponTiers.run(self, "ultimate")
 
 func ultimate() -> void:
 	pass
@@ -190,10 +217,13 @@ func use_dash() -> void:
 	if _dash_cd > 0.0 or dash_name == "":
 		return
 	_dash_cd = dash_cooldown
+	_verb_ms["dash"] = Time.get_ticks_msec()
 	Sfx.play("whoosh", 0.05, 1.5)
 	aim = player.dash_dir(aim)         # a dash goes the way you are moving, not toward the mouse
 	rotation = aim.angle()
+	WeaponTiers.run(self, "pre_dash")
 	dash_attack()
+	WeaponTiers.run(self, "dash")
 
 func dash_attack() -> void:
 	pass
@@ -236,16 +266,18 @@ func _draw() -> void:
 
 func release_item() -> void:
 	_claim()
-	pass
+	WeaponTiers.run(self, "release_item")
 
 func release_ability() -> void:
 	_claim()
-	pass
+	WeaponTiers.run(self, "release")
 
 func _on_dash_hit(_e) -> void:
 	pass
 
 func _exit_tree() -> void:
+	if _aura != null and is_instance_valid(_aura):
+		_aura.queue_free()
 	if player != null and is_instance_valid(player):
 		player.speed_mult = 1.0
 		player.parry_time = 0.0

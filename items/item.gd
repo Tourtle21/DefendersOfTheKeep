@@ -15,6 +15,14 @@ var _ult_cd := 0.0
 var bonus_tier := 0
 var twist := ""
 var tier := 1
+# The weapon-tier facade (see Weapon and items/weapons/weapon_tiers.gd): the same names, so a tiers module drives both.
+var weapon_id := ""
+var player                         # the holder (the hand's parent)
+var aim := Vector2.RIGHT
+var reach := 12.0
+var _st := {}
+var _aura
+var _verb_ms := {}
 var attack_cooldown := 0.5
 var ability_cooldown := 6.0
 var dash_cooldown := 4.0
@@ -55,7 +63,18 @@ func ability_cd_left() -> float:
 func dash_cd_left() -> float:
 	return _dash_cd
 
+func game_world() -> Node:
+	return player.get_parent()
+
+func fx(kind: String, pos: Vector2, color: Color, params := {}) -> void:
+	WeaponFx.spawn(game_world(), kind, pos, color, params)
+
 func _process(delta: float) -> void:
+	if player != null and is_instance_valid(player):
+		var m: Vector2 = player.aim_point() - player.global_position
+		if m.length() > 2.0:
+			aim = m.normalized()
+		WeaponTiers.run(self, "tick", [delta])
 	_ability_cd = max(0.0, _ability_cd - delta)
 	_dash_cd = max(0.0, _dash_cd - delta)
 	_ult_cd = max(0.0, _ult_cd - delta)
@@ -63,6 +82,7 @@ func _process(delta: float) -> void:
 var _util_power := 1.0
 
 func _claim() -> void:
+	WeaponUtil.owner = self
 	WeaponUtil.power = _util_power          # (see Weapon._claim: the statics are shared by every player's weapon)
 	WeaponUtil.element = ""
 	WeaponUtil.twist = twist
@@ -76,7 +96,9 @@ func use_ability() -> void:
 	if _ability_cd > 0.0:
 		return
 	Sfx.play("cast", 0.05, 0.8)
-	var player = get_parent().get_parent()
+	_verb_ms["ability"] = Time.get_ticks_msec()
+	_st["strike_c"] = player.global_position + (player.aim_point() - player.global_position).limit_length(80.0)       # (the Pickaxe's strike centre)
+	WeaponTiers.run(self, "ability")
 	var o: Vector2 = player.global_position
 	var world = player.get_parent()
 	match _id():
@@ -88,9 +110,13 @@ func use_ability() -> void:
 				if !is_inside_tree():
 					return
 				var pos: Vector2 = player.global_position
-				WeaponFx.spawn(world, "ring", pos, Color(1, 1, 1), {"radius": 34.0 * area(), "life": 0.25})
-				for e in WeaponUtil.enemies_in_circle(get_tree(), pos, 34.0 * area()):
+				var grow = WeaponTiers.run(self, "whirl_scale", [i])          # tier 2: the pulses grow (Gale)
+				var rr: float = 34.0 * area() * (float(grow) if grow != null else 1.0)
+				if grow == null:
+					WeaponFx.spawn(world, "ring", pos, Color(1, 1, 1), {"radius": rr, "life": 0.25})
+				for e in WeaponUtil.enemies_in_circle(get_tree(), pos, rr):
 					WeaponUtil.hit(e, 2.0, pos, 160.0)
+				WeaponTiers.run(self, "whirl_pulse", [i, pos, rr])
 				player.shake(1.0, 0.1)
 				await get_tree().create_timer(0.3).timeout
 		"pickaxe":
@@ -116,9 +142,10 @@ func use_ultimate() -> void:
 		return
 	_ult_cd = ultimate_cooldown
 	Sfx.play("ultimate", 0.02)
-	var player = get_parent().get_parent()
 	var world = player.get_parent()
 	player.shake(3.0, 0.3)
+	_verb_ms["ultimate"] = Time.get_ticks_msec()
+	WeaponTiers.run(self, "ultimate")
 	match _id():
 		"sword":
 			# Blade Tempest: a long, fast spin that keeps hitting while you move
@@ -140,10 +167,11 @@ func use_dash() -> void:
 	if _dash_cd > 0.0:
 		return
 	Sfx.play("whoosh", 0.05, 1.5)
-	var player = get_parent().get_parent()
 	var o: Vector2 = player.global_position
-	var aim: Vector2 = player.dash_dir((player.aim_point() - o).normalized())      # the way you are moving, not the mouse
+	aim = player.dash_dir((player.aim_point() - o).normalized())      # the way you are moving, not the mouse
 	var world = player.get_parent()
+	_verb_ms["dash"] = Time.get_ticks_msec()
+	WeaponTiers.run(self, "dash")
 	match _id():
 		"sword":
 			# Slash Dash: dash forward and finish with a wide slash
@@ -168,6 +196,8 @@ func use_dash() -> void:
 			player.dash(aim, 70.0, 0.16)
 
 func _ready() -> void:
+	weapon_id = _id()
+	player = get_parent().get_parent()
 	tier = clampi(1 + bonus_tier, 1, 6)
 	var cd_mult := pow(0.92, bonus_tier) * maxf(0.4, 1.0 - Game.bonus("weapon_cd"))
 	ability_cooldown *= cd_mult
@@ -189,6 +219,9 @@ func _ready() -> void:
 			ultimate_name = "Earthquake"
 			dash_name = "Dash-Mine"
 			attack_name = "Mine"
+	_st = {}
+	WeaponTiers.run(self, "equip")
+	WeaponAura.attach(self)
 	var animation_player = $AnimationPlayer
 	if animation_player and !animation_player.is_connected("animation_finished", _on_animation_player_animation_finished):
 		animation_player.connect("animation_finished", _on_animation_player_animation_finished)
@@ -202,4 +235,9 @@ func equip() -> void:
 	position = starting_position
 	
 func use_item() -> void:
-	pass
+	_verb_ms["attack"] = Time.get_ticks_msec()
+	WeaponTiers.run(self, "attack")        # (the animation's hitbox does the damage; a module adds its riders)
+
+func _exit_tree() -> void:
+	if _aura != null and is_instance_valid(_aura):
+		_aura.queue_free()
