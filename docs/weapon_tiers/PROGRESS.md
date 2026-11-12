@@ -48,3 +48,9 @@ DONE prismstaff
 CLAIM dawnbringer
 CLAIM bogstaff
 DONE bogstaff
+DONE dawnbringer
+CLAIM voidreaver
+DONE voidreaver
+CLAIM mindbender
+CLAIM witchstaff
+CLAIM soulreaper
