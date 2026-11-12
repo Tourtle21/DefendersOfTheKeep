@@ -42,6 +42,8 @@ func attack() -> void:
 	fx("line", o, Color(1.0, 0.9, 0.9), {"dir": aim, "length": 46.0, "width": 2.0 + (2.0 if big else 0.0), "life": 0.12})
 	for e in WeaponUtil.enemies_in_line(get_tree(), o, aim, 46.0, 9.0):
 		WeaponUtil.hit(e, Game.basic_hit(weapon_id) * (2.5 if big else 1.0), o, 200.0 if big else 60.0)
+	_st["big"] = big                      # (weapon tiers: what this thrust was)
+	_st["n"] = _combo
 	if _combo >= 3:
 		_combo = 0
 
@@ -75,6 +77,7 @@ func _fleche() -> void:
 	fx("line", o, Color(1.0, 0.9, 0.9), {"dir": to.normalized(), "length": to.length(), "width": 5.0, "life": 0.2})
 	WeaponUtil.hit(best, 4.0, o, 120.0)
 	_chain += 1
+	WeaponTiers.run(self, "fleche", [best, _chain, o])          # (weapon tiers: stab number _chain, from o)
 	var now := Time.get_ticks_msec() / 1000.0
 	_chain_until = now + 0.8
 	if _chain >= 3:
@@ -100,4 +103,5 @@ func ultimate() -> void:
 		thrust(8.0, 0.1)
 		for e in WeaponUtil.enemies_in_line(get_tree(), o, aim, 56.0, 12.0):
 			WeaponUtil.hit(e, 1.5, o, 40.0)
+		WeaponTiers.run(self, "stab", [i])                       # (weapon tiers: thrust i of the 12)
 		await get_tree().create_timer(0.1).timeout

@@ -9,3 +9,4 @@ DONE torch
 DONE chainfangs
 DONE spear
 DONE hammer
+DONE rapier

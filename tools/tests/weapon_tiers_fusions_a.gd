@@ -91,6 +91,97 @@ func t_chainfangs() -> void:
 	ok("chainfangs Execution: tier 6 finale shock seen %s, the weak dummy is gone %s, the boss stand-in lives %s" % [rf.kinds.has("shock"), !is_instance_valid(weak) or weak.health <= 0, is_instance_valid(strong)], rf.kinds.has("shock") and (!is_instance_valid(weak) or weak.health <= 0) and is_instance_valid(strong))
 	await draw_smoke("chainfangs")
 
+## Is a WeaponFx of this kind (and radius) alive right now.
+func has_fx(kind: String, radius := -1.0) -> bool:
+	for n in world.get_children():
+		if n.get_script() != null and str(n.get_script().resource_path).ends_with("items/weapons/fx.gd") and n.kind == kind and (radius < 0.0 or is_equal_approx(n.radius, radius)):
+			return true
+	return false
+
+func t_rapier() -> void:
+	var w
+	# Flicker: Fleche marks the target and the 3rd stab of a chain is a double
+	w = await equip("rapier", 2)
+	var d = dummy(P + Vector2(70, 0))
+	var per := []
+	var kinds := {}
+	for i in 3:
+		w._ability_cd = 0.0
+		var h0 := lost(d)
+		w.use_ability()
+		for k in 5:
+			await wait(0.05)
+			fx_kinds(kinds)
+		per.append(lost(d) - h0)
+		if i == 0:
+			per.append(exposed_for(d))
+		await wait(0.1)
+	ok("rapier Flicker: tier 2 stab 3 is a double (%s) and the target is marked (%.1f s), streak %s" % [per, per[1], kinds.has("streak")], per[3] > per[0] * 1.3 and per[1] > 1.0 and kinds.has("streak"))
+	# Rhythm: the 2nd thrust throws a wave from tier 3
+	var wave := {}
+	for t in [2, 3]:
+		w = await equip("rapier", t, false)
+		var dd = dummy(P + Vector2(70, 0))
+		click(w)
+		await wait(0.1)
+		click(w)
+		var r = await watch(0.5)
+		wave[t] = [r.proj, lost(dd)]
+	ok("rapier Rhythm: tier 3 throws a wave after the 2nd thrust %s, tier 2 none %s" % [wave[3], wave[2]], wave[3][0] >= 1 and wave[2][0] == 0 and wave[3][1] > 0.1)
+	# Afterimage: the phantom stabs again 0.6 s later; the evade phantom thrusts 0.5 s later
+	var after := {}
+	for t in [3, 4]:
+		w = await equip("rapier", t, false)
+		var dd = dummy(P + Vector2(70, 0))
+		w.use_ability()
+		await wait(0.35)
+		var h1 := lost(dd)
+		await wait(0.5)
+		var fl := lost(dd) - h1
+		w = await equip("rapier", t, false)
+		var ev = dummy(P + Vector2(30, 0))
+		w.use_dash()
+		await wait(0.3)
+		var h2 := lost(ev)
+		await wait(0.5)
+		after[t] = [snappedf(fl, 0.01), snappedf(lost(ev) - h2, 0.01)]
+	ok("rapier Afterimage: tier 4 Fleche phantom %s and Evade phantom thrust %s; tier 3 %s" % [after[4][0], after[4][1], after[3]], after[4][0] > 1.5 and after[4][1] > 1.0 and after[3][0] < 0.1 and after[3][1] < 0.1)
+	# Dance: the thousand stabs slide forward with flurry cones from tier 5; Final Lunge adds a 110 px lunge at tier 6
+	var dance := {}
+	for t in [4, 5, 6]:
+		w = await equip("rapier", t)
+		var dd = dummy(P + Vector2(60, 0))
+		w.use_ultimate()
+		var seen := {}
+		var x0: float = player.global_position.x
+		var xm := 0.0
+		for i in 40:
+			await wait(0.05)
+			fx_kinds(seen)
+			if i == 19:
+				xm = player.global_position.x
+		await wait(0.3)
+		dance[t] = [snappedf(xm - x0, 1.0), snappedf(player.global_position.x - xm, 1.0), seen.has("cone"), seen.has("shock"), snappedf(lost(dd), 0.1)]
+	ok("rapier Dance: tier 5 slides %s and has cones; tier 4 stays %s" % [dance[5], dance[4]], dance[5][0] > 40.0 and dance[5][2] and absf(dance[4][0]) < 20.0 and !dance[4][2])
+	ok("rapier Final Lunge: tier 6 lunges %s (>= 70 px after the stabs) with a shock, tier 5 does not %s" % [dance[6], dance[5]], dance[6][1] >= 70.0 and dance[6][3] and absf(dance[5][1]) < 15.0 and !dance[5][3] and dance[6][4] > dance[5][4])
+	# Finisher: every 6th thrust pierces through (a cut r 18 appears)
+	var fin := {}
+	for t in [5, 6]:
+		w = await equip("rapier", t)
+		var dd = dummy(P + Vector2(30, 0))
+		var saw := false
+		for i in 6:
+			click(w)
+			await wait(0.05)
+			if i == 5 and has_fx("cut", 18.0):
+				saw = true
+			await wait(0.3)
+		fin[t] = saw
+	ok("rapier Finisher: the 6th thrust pierces through at tier 6 %s, not at tier 5 %s" % [fin[6], fin[5]], fin[6] and !fin[5])
+	await draw_smoke("rapier")
+
 func run() -> void:
 	if want("chainfangs"):
 		await t_chainfangs()
+	if want("rapier"):
+		await t_rapier()
