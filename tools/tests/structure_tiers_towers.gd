@@ -120,6 +120,8 @@ func _initialize() -> void:
 		await magma()
 	if only == "" or only == "venom_tower":
 		await venom()
+	if only == "" or only == "prism_tower":
+		await prism()
 	quit()
 
 # ---------------------------------------------------------------- Crystal Pylon
@@ -405,3 +407,91 @@ func venom() -> void:
 	ok("venom t6 plague: flash 40 seen %s, a cloud exists (%d), acid ring still seen %s, stacks shown %d" % [saw("flash", 40.0), spells_of("poison_cloud"), saw("ring", 22.0), s6.vis.get("stack_pos", []).size()], saw("flash", 40.0) and spells_of("poison_cloud") >= 1 and saw("ring", 22.0) and s6.vis.get("stack_pos", []).size() >= 1)
 	await clear_world()
 	await draws(id, "venom")
+
+# ---------------------------------------------------------------- Prism Tower
+## The most `line` fx of width `w` alive at once (a burst of rays shows twelve).
+func lines_alive(w: float) -> int:
+	var n := 0
+	for c in world.get_children():
+		if script_is(c, "fx.gd") and str(c.kind) == "line" and absf(float(c.width) - w) < 0.1:
+			n += 1
+	return n
+
+func prism() -> void:
+	var id := "prism_tower"
+	# 1. spectrum: red burns, blue chills, yellow exposes (the tower is frozen right after the shot so nothing else interferes)
+	var res := {}
+	for case in [["t1", 1, 0], ["red", 2, 0], ["blue", 2, 1], ["yellow", 2, 2]]:
+		await clear_world()
+		var st = tower(id, case[1], Vector2(0, 200))
+		st._shots = case[2]
+		var e = dummy(Vector2(0, 150))
+		var guard := 0.0
+		while st._shots == case[2] and guard < 3.0:
+			await wait(0.02)
+			guard += 0.02
+		st.set_physics_process(false)
+		var h0: float = e.health
+		await wait(1.3)
+		res[case[0]] = [h0 - e.health, e.slow_mult, e.has_meta("exposed_until") and load("res://items/weapons/weapon_util.gd").is_exposed(e)]
+	ok("prism t2 spectrum: red burns %.2f (tier 1 %.2f), blue slow %.2f, yellow exposed %s" % [res.red[0], res.t1[0], res.blue[1], res.yellow[2]], res.red[0] > res.t1[0] + 1.5 and res.blue[1] <= 0.51 and res.yellow[2] == true)
+	# 2. focus lens: a lone enemy takes a double hit
+	var per := {}
+	for case in ["lone", "crowd"]:
+		await clear_world()
+		var st2 = tower(id, 3, Vector2(0, 200))
+		var e2 = dummy(Vector2(0, 150))
+		if case == "crowd":
+			dummy(Vector2(80, 190))
+		await wait(2.2)
+		per[case] = lost(e2) / maxf(1.0, float(st2._shots)) / float(st2.data.damage)
+	ok("prism t3 focus: damage per shot in shots: alone %.2f, in a crowd %.2f" % [per.lone, per.crowd], per.lone > per.crowd * 1.4)
+	# 3. prismatic burst on the eighth shot
+	await clear_world()
+	var s4 = tower(id, 4, Vector2(0, 200))
+	dummy(Vector2(0, 180))
+	dummy(Vector2(25, 190))
+	var far3 = dummy(Vector2(-43.3, 217))              # 50 px from the hub, 150 degrees: only a ray reaches it
+	var before := 0.0
+	var rays := 0
+	var guard2 := 0.0
+	while s4._shots < 8 and guard2 < 9.0:
+		if s4._shots == 7:
+			before = lost(far3)
+		rays = maxi(rays, lines_alive(2.0))
+		await wait(0.02)
+		guard2 += 0.02
+	for i in 10:
+		rays = maxi(rays, lines_alive(2.0))
+		await wait(0.02)
+	ok("prism t4 burst: twelve rays seen (%d at once), the dummy off to the side lost %.1f after, %.1f before (a ray is %.1f)" % [rays, lost(far3), before, s4.data.damage * 0.8], rays >= 12 and lost(far3) >= float(s4.data.damage) * 0.7 and before < 0.01)
+	# 4. refraction: the shot bends to the neighbour and once more
+	var third := {}
+	for t in [4, 5]:
+		await clear_world()
+		var st5 = tower(id, t, Vector2(0, 200))
+		dummy(Vector2(0, 150))
+		dummy(Vector2(50, 150))
+		var c5 = dummy(Vector2(100, 150))
+		await wait(1.8)
+		third[t] = lost(c5)
+	ok("prism t5 refraction: the third dummy (never aimed at) lost %.1f (tier 4: %.1f)" % [third[5], third[4]], third[5] > 0.5 and third[4] < 0.1)
+	# 5. spectrum lance
+	await clear_world()
+	seen.clear()
+	var s6 = tower(id, 6, Vector2(0, 200))
+	var boss = dummy(Vector2(0, 150), 99999.0)
+	var behind = dummy(Vector2(0, 80), 60000.0)
+	var side = dummy(Vector2(60, 170), 50000.0)
+	var wide := 0
+	var t := 0.0
+	var h_boss: float = boss.health
+	while t < 15.6:
+		scan()
+		wide = maxi(wide, lines_alive(18.0))
+		await wait(0.05)
+		t += 0.05
+	var dmg6: float = s6.data.damage
+	ok("prism t6 lance: width-18 beam seen %s, the toughest lost %.0f and the one behind it %.0f (a lance is %.0f), bursts still fire (ripple 40 %s)" % [wide > 0, 99999.0 - boss.health, 60000.0 - behind.health, dmg6 * 8.0, saw("ripple", 40.0)], wide > 0 and 99999.0 - boss.health >= dmg6 * 8.0 and 60000.0 - behind.health >= dmg6 * 8.0 and saw("ripple", 40.0))
+	await clear_world()
+	await draws(id, "prism")

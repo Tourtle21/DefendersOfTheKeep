@@ -58,6 +58,8 @@ static func tick(st, delta: float) -> void:
 			tick_magma_wall(st, delta)
 		"venom_tower":
 			tick_venom_tower(st, delta)
+		"prism_tower":
+			tick_prism_tower(st, delta)
 
 static func on_gnaw(st, e) -> void:
 	match id_of(st):
@@ -71,6 +73,9 @@ static func interval_mult(st) -> float:
 	return 1.0
 
 static func shot_mult(st, target) -> float:
+	match id_of(st):
+		"prism_tower":
+			return shot_prism_tower(st)
 	return 1.0
 
 static func on_shot(st, target) -> void:
@@ -81,6 +86,8 @@ static func on_shot(st, target) -> void:
 			on_shot_storm_spire(st, target)
 		"venom_tower":
 			on_shot_venom_tower(st, target)
+		"prism_tower":
+			on_shot_prism_tower(st, target)
 
 static func budget_mult(st) -> float:
 	return 1.0
@@ -597,3 +604,135 @@ static func tick_venom_tower(st, delta: float) -> void:
 			st.fx_pulse = 0.0
 	if t >= 6:
 		st.charge = StructureTiers.fill(st, "plague", VENOM_PLAGUE_T)
+
+# ================================================================ Prism Tower
+const PRISM_RED := Color(1.0, 0.35, 0.3)
+const PRISM_BLUE := Color(0.4, 0.6, 1.0)
+const PRISM_YELLOW := Color(1.0, 0.9, 0.4)
+const PRISM_WHITE := Color(1.0, 0.97, 1.0)
+const PRISM_FOCUS := 2.0
+const PRISM_BURST_EVERY := 8
+const PRISM_BURST := 0.8
+const PRISM_REFRACT_R := 70.0
+const PRISM_REFRACT := 0.6
+const PRISM_LANCE_T := 15.0
+const PRISM_LANCE := 8.0
+const PRISM_LANCE_W := 18.0
+
+static func prism_colour(i: int) -> Color:
+	return [PRISM_RED, PRISM_BLUE, PRISM_YELLOW][i % 3]
+
+## The colour effect on one enemy: red burns, blue chills, yellow exposes.
+static func prism_effect(st, e, ci: int, dmg: float) -> void:
+	if !alive(e):
+		return
+	match ci % 3:
+		0:
+			WeaponUtil.bleed(st.get_tree(), e, 3, dmg * 0.3)
+		1:
+			StructureTiers.keep_slow(e, 0.5, 1.5)
+		2:
+			WeaponUtil.expose(e, 2.0)
+
+## Focus lens (tier 3): a lone visible enemy takes a double hit.
+static func shot_prism_tower(st) -> float:
+	if st.tier < 3:
+		return 1.0
+	var n := 0
+	for e in StructureTiers.enemies(st, float(st.data.range)):
+		if Game.defence_sees(e, st.global_position):
+			n += 1
+	st._tdata["focus"] = n == 1
+	return PRISM_FOCUS if n == 1 else 1.0
+
+static func on_shot_prism_tower(st, target) -> void:
+	var t: int = st.tier
+	if t < 2 or !is_instance_valid(target):
+		return
+	var w := world_of(st)
+	var dmg: float = float(st.data.damage)
+	var ci: int = (st._shots - 1) % 3
+	var col := prism_colour(ci)
+	var from := muzzle(st)
+	var at: Vector2 = target.global_position
+	var focus: bool = t >= 3 and bool(st._tdata.get("focus", false))
+	st.charge = float(st._shots % 3) / 3.0
+	st.vis["focus"] = focus
+	WeaponFx.spawn(w, "line", from, PRISM_WHITE if focus else col, {"dir": (at - from).normalized(), "length": (at - from).length(), "width": 5.0 if focus else 3.0, "life": 0.18})
+	WeaponFx.spawn(w, "burst", at, col, {"radius": 8.0, "life": 0.2})
+	if focus:
+		WeaponFx.spawn(w, "flash", at, PRISM_WHITE, {"radius": 14.0, "life": 0.2})
+		StructureTiers.sfx(st, "big_hit", 0.3)
+	else:
+		StructureTiers.sfx(st, "whoosh", 0.3)
+	prism_effect(st, target, ci, dmg)
+	# 4 Prismatic burst: every eighth shot sends twelve rays round the tower
+	if t >= 4 and st._shots % PRISM_BURST_EVERY == 0:
+		var hub: Vector2 = st.global_position + Vector2(0, -8)
+		var rng: float = float(st.data.range) * 0.6
+		var done := {}
+		for i in 12:
+			var dir := Vector2.from_angle(i * TAU / 12.0)
+			WeaponFx.spawn(w, "line", hub, prism_colour(i), {"dir": dir, "length": rng, "width": 2.0, "life": 0.3})
+			for e in WeaponUtil.enemies_in_line(st.get_tree(), hub, dir, rng, 5.0):
+				if !done.has(e.get_instance_id()):
+					done[e.get_instance_id()] = true
+					e.spell_damage(dmg * PRISM_BURST, "", true)
+		WeaponFx.spawn(w, "ripple", hub, PRISM_WHITE, {"radius": 40.0, "rings": 2, "life": 0.5})
+		StructureTiers.sfx(st, "ultimate", 0.5, 1.5)
+		st.fx_pulse = 0.0
+	# 5 Refraction: the shot bends to a neighbour, and once more
+	if t >= 5:
+		var hit: Array = [target]
+		var cur: Vector2 = at
+		for j in 2:
+			var nxt = null
+			var bd := PRISM_REFRACT_R
+			for e in StructureTiers.enemies_at(st, cur, PRISM_REFRACT_R):
+				if e in hit or !alive(e):
+					continue
+				var d: float = e.global_position.distance_to(cur)
+				if d < bd:
+					bd = d
+					nxt = e
+			if nxt == null:
+				break
+			var to: Vector2 = nxt.global_position
+			WeaponFx.spawn(w, "line", cur, PRISM_WHITE.lerp(col, 0.4), {"dir": (to - cur).normalized(), "length": (to - cur).length(), "width": 2.0, "life": 0.2})
+			WeaponFx.spawn(w, "burst", to, col, {"radius": 8.0, "life": 0.2})
+			nxt.spell_damage(dmg * PRISM_REFRACT, "")
+			prism_effect(st, nxt, ci, dmg)
+			hit.append(nxt)
+			cur = to
+
+static func tick_prism_tower(st, delta: float) -> void:
+	var t: int = st.tier
+	if t < 6:
+		return
+	var w := world_of(st)
+	# 6 Spectrum lance: a white beam through the toughest enemy and everything behind it
+	if StructureTiers.ready(st, "lance", PRISM_LANCE_T, delta):
+		var best = null
+		var hp := -1.0
+		for e in StructureTiers.enemies(st, float(st.data.range)):
+			if Game.defence_sees(e, st.global_position) and float(e.max_health) > hp:
+				hp = float(e.max_health)
+				best = e
+		if best != null:
+			StructureTiers.reset(st, "lance")
+			var from := muzzle(st)
+			var dir: Vector2 = (best.global_position - from).normalized()
+			var rng: float = float(st.data.range)
+			var dmg: float = float(st.data.damage)
+			WeaponFx.spawn(w, "line", from, PRISM_WHITE, {"dir": dir, "length": rng, "width": PRISM_LANCE_W, "life": 0.5})
+			for i in 6:
+				WeaponFx.spawn(w, "line", from + dir.orthogonal() * (i - 2.5) * 2.4, Color.from_hsv(i / 6.0, 0.7, 1.0), {"dir": dir, "length": rng, "width": 3.0, "life": 0.5})
+			WeaponFx.spawn(w, "flash", from, PRISM_WHITE, {"radius": 28.0, "life": 0.3})
+			WeaponFx.spawn(w, "ripple", from, PRISM_WHITE, {"radius": 40.0, "rings": 3, "life": 0.6})
+			for e in WeaponUtil.enemies_in_line(st.get_tree(), from, dir, rng, PRISM_LANCE_W * 0.5):
+				e.spell_damage(dmg * PRISM_LANCE, "", true)
+				for ci in 3:
+					prism_effect(st, e, ci, dmg)
+			StructureTiers.sfx(st, "ultimate", 0.5)
+			st.fx_pulse = 0.0
+	st.vis["lance"] = StructureTiers.fill(st, "lance", PRISM_LANCE_T)

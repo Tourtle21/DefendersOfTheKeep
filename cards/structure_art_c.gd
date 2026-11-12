@@ -22,6 +22,9 @@ static func draw(st, col: Color) -> bool:
 		"venom_tower":
 			draw_venom_tower(st, col)
 			return true
+		"prism_tower":
+			draw_prism_tower(st, col)
+			return true
 	return false
 
 # ---------------------------------------------------------------- shared shapes
@@ -438,3 +441,94 @@ static func draw_venom_tower(st, col: Color) -> void:
 				var q2: Vector2 = m2[0] - st.global_position
 				if q2 != q and q.distance_to(q2) <= 45.0:
 					st.draw_line(q, q2, Color(VN_VENOM, 0.3), 1.0)
+
+# ================================================================ Prism Tower
+const PR_RED := Color(1.0, 0.35, 0.3)
+const PR_BLUE := Color(0.4, 0.6, 1.0)
+const PR_YELLOW := Color(1.0, 0.9, 0.4)
+const PR_GLASS := Color(0.86, 0.92, 1.0)
+
+static func pr_colour(i: int) -> Color:
+	return [PR_RED, PR_BLUE, PR_YELLOW][i % 3]
+
+## A glass triangular prism: translucent, white edges, black outline.
+static func glass(st, c: Vector2, w: float, h: float, tint: Color, glow: Color, glow_a: float) -> void:
+	var pts := PackedVector2Array([c + Vector2(-w * 0.5, h * 0.5), c + Vector2(w * 0.5, h * 0.5), c + Vector2(0, -h * 0.5)])
+	st.draw_colored_polygon(pts, Color(tint.lerp(Color(0.8, 0.88, 1.0), 0.5), 0.88))
+	st.draw_circle(c + Vector2(0, h * 0.1), w * 0.22, Color(glow, glow_a))
+	st.draw_line(pts[0], pts[2], Color(1, 1, 1, 0.9), 1.0)
+	st.draw_line(pts[1], pts[2], Color(0.8, 0.85, 0.95, 0.9), 1.0)
+	st.draw_line(pts[0], pts[1], Color(1, 1, 1, 0.9), 1.0)
+	var closed := pts.duplicate()
+	closed.append(pts[0])
+	st.draw_polyline(closed, Color(0, 0, 0, 0.8), 1.0)
+
+static func draw_prism_tower(st, col: Color) -> void:
+	var t: int = st.tier
+	var age: float = st._age
+	var aim: Vector2 = st.aim if st.aim != Vector2.ZERO else Vector2.UP
+	var next_i := int(round(st.charge * 3.0)) % 3                      # the colour the next shot will have
+	var cur_i := (next_i + 2) % 3                                       # the one just fired
+	var c := Vector2(0, -12)
+	# 6: floor caustics and a beam of white light straight up
+	if t >= 6:
+		for i in 6:
+			var a := age * 0.6 + i * TAU / 6.0
+			st.draw_circle(Vector2(cos(a) * 16.0, 6.0 + sin(a * 1.3) * 5.0), 2.2, Color(Color.from_hsv(i / 6.0, 0.6, 1.0), 0.35))
+		st.draw_colored_polygon(PackedVector2Array([Vector2(-3, c.y), Vector2(3, c.y), Vector2(6, c.y - 55), Vector2(-6, c.y - 55)]), Color(1, 1, 1, 0.16 + 0.05 * sin(age * 3.0)))
+	# 4: the base has a lit rainbow ring
+	if t >= 4:
+		for i in 6:
+			var a0 := i * TAU / 6.0 + age * 0.3
+			st.draw_arc(Vector2(0, 3), 11.0, a0, a0 + TAU / 6.0 - 0.15, 5, Color(Color.from_hsv(i / 6.0, 0.7, 1.0), 0.8), 1.5)
+	StructureArt.box(st, Rect2(-7, -3, 14, 10), col.darkened(0.4))
+	# 4: six small crystals in a hexagon round the prism
+	if t >= 4:
+		for i in 6:
+			var a := i * TAU / 6.0 + age * 0.4
+			var p := c + Vector2(cos(a) * 11.0, sin(a) * 4.0 - 1.0)
+			var hc := Color.from_hsv(fposmod(age * 0.25 + i / 6.0, 1.0), 0.7, 1.0)
+			StructureArt.poly(st, PackedVector2Array([p + Vector2(0, -2.6), p + Vector2(1.6, 0), p + Vector2(0, 2.6), p + Vector2(-1.6, 0)]), hc)
+	# 6: a rotating rainbow halo
+	if t >= 6:
+		for i in 6:
+			var a0 := -age * 1.2 + i * TAU / 6.0
+			st.draw_arc(c, 14.0, a0, a0 + TAU / 6.0 - 0.12, 5, Color(Color.from_hsv(i / 6.0, 0.7, 1.0), 0.85), 1.5)
+	# the glass: one prism, three stacked at tier 6
+	var glow: Color = pr_colour(next_i)
+	if t >= 6:
+		glass(st, Vector2(0, -7), 13.0, 8.0, PR_GLASS, glow, 0.9)
+		glass(st, Vector2(0, -14), 10.0, 8.0, PR_GLASS, glow, 0.9)
+		glass(st, Vector2(0, -20), 7.0, 7.0, PR_GLASS, glow, 0.9)
+		var core := float(st.vis.get("lance", 0.0))
+		st.draw_arc(Vector2(0, -14), 6.0, -PI / 2.0, -PI / 2.0 + TAU * core, 18, Color(1, 1, 1, 0.9), 1.5)
+	else:
+		glass(st, c, 12.0, 12.0, PR_GLASS, glow, 0.9 if t < 4 else 1.0)
+		if t >= 4:
+			st.draw_circle(c, 9.0, Color(glow, 0.15 + 0.1 * sin(age * 4.0)))
+	# 5: mirror shards drift round the prism and bend a faint copy of the beam
+	if t >= 5:
+		for i in 3:
+			var a := age * 0.9 + i * TAU / 3.0
+			var p := c + Vector2(cos(a) * 15.0, sin(a) * 6.0 - 2.0)
+			StructureArt.poly(st, PackedVector2Array([p + Vector2(-2.5, 2), p + Vector2(0, -3), p + Vector2(2.5, 1.5)]), Color(0.8, 0.85, 0.9))
+			if st.shot_t > 0.0 and i == 0:
+				var to: Vector2 = st.shot_to - st.global_position
+				st.draw_polyline(PackedVector2Array([c, p, to]), Color(pr_colour(cur_i), 0.3), 1.0)
+		for k in 3:
+			st.draw_line(c + Vector2(-5 + k * 5, 4), c + Vector2(-5 + k * 5, -5), Color(Color.from_hsv(fposmod(age * 0.2 + k * 0.3, 1.0), 0.5, 1.0), 0.7), 1.0)
+	# 3: a lens ring in front of the prism turns to the target, with a dotted guide line
+	if t >= 3:
+		var lc := c + aim * 8.0
+		st.draw_arc(lc, 5.0, 0, TAU, 14, Color(PR_GLASS, 0.9), 1.5)
+		st.draw_circle(lc, 4.0, Color(PR_GLASS, 0.15))
+		var ga := aim.angle() + age * 3.0
+		st.draw_circle(lc + Vector2.from_angle(ga) * 2.6, 0.9, Color.WHITE)
+		for i in 6:
+			st.draw_circle(c + aim * (15.0 + i * 5.0), 0.6, Color(1, 1, 1, 0.4 - i * 0.05))
+		if bool(st.vis.get("focus", false)) and st.shot_t > 0.0:
+			st.draw_circle(lc, 7.0, Color(1, 1, 1, 0.4))
+	# the shot, in the colour it had
+	var shot_col: Color = pr_colour(cur_i)
+	if st.shot_t > 0.0 and !bool(st.vis.get("focus", false)):
+		shot_line(st, c, shot_col, 2.0)
