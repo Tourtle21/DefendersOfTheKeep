@@ -34,6 +34,9 @@ static func draw(st, col: Color) -> bool:
 		"frost_totem":
 			draw_frost_totem(st, col)
 			return true
+		"ember_turret":
+			draw_ember_turret(st, col)
+			return true
 		_:
 			return false
 
@@ -738,3 +741,104 @@ static func draw_frost_totem(st, col: Color) -> void:
 		SpellArt.snowflake(st, Vector2(0, hy - 6.0), 12.0, age * 0.5, 6, 2, Color(0.85, 0.97, 1.0, 0.8), 1.0)
 	if st.charge > 0.9 and t >= 6:                                # absolute zero is about to fall
 		st.draw_arc(Vector2.ZERO, r * (1.0 - (st.charge - 0.9) * 2.0), 0, TAU, 36, Color(1, 1, 1, 0.6), 1.5)
+
+# ---------------------------------------------------------------- Ember Turret
+const EM_IRON := Color(0.3, 0.3, 0.34)
+const EM_GLOW := Color(1.0, 0.75, 0.3)
+const WHITE_HOT := Color(1.0, 0.96, 0.8)
+const ASH := Color(0.2, 0.12, 0.1)
+
+## A tube from `a` along `dir` with a black edge.
+static func tube(st, a: Vector2, dir: Vector2, len: float, w: float, fill: Color) -> void:
+	var n := dir.orthogonal() * w * 0.5
+	poly(st, PackedVector2Array([a + n, a + dir * len + n * 1.15, a + dir * len - n * 1.15, a - n]), fill)
+
+static func draw_ember_turret(st, col: Color) -> void:
+	var t: int = st.tier
+	var age: float = st._age
+	var dir := facing(st)
+	var perp := dir.orthogonal()
+	var od: bool = st.overdrive
+	var head := Vector2(0, -5.0)
+	var kick: float = (3.0 if t >= 3 else 0.0) * clampf(st.shot_t / 0.12, 0.0, 1.0)
+	var flick := 0.8 + 0.2 * sin(age * 11.0)
+	if t >= 2:                                                    # an orange glow on the base
+		st.draw_circle(Vector2(0, 3), 11.0, Color(1.0, 0.5, 0.1, 0.16 + (0.15 if od else 0.0)))
+	if t >= 6:                                                    # wings of heat
+		for sx in [-1.0, 1.0]:
+			var fan := PackedVector2Array([Vector2(sx * 6, -2), Vector2(sx * 17, -12 + 2.0 * sin(age * 3.0)), Vector2(sx * 20, -4), Vector2(sx * 17, 4), Vector2(sx * 6, 3)])
+			st.draw_colored_polygon(fan, Color(1.0, 0.5, 0.15, 0.3))
+			st.draw_polyline(fan, Color(1.0, 0.7, 0.3, 0.5), 1.0)
+	box(st, Rect2(-7, -3, 14, 10), col.darkened(0.45) if t < 2 else EM_IRON.lightened(0.1))
+	if t >= 4:                                                    # soot streaks
+		for i in 3:
+			st.draw_line(Vector2(-5 + i * 4.0, -2), Vector2(-5 + i * 4.0 + 1.0, 4.0 + i), Color(ASH, 0.6), 1.0)
+	if t >= 2:                                                    # flame vents on the sides
+		for sx in [-1.0, 1.0]:
+			var vb := Vector2(sx * 6.5, 0.0)
+			SpellArt.flame(st, vb, 4.0, (5.0 + (4.0 if od else 0.0)) * flick, Color(1.0, 0.45, 0.1, 0.9), sx * sin(age * 7.0))
+			SpellArt.flame(st, vb, 2.4, (3.0 + (3.0 if od else 0.0)) * flick, Color(1.0, 0.85, 0.4), sx * sin(age * 8.0))
+			if t >= 6 and od:
+				SpellArt.flame(st, vb + Vector2(sx * 1.5, 0), 3.0, 8.0 * flick, Color(1.0, 0.6, 0.2, 0.8), sx * sin(age * 9.0 + 1.0))
+	var hc := head - dir * kick
+	if t == 1:
+		st.draw_circle(head, 5.5, Color.BLACK)
+		st.draw_circle(head, 4.5, col)
+	elif t >= 6:                                                  # a dragon head with jaws, horns and fiery eyes
+		var open: float = 0.5 if st.shot_t > 0.0 or od else 0.15
+		st.draw_circle(hc, 6.0, Color.BLACK)
+		st.draw_circle(hc, 5.0, EM_IRON.lightened(0.15))
+		for sd: float in [-1.0, 1.0]:
+			var jaw_dir := dir.rotated(sd * open)
+			poly(st, PackedVector2Array([hc + perp * sd * 2.0, hc + jaw_dir * 10.0 + perp * sd * 0.5, hc + jaw_dir * 6.0 - perp * sd * 1.0]), EM_IRON.lightened(0.05) if !od else Color(1.0, 0.75, 0.5))
+			var horn_b: Vector2 = hc + perp * sd * 3.5 - dir * 2.0
+			st.draw_colored_polygon(PackedVector2Array([horn_b + perp * sd * 1.0, horn_b - dir * 6.0 + perp * sd * 4.0, horn_b - dir * 1.5 - perp * sd * 1.0]), Color(0.75, 0.72, 0.65))
+			st.draw_circle(hc + dir * 2.0 + perp * sd * 2.0, 1.1, WHITE_HOT)
+		if od or st.shot_t > 0.0:
+			st.draw_circle(hc + dir * 9.0, 3.0 + 2.0 * flick, Color(1.0, 0.6, 0.2, 0.7))
+	else:
+		# a squat iron mortar (from tier 3 a thick tube angled up, with a brass band)
+		var barrel_len := 9.0 if t == 2 else 11.0
+		var barrel_w := 5.0 if t == 2 else 6.0
+		st.draw_circle(hc, 4.5, Color.BLACK)
+		st.draw_circle(hc, 3.7, EM_IRON.lightened(0.1))
+		if t >= 5:                                                # a cluster pack: three narrow tubes in a fan
+			for k in [-1, 0, 1]:
+				var d2 := dir.rotated(k * 0.35)
+				tube(st, hc, d2, 10.0, 3.0, EM_IRON)
+				st.draw_circle(hc + d2 * 10.0, 1.8, Color(1.0, 0.5, 0.15, 0.9))
+		else:
+			tube(st, hc, dir, barrel_len, barrel_w, EM_IRON if !od else WHITE_HOT)
+			if t >= 3:
+				st.draw_line(hc + dir * 4.0 + perp * 3.0, hc + dir * 4.0 - perp * 3.0, Color(0.85, 0.7, 0.3), 1.6)
+			st.draw_circle(hc + dir * barrel_len, 3.5 + (0.6 if t >= 2 else 0.0), Color(1.0, 0.55, 0.15, (0.55 + 0.35 * sin(age * 6.0)) if st.shot_t <= 0.0 else 1.0))
+			st.draw_circle(hc + dir * barrel_len, 1.8, EM_GLOW)
+		if t >= 5:                                                # the glow ring is doubled
+			st.draw_arc(hc + dir * 10.0, 5.5, 0, TAU, 14, Color(1.0, 0.55, 0.15, 0.5), 1.0)
+	if t >= 3 and t < 6:                                          # a rack of shells beside it
+		for k in 3 if t == 3 else 2:
+			var sp := Vector2(-11.0, -2.0 + k * 3.5)
+			st.draw_line(sp, sp + Vector2(4, 0), Color.BLACK, 3.0)
+			st.draw_line(sp, sp + Vector2(3, 0), Color(0.45, 0.4, 0.35), 1.8)
+			st.draw_circle(sp + Vector2(3.5, 0), 1.2, Color(1.0, 0.5, 0.15))
+		if t >= 4:                                                # ... and a bigger golden shell, and the heat gauge
+			st.draw_line(Vector2(-11, 5.5), Vector2(-5, 5.5), Color.BLACK, 3.6)
+			st.draw_line(Vector2(-11, 5.5), Vector2(-6, 5.5), Color(0.9, 0.75, 0.3), 2.4)
+			var gc := Vector2(11.0, 1.5)
+			st.draw_circle(gc, 3.6, Color.BLACK)
+			st.draw_circle(gc, 2.9, Color(0.85, 0.85, 0.8))
+			st.draw_arc(gc, 2.4, PI * 0.8, PI * 2.2, 8, Color(1.0, 0.3, 0.1, 0.7), 1.0)
+			var na: float = PI * 0.8 + st.charge * PI * 1.4
+			st.draw_line(gc, gc + Vector2.from_angle(na) * 2.5, Color.BLACK, 1.0)
+	if t >= 5:                                                    # heat shimmer over the barrel
+		for j in 2:
+			var pts := PackedVector2Array()
+			for i in 5:
+				pts.append(head + dir * (8.0 + i * 2.0) + perp * (-2.0 + j * 4.0 + 1.0 * sin(age * 5.0 + i + j)) + Vector2(0, -3.0 - i * 1.0))
+			st.draw_polyline(pts, Color(1.0, 0.8, 0.5, 0.22), 1.0)
+	if t >= 6:
+		st.draw_arc(Vector2(0, -4), 14.0 + 1.5 * sin(age * 4.0), 0, TAU, 20, Color(1.0, 0.6, 0.2, 0.25), 1.0)
+	if st.shot_t > 0.0:                                           # the shot
+		var to: Vector2 = st.shot_to - st.global_position
+		st.draw_line(hc + dir * 9.0, to, Color(1.0, 0.7, 0.3, 0.9), 2.0 if t == 1 else 3.0)
+		st.draw_line(hc + dir * 9.0, to, Color(1.0, 0.95, 0.8, 0.9), 1.0)

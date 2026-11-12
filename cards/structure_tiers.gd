@@ -111,6 +111,14 @@ static func threshold(st, key: String, frac: float) -> bool:
 		st._thr[key] = true
 	return false
 
+## Run `fn` after `secs` seconds, unless the structure is gone by then. `fn` must not capture the structure itself (a freed capture is an engine error): pass it the world and the tree.
+static func later(st, secs: float, fn: Callable) -> void:
+	var id: int = st.get_instance_id()
+	st.get_tree().create_timer(secs).timeout.connect(func():
+		var o = instance_from_id(id)
+		if o != null and is_instance_valid(o) and !o.is_queued_for_deletion():
+			fn.call())
+
 ## A sound at most once per `gap` seconds per structure (so a pack of gnawers is not a drumroll).
 static func sfx(st, name: String, gap := 0.5, pitch := 1.0) -> void:
 	var now := Time.get_ticks_msec() / 1000.0
@@ -218,6 +226,8 @@ static func tick(st, delta: float) -> void:
 			tick_iron_wall(st, delta)
 		"frost_totem":
 			tick_frost_totem(st, delta)
+		"ember_turret":
+			tick_ember_turret(st, delta)
 		_:
 			pass
 
@@ -250,6 +260,8 @@ static func interval_mult(st) -> float:
 	match id_of(st):
 		"crystal_pylon", "storm_spire", "magma_wall", "venom_tower", "prism_tower", "healing_grove", "sunspire", "phoenix_shrine":
 			return C.interval_mult(st)
+		"ember_turret":
+			return EMBER_OD_RATE if st._od > 0.0 else 1.0
 		_:
 			return 1.0
 
@@ -260,6 +272,8 @@ static func shot_mult(st, target) -> float:
 			return C.shot_mult(st, target)
 		"sentry":
 			return shot_mult_sentry(st, target)
+		"ember_turret":
+			return EMBER_OD_DMG if st._od > 0.0 else 1.0
 		_:
 			return 1.0
 
@@ -270,6 +284,8 @@ static func on_shot(st, target) -> void:
 			C.on_shot(st, target)
 		"sentry":
 			on_shot_sentry(st, target)
+		"ember_turret":
+			on_shot_ember_turret(st, target)
 		_:
 			pass
 
@@ -330,6 +346,8 @@ static func on_promote(st, new_tier: int) -> void:
 			on_promote_barricade(st, new_tier)
 		"torch":
 			on_promote_torch(st, new_tier)
+		"ember_turret":
+			on_promote_ember_turret(st, new_tier)
 		_:
 			pass
 
@@ -528,9 +546,7 @@ static func tick_torch(st, delta: float) -> void:
 			WeaponProjectile.shoot(w, pos + Vector2(0, -6), dir, 200.0, dmg * 0.8, FLAME_MID, 0.7, 0, 40.0)
 			sfx(st, "whoosh", 0.3)
 			var at: Vector2 = target.global_position
-			st.get_tree().create_timer(minf(0.6, dir.length() / 200.0)).timeout.connect(func():
-				if is_instance_valid(st):
-					WeaponFx.spawn(st.get_parent(), "burst", at, FLAME, {"radius": 8.0, "life": 0.2}))
+			later(st, minf(0.6, dir.length() / 200.0), func(): WeaponFx.spawn(w, "burst", at, FLAME, {"radius": 8.0, "life": 0.2}))
 	# 4 Hearth: players inside the light recover
 	if t >= 4:
 		var warmed := []
@@ -871,3 +887,100 @@ static func tick_frost_totem(st, delta: float) -> void:
 					e.apply_slow(0.0, 1.5)
 				WeaponUtil.expose(e, 2.5)
 		st.charge = fill(st, "zero", FT_ZERO_T)
+
+# ---------------------------------------------------------------- Ember Turret
+const EMBER_BLEED := 0.25
+const EMBER_MORTAR_R := 38.0
+const EMBER_MORTAR := 0.8
+const EMBER_SHELL_EVERY := 5
+const EMBER_CLUSTER := 0.4
+const EMBER_OD_T := 12.0
+const EMBER_OD_LEN := 3.0
+const EMBER_OD_RATE := 0.25
+const EMBER_OD_DMG := 0.6
+const EMBER := Color(1.0, 0.45, 0.15)
+const EMBER_GLOW := Color(1.0, 0.75, 0.3)
+
+static func on_shot_ember_turret(st, target) -> void:
+	var t: int = st.tier
+	if t < 2 or !is_instance_valid(target):
+		return
+	var w := world_of(st)
+	var pos: Vector2 = st.global_position
+	var tp: Vector2 = target.global_position
+	var to: Vector2 = tp - pos
+	var dir: Vector2 = to.normalized()
+	var dmg: float = st.data.damage
+	var burst: float = st.data.get("burst", 0.0)
+	var tree: SceneTree = st.get_tree()
+	# 2 Incendiary: whatever it hits catches fire
+	WeaponUtil.bleed(tree, target, 3, dmg * EMBER_BLEED)
+	WeaponFx.spawn(w, "burst", pos + Vector2(0, -5) + dir * 9.0, EMBER_GLOW, {"radius": 8.0, "life": 0.18})
+	WeaponFx.spawn(w, "burst", tp, EMBER, {"radius": 12.0, "life": 0.22})
+	sfx(st, "big_hit", 0.3)
+	if st._od > 0.0:                                                # (overdrive: a line of flame to the target)
+		for k in 3:
+			WeaponFx.spawn(w, "burst", pos + to * (0.3 + 0.25 * k), EMBER_GLOW, {"radius": 6.0, "life": 0.2})
+	# 3 Mortar: the blast is wider than the old splash
+	if t >= 3:
+		WeaponFx.spawn(w, "fall", tp, EMBER, {"radius": 3.0, "height": 40.0, "rise": 20.0, "life": 0.15})
+		for e in enemies_at(st, tp, EMBER_MORTAR_R):
+			if e != target and !_dead(e):
+				e.spell_damage(burst * EMBER_MORTAR, "fire", true)
+		later(st, 0.15, func():
+			WeaponFx.spawn(w, "flash", tp, EMBER_GLOW, {"radius": 22.0, "life": 0.25})
+			WeaponFx.spawn(w, "ripple", tp, EMBER, {"radius": EMBER_MORTAR_R, "rings": 1, "life": 0.35}))
+	# 4 Fire shell: every fifth shot lobs a small Fireball
+	if t >= 4:
+		st.charge = float(st._shots % EMBER_SHELL_EVERY) / EMBER_SHELL_EVERY
+		if st._shots % EMBER_SHELL_EVERY == 0:
+			cast(st, "fireball", tp, 0.8, -2)
+			WeaponFx.spawn(w, "ring", pos + Vector2(0, -5) + dir * 9.0, EMBER, {"radius": 16.0, "life": 0.25})
+			Sfx.play("cast")
+	# 5 Cluster bomb: three bomblets scatter round the target
+	if t >= 5:
+		var base: float = float(st._shots) * 2.1
+		for k in 3:
+			var bp: Vector2 = tp + Vector2.from_angle(base + k * TAU / 3.0) * 30.0
+			later(st, 0.25 * k, func(): WeaponFx.spawn(w, "fall", bp, EMBER, {"radius": 2.0, "height": 30.0, "rise": 12.0, "life": 0.25}))
+			later(st, 0.25 * (k + 1), func():
+				for e in WeaponUtil.enemies_in_circle(tree, bp, 16.0):
+					e.spell_damage(dmg * EMBER_CLUSTER, "fire", true)
+				WeaponFx.spawn(w, "burst", bp, EMBER, {"radius": 10.0, "life": 0.2})
+				WeaponFx.spawn(w, "ring", bp, EMBER_GLOW, {"radius": 16.0, "life": 0.2}))
+
+static func tick_ember_turret(st, delta: float) -> void:
+	if st.tier < 6:
+		return
+	# 6 Inferno overdrive: every 12 s it overheats for 3 s: four times the fire rate at 60% damage, longer reach, a bigger light
+	if st._od > 0.0:
+		st._od -= delta
+		st.charge = 1.0
+		if st._od <= 0.0:
+			st._od = 0.0
+			st.overdrive = false
+			st.data.range = float(st._timers.get("rng0", st.data.range))
+			st.light_radius = float(st._timers.get("lr0", st.light_radius))
+			if st._glow != null:
+				st._glow.texture_scale = maxf(0.1, st.light_radius * 2.0 / 128.0)
+		return
+	st.charge = fill(st, "od", EMBER_OD_T)
+	if pace(st, "od", EMBER_OD_T, delta):
+		st._od = EMBER_OD_LEN
+		st.overdrive = true
+		st._timers["rng0"] = float(st.data.range)
+		st._timers["lr0"] = st.light_radius
+		st.data.range = float(st.data.range) * 1.2
+		st.light_radius *= 1.5
+		if st._glow != null:
+			st._glow.texture_scale = maxf(0.1, st.light_radius * 2.0 / 128.0)
+		var w := world_of(st)
+		WeaponFx.spawn(w, "ring", st.global_position, EMBER, {"radius": 40.0, "life": 0.4})
+		WeaponFx.spawn(w, "pillar", st.global_position, EMBER, {"height": 40.0, "width": 16.0, "life": 0.5})
+		Sfx.play("boss_roar", 0.05, 1.5)
+
+static func on_promote_ember_turret(st, _new_tier: int) -> void:
+	st._od = 0.0                                                    # (the new tier starts with its fresh range and light)
+	st.overdrive = false
+	st._timers.erase("rng0")
+	st._timers.erase("lr0")
