@@ -41,7 +41,7 @@ func dash_attack() -> void:
 	fx("line", start, Color(1.0, 0.6, 0.2), {"dir": aim, "length": 55.0, "width": 5.0, "life": 0.25})
 	player.dash(aim, 55.0, 0.14)
 	start_dash_hits(1.2, 14.0, 80.0, 0.18)
-	WeaponUtil.patch(game_world(), start + aim * 25.0, "burn", 20.0, Color(1.0, 0.5, 0.15, 0.5), 3.0)
+	WeaponUtil.patch(game_world(), start + aim * 25.0, "burn", 26.0 if tier >= 4 else 20.0, Color(1.0, 0.5, 0.15, 0.5), 3.0)      # (tier 4 Blaze Trail: a wider patch)
 	LightSource.spawn(game_world(), start + aim * 25.0, 70.0, 4.0)
 
 func ability() -> void:
@@ -59,7 +59,7 @@ func ability() -> void:
 func ultimate() -> void:
 	# Sunburst: light and fire all around you; everything caught is lit for a long while and exposed
 	var o: Vector2 = player.global_position
-	LightSource.spawn(game_world(), o, 150.0, 8.0, Color(1.0, 0.92, 0.6))
+	LightSource.spawn(game_world(), o, 150.0 + [0.0, 0.0, 20.0, 20.0, 20.0, 40.0][tier - 1], 8.0, Color(1.0, 0.92, 0.6))      # (the tiers brighten it)
 	fx("ring", o, Color(1.0, 0.9, 0.5), {"radius": 120.0, "life": 0.6})
 	for e in WeaponUtil.enemies_in_circle(get_tree(), o, 120.0):
 		Game.light_up(e, 8.0)

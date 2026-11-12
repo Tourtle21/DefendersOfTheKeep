@@ -5,3 +5,4 @@ CLAIM bulwark
 CLAIM knightblade
 DONE sword
 DONE pickaxe
+DONE torch
