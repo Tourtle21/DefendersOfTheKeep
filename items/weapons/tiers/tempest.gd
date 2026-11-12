@@ -211,7 +211,8 @@ static func _cloud(w, my: int) -> void:
 	while t < TL_CLOUD_SECS:
 		if t >= nextfx:
 			nextfx += 0.8
-			w.fx("sigil", c, VIOLET, {"radius": 110.0, "count": 6, "spin": 1.0, "life": 0.8, "col2": CORE})
+			w.fx("sigil", c, VIOLET.lightened(0.2), {"radius": 110.0, "count": 6, "spin": 1.0, "life": 0.8, "col2": CORE})
+			w.fx("vortex", c, VIOLET.lightened(0.3), {"radius": 100.0, "count": 3, "spin": 2.0, "inward": true, "life": 0.8})
 			w.fx("motes", c, BOLT, {"radius": 100.0, "count": 20, "rise": -40.0, "life": 0.8})
 		var pool := []
 		var anyone := WeaponUtil.enemies_in_circle(w.get_tree(), c, 110.0)

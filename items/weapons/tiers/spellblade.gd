@@ -275,6 +275,7 @@ static func _tempest(w, my: int) -> void:
 		return
 	var h := WeaponTiers.H(w)
 	w.fx("vortex", w.player.global_position, BLUE, {"radius": 70.0, "count": 6, "spin": 4.0, "life": SB_CYCLONE_SECS})
+	w.fx("vortex", w.player.global_position, VIOLET.lightened(0.25), {"radius": 55.0, "count": 4, "spin": -5.0, "life": SB_CYCLONE_SECS})
 	for k in int(SB_CYCLONE_SECS / 0.25):
 		var o: Vector2 = w.player.global_position
 		if k % 2 == 0:
