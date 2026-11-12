@@ -5,7 +5,7 @@ extends RefCounted
 ## WeaponFx.spawn / Sfx.play, and what a client must draw is a public var of Structure (`charge`, `aim`, `vis`, ...).
 ## Host-only state of a card lives in `st._tdata` and `st._timers`.
 
-const OWN := ["crystal_pylon", "storm_spire", "magma_wall", "venom_tower", "prism_tower", "healing_grove", "sunspire", "phoenix_shrine", "healing_lantern", "beacon_turret", "bonfire_wall", "spiked_sentry"]
+const OWN := ["crystal_pylon", "storm_spire", "magma_wall", "venom_tower", "prism_tower", "healing_grove", "sunspire", "phoenix_shrine", "healing_lantern", "beacon_turret", "bonfire_wall", "spiked_sentry", "spiked_wall"]
 
 static func world_of(st) -> Node:
 	return st.get_parent()
@@ -72,6 +72,8 @@ static func tick(st, delta: float) -> void:
 			tick_beacon_turret(st, delta)
 		"bonfire_wall":
 			tick_bonfire_wall(st, delta)
+		"spiked_wall":
+			tick_spiked_wall(st, delta)
 		"spiked_sentry":
 			tick_spiked_sentry(st, delta)
 
@@ -79,6 +81,8 @@ static func on_gnaw(st, e) -> void:
 	match id_of(st):
 		"magma_wall":
 			on_gnaw_magma_wall(st, e)
+		"spiked_wall":
+			on_gnaw_spiked_wall(st, e)
 
 static func interval_mult(st) -> float:
 	match id_of(st):
@@ -143,6 +147,10 @@ static func on_promote(st, new_tier: int) -> void:
 			setup_healing_lantern(st)
 		"bonfire_wall":
 			setup_bonfire_wall(st)
+			st._thr.clear()
+		"spiked_wall":
+			st._tdata.erase("base_thorns")
+			st._tdata["porc"] = false
 			st._thr.clear()
 
 static func on_expire(st) -> void:
@@ -1599,3 +1607,103 @@ static func tick_spiked_sentry(st, delta: float) -> void:
 		if idle > SSENT_SPOOL_IDLE and float(st._tdata.get("spool", 0.0)) > 0.0:
 			st._tdata["spool"] = maxf(0.0, float(st._tdata["spool"]) - delta * 0.5)
 			st.charge = snappedf(float(st._tdata["spool"]), 0.02)
+
+# ================================================================ Spiked Wall
+const SWALL_IRON := Color(0.8, 0.82, 0.88)
+const SWALL_RUST := Color(0.6, 0.25, 0.2)
+const SWALL_GOLD := Color(1.0, 0.85, 0.4)
+const SWALL_STRIP := 0.4
+const SWALL_STRIP_SLOW := 0.7
+const SWALL_STRIP_R := 20.0
+const SWALL_THRUST_T := 2.0
+const SWALL_THRUST_R := 24.0
+const SWALL_THRUST := 2.0
+const SWALL_IMPALE := 0.3
+const SWALL_VOLLEY_T := 3.0
+const SWALL_VOLLEY_R := 110.0
+const SWALL_VOLLEY := 0.8
+
+static func base_thorns(st) -> float:
+	if !st._tdata.has("base_thorns"):
+		st._tdata["base_thorns"] = float(st.data.get("thorns", 0.0))
+	return float(st._tdata["base_thorns"])
+
+static func on_gnaw_spiked_wall(st, e) -> void:
+	if st.tier < 4 or !is_instance_valid(e) or randf() >= SWALL_IMPALE:
+		return
+	if float(e.slow_mult) <= 0.0 and float(e.slow_time) > 0.0:
+		return
+	var w := world_of(st)
+	var at: Vector2 = e.global_position
+	WeaponFx.spawn(w, "pillar", at, SWALL_IRON, {"height": 24.0, "width": 6.0, "life": 0.35})
+	WeaponFx.spawn(w, "shards", at, SWALL_IRON, {"radius": 14.0, "count": 4, "life": 0.3})
+	if !StructureTiers._boss(e) and e.has_method("apply_slow"):
+		e.apply_slow(0.0, 1.0)
+	WeaponUtil.bleed(st.get_tree(), e, 4, base_thorns(st) * 0.3)
+	StructureTiers.sfx(st, "big_hit", 0.3)
+
+static func tick_spiked_wall(st, delta: float) -> void:
+	var t: int = st.tier
+	if t < 2:
+		return
+	var w := world_of(st)
+	var thorns: float = float(st.data.get("thorns", 0.0))
+	var pos: Vector2 = st.global_position
+	var r: float = st.radius
+	# 2 Spike strip: spikes lie in front of the wall; whoever steps there is stabbed and slowed
+	if StructureTiers.pace(st, "strip", 0.5, delta):
+		var n := 0
+		for e in StructureTiers.enemies(st, r + SWALL_STRIP_R):
+			e.spell_damage(thorns * SWALL_STRIP, "pierce", true)
+			if is_instance_valid(e):
+				StructureTiers.keep_slow(e, SWALL_STRIP_SLOW, 0.6)
+				if n < 2:
+					WeaponFx.spawn(w, "burst", e.global_position, SWALL_IRON, {"radius": 6.0, "life": 0.2})
+					n += 1
+	# 3 Spear thrust: spears slide out of the wall at what is in reach (it waits for a victim)
+	if t >= 3 and StructureTiers.ready(st, "thrust", SWALL_THRUST_T, delta):
+		var reach := StructureTiers.enemies(st, r + SWALL_THRUST_R)
+		if !reach.is_empty():
+			StructureTiers.reset(st, "thrust")
+			var best = reach[0]
+			for e in reach:
+				if e.global_position.distance_to(pos) < best.global_position.distance_to(pos):
+					best = e
+			var dir: Vector2 = (best.global_position - pos).normalized()
+			st.aim = dir
+			for k in 3:
+				WeaponFx.spawn(w, "line", pos + dir.orthogonal() * (k - 1) * 6.0, SWALL_IRON, {"dir": dir, "length": 24.0, "width": 3.0, "life": 0.2})
+			for e in reach:
+				e.spell_damage(thorns * SWALL_THRUST, "pierce", true)
+				if is_instance_valid(e):
+					if e.has_method("push"):
+						e.push((e.global_position - pos).normalized() * 120.0, 0.12)
+					WeaponFx.spawn(w, "burst", e.global_position, SWALL_IRON, {"radius": 8.0, "life": 0.2})
+			st.fx_pulse = 0.0
+			StructureTiers.sfx(st, "hit", 0.3)
+	# 5 Spike volley: five spikes in a fan at the nearest enemy it can see
+	if t >= 5 and StructureTiers.ready(st, "volley", SWALL_VOLLEY_T, delta):
+		var target = StructureTiers.nearest(st, SWALL_VOLLEY_R)
+		if target != null:
+			StructureTiers.reset(st, "volley")
+			var from := pos + Vector2(0, -r * 0.8)
+			var dir2: Vector2 = (target.global_position - from).normalized()
+			for k in 5:
+				WeaponProjectile.shoot(w, from, dir2.rotated((k - 2) * 0.15), 260.0, thorns * SWALL_VOLLEY, SWALL_IRON, 0.6, 1, 60.0)
+			StructureTiers.sfx(st, "whoosh", 0.3)
+	# 6 Porcupine: below half health the thorns double; spikes fly in a ring at 75%, 50% and 25%
+	if t >= 6:
+		var base := base_thorns(st)
+		var porc: bool = bool(st._tdata.get("porc", false))
+		if !porc and st.hp < 0.5 * st.max_hp:
+			st._tdata["porc"] = true
+			st.data.thorns = base * 2.0
+		elif porc and st.hp >= 0.6 * st.max_hp:
+			st._tdata["porc"] = false
+			st.data.thorns = base
+		for key in [["p75", 0.75], ["p50", 0.5], ["p25", 0.25]]:
+			if StructureTiers.threshold(st, key[0], key[1]):
+				StructureTiers.radial(st, 16, float(st.data.get("thorns", base)), SWALL_IRON)
+				WeaponFx.spawn(w, "shards", pos, SWALL_IRON, {"radius": 60.0, "count": 16, "life": 0.5})
+				WeaponFx.spawn(w, "ripple", pos, SWALL_IRON, {"radius": 60.0, "rings": 2, "life": 0.5})
+				Sfx.play("big_hit")

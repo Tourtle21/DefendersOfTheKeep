@@ -46,6 +46,9 @@ static func draw(st, col: Color) -> bool:
 		"spiked_sentry":
 			draw_spiked_sentry(st, col)
 			return true
+		"spiked_wall":
+			draw_spiked_wall(st, col)
+			return true
 	return false
 
 # ---------------------------------------------------------------- shared shapes
@@ -1303,3 +1306,91 @@ static func draw_spiked_sentry(st, col: Color) -> void:
 		for k in 2:
 			var u := fposmod(age * 1.3 + k * 0.5, 1.0)
 			st.draw_circle(q + Vector2((k - 0.5) * 3.0, -2.0 + u * 8.0), 0.9, Color(0.75, 0.15, 0.1, 1.0 - u * 0.6))
+
+# ================================================================ Spiked Wall
+const SW_STONE := Color(0.75, 0.7, 0.6)
+const SW_IRON := Color(0.8, 0.82, 0.88)
+const SW_DARK := Color(0.3, 0.28, 0.25)
+const SW_RUST := Color(0.6, 0.25, 0.2)
+const SW_GOLD := Color(1.0, 0.85, 0.4)
+
+static func draw_spiked_wall(st, col: Color) -> void:
+	var t: int = st.tier
+	var age: float = st._age
+	var r: float = st.radius
+	var top := -r * 0.8
+	var bot := r * 0.8
+	var f: float = clampf(st.hp / st.max_hp, 0.0, 1.0)
+	var low: bool = t >= 6 and f < 0.5
+	var thrust: float = clampf(1.0 - st.fx_pulse / 0.25, 0.0, 1.0) if t >= 3 else 0.0
+	var aim: Vector2 = st.aim if st.aim != Vector2.ZERO else Vector2.DOWN
+	# 3: the spears slide out of their slots toward the enemy (drawn under the wall so they seem to come from inside)
+	if t >= 3:
+		for k in 3:
+			var o: Vector2 = Vector2(-r * 0.5 + k * r * 0.5, 0.0)
+			var dir: Vector2 = aim
+			var out: float = 14.0 * thrust
+			var sb: Vector2 = o + dir * 4.0
+			st.draw_line(sb, sb + dir * (6.0 + out), Color.BLACK, 3.0)
+			st.draw_line(sb, sb + dir * (6.0 + out), Color(0.55, 0.4, 0.25), 1.8)
+			if thrust > 0.0:
+				spike(st, sb + dir * (6.0 + out), dir, 8.0, 3.5, SW_IRON)
+	# the body: stone-wood with iron bands
+	StructureArt.box(st, Rect2(-r, top, r * 2.0, bot - top), SW_STONE.lerp(Color(0.85, 0.3, 0.25), 0.35 if low else 0.0))
+	for k in 2:
+		st.draw_rect(Rect2(-r + 1, top + 4.0 + k * (bot - top - 9.0), r * 2.0 - 2.0, 3.0), SW_DARK)
+	if t >= 3:
+		for k in 3:
+			st.draw_rect(Rect2(-r * 0.5 + k * r * 0.5 - 2.0, top + 9.0, 4.0, 10.0), Color(0, 0, 0, 0.55))
+		st.draw_rect(Rect2(r - 3.0, top + 8.0, 2.0, 8.0), SW_IRON)
+		st.draw_circle(Vector2(r + 1.0, top + 8.0), 1.5, SW_RUST)
+	# 2: two angled spike rows on the face
+	for k in 2:
+		for i in 4:
+			var x := -r + 5.0 + i * (r * 2.0 - 10.0) / 3.0
+			var y := top + 8.0 + k * 10.0
+			spike(st, Vector2(x, y), Vector2(0.7, -0.7) if k == 0 else Vector2(-0.7, -0.7), 4.0, 2.4, SW_IRON)
+	# the spike strip in front along the bottom
+	for i in 8:
+		var x := -r + 2.0 + i * (r * 2.0 - 4.0) / 7.0
+		spike(st, Vector2(x, bot + 6.0), Vector2.UP, 5.0, 3.0, SW_IRON)
+	# 4: long curved lances angled outward, trophies, rust
+	if t >= 4:
+		for i in 8:
+			var x := -r + 2.0 + i * (r * 2.0 - 4.0) / 7.0
+			var ang := -PI / 2.0 + (i - 3.5) * 0.18
+			var d := Vector2.from_angle(ang)
+			var ext := 3.0 if low else 0.0
+			st.draw_line(Vector2(x, top), Vector2(x, top) + d * (9.0 + ext), Color(0.45, 0.32, 0.2), 1.6)
+			spike(st, Vector2(x, top) + d * (8.0 + ext), d, 5.0 + ext, 3.0, SW_RUST.lightened(0.15))
+		for k in 3:
+			st.draw_rect(Rect2(-r + 5.0 + k * 11.0, top + 3.0, 2.0, 4.0), Color(0.9, 0.88, 0.75))
+		for k in 3:
+			st.draw_circle(Vector2(-r * 0.6 + k * r * 0.6, bot - 4.0 - (k % 2) * 3.0), 1.6, Color(SW_RUST, 0.55))
+	# 5: a launch rack on top: five spikes standing up in a fan, a spring coil at the base
+	if t >= 5:
+		var rack := Vector2(0, top - 3.0)
+		for k in 5:
+			var d := Vector2.from_angle(-PI / 2.0 + (k - 2) * 0.3)
+			spike(st, rack + d * 2.0, d, 7.0, 2.6, SW_IRON)
+		for k in 3:
+			st.draw_arc(rack + Vector2(0, 2 + k * 1.5), 3.5, 0, PI, 6, SW_DARK, 1.2)
+	# 6: bristling spikes all over, gold tips, rune lines, detached spike orbs
+	if t >= 6:
+		for i in 14:
+			var x := -r + 2.0 + SpellArt.jit(i, 6.0) * (r * 2.0 - 4.0)
+			var y := top + 2.0 + SpellArt.jit(i, 7.0) * (bot - top - 4.0)
+			var ln := 4.0 + 4.0 * SpellArt.jit(i, 8.0) + (3.0 if low else 0.0)
+			var d := Vector2.from_angle(-PI / 2.0 + (SpellArt.jit(i, 9.0) - 0.5) * 2.2)
+			spike(st, Vector2(x, y), d, ln, 2.6, SW_RUST if low else SW_IRON)
+			st.draw_circle(Vector2(x, y) + d * ln, 0.9, SW_GOLD)
+		for k in 3:
+			st.draw_line(Vector2(-r * 0.7 + k * r * 0.7, top + 3.0), Vector2(-r * 0.7 + k * r * 0.7, bot - 3.0), Color(SW_GOLD, 0.5 + 0.3 * sin(age * 2.0 + k)), 1.0)
+		for i in 8:
+			var a := age * 0.5 + i * TAU / 8.0
+			var p: Vector2 = Vector2.from_angle(a) * r * 1.5
+			p.y *= 0.7
+			spike(st, p, Vector2.from_angle(a + age), 5.0, 3.0, SW_GOLD)
+	if st.flash > 0.0:
+		st.draw_rect(Rect2(-r, top, r * 2.0, bot - top), Color(1, 1, 1, 0.3))
+	StructureArt.hp_bar(st, bot + 9.0, r, t >= 6)

@@ -136,6 +136,8 @@ func _initialize() -> void:
 		await bonfire()
 	if only == "" or only == "spiked_sentry":
 		await spiked_sentry()
+	if only == "" or only == "spiked_wall":
+		await spiked_wall()
 	quit()
 
 # ---------------------------------------------------------------- Crystal Pylon
@@ -1106,3 +1108,70 @@ func spiked_sentry() -> void:
 	ok("spiked sentry t6 gatling: normal %.1f, spooled %s, %d spikes alive at once, after 3 s idle %.2f (spool %.2f)" % [interval_normal, spooled, spikes, tc.interval_mult(s6), float(s6._tdata.get("spool", 0.0))], interval_normal == 1.0 and spooled and spikes >= 3 and tc.interval_mult(s6) == 1.0)
 	await clear_world()
 	await draws(id, "spiked sentry")
+
+# ---------------------------------------------------------------- Spiked Wall
+func spiked_wall() -> void:
+	var id := "spiked_wall"
+	var tc = load("res://cards/structure_tiers_c.gd")
+	var pos := Vector2(0, 200)
+	# 1. spike strip: a dummy in front of the wall but not chewing is hurt and slowed
+	var res := {}
+	for t in [1, 2]:
+		await clear_world()
+		var st = tower(id, t, pos)
+		var e = dummy(pos + Vector2(0, 33))                       # radius + 15
+		await wait(1.2)
+		res[t] = [lost(e), e.slow_mult]
+	ok("spiked wall t2 strip: dummy at radius + 15 lost %.1f, slow %.2f (tier 1: %.1f, %.2f)" % [res[2][0], res[2][1], res[1][0], res[1][1]], res[2][0] > res[1][0] + 0.5 and res[2][1] <= 0.71 and res[1][1] > 0.9)
+	# 2. spear thrust: three spears, a hit of thorns x 2 and a shove
+	await clear_world()
+	seen.clear()
+	var s3 = tower(id, 3, pos)
+	s3.set_physics_process(false)
+	var e3 = dummy(pos + Vector2(0, 40))
+	tc.tick_spiked_wall(s3, 2.0)
+	await watch(0.3)
+	var th: float = s3.data.thorns
+	ok("spiked wall t3 thrust: lines of width 3 seen %s, the dummy lost %.1f (thorns x 2 = %.1f, plus a strip tick) and was pushed %s" % [saw("line", -1.0, 3.0), lost(e3), th * 2.0, e3.knock_time > 0.0], saw("line", -1.0, 3.0) and lost(e3) >= th * 2.0 * 0.9 and e3.knock_time > 0.0)
+	# 3. impaler: about 30% of the gnaws impale
+	await clear_world()
+	var s4 = tower(id, 4, pos)
+	s4.set_physics_process(false)
+	var stuns := 0
+	for i in 60:
+		var e4 = dummy(pos + Vector2(0, 25))
+		tc.on_gnaw_spiked_wall(s4, e4)
+		if e4.slow_mult <= 0.0 and e4.slow_time > 0.0:
+			stuns += 1
+		e4.queue_free()
+	ok("spiked wall t4 impaler: %d of 60 gnaws impaled (expect about 18)" % stuns, stuns >= 6 and stuns <= 32)
+	# 4. spike volley: five spikes in a fan
+	await clear_world()
+	var s5 = tower(id, 5, pos)
+	var e5 = dummy(pos + Vector2(0, 100))
+	s5._timers["volley"] = 2.95
+	var most := 0
+	var tt := 0.0
+	while tt < 0.5:
+		most = maxi(most, count_nodes("projectile.gd"))
+		await wait(0.02)
+		tt += 0.02
+	ok("spiked wall t5 volley: %d spikes in the air at once" % most, most >= 5)
+	# 5. porcupine: a ring of spikes at each threshold, the thorns double below half
+	await clear_world()
+	var s6 = tower(id, 6, pos)
+	s6.set_physics_process(true)
+	var base: float = s6.data.thorns
+	await wait(0.2)
+	s6.hp = 0.7 * s6.max_hp
+	await wait(0.2)
+	var ring1 := count_nodes("projectile.gd")
+	s6.hp = 0.45 * s6.max_hp
+	await wait(0.2)
+	var ring2 := count_nodes("projectile.gd") - ring1
+	var doubled: float = s6.data.thorns
+	s6.hp = 0.7 * s6.max_hp
+	await wait(0.2)
+	ok("spiked wall t6 porcupine: %d spikes at 70%%, %d more at 45%% with thorns %.1f (base %.1f), back to %.1f when mended" % [ring1, ring2, doubled, base, s6.data.thorns], ring1 >= 16 and ring2 >= 16 and absf(doubled - base * 2.0) < 0.01 and absf(s6.data.thorns - base) < 0.01)
+	await clear_world()
+	await draws(id, "spiked wall")
