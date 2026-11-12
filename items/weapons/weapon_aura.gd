@@ -16,6 +16,7 @@ var reach := 11.0
 var kind := "hand"
 var state := 0.0
 var state2 := 0.0
+var data := {}              # free synced extras of a weapon module (gate positions, holes, counts): plain numbers, vectors, arrays
 var col := Color.WHITE
 var hot := Color.WHITE
 var core := Color.WHITE
