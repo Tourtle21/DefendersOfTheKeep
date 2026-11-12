@@ -122,6 +122,8 @@ func _initialize() -> void:
 		await venom()
 	if only == "" or only == "prism_tower":
 		await prism()
+	if only == "" or only == "healing_grove":
+		await grove()
 	quit()
 
 # ---------------------------------------------------------------- Crystal Pylon
@@ -495,3 +497,103 @@ func prism() -> void:
 	ok("prism t6 lance: width-18 beam seen %s, the toughest lost %.0f and the one behind it %.0f (a lance is %.0f), bursts still fire (ripple 40 %s)" % [wide > 0, 99999.0 - boss.health, 60000.0 - behind.health, dmg6 * 8.0, saw("ripple", 40.0)], wide > 0 and 99999.0 - boss.health >= dmg6 * 8.0 and 60000.0 - behind.health >= dmg6 * 8.0 and saw("ripple", 40.0))
 	await clear_world()
 	await draws(id, "prism")
+
+# ---------------------------------------------------------------- Healing Grove
+func health_bar():
+	return world.get_node("Player").get_parent().get_node("Hud/Control2/ColorRect/Health")
+
+func hurt_player(px: float) -> void:
+	health_bar().size.x = px
+
+func grove() -> void:
+	var id := "healing_grove"
+	var p = world.get_node("Player")
+	var pos := Vector2(0, 200)
+	# 1. regrowth: the healing goes on for a while after leaving the field
+	var gain := {}
+	for t in [1, 2]:
+		await clear_world()
+		var st = tower(id, t, pos)
+		p.global_position = pos
+		hurt_player(100.0)
+		await wait(0.5)
+		p.global_position = Vector2(400, 200)
+		await wait(0.1)
+		var h0: float = health_bar().size.x
+		await wait(1.5)
+		gain[t] = health_bar().size.x - h0
+	ok("grove t2 regrowth: health gained 1.5 s after stepping out %.1f (tier 1: %.1f)" % [gain[2], gain[1]], gain[2] > 4.0 and gain[1] < 0.5)
+	# 2. orchard: a fruit ripens; a hurt player eats it for 15% of their health
+	await clear_world()
+	var s3 = tower(id, 3, pos)
+	p.global_position = Vector2(400, 200)
+	hurt_player(100.0)
+	s3._timers["fruit"] = 9.6
+	await wait(0.8)
+	var fruit: Array = s3.vis.get("fruit_pos", [])
+	var n_fruit := fruit.size()
+	var eaten := 0.0
+	if n_fruit > 0:
+		p.global_position = pos + fruit[0]
+		await wait(0.1)
+		eaten = health_bar().size.x - 100.0
+	ok("grove t3 orchard: %d fruit lay in the field, eating it healed %.1f (15%% is %.1f), %d left" % [n_fruit, eaten, 0.15 * 228.0, s3.vis.get("fruit_pos", []).size()], n_fruit == 1 and eaten > 25.0 and eaten < 45.0 and s3.vis.get("fruit_pos", []).size() == 0)
+	# 3. roots: slowed to 65%
+	await clear_world()
+	var s4 = tower(id, 4, pos)
+	p.global_position = Vector2(400, 200)
+	var d4 = dummy(pos + Vector2(30, 0))
+	await wait(0.4)
+	ok("grove t4 roots: dummy in the field has slow %.2f" % d4.slow_mult, d4.slow_mult <= 0.66)
+	# 4. blossom pulse: a sudden jump of 1.5 x heal per second, confusion gone
+	await clear_world()
+	seen.clear()
+	var s5 = tower(id, 5, pos)
+	var f5: float = load("res://cards/structure_tiers_c.gd").budget_mult(s5)
+	p.global_position = pos + Vector2(10, 0)
+	p.confused_time = 5.0
+	hurt_player(228.0)
+	await wait(0.1)
+	s5._timers["bloom"] = 7.98
+	hurt_player(60.0)
+	var jump := 0.0
+	var last: float = health_bar().size.x
+	var tt := 0.0
+	while tt < 1.8:
+		scan()
+		await wait(0.02)
+		tt += 0.02
+		var h: float = health_bar().size.x
+		jump = maxf(jump, h - last)
+		last = h
+	ok("grove t5 pulse: biggest jump %.1f of the 168 missing (a plain frame heals %.1f), ripple %s, confusion %.1f" % [jump, float(s5.data.heal_per_sec) * 0.02, saw("ripple", s5.radius), p.confused_time], jump >= 100.0 and saw("ripple", s5.radius) and p.confused_time <= 0.0)
+	# 5. seed of life: a fallen player is called back (once in forty seconds)
+	await clear_world()
+	var s6 = tower(id, 6, pos)
+	var f6: float = load("res://cards/structure_tiers_c.gd").budget_mult(s6)
+	p.global_position = Vector2(400, 200)
+	hurt_player(228.0)
+	p.fall()
+	s6._timers["seed"] = 39.9
+	await wait(0.4)
+	var first: float = p.respawn_left
+	p.respawn()
+	p.fall()
+	await wait(0.4)
+	var second: float = p.respawn_left
+	p.respawn()
+	p.global_position = Vector2(0, 600)
+	ok("grove t6 seed: wait after falling cut to %.1f, a second fall right after waits %.1f" % [first, second], first <= 3.0 and second > 20.0)
+	# 6. budget: the grove still gives out (the World Tree counts half)
+	ok("grove budget factor: tier 5 %.1f, tier 6 %.1f" % [f5, f6], f5 == 1.0 and f6 == 0.5)
+	await clear_world()
+	var s6b = tower(id, 6, pos)
+	s6b._heal_budget = 6.0
+	p.global_position = pos
+	hurt_player(50.0)
+	await wait(2.5)
+	ok("grove t6 still runs out of healing (gone: %s)" % [!is_instance_valid(s6b)], !is_instance_valid(s6b) or s6b.is_queued_for_deletion())
+	p.global_position = Vector2(0, 600)
+	hurt_player(228.0)
+	await clear_world()
+	await draws(id, "grove")

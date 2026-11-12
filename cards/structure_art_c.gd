@@ -25,6 +25,9 @@ static func draw(st, col: Color) -> bool:
 		"prism_tower":
 			draw_prism_tower(st, col)
 			return true
+		"healing_grove":
+			draw_healing_grove(st, col)
+			return true
 	return false
 
 # ---------------------------------------------------------------- shared shapes
@@ -532,3 +535,128 @@ static func draw_prism_tower(st, col: Color) -> void:
 	var shot_col: Color = pr_colour(cur_i)
 	if st.shot_t > 0.0 and !bool(st.vis.get("focus", false)):
 		shot_line(st, c, shot_col, 2.0)
+
+# ================================================================ Healing Grove
+const GR_BARK := Color(0.45, 0.3, 0.18)
+const GR_LEAF := Color(0.3, 0.75, 0.35)
+const GR_BLOSSOM := Color(1.0, 0.75, 0.85)
+const GR_FRUIT := Color(1.0, 0.55, 0.2)
+const GR_GOLD := Color(1.0, 0.9, 0.5)
+
+static func flower(st, p: Vector2, r: float, col: Color) -> void:
+	for k in 5:
+		st.draw_circle(p + Vector2.from_angle(k * TAU / 5.0 + 0.3) * r * 0.9, r * 0.6, col)
+	st.draw_circle(p, r * 0.5, Color(1.0, 0.9, 0.4))
+
+static func draw_healing_grove(st, col: Color) -> void:
+	var t: int = st.tier
+	var age: float = st._age
+	var r: float = st.radius
+	var pulse := 0.5 + 0.5 * sin(age * 3.0)
+	var bloom := clampf(1.0 - st.fx_pulse, 0.0, 1.0)                  # a blossom pulse has just gone out
+	# the field (as the plain healer draws it), softer under the new art; 5: a pink-green aura
+	st.draw_circle(Vector2.ZERO, r, Color(col, 0.06 + 0.04 * pulse))
+	st.draw_arc(Vector2.ZERO, r, 0, TAU, 48, Color(col, 0.35), 1.0)
+	if t >= 5:
+		st.draw_circle(Vector2.ZERO, r * 0.75, Color(GR_BLOSSOM.lerp(GR_LEAF, 0.5), 0.07))
+		# a ring of eight small flowers on the edge, opening at each pulse
+		for i in 8:
+			var a := i * TAU / 8.0 + 0.2
+			flower(st, Vector2.from_angle(a) * (r - 2.0), 1.6 + 2.2 * bloom, GR_BLOSSOM.lerp(Color.WHITE, 0.3 * bloom))
+	if t >= 6:
+		st.draw_circle(Vector2.ZERO, r * 0.9, Color(GR_GOLD, 0.06 + 0.03 * pulse))
+	# 2: flowers scattered in the field
+	for i in 6:
+		var a := SpellArt.jit(i, 7.0) * TAU
+		var d := (0.25 + 0.65 * SpellArt.jit(i, 8.0)) * r
+		var fc: Color = [Color(1, 0.5, 0.5), Color(1, 0.9, 0.4), Color(0.7, 0.6, 1.0)][i % 3]
+		flower(st, Vector2.from_angle(a) * d, 1.5, fc)
+	# 4: roots break the ground, fanning from the trunk
+	if t >= 4:
+		for i in 6:
+			var tip: Vector2 = Vector2.from_angle(i * TAU / 6.0 + 0.4) * r * 0.85
+			var mid: Vector2 = tip * 0.5 + tip.orthogonal().normalized() * 4.0 * (1.0 if i % 2 == 0 else -1.0)
+			st.draw_polyline(PackedVector2Array([Vector2(0, 7), mid, tip]), Color(GR_BARK.darkened(0.2), 0.85), 2.4 if i % 2 == 0 else 1.6)
+			if i % 2 == 0:
+				st.draw_circle(mid, 1.6, GR_BARK.darkened(0.1))
+		for i in 4:
+			st.draw_circle(Vector2.from_angle(i * TAU / 4.0 + 1.0) * r * 0.4 + Vector2(0, 4), 1.6, GR_BARK)
+	# 3: fruit lying in the field
+	for f in st.vis.get("fruit_pos", []):
+		st.draw_circle(f, 3.5, Color.BLACK)
+		st.draw_circle(f, 2.7, GR_FRUIT)
+		st.draw_colored_polygon(PackedVector2Array([f + Vector2(0, -2.5), f + Vector2(3.5, -4), f + Vector2(1.5, -1)]), GR_LEAF)
+	# the tree
+	var big := t >= 6
+	var trunk_w := 8.0 if big else 3.0
+	var trunk_h := 24.0 if big else 10.0
+	var ty := 7.0
+	if big:
+		for k in [-1.0, 1.0]:
+			st.draw_colored_polygon(PackedVector2Array([Vector2(k * 3.0, ty - 5.0), Vector2(k * 12.0, ty + 3.0), Vector2(k * 6.0, ty + 3.0), Vector2(k * 1.0, ty - 2.0)]), GR_BARK.darkened(0.15))
+	st.draw_rect(Rect2(-trunk_w * 0.5 - 1.0, ty - trunk_h - 1.0, trunk_w + 2.0, trunk_h + 2.0), Color.BLACK)
+	st.draw_rect(Rect2(-trunk_w * 0.5, ty - trunk_h, trunk_w, trunk_h), GR_BARK)
+	st.draw_rect(Rect2(trunk_w * 0.1, ty - trunk_h, trunk_w * 0.35, trunk_h), GR_BARK.darkened(0.2))
+	var cy := ty - trunk_h - (6.0 if big else 2.0)
+	# 6: shafts of light from the crown to the ground
+	if big:
+		for k in 3:
+			var x := -14.0 + k * 14.0
+			st.draw_colored_polygon(PackedVector2Array([Vector2(x - 3, cy), Vector2(x + 3, cy), Vector2(x + 10 + k * 3.0 - 6.0, ty + 4.0), Vector2(x - 8 + k * 3.0, ty + 4.0)]), Color(GR_GOLD, 0.1 + 0.05 * sin(age * 1.5 + k)))
+	# 4: a knot with a face, its eyes lit while enemies are in the field
+	if t >= 4 and !big:
+		var eyes := bool(st.vis.get("roots", false))
+		st.draw_circle(Vector2(0, ty - 5.0), 1.6, GR_BARK.darkened(0.45))
+		if eyes:
+			st.draw_circle(Vector2(-0.9, ty - 5.5), 0.5, Color(0.5, 1.0, 0.4))
+			st.draw_circle(Vector2(0.9, ty - 5.5), 0.5, Color(0.5, 1.0, 0.4))
+	elif t >= 4 and big:
+		st.draw_circle(Vector2(0, ty - 12.0), 2.6, GR_BARK.darkened(0.45))
+		if bool(st.vis.get("roots", false)):
+			st.draw_circle(Vector2(-1.4, ty - 12.6), 0.8, Color(0.5, 1.0, 0.4))
+			st.draw_circle(Vector2(1.4, ty - 12.6), 0.8, Color(0.5, 1.0, 0.4))
+	# the crown: 3 circles, 5 from tier 3, nine in three greens at tier 6
+	var greens := [GR_LEAF.darkened(0.25), GR_LEAF, GR_LEAF.lightened(0.25)]
+	if big:
+		for i in 9:
+			var a := i * TAU / 9.0
+			var cp := Vector2(cos(a) * 9.0, cy + sin(a) * 5.0 - (3.0 if i % 2 == 0 else 0.0))
+			var cr := 8.0 + 4.0 * SpellArt.jit(i, 3.0)
+			st.draw_circle(cp, cr + 1.0, Color.BLACK)
+			st.draw_circle(cp, cr, greens[i % 3])
+		st.draw_circle(Vector2(0, cy - 2.0), 9.0, greens[1])
+		for i in 6:
+			var a := age * 0.4 + i * TAU / 6.0
+			st.draw_circle(Vector2(cos(a) * 14.0, cy - 2.0 + sin(a) * 8.0), 1.6 + 0.6 * sin(age * 4.0 + i), GR_GOLD)
+	else:
+		var spots := [Vector2(0, cy - 2.0), Vector2(-5, cy + 2.0), Vector2(5, cy + 2.0)]
+		var sizes := [5.0, 4.0, 4.0]
+		if t >= 3:
+			spots += [Vector2(-3, cy - 6.0), Vector2(3, cy - 6.0)]
+			sizes += [3.6, 3.6]
+		for i in spots.size():
+			st.draw_circle(spots[i], sizes[i] + 1.0, Color.BLACK)
+		for i in spots.size():
+			st.draw_circle(spots[i], sizes[i], greens[i % 3])
+		if t >= 3:
+			for i in 4:
+				var q: Vector2 = spots[i] + Vector2(1.5 * (1.0 if i % 2 == 0 else -1.0), 1.5)
+				st.draw_circle(q, 1.1, GR_FRUIT)
+		if t >= 5:
+			for i in 12:
+				st.draw_circle(Vector2(cos(i * 2.4) * (3.0 + (i % 4)), cy - 3.0 + sin(i * 1.7) * 5.0), 1.1, GR_BLOSSOM)
+	# falling petals (5) and drifting leaves
+	if t >= 5:
+		for i in 10:
+			var u := fposmod(age * 0.35 + SpellArt.jit(i), 1.0)
+			st.draw_circle(Vector2((SpellArt.jit(i, 2.0) - 0.5) * r * 1.1 + sin(age * 2.0 + i) * 3.0, cy + u * (ty - cy + 6.0)), 0.9, Color(GR_BLOSSOM, 1.0 - u * 0.6))
+	for i in 3:
+		var u := fposmod(age * 0.3 + i * 0.33, 1.0)
+		st.draw_circle(Vector2(sin(age + i * 2.0) * 8.0, cy - u * 20.0), 0.9, Color(GR_LEAF.lightened(0.3), 0.8 * (1.0 - u)))
+	# 6: spirit lights rise
+	if big:
+		for i in 6:
+			var u := fposmod(age * 0.25 + i / 6.0, 1.0)
+			var x := Vector2.from_angle(i * 1.1 + age * 0.2).x * 20.0
+			st.draw_circle(Vector2(x, ty - u * 50.0), 1.8, Color(GR_GOLD, 0.8 * (1.0 - u)))
+			st.draw_circle(Vector2(x, ty - u * 50.0), 3.2, Color(GR_GOLD, 0.2 * (1.0 - u)))

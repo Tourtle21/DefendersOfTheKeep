@@ -60,6 +60,8 @@ static func tick(st, delta: float) -> void:
 			tick_venom_tower(st, delta)
 		"prism_tower":
 			tick_prism_tower(st, delta)
+		"healing_grove":
+			tick_healing_grove(st, delta)
 
 static func on_gnaw(st, e) -> void:
 	match id_of(st):
@@ -90,6 +92,9 @@ static func on_shot(st, target) -> void:
 			on_shot_prism_tower(st, target)
 
 static func budget_mult(st) -> float:
+	match id_of(st):
+		"healing_grove":
+			return 0.5 if st.tier >= 6 else 1.0
 	return 1.0
 
 static func on_setup(st) -> void:
@@ -736,3 +741,109 @@ static func tick_prism_tower(st, delta: float) -> void:
 			StructureTiers.sfx(st, "ultimate", 0.5)
 			st.fx_pulse = 0.0
 	st.vis["lance"] = StructureTiers.fill(st, "lance", PRISM_LANCE_T)
+
+# ================================================================ Healing Grove
+const GROVE_FRUIT_COL := Color(1.0, 0.55, 0.2)
+const GROVE_BLOSSOM := Color(1.0, 0.75, 0.85)
+const GROVE_LEAF := Color(0.3, 0.75, 0.35)
+const GROVE_GOLD := Color(1.0, 0.9, 0.5)
+const GROVE_HOT := 0.4
+const GROVE_HOT_T := 3.0
+const GROVE_FRUIT_T := 10.0
+const GROVE_FRUIT := 0.15
+const GROVE_FRUIT_MAX := 2
+const GROVE_ROOT := 0.65
+const GROVE_BLOOM_T := 8.0
+const GROVE_BLOOM := 1.5
+const GROVE_SEED_T := 40.0
+const GROVE_SEED_WAIT := 3.0
+
+static func players(st) -> Array:
+	var out := []
+	for p in st.get_tree().get_nodes_in_group("player"):
+		if is_instance_valid(p):
+			out.append(p)
+	return out
+
+static func tick_healing_grove(st, delta: float) -> void:
+	var t: int = st.tier
+	if t < 2:
+		return
+	var w := world_of(st)
+	var hps: float = float(st.data.heal_per_sec)
+	var pos: Vector2 = st.global_position
+	var r: float = st.radius
+	var ps := players(st)
+	# 2 Regrowth: a player healed here keeps healing for a few seconds after leaving (not counted against the budget)
+	var hot: Dictionary = state(st, "hot", {})
+	for p in ps:
+		var id: int = p.get_instance_id()
+		var inside: bool = p.global_position.distance_to(pos) <= r
+		if inside:
+			if p.needs_health():
+				hot[id] = GROVE_HOT_T
+		elif hot.has(id):
+			hot[id] -= delta
+			if hot[id] <= 0.0 or !p.needs_health():
+				hot.erase(id)
+			else:
+				p.heal(hps * GROVE_HOT * delta)
+				if StructureTiers.pace(st, "trail", 0.5, delta):
+					WeaponFx.spawn(w, "motes", p.global_position, GROVE_LEAF, {"radius": 6.0, "count": 3, "rise": 10.0, "life": 0.5})
+	# 3 Orchard: a fruit ripens somewhere in the field; a hurt player who touches it eats it
+	if t >= 3:
+		var fruit: Array = state(st, "fruit", [])
+		if fruit.size() < GROVE_FRUIT_MAX and StructureTiers.ready(st, "fruit", GROVE_FRUIT_T, delta):
+			StructureTiers.reset(st, "fruit")
+			var n: int = int(state(st, "spawned", 0)) + 1
+			st._tdata["spawned"] = n
+			fruit.append(Vector2.from_angle(SpellArt.jit(n, 1.0) * TAU) * r * 0.6 * (0.3 + 0.7 * SpellArt.jit(n, 2.0)))
+		for f in fruit.duplicate():
+			for p in ps:
+				if p.needs_health() and p.global_position.distance_to(pos + f) <= 12.0:
+					fruit.erase(f)
+					p.heal(GROVE_FRUIT * 228.0 * Game.hp_scale())
+					WeaponFx.spawn(w, "star", pos + f, GROVE_FRUIT_COL, {"radius": 12.0, "count": 5, "spin": 2.0, "life": 0.4})
+					WeaponFx.spawn(w, "motes", pos + f, GROVE_FRUIT_COL, {"radius": 8.0, "count": 6, "rise": 18.0, "life": 0.6})
+					Sfx.play("coin")
+					break
+		st.vis["fruit_pos"] = fruit.duplicate()
+	# 4 Grasping roots: enemies in the field are slowed (a safe place to stand)
+	if t >= 4:
+		var inside_now := StructureTiers.enemies(st, r)
+		var rooted: Dictionary = state(st, "rooted", {})
+		var ids := {}
+		for e in inside_now:
+			StructureTiers.keep_slow(e, GROVE_ROOT, 0.3)
+			var id2: int = e.get_instance_id()
+			ids[id2] = true
+			if !rooted.has(id2):
+				WeaponFx.spawn(w, "burst", e.global_position, GROVE_LEAF, {"radius": 10.0, "life": 0.25})
+			rooted[id2] = true
+		for id3 in rooted.keys():
+			if !ids.has(id3):
+				rooted.erase(id3)
+		st.vis["roots"] = !inside_now.is_empty()
+	# 5 Blossom pulse: a wave heals every player and guard in the field and clears confusion
+	if t >= 5 and StructureTiers.pace(st, "bloom", GROVE_BLOOM_T, delta):
+		for p in ps:
+			if !p.downed and p.global_position.distance_to(pos) <= r:
+				p.heal(hps * GROVE_BLOOM)
+				p.confused_time = 0.0
+		for g in st.get_tree().get_nodes_in_group("guard"):
+			if is_instance_valid(g) and !g.get("downed") and g.global_position.distance_to(pos) <= r:
+				g.hp = minf(g.max_hp, g.hp + hps * GROVE_BLOOM)
+		WeaponFx.spawn(w, "ripple", pos, GROVE_LEAF.lerp(GROVE_BLOSSOM, 0.5), {"radius": r, "rings": 2, "life": 0.7})
+		WeaponFx.spawn(w, "motes", pos, GROVE_BLOSSOM, {"radius": r * 0.8, "count": 14, "rise": 30.0, "life": 0.9})
+		st.fx_pulse = 0.0
+		Sfx.play("unlock")
+	# 6 Seed of life: the tree calls a fallen player back (once every forty seconds)
+	if t >= 6 and StructureTiers.ready(st, "seed", GROVE_SEED_T, delta):
+		for p in ps:
+			if p.downed and p.respawn_left > GROVE_SEED_WAIT:
+				StructureTiers.reset(st, "seed")
+				p.respawn_left = GROVE_SEED_WAIT
+				WeaponFx.spawn(w, "pillar", pos, GROVE_GOLD, {"height": 80.0, "width": 30.0, "life": 0.7})
+				WeaponFx.spawn(w, "star", pos, GROVE_GOLD, {"radius": 30.0, "count": 8, "spin": 2.0, "life": 0.7})
+				StructureTiers.sfx(st, "ultimate", 0.5)
+				break
