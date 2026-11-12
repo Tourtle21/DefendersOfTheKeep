@@ -13,7 +13,7 @@ static func jit(i: int, salt := 0.0) -> float:
 
 ## Cards that have their own body art here: the plain fill and rings are drawn softer under it.
 static func has_body(id: String) -> bool:
-	return id in ["fireball", "frost_ring", "flare", "rejuvenation", "gold_magnet", "aegis", "charm"]
+	return id in ["fireball", "frost_ring", "flare", "rejuvenation", "gold_magnet", "aegis", "charm", "sandstorm"]
 
 static func draw_flight(s, t: float, col: Color) -> void:
 	match String(s.data.get("id", "")):
@@ -21,6 +21,8 @@ static func draw_flight(s, t: float, col: Color) -> void:
 			flight_fireball(s, t, col)
 		"frost_ring":
 			flight_frost_ring(s, t, col)
+		"sandstorm":
+			flight_sandstorm(s, t, col)
 
 static func draw(s, since: float, col: Color) -> void:
 	match String(s.data.get("id", "")):
@@ -38,6 +40,8 @@ static func draw(s, since: float, col: Color) -> void:
 			draw_aegis(s, since, col)
 		"charm":
 			draw_charm(s, since, col)
+		"sandstorm":
+			draw_sandstorm(s, since, col)
 
 ## A flame as one polygon: a wide base, a belly, and a tip that leans with `sway`.
 static func flame(s, base: Vector2, w: float, h: float, col: Color, sway := 0.0) -> void:
@@ -553,3 +557,74 @@ static func draw_charm(s, since: float, _col: Color) -> void:
 			var fp: Vector2 = s.favourite_pos - s.global_position + Vector2(0, -22.0)
 			s.draw_colored_polygon(PackedVector2Array([fp + Vector2(-5, 4), fp + Vector2(-5, -3), fp + Vector2(-2.5, 0), fp + Vector2(0, -5), fp + Vector2(2.5, 0), fp + Vector2(5, -3), fp + Vector2(5, 4)]), CROWN_GOLD)
 			s.draw_arc(fp + Vector2(0, 2), 12.0, 0, TAU, 20, Color(CROWN_GOLD, 0.8), 1.5)
+
+# ---------------------------------------------------------------- Sandstorm
+
+const SAND := Color(0.92, 0.75, 0.4)
+const DUST := Color(0.75, 0.6, 0.35)
+const SAND_BRIGHT := Color(1.0, 0.9, 0.6)
+const SAND_DARK := Color(0.45, 0.32, 0.18)
+
+## A stack of turning arcs that widens upward: a dust devil, a funnel, a tornado.
+static func funnel(s, n: int, r0: float, r1: float, height: float, since: float, alpha: float) -> void:
+	for i in n:
+		var u := i / float(maxi(n - 1, 1))
+		var y := -u * height
+		var a0 := since * (1.5 + i * 0.35) * (1.0 if i % 2 == 0 else -1.0)
+		s.draw_arc(Vector2(0, y), lerpf(r0, r1, u), a0, a0 + PI * 1.3, 12, Color(SAND_BRIGHT if i % 2 == 0 else SAND_DARK.lightened(0.2), alpha), 2.0)
+
+static func flight_sandstorm(s, t: float, _col: Color) -> void:
+	if int(s.data.get("tier", 1)) < 3:
+		return
+	var p: Vector2 = (s.origin - s.position).lerp(Vector2.ZERO, t)
+	for k in 3:
+		var a: float = s.age * 8.0 + k * 2.0
+		s.draw_arc(p, 3.0 + k * 2.0, a, a + 2.5, 8, Color(SAND_BRIGHT, 0.8 - k * 0.2), 1.5)
+
+static func draw_sandstorm(s, since: float, _col: Color) -> void:
+	var tier := int(s.data.get("tier", 1))
+	if tier < 2:
+		return
+	var r: float = s.radius
+	var fade := clampf((s.effect_time - since) / 1.0, 0.0, 1.0) * clampf(since / 0.2, 0.0, 1.0)
+	if tier >= 3:                                                   # ripples on the floor and streaks of wind
+		for k in 3:
+			for i in 12:
+				var a := i * TAU / 12.0 + k
+				s.draw_arc(Vector2.ZERO, r * (0.35 + 0.2 * k), a, a + 0.25, 4, Color(DUST, 0.3 * fade), 1.0)
+		for i in 6:
+			var a2 := since * (0.8 + 0.1 * i) + i * TAU / 6.0
+			s.draw_arc(Vector2.ZERO, r * (0.5 + 0.09 * i), a2, a2 + deg_to_rad(40.0), 8, Color(SAND_BRIGHT, 0.4 * fade), 1.5)
+	if tier >= 4:                                                   # dark clouds roll round, chevrons show the gust
+		for i in 5:
+			var cp := Vector2.from_angle(since * 0.5 + i * TAU / 5.0) * r * 0.5
+			s.draw_circle(cp, 10.0 + 6.0 * jit(i), Color(SAND_DARK, 0.18 * fade))
+		for i in 3:
+			var ang := since * 0.9 + i * TAU / 3.0
+			var p := Vector2.from_angle(ang) * r * 0.7
+			var d := Vector2.from_angle(since * 0.9)
+			s.draw_polyline(PackedVector2Array([p - d * 4.0 + d.orthogonal() * 4.0, p + d * 2.0, p - d * 4.0 - d.orthogonal() * 4.0]), Color(SAND_BRIGHT, 0.8 * fade), 2.0)
+	if tier >= 5:                                                   # low dunes on the rim
+		for i in 6:
+			var b := Vector2.from_angle(i * TAU / 6.0 + 0.3) * r
+			s.draw_colored_polygon(PackedVector2Array([b + Vector2(-9, 3), b + Vector2(-6, -3), b + Vector2(0, -5), b + Vector2(6, -3), b + Vector2(9, 3)]), Color(DUST, 0.9 * fade))
+			s.draw_line(b + Vector2(-9, 3), b + Vector2(9, 3), Color(SAND_DARK, 0.9 * fade), 2.0)
+	if tier >= 6:                                                   # twelve standing stones rise round the rim
+		var up := minf(1.0, since * 2.0)
+		for i in 12:
+			var b2 := Vector2.from_angle(i * TAU / 12.0) * r * 1.05
+			s.draw_rect(Rect2(b2.x - 2.0, b2.y - 7.0 * up, 4.0, 8.0 * up), Color.BLACK)
+			s.draw_rect(Rect2(b2.x - 1.5, b2.y - 7.0 * up + 0.5, 3.0, 7.0 * up), Color(SAND_DARK, fade))
+		if fposmod(since * 3.0, 1.0) < 0.1:
+			var d2 := Vector2.from_angle(jit(int(since * 3.0), 2.0) * TAU) * r * 0.6
+			s.draw_line(d2, d2 * 0.2, Color(1.0, 0.95, 0.7, 0.8 * fade), 1.5)
+	# the whirlwind at the centre grows with the tier: a devil, a funnel, a tornado
+	if tier >= 6:
+		funnel(s, 8, 4.0, 24.0, 40.0, since, 0.85 * fade)
+	elif tier >= 5:
+		funnel(s, 5, 3.0, 17.0, 26.0, since, 0.85 * fade)
+	else:
+		funnel(s, 3, 4.0, 12.0, 14.0, since, 0.85 * fade)
+	for i in 14:                                                    # grains orbit the zone
+		var a3 := since * lerpf(1.0, 2.0, jit(i, 1.0)) + jit(i) * TAU
+		s.draw_circle(Vector2.from_angle(a3) * r * lerpf(0.3, 0.95, jit(i, 2.0)), 1.5 if tier < 3 or i % 3 != 0 else 2.0, Color(DUST if i % 3 != 0 else SAND_BRIGHT, 0.9 * fade))

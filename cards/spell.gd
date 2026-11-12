@@ -25,6 +25,8 @@ var _seen := {}
 var _finale_done := false
 var _ray_hit := {}
 var _landed_fx := false
+var _clk := {}              # (host only) named clocks, see SpellTiers.pace
+var _mem := {}              # (host only) per-enemy memory (seconds inside, marks...)
 var _spread := 0
 var _fav = null
 var _field_t := 0.0
@@ -198,7 +200,7 @@ func _physics_process(delta: float) -> void:
 				SpellTiers.keep_slow(e, data.slow, 0.3)
 		"zone":
 			for e in _in_radius("enemy"):
-				e.apply_slow(data.slow, 0.3)
+				SpellTiers.keep_slow(e, data.slow, 0.3)
 			_tick += delta
 			if _tick >= 0.5:
 				_tick = 0.0

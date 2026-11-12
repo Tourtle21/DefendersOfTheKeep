@@ -68,7 +68,7 @@ func _initialize() -> void:
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("only="):
 			only = a.substr(5)
-	for id in ["fireball", "frost_ring", "flare", "rejuvenation", "gold_magnet", "aegis", "charm"]:
+	for id in ["fireball", "frost_ring", "flare", "rejuvenation", "gold_magnet", "aegis", "charm", "sandstorm"]:
 		if only == "" or only == id:
 			await call(id)
 			await clear()
@@ -621,3 +621,69 @@ func charm() -> void:
 		bsi.queue_free()
 		await clear()
 	ok("a boss in the area is left alone without errors", boss_ok)
+
+# ================================================================== Sandstorm
+func sandstorm() -> void:
+	print("-- sandstorm")
+	var c := Vector2(0, 300)
+	var d0: Dictionary = game.stats_of("sandstorm")
+	# Dust devil (tier 2): a steady pull to the centre
+	var pl := {}
+	for t in [1, 2]:
+		var s0 = spell("sandstorm", t, c, true, {"duration": 20.0})
+		var e = dummy(c + Vector2(s0.radius * 0.8, 0))
+		e.set_physics_process(true)
+		e.speed = 0.0
+		await wait(1.2)
+		pl[t] = snappedf(s0.radius * 0.8 - (e.global_position.x - c.x), 0.1)
+		await clear()
+	ok("tier 2 pulls enemies toward the centre, tier 1 does not (moved in by %s)" % str(pl), pl[2] > 6.0 and absf(pl[1]) < 1.0)
+	# Scour (tier 3): armour halved, once
+	var sc := {}
+	for t in [2, 3]:
+		var e = dummy(c + Vector2(10, 0))
+		e.armor = 4.0
+		spell("sandstorm", t, c, true, {"duration": 20.0})
+		await wait(1.5)
+		var a1: float = e.armor
+		await wait(1.5)
+		sc[t] = [a1, e.armor]
+		await clear()
+	ok("tier 3 strips half the armour once, tier 2 does not (%s)" % str(sc), sc[3][0] == 2.0 and sc[3][1] == 2.0 and sc[2][0] == 4.0)
+	# Gale burst (tier 4): extra damage and a shove
+	var gl := {}
+	for t in [3, 4]:
+		var e = dummy(c + Vector2(10, 0))
+		spell("sandstorm", t, c, true, {"duration": 20.0})
+		var peak := 0.0
+		for i in 26:
+			await wait(0.1)
+			peak = maxf(peak, e.knock_vel.length())
+		gl[t] = [snappedf(dealt(e), 0.1), snappedf(peak, 1.0)]
+		await clear()
+	ok("tier 4 gusts hurt and shove, tier 3 only the plain storm (%s)" % str(gl), gl[4][0] > gl[3][0] * 1.5 and gl[4][1] > 100.0)
+	# Burial (tier 5): stunned for a moment
+	var bu := {}
+	for t in [4, 5]:
+		var es := [dummy(c + Vector2(10, 0)), dummy(c + Vector2(-10, 0))]
+		spell("sandstorm", t, c, true, {"duration": 20.0})
+		var frozen := false
+		var el := 0.0
+		while el < 3.2:
+			await wait(0.1)
+			el += 0.1
+			for e in es:
+				if e.slow_mult == 0.0 and e.slow_time > 0.0:
+					frozen = true
+		bu[t] = frozen
+		await clear()
+	ok("tier 5 buries enemies (stunned), tier 4 never does (%s)" % str(bu), bu[5] and !bu[4])
+	# Collapse (tier 6): dragged in and stunned at the end; a copy does not
+	var co := {}
+	for cp in [false, true]:
+		var s0 = spell("sandstorm", 6, c, true, {"duration": 1.5, "copy": cp})
+		var e = dummy(c + Vector2(s0.radius * 1.2, 0))
+		var seen := await fx_seen(1.9)
+		co[cp] = [seen.has("flash"), snappedf(e.knock_vel.length(), 1.0), snappedf(dealt(e), 0.1)]
+		await clear()
+	ok("tier 6 collapses at the end (flash, pull, damage), a copy does not (%s)" % str(co), co[false][0] and co[false][1] > 200.0 and !co[true][0] and co[true][1] < 100.0)

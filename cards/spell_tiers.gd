@@ -21,6 +21,22 @@ const FIREBALL_FINALE_KNOCK := 220.0    # tier 6: the finale shockwave
 const FIREBALL_METEORS := 6
 const HOT := Color(1.0, 0.8, 0.3)
 
+## A named repeating clock on the spell: true once every `interval` seconds.
+static func pace(s, key: String, interval: float, delta: float) -> bool:
+	var t: float = float(s._clk.get(key, 0.0)) + delta
+	if t >= interval:
+		s._clk[key] = t - interval
+		return true
+	s._clk[key] = t
+	return false
+
+## One-time landing effects (a ring, motes, a sound) the first tick after landing.
+static func first_tick(s) -> bool:
+	if s._landed_fx:
+		return false
+	s._landed_fx = true
+	return true
+
 static func tier_of(s) -> int:
 	return clampi(int(s.data.get("tier", 1)), 1, 6)
 
@@ -69,6 +85,8 @@ static func tick(s, delta: float) -> void:
 			tick_aegis(s, tier_of(s), delta)
 		"charm":
 			tick_charm(s, tier_of(s), delta)
+		"sandstorm":
+			tick_sandstorm(s, tier_of(s), delta)
 
 # ---------------------------------------------------------------- Fireball
 
@@ -679,3 +697,85 @@ static func tick_charm(s, tier: int, delta: float) -> void:
 			if s._sfx_t <= 0.0:
 				s._sfx_t = 0.5
 				WeaponFx.spawn(w, "burst", f.global_position, PINK, {"radius": 10.0, "life": 0.25})
+
+# ---------------------------------------------------------------- Sandstorm
+
+const SAND_PULL := 30.0
+const SAND_GALE_T := 2.0
+const SAND_GALE_PUSH := 150.0
+const SAND_BURY_T := 2.5
+const SAND_COLLAPSE := 260.0
+const SAND := Color(0.92, 0.75, 0.4)
+
+static func tick_sandstorm(s, tier: int, delta: float) -> void:
+	if tier < 2:
+		return
+	var since: float = s.age - s.flight
+	var c: Vector2 = s.global_position
+	var r: float = s.radius
+	var dps: float = s.data.dps
+	var w: Node = s.get_parent()
+	var inside: Array = s._in_radius("enemy")
+	if first_tick(s):
+		WeaponFx.spawn(w, "ring", s.position, SAND, {"radius": r, "life": 0.3})
+		WeaponFx.spawn(w, "motes", s.position, SAND, {"radius": r, "count": 12, "rise": 14.0, "life": 0.8})
+		Sfx.play("whoosh")
+	if pace(s, "pull", 0.2, delta):                                   # dust devil: a steady pull to the middle
+		for e in inside:
+			var to: Vector2 = c - e.global_position
+			if to.length() >= 6.0 and e.has_method("push"):
+				e.push(to.normalized() * SAND_PULL, 0.12)
+	if tier >= 3:                                                     # scour: an enemy that stays loses half its armour and shield
+		var here := {}
+		for e in inside:
+			var id: int = e.get_instance_id()
+			here[id] = true
+			s._mem[id] = float(s._mem.get(id, 0.0)) + delta
+			if s._mem[id] >= 1.0 and !e.has_meta("scoured"):
+				e.set_meta("scoured", true)
+				if e.get("armor") != null:
+					e.armor *= 0.5
+				if e.get("shield") != null:
+					e.shield *= 0.5
+				WeaponFx.spawn(w, "burst", e.global_position, Color(0.75, 0.6, 0.35), {"radius": 10.0, "life": 0.25})
+				Sfx.play("hit")
+		for id in s._mem.keys():
+			if !here.has(id):
+				s._mem.erase(id)
+	if tier >= 4 and pace(s, "gale", SAND_GALE_T, delta):             # gale burst: a gust that turns round
+		var gust := Vector2.from_angle(since * 0.9)
+		WeaponFx.spawn(w, "ripple", s.position, SAND, {"radius": r, "rings": 2, "life": 0.5})
+		WeaponFx.spawn(w, "shards", s.position, SAND, {"radius": r, "count": 10, "spin": gust.angle(), "life": 0.5})
+		Sfx.play("thump")
+		for e in inside:
+			if !is_instance_valid(e):
+				continue
+			e.spell_damage(dps * 1.5, "earth", true)
+			if is_instance_valid(e) and e.has_method("push"):
+				e.push(gust * SAND_GALE_PUSH, 0.2)
+	if tier >= 5 and pace(s, "bury", SAND_BURY_T, delta):             # burial: two enemies are swallowed for a moment
+		var pool := inside.duplicate()
+		pool.shuffle()
+		for i in mini(2, pool.size()):
+			var e = pool[i]
+			if !is_instance_valid(e):
+				continue
+			WeaponFx.spawn(w, "pillar", e.global_position, SAND, {"height": 30.0, "width": 14.0, "life": 0.4})
+			WeaponFx.spawn(w, "burst", e.global_position, SAND, {"radius": 14.0, "life": 0.3})
+			Sfx.play("big_hit")
+			if e.has_method("apply_slow"):
+				e.apply_slow(0.0, 1.2)
+			e.spell_damage(dps * 3.0, "earth", true)
+	if tier >= 6 and !s._finale_done and !is_copy(s) and since >= s.effect_time - 0.05:
+		s._finale_done = true                                         # collapse: everything round it is dragged in
+		WeaponFx.spawn(w, "flash", s.position, SAND, {"radius": r * 1.5, "life": 0.4})
+		WeaponFx.spawn(w, "ripple", s.position, SAND, {"radius": r * 1.6, "rings": 3, "life": 0.7})
+		WeaponFx.spawn(w, "shards", s.position, SAND, {"radius": r * 1.5, "count": 18, "life": 0.5})
+		Sfx.play("ultimate")
+		for e in WeaponUtil.enemies_in_circle(s.get_tree(), c, r * 1.5):
+			var to2: Vector2 = c - e.global_position
+			if e.has_method("push"):
+				e.push(to2.normalized() * SAND_COLLAPSE, 0.25)
+			if e.has_method("apply_slow"):
+				e.apply_slow(0.0, 1.2)
+			e.spell_damage(dps * 5.0, "earth", true)
