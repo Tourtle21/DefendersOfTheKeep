@@ -409,6 +409,97 @@ func t_magmamaul() -> void:
 	ok("magmamaul Eruption Titan: tier 6 bombs and a late eruption %s vs tier 3 %s; burn patches at once %d <= %d" % [tit[6], tit[3], burn[6], burn[3]], tit[6][0] >= 6 and tit[6][1] and tit[6][2] > tit[3][2] + 18.0 and burn[6] <= burn[3])
 	await draw_smoke("magmamaul")
 
+func t_spellblade() -> void:
+	var w
+	var mod = load("res://items/weapons/tiers/spellblade.gd")
+	# Spirit blades: every second slash that hits conjures one (max 2 at tier 2); they cut what they touch
+	w = await equip("spellblade", 2, false)
+	var near = dummy(P + Vector2(17, 0))
+	for i in 4:
+		click(w)
+		await wait(0.55)
+	var sp: int = w._aura.data.get("sp", -1) if w._aura != null else -1
+	var h0 := lost(near)
+	await wait(2.0)
+	ok("spellblade Spirit Blades: tier 2 four hitting slashes conjure %d blades (max %d), a dummy beside you takes %.1f from contact" % [sp, mod.spirit_max(w), lost(near) - h0], sp == 2 and mod.spirit_max(w) == 2 and lost(near) - h0 > 0.5)
+	# Spellweave: the storm has six blades that the aura draws (n equals the storm's blade count)
+	w = await equip("spellblade", 2, false)
+	w.use_ability()
+	await wait(0.3)
+	var n_storm: int = w._aura.data.get("n", -1)
+	ok("spellblade Spellweave: tier 2 storm has %d blades (6) and the aura says so (n %d); the old local drawing is gone" % [w.blades_now(), n_storm], w.blades_now() == 6 and n_storm == 6)
+	# Sword Choir: the blades are thrown when the storm ends (tier 3), the cap is 3
+	var choir := {}
+	for t in [2, 3]:
+		w = await equip("spellblade", t, false)
+		w.use_ability()
+		await wait(3.7)
+		choir[t] = await proj_ids(1.0, "blade")
+	ok("spellblade Sword Choir: tier 3 throws %d blades when the storm ends (tier 2 %d), the spirit cap is %d" % [choir[3], choir[2], mod.spirit_max(w)], choir[3] >= 6 and choir[2] == 0 and mod.spirit_max(w) == 3)
+	# Phantom Edge: the 4th slash has a phantom swing and a chaining wave; the dash exposes 2.5 s
+	var pe := {}
+	for t in [3, 4]:
+		w = await equip("spellblade", t, false)
+		var a = dummy(P + Vector2(45, 0))
+		var b = dummy(P + Vector2(45, 40))
+		var seen := {}
+		var gains := []
+		for i in 4:
+			var hb := lost(b)
+			click(w)
+			for k in 12:
+				await wait(0.05)
+				fx_kinds(seen)
+			gains.append(snappedf(lost(b) - hb, 0.1))
+			await wait(0.3)
+		pe[t] = [gains, seen.get("slash", 0)]
+	ok("spellblade Phantom Edge: tier 4 4th slash chains to the dummy off the line %s and shows a phantom slash (%d); tier 3 %s" % [pe[4][0], pe[4][1], pe[3]], pe[4][0][3] > 0.2 and pe[4][1] >= 1 and pe[3][0][3] < 0.05 and pe[3][1] == 0)
+	w = await equip("spellblade", 4, false)
+	var ex = dummy(P + Vector2(30, 0))
+	w.use_dash()
+	await wait(0.35)
+	ok("spellblade Phantom Dash: tier 4 dash exposes for %.1f s (>= 1.8; the old dash gave 1.5 s)" % exposed_for(ex), exposed_for(ex) >= 1.8)
+	# Blade Tempest: the cyclone after the 5 s and twelve blades at the end
+	var bt := {}
+	for t in [4, 5]:
+		w = await equip("spellblade", t, false)
+		var dd = dummy(P + Vector2(50, 0))
+		w.use_ultimate()
+		await wait(5.25)
+		var h1 := lost(dd)
+		var seen := {}
+		var ids := {}
+		for i in 50:
+			await wait(0.05)
+			fx_kinds(seen)
+			for nd in world.get_children():
+				if nd.get_script() != null and str(nd.get_script().resource_path).ends_with("items/weapons/projectile.gd") and nd.style == "blade":
+					ids[nd.get_instance_id()] = true
+		bt[t] = [seen.has("vortex"), ids.size(), snappedf(lost(dd) - h1, 0.1)]
+	ok("spellblade Blade Tempest: tier 5 cyclone, 12 blades and damage %s; tier 4 %s" % [bt[5], bt[4]], bt[5][0] and bt[5][1] >= 12 and bt[5][2] > bt[4][2] + 2.0 and !bt[4][0])
+	# Sword Saint: the avatar for 10 s with big slashes, then the crash
+	var ss := {}
+	for t in [5, 6]:
+		w = await equip("spellblade", t, false)
+		var dd = dummy(P + Vector2(50, 0))
+		w.use_ultimate()
+		await wait(8.4)
+		var avatar: int = w._aura.data.get("av", 0)
+		click(w)
+		await wait(0.08)
+		var big := has_fx("slash", 60.0)
+		await wait(8.5)
+		var h1 := lost(dd)
+		var late := false
+		for i in 30:
+			await wait(0.05)
+			if has_fx("flash", 80.0):
+				late = true
+		var avatar_off: bool = w._aura.data.get("av", 0) == 0
+		ss[t] = [avatar, big, late, avatar_off, snappedf(lost(dd) - h1, 0.1)]
+	ok("spellblade Sword Saint: tier 6 avatar, big slash, final crash %s; tier 5 %s" % [ss[6], ss[5]], ss[6][0] == 1 and ss[6][1] and ss[6][2] and ss[6][3] and ss[6][4] > 10.0 and ss[5][0] == 0 and !ss[5][1] and !ss[5][2])
+	await draw_smoke("spellblade")
+
 func run() -> void:
 	if want("rimelance"):
 		await t_rimelance()
@@ -418,3 +509,5 @@ func run() -> void:
 		await t_dragoonpike()
 	if want("magmamaul"):
 		await t_magmamaul()
+	if want("spellblade"):
+		await t_spellblade()

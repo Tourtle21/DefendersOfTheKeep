@@ -8,6 +8,9 @@ var storm_len := 4.0
 var _storm_until := 0.0
 var _angle := 0.0
 var _blade_hit := {}
+var storm_bonus := 0                 # weapon tiers (spellblade): extra storm blades while the Blade Storm runs
+var storm_r := 26.0                  # the storm's radius and the gap between two touches of one enemy
+var hit_gap := 0.45
 
 func _init() -> void:
 	weapon_id = "spellblade"
@@ -32,7 +35,10 @@ func attack() -> void:
 	fx("arc", o, Color(0.7, 0.8, 1.0), {"radius": 28.0, "dir": aim, "half_angle": 0.9, "life": 0.15})
 	for e in WeaponUtil.enemies_in_arc(get_tree(), o, aim, 28.0, 55.0):
 		WeaponUtil.hit(e, Game.basic_hit(weapon_id) * 0.5, o, 100.0)
-	WeaponProjectile.shoot(game_world(), o + aim * 14.0, aim, 240.0, Game.basic_hit(weapon_id) * 0.5, Color(0.7, 0.8, 1.0), 0.5, 1, 100.0)
+	var extra := {}
+	if weapon_id == "spellblade":                                # weapon tiers: crescent waves with a trail, chaining at tier 4 (_st.chain)
+		extra = {"style": "crescent", "size": 1.0, "trail": 3, "chain": int(_st.get("chain", 0))}
+	WeaponProjectile.shoot(game_world(), o + aim * 14.0, aim, 240.0, Game.basic_hit(weapon_id) * 0.5, Color(0.7, 0.8, 1.0), 0.5, 1, 100.0, extra)
 
 func ability() -> void:
 	_storm_until = Time.get_ticks_msec() / 1000.0 + storm_len
@@ -43,19 +49,25 @@ func _process(delta: float) -> void:
 	var now := Time.get_ticks_msec() / 1000.0
 	if now < _storm_until:
 		_angle += 6.0 * delta
-		for i in blade_count:
-			var pos: Vector2 = player.global_position + Vector2.from_angle(_angle + i * TAU / blade_count) * 26.0
+		var n := blades_now()
+		for i in n:
+			var pos: Vector2 = player.global_position + Vector2.from_angle(_angle + i * TAU / n) * storm_r
 			for e in WeaponUtil.enemies_in_circle(get_tree(), pos, 9.0):
-				if !_blade_hit.has(e) or now - _blade_hit[e] > 0.45:
+				if !_blade_hit.has(e) or now - _blade_hit[e] > hit_gap:
 					_blade_hit[e] = now
 					WeaponUtil.hit(e, 1.5, pos, 80.0)
 					_on_blade_hit(e)
 
+func blades_now() -> int:
+	return blade_count + storm_bonus
+
 func _on_blade_hit(_e) -> void:
-	pass
+	WeaponTiers.run(self, "blade_hit", [_e])
 
 func _draw() -> void:
 	super()
+	if weapon_id == "spellblade":                  # (the Spellblade's blades are drawn by its WeaponAura, so LAN clients see them too)
+		return
 	if Time.get_ticks_msec() / 1000.0 < _storm_until:
 		for i in blade_count:
 			var p := to_local(player.global_position + Vector2.from_angle(_angle + i * TAU / blade_count) * 26.0)

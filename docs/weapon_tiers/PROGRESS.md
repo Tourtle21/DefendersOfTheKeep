@@ -40,3 +40,6 @@ CLAIM crystalwand
 DONE staff
 DONE emberflail
 DONE magmamaul
+DONE crystalwand
+CLAIM prismstaff
+DONE spellblade
