@@ -212,8 +212,114 @@ func t_sultanguard() -> void:
 	ok("sultanguard Finisher: the 6th slash throws %d crescents at tier 6, %d at tier 5" % [fin[6], fin[5]], fin[6] >= 2 and fin[5] == 0)
 	await draw_smoke("sultanguard")
 
+func t_dragoonpike() -> void:
+	var w
+	# Entry (tier 3): Shock Cone, the rhythm wave after the 2nd thrust, the long 3rd thrust, fang lunges that mark
+	w = await equip("dragoonpike", 3, false)
+	var d0 = dummy(P + Vector2(100, 0))
+	w.use_ability()
+	await wait(0.05)
+	w.release_ability()
+	var r = await watch(1.4)
+	ok("dragoonpike Wyvern's Fang: tier 3 ram ends in a cone %s and the lunges are marked (exposed %.1f s) with cuts %s" % [r.kinds.has("cone"), exposed_for(d0), r.kinds.has("cut")], r.kinds.has("cone") and r.kinds.has("cut") and exposed_for(d0) > 0.0)
+	w = await equip("dragoonpike", 3, false)
+	var tgt = dummy(P + Vector2(66, 0))
+	var per := []
+	var waves := []
+	for i in 3:
+		var h0 := lost(tgt)
+		click(w)
+		var rr = await watch(0.15)
+		waves.append(rr.proj)
+		per.append(snappedf(lost(tgt) - h0, 0.1))
+	ok("dragoonpike Wyvern's Fang: the 2nd thrust throws a wave %s and only the 3rd reaches 66 px %s" % [waves, per], waves[1] >= 1 and waves[0] == 0 and per[2] > 1.0)
+	# Dragonfire: a fourth lunge that burns
+	var df := {}
+	for t in [3, 4]:
+		w = await equip("dragoonpike", t, false)
+		var ds := []
+		for off in [Vector2(60, 0), Vector2(60, 30), Vector2(60, -30), Vector2(90, 0)]:
+			ds.append(dummy(P + off))
+		w.use_ability()
+		await wait(0.05)
+		w.release_ability()
+		await wait(1.6)
+		var marked := 0
+		for e in ds:
+			if exposed_for(e) > 0.0:
+				marked += 1
+		var h1 := 0.0
+		for e in ds:
+			h1 += lost(e)
+		await wait(1.0)
+		var h2 := 0.0
+		for e in ds:
+			h2 += lost(e)
+		df[t] = [marked, snappedf(h2 - h1, 0.1)]
+	ok("dragoonpike Dragonfire: tier 4 lunges at four dummies and they burn %s; tier 3 three, no fire %s" % [df[4], df[3]], df[4][0] == 4 and df[3][0] == 3 and df[4][1] > df[3][1] + 1.0)
+	# Dragonfire Vault: the landing cone burns what is ahead
+	var vl := {}
+	for t in [3, 4]:
+		w = await equip("dragoonpike", t, false)
+		var dd = dummy(P + Vector2(150, 0))
+		w.use_dash()
+		var rr = await watch(1.2)
+		vl[t] = [snappedf(lost(dd), 0.1), rr.kinds.has("cone")]
+	ok("dragoonpike Dragonfire Vault: tier 4 landing cone hurts a dummy 40 px ahead %s; tier 3 %s" % [vl[4], vl[3]], vl[4][1] and !vl[3][1] and vl[4][0] > vl[3][0] + 4.0)
+	# Wyrm Chase: five lunges after the crash, back to the crash point
+	var wc := {}
+	for t in [4, 5]:
+		w = await equip("dragoonpike", t, false)
+		var crash: Vector2 = w.cursor_target(130.0)
+		var ds := []
+		for k in 5:
+			ds.append(dummy(crash + Vector2.from_angle(float(k) * 1.26) * 60.0))
+		w.use_ultimate()
+		await wait(2.6)
+		var tot := 0.0
+		for e in ds:
+			tot += lost(e)
+		wc[t] = [snappedf(tot, 0.1), snappedf(player.global_position.distance_to(crash), 1.0)]
+	ok("dragoonpike Wyrm Chase: tier 5 hits the pack harder %s than tier 4 %s and ends near the crash point" % [wc[5], wc[4]], wc[5][0] > wc[4][0] + 10.0 and wc[5][1] < 40.0)
+	# Dragon Descent: the red comet, the sigil, the great crash with eight lances
+	var dd6 := {}
+	for t in [5, 6]:
+		w = await equip("dragoonpike", t, false)
+		var crash: Vector2 = w.cursor_target(130.0)
+		var cen = dummy(crash + Vector2(20, 0))
+		w.use_ultimate()
+		var seen := {}
+		var ids := {}
+		var comet := false
+		for i in 70:
+			await wait(0.05)
+			fx_kinds(seen)
+			if has_fx("fall", 9.0):
+				comet = true
+			for nd in world.get_children():
+				if nd.get_script() != null and str(nd.get_script().resource_path).ends_with("items/weapons/projectile.gd") and nd.style == "lance":
+					ids[nd.get_instance_id()] = true
+		dd6[t] = [comet, ids.size(), seen.has("pillar"), snappedf(lost(cen), 0.1)]
+	ok("dragoonpike Dragon Descent: tier 6 %s (comet, lances, pillar, damage) vs tier 5 %s" % [dd6[6], dd6[5]], dd6[6][0] and dd6[6][1] >= 8 and dd6[6][2] and dd6[5][1] == 0 and dd6[6][3] > dd6[5][3] + 7.0)
+	# Roar: the 6th thrust
+	var roar := {}
+	for t in [5, 6]:
+		w = await equip("dragoonpike", t, false)
+		var saw := false
+		for i in 6:
+			click(w)
+			await wait(0.08)
+			if i == 5 and has_fx("cone", 70.0):
+				saw = true
+			await wait(0.4)
+		roar[t] = saw
+	ok("dragoonpike Roar: the 6th thrust roars at tier 6 %s, not at tier 5 %s" % [roar[6], roar[5]], roar[6] and !roar[5])
+	await draw_smoke("dragoonpike")
+
 func run() -> void:
 	if want("rimelance"):
 		await t_rimelance()
 	if want("sultanguard"):
 		await t_sultanguard()
+	if want("dragoonpike"):
+		await t_dragoonpike()

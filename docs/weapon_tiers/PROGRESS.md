@@ -30,3 +30,8 @@ DONE rimelance
 DONE shield
 DONE frostglaive
 DONE sultanguard
+CLAIM dragoonpike
+CLAIM magmamaul
+CLAIM spellblade
+CLAIM tempest
+DONE dragoonpike

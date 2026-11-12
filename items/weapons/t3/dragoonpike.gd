@@ -22,7 +22,8 @@ func release_ability() -> void:
 		return
 	await get_tree().create_timer(0.55).timeout
 	var hit_list := []
-	for i in 3:
+	var lunges := 4 if tier >= 4 else 3                       # (weapon tiers: Dragonfire adds a fourth lunge)
+	for i in lunges:
 		if !is_inside_tree():
 			return
 		var o: Vector2 = player.global_position
@@ -37,6 +38,7 @@ func release_ability() -> void:
 		player.dash(to.normalized(), max(8.0, to.length() - 12.0), 0.1)
 		fx("line", o, Color(1.0, 0.9, 0.5), {"dir": to.normalized(), "length": to.length(), "width": 5.0, "life": 0.2})
 		WeaponUtil.hit(best, 4.0, o, 160.0)
+		WeaponTiers.run(self, "lunge", [best, o])
 		await get_tree().create_timer(0.16).timeout
 
 func dash_attack() -> void:
