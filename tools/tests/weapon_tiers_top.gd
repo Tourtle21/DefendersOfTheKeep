@@ -645,6 +645,132 @@ func t_prismstaff() -> void:
 	await clear()
 	await draw_smoke("prismstaff")
 
+func fx_list(kind: String) -> Array:
+	var out := []
+	for n in world.get_children():
+		if n.get_script() != null and str(n.get_script().resource_path).ends_with("items/weapons/fx.gd") and n.kind == kind:
+			out.append(n)
+	return out
+
+func t_worldbreaker() -> void:
+	var w
+	var mod = load("res://items/weapons/tiers/earthshaker.gd")
+	# Tectonic Plate (entry, tier 4): a release with 3 stored hits leaves faults and an Aftershock 1 s later
+	w = await equip("worldbreaker", 4, false)
+	var d1 = dummy(P + Vector2(70, 0))
+	w.use_ability()
+	await wait(0.1)
+	for i in 3:
+		w._on_absorb(P + Vector2(40, 0))
+	var stored: int = w._stored
+	w.release_ability()
+	await wait(0.4)
+	var f_after: int = hazards()
+	var l0 := lost(d1)
+	await wait(1.4)
+	ok("worldbreaker Tectonic Plate: a release of %d plates leaves %d fault patches; the dummy at 70 px takes %.1f then %.1f more after the Aftershock, faults left %d" % [stored, f_after, l0, lost(d1) - l0, hazards()], f_after > 6 and lost(d1) - l0 > 0.5 and hazards() < f_after)
+	w = await equip("worldbreaker", 4, false)
+	var sl := []
+	dummy(P + Vector2(24, 0))
+	for i in 3:
+		var sn := {}
+		w._attack_cd = 0.0
+		w.use_item()
+		for k in 9:
+			await wait(0.05)
+			fx_kinds(sn)
+		sl.append(sn.has("shock"))
+		await wait(0.6)
+	ok("worldbreaker Tectonic Slam: the slam (shock) on the third swing only %s, with a fault (%d patches)" % [sl, hazards()], sl == [false, false, true] and hazards() >= 1)
+	var ch := {}
+	for t in [4]:
+		w = await equip("worldbreaker", t, false)
+		await face(Vector2(1, 0))
+		var cd = dummy(P + Vector2(24, 0), HP, true)
+		var x0: float = cd.global_position.x
+		w.use_dash()
+		await wait(0.9)
+		ch[t] = [cd.global_position.x - x0, hazards()]
+	ok("worldbreaker Tectonic Charge: carries the dummy %.0f px and leaves %d faults" % [ch[4][0], ch[4][1]], ch[4][0] > 40.0 and ch[4][1] >= 3)
+	# Drift (tier 5): the contraction pulls a dummy at 100 px; the swing reaches farther with faults near
+	var dr := {}
+	for t in [4, 5]:
+		w = await equip("worldbreaker", t, false)
+		var dd = dummy(P + Vector2(100, 0), HP, true)
+		w.use_ability()
+		await wait(0.1)
+		w._on_absorb(P)
+		w.release_ability()
+		var x0: float = dd.global_position.x
+		var best := 0.0
+		for i in 50:
+			await wait(0.05)
+			best = maxf(best, x0 - dd.global_position.x)
+		dr[t] = best
+	ok("worldbreaker Drift: the contraction pulls the dummy %.0f px at tier 5 (tier 4: %.0f)" % [dr[5], dr[4]], dr[5] > dr[4] + 15.0)
+	var rg := {}
+	for t in [5]:
+		w = await equip("worldbreaker", t, false)
+		w._st.faults.clear()
+		for k in 6:
+			mod.add_fault(w, P + Vector2(10 + 4 * k, 0))
+		var rd = dummy(P + Vector2(37, 0))
+		await wait(0.2)
+		w._attack_cd = 0.0
+		w.use_item()
+		await wait(0.7)
+		rg[t] = lost(rd)
+	ok("worldbreaker Drift: a swing with 6 faults nearby reaches a dummy at 37 px (%.1f)" % rg[5], rg[5] > 0.0)
+	# Worldbreak (tier 6): a third ring of 16 and plates fired as projectiles
+	w = await equip("worldbreaker", 6, false)
+	w.use_ability()
+	await wait(0.1)
+	for i in 4:
+		w._on_absorb(P + Vector2(40, 0))
+	w.release_ability()
+	var seen6 := {}
+	var pk := 0
+	for i in 40:
+		await wait(0.05)
+		fx_kinds(seen6)
+		pk = maxi(pk, own_proj())
+	ok("worldbreaker Worldbreak: tier 6 release fires %d plate shards and shows the 150 px sigil %s" % [pk, seen6.has("sigil")], pk >= 3 and seen6.has("sigil"))
+	# Titan and the Breaking
+	w = await equip("worldbreaker", 6, false)
+	await face(Vector2(1, 0))
+	var td = dummy(P + Vector2(70, 0))
+	w._stored = 4
+	w.use_ultimate()
+	await wait(6.0)
+	var scale_x: float = w.scale.x
+	var falls := 0
+	var seen_fall := {}
+	for i in 100:
+		await wait(0.05)
+		for n in world.get_children():
+			if n.get_script() != null and str(n.get_script().resource_path).ends_with("items/weapons/fx.gd") and n.kind == "fall" and n.radius == 10.0:
+				seen_fall[n.get_instance_id()] = true
+	ok("worldbreaker Titan: the weapon is x%.2f and %d boulders fell at the cursor in 5 s" % [scale_x, seen_fall.size()], scale_x >= 1.3 and seen_fall.size() >= 2)
+	var b0 := 0.0
+	var crack20 := false
+	var flash110 := false
+	for i in 260:
+		await wait(0.05)
+		for c in fx_list("crack"):
+			if c.count == 20:
+				crack20 = true
+		for f in fx_list("flash"):
+			if f.radius == 110.0:
+				flash110 = true
+		if flash110:
+			b0 = lost(td)
+			await wait(0.3)
+			break
+	var slow_haz := hazards()
+	ok("worldbreaker The Breaking: crack 20 %s, flash 110 %s, %d slow patches left, scale back to %.2f" % [crack20, flash110, slow_haz, w.scale.x], crack20 and flash110 and slow_haz >= 6)
+	await clear()
+	await draw_smoke("worldbreaker")
+
 func aura_data_state() -> float:
 	for n in world.get_children():
 		if n.get_script() != null and str(n.get_script().resource_path).ends_with("weapon_aura.gd"):
@@ -662,3 +788,5 @@ func run() -> void:
 		await t_crystalwand()
 	if only == "" or only == "prismstaff":
 		await t_prismstaff()
+	if only == "" or only == "worldbreaker":
+		await t_worldbreaker()
