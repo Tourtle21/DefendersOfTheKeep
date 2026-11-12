@@ -78,39 +78,45 @@ func draw_chainfangs(p: Paint, t: int) -> void:
 		p.px(12, 24, Paint.GOLD_D)
 		p.px(19, 24, Paint.GOLD_D)
 	# the chain: links sway from the hilt up to the head
-	var top := 16
+	var top := 12
 	var y := 22
 	var i := 0
 	while y >= top:
 		var x := 15 + int(roundf(sin(float(i) * 1.1) * 2.0))
-		p.rect(x, y - 1, x + 1, y, link)
-		p.px(x, y - 1, link_l)
-		p.px(x + 1, y, link_d)
+		if i % 2 == 0:                          # a flat link (hollow) then an edge-on one
+			p.rect(x - 1, y - 1, x + 2, y + 1, link)
+			p.rect(x, y, x + 1, y, Paint.IRON_D)
+			p.px(x - 1, y - 1, link_l)
+			p.px(x + 2, y + 1, link_d)
+		else:
+			p.rect(x, y - 2, x + 1, y + 1, link)
+			p.px(x, y - 2, link_l)
+			p.px(x + 1, y + 1, link_d)
 		if s >= 4 and i % 2 == 1:              # barbs on the links
 			p.px(x - 1, y - 1, Paint.STEEL_L)
 			p.px(x + 2, y, Paint.STEEL_L)
-		y -= 2
+		y -= 3
 		i += 1
 	# the fangs: curved claws like horns
 	var tip_y := 2.0 if s < 4 else 0.0
 	var w := 2.6 if s < 4 else 3.2
 	if s == 1:
-		_swoop(p, Vector2(16, 14), Vector2(10, 5), Vector2(19, tip_y), w, Paint.STEEL, Paint.STEEL_D)
+		_swoop(p, Vector2(16, 11), Vector2(10, 4), Vector2(19, tip_y), w, Paint.STEEL, Paint.STEEL_D)
 	else:
-		_swoop(p, Vector2(17, 14), Vector2(25, 9), Vector2(23, tip_y), w, Paint.STEEL, Paint.STEEL_D)
-		_swoop(p, Vector2(15, 14), Vector2(7, 9), Vector2(9, tip_y), w, Paint.STEEL, Paint.STEEL_D)
+		_swoop(p, Vector2(17, 11), Vector2(25, 7), Vector2(23, tip_y), w, Paint.STEEL, Paint.STEEL_D)
+		_swoop(p, Vector2(15, 11), Vector2(7, 7), Vector2(9, tip_y), w, Paint.STEEL, Paint.STEEL_D)
 	if s >= 3:
-		p.rect(13, 13, 18, 14, Paint.GOLD)
-		p.rect(13, 14, 18, 14, Paint.GOLD_D)
-		_tri(p, Vector2(16, 13), Vector2(16, 2), 2.0, Paint.STEEL_L, Paint.STEEL)
+		p.rect(13, 10, 18, 11, Paint.GOLD)
+		p.rect(13, 11, 18, 11, Paint.GOLD_D)
+		_tri(p, Vector2(16, 10), Vector2(16, 2), 2.0, Paint.STEEL_L, Paint.STEEL)
 	if s >= 4:
-		p.gem(15.5, 12.5, 1.5, Color("e03050"))
+		p.gem(15.5, 9.5, 1.5, Color("e03050"))
 		for yy in [4, 7]:
 			p.px(7, yy + 1, Paint.CLEAR)
 			p.px(24, yy + 1, Paint.CLEAR)
 	if s >= 5:
 		for a in 5:
-			var q := Vector2(16, 14) + Vector2.from_angle(PI + a * PI / 4.0) * 5.5
+			var q := Vector2(16, 11) + Vector2.from_angle(PI + a * PI / 4.0) * 5.5
 			p.px(int(q.x), int(q.y), Paint.GOLD_L)
 		p.px(16, 0, Paint.WHITE)
 
