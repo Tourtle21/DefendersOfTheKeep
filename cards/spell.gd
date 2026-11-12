@@ -155,7 +155,7 @@ func _physics_process(delta: float) -> void:
 			_apply_twist()
 			SpellTiers.on_land(self)
 			if data.get("night", false) and data.kind in ["flare", "zone"] and data.get("element", "") == "fire":
-				var lit_by := SpellTiers.flare_light(self) if data.kind == "flare" else [1.0, 0.65]
+				var lit_by := SpellTiers.flare_light(self)
 				light_radius = radius * lit_by[0]          # the landed spell is a light source until it ends
 				add_to_group("light")
 				if _glow != null:

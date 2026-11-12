@@ -68,7 +68,7 @@ func _initialize() -> void:
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("only="):
 			only = a.substr(5)
-	for id in ["fireball", "frost_ring", "flare", "rejuvenation", "gold_magnet", "aegis", "charm", "sandstorm", "blizzard"]:
+	for id in ["fireball", "frost_ring", "flare", "rejuvenation", "gold_magnet", "aegis", "charm", "sandstorm", "blizzard", "lava_pool"]:
 		if only == "" or only == id:
 			await call(id)
 			await clear()
@@ -751,3 +751,86 @@ func blizzard() -> void:
 				h.queue_free()
 		await clear()
 	ok("tier 6 ends in an ice age (stun and a lasting slow patch), a copy does not (%s)" % str(ia), ia[false][0] <= 0.35 and ia[false][1] >= 1 and ia[true][1] == 0)
+
+# ================================================================== Lava Pool
+func lava_pool() -> void:
+	print("-- lava_pool")
+	var c := Vector2(0, 300)
+	# Magma bubbles (tier 2)
+	var bu := {}
+	for t in [1, 2]:
+		var e = dummy(c + Vector2(10, 0))
+		spell("lava_pool", t, c, true, {"duration": 20.0})
+		var seen := await fx_seen(4.0, 0.4)
+		bu[t] = [seen.get("ring", 0), snappedf(dealt(e), 0.1)]
+		await clear()
+	ok("tier 2 bubbles burst under enemies (about 3 telegraphs in 4 s, more damage); tier 1 none (%s)" % str(bu), bu[2][0] >= 2 and bu[1][0] == 0 and bu[2][1] > bu[1][1])
+	# Molten touch (tier 3): keeps burning after it leaves
+	var mt := {}
+	for t in [2, 3]:
+		var e = dummy(c + Vector2(10, 0))
+		spell("lava_pool", t, c, true, {"duration": 20.0})
+		await wait(1.0)
+		e.global_position = Vector2(500, 300)
+		await wait(0.2)
+		var h0: float = e.health
+		await wait(1.3)
+		mt[t] = snappedf(h0 - e.health, 0.1)
+		await clear()
+	ok("tier 3 keeps burning after it leaves the pool, tier 2 stops at once (%s)" % str(mt), mt[3] > 0.5 and mt[2] == 0.0)
+	# Cinder fountain (tier 4)
+	var cf := {}
+	for t in [3, 4]:
+		var a = dummy(c + Vector2(0, 0), 2.0)
+		var b = dummy(c + Vector2(25, 0))
+		spell("lava_pool", t, c, true, {"duration": 20.0})
+		var n := 0
+		var seen := {}
+		var el := 0.0
+		var hp_b: float = b.health
+		while el < 1.5:
+			await wait(0.05)
+			el += 0.05
+			for nd in world.get_children():
+				if nd.get_script() != null and str(nd.get_script().resource_path).ends_with("projectile.gd") and !seen.has(nd.get_instance_id()):
+					seen[nd.get_instance_id()] = true
+					n += 1
+		cf[t] = [is_instance_valid(a), n]
+		await clear()
+	ok("tier 4: a death in the pool spits cinders (projectiles), tier 3 does not (%s)" % str(cf), cf[4][1] >= cf[3][1] + 3)
+	# Geyser (tier 5): erupts under the crowd and stuns
+	var gy := {}
+	for t in [4, 5]:
+		var es := []
+		for i in 4:
+			es.append(dummy(c + Vector2(i * 6.0, 0)))
+		spell("lava_pool", t, c, true, {"duration": 20.0})
+		var stunned := false
+		var el := 0.0
+		while el < 3.2:
+			await wait(0.05)
+			el += 0.05
+			for e in es:
+				stunned = stunned or (e.slow_mult == 0.0 and e.slow_time > 0.0)
+		var tot := 0.0
+		for e in es:
+			tot += dealt(e)
+		gy[t] = [stunned, snappedf(tot, 0.1)]
+		await clear()
+	ok("tier 5 geyser erupts under the crowd: stun and much more damage, tier 4 none (%s)" % str(gy), gy[5][0] and !gy[4][0] and gy[5][1] > gy[4][1] * 1.5)
+	# Volcano (tier 6)
+	var vo := {}
+	for cp in [false, true]:
+		var s0 = spell("lava_pool", 6, c, true, {"duration": 1.5, "copy": cp})
+		var e = dummy(c + Vector2(10, 0))
+		var seen := await fx_seen(3.0, 0.45)
+		vo[cp] = [seen.get("ring", 0), snappedf(dealt(e), 0.1)]
+		await clear()
+	ok("tier 6 erupts at the end (8 bombs and a blast), a copy does not (%s)" % str(vo), vo[false][0] >= 6 and vo[true][0] < 3)
+	# at night too
+	game.night_level = 1.0
+	var s1 = spell("lava_pool", 5, c)
+	await wait(0.8)
+	game.night_level = 0.0
+	await clear()
+	ok("it also runs at night without errors", true)

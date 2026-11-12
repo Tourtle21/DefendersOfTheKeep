@@ -89,6 +89,8 @@ static func tick(s, delta: float) -> void:
 			tick_sandstorm(s, tier_of(s), delta)
 		"blizzard":
 			tick_blizzard(s, tier_of(s), delta)
+		"lava_pool":
+			tick_lava_pool(s, tier_of(s), delta)
 
 # ---------------------------------------------------------------- Fireball
 
@@ -299,10 +301,13 @@ static func sun_pos(s, i: int) -> Vector2:
 
 ## Night light: a higher flare shines a little wider and (tier 6) brighter.
 static func flare_light(s) -> Array:
-	if String(s.data.get("id", "")) != "flare":
-		return [1.0, 0.65]
 	var t := tier_of(s)
-	return [1.15 if t >= 4 else 1.0, 0.8 if t >= 6 else 0.65]
+	match String(s.data.get("id", "")):
+		"flare":
+			return [1.15 if t >= 4 else 1.0, 0.8 if t >= 6 else 0.65]
+		"lava_pool":
+			return [1.2 if t >= 4 else 1.0, 0.85 if t >= 6 else 0.65]
+	return [1.0, 0.65]
 
 static func tick_flare(s, tier: int, delta: float) -> void:
 	if tier < 2:
@@ -894,3 +899,88 @@ static func tick_blizzard(s, tier: int, delta: float) -> void:
 				e.apply_slow(0.0, 1.5)
 			e.spell_damage(dps * 4.0, "ice", true)
 		WeaponUtil.patch(w, s.position, "slow", 1.2 * r, BLIZ_ICE, 7.0, 0.35)
+
+## The places where enemies that were inside the spell have died since the last call (and forget the ones that merely walked out).
+static func deaths(s, inside: Array) -> Array:
+	var out := []
+	var here := {}
+	for e in inside:
+		here[e.get_instance_id()] = true
+		s._seen[e.get_instance_id()] = e.global_position
+	for id in s._seen.keys():
+		var o = instance_from_id(id)
+		if o != null and !_dead(o):
+			if !here.has(id):
+				s._seen.erase(id)
+			continue
+		out.append(s._seen[id])
+		s._seen.erase(id)
+	return out
+
+# ---------------------------------------------------------------- Lava Pool
+
+const LAVA_BUBBLE := 1.5
+const LAVA_IGNITE := 0.3
+const LAVA_CINDER := 0.6
+const LAVA_GEYSER := 4.0
+const LAVA_BOMBS := 8
+const LAVA := Color(1.0, 0.4, 0.1)
+const LAVA_GLOW := Color(1.0, 0.75, 0.25)
+
+static func vent_angle(i: int) -> float:
+	return fposmod(sin(i * 12.9898 + 3.0 * 78.233) * 43758.5453, 1.0) * TAU
+
+static func tick_lava_pool(s, tier: int, delta: float) -> void:
+	if tier < 2:
+		return
+	var since: float = s.age - s.flight
+	var c: Vector2 = s.global_position
+	var r: float = s.radius
+	var dps: float = s.data.dps
+	var w: Node = s.get_parent()
+	var tree: SceneTree = s.get_tree()
+	var inside: Array = s._in_radius("enemy")
+	if pace(s, "bubble", 1.2, delta) and !inside.is_empty():          # magma bubbles burst under an enemy
+		var e = inside[randi() % inside.size()]
+		if is_instance_valid(e):
+			WeaponUtil.ground_strike(tree, w, e.global_position, 14.0, 0.4, dps * LAVA_BUBBLE, 60.0, LAVA, 0.0, [], "fire")
+	if tier >= 3:                                                      # molten touch: what stands in it keeps burning after it leaves
+		var smoke := pace(s, "ember", 1.0, delta)
+		for e in inside:
+			var id: int = e.get_instance_id()
+			if float(s._cool.get(id, 0.0)) <= 0.0:
+				s._cool[id] = 2.0
+				WeaponUtil.bleed(tree, e, 4, dps * LAVA_IGNITE)
+			if smoke:
+				WeaponFx.spawn(w, "motes", e.global_position, LAVA_GLOW, {"radius": 6.0, "count": 2, "rise": 10.0, "life": 0.5})
+		for id in s._cool.keys():
+			s._cool[id] = float(s._cool[id]) - delta
+			if s._cool[id] < -5.0:
+				s._cool.erase(id)
+	if tier >= 4:                                                      # cinder fountain: a death spits burning cinders
+		for at in deaths(s, inside):
+			WeaponFx.spawn(w, "pillar", at, LAVA, {"height": 40.0, "width": 12.0, "life": 0.4})
+			WeaponFx.spawn(w, "shards", at, LAVA_GLOW, {"radius": 30.0, "count": 6, "life": 0.35})
+			Sfx.play("big_hit")
+			var base: float = (at - c).angle()
+			for i in 4:
+				WeaponProjectile.shoot(w, at, Vector2.from_angle(base + (i - 1.5) * 0.35), 150.0, dps * LAVA_CINDER, LAVA_GLOW, 0.5, 0, 40.0)
+	if tier >= 5 and pace(s, "geyser", 2.5, delta) and !inside.is_empty():   # geyser: a vent erupts under the thickest crowd
+		var at2 := densest(tree, c, r)
+		WeaponFx.spawn(w, "pillar", at2, LAVA, {"height": 70.0, "width": 22.0, "life": 0.5})
+		WeaponFx.spawn(w, "ripple", at2, LAVA, {"radius": 30.0, "rings": 2, "life": 0.5})
+		Sfx.play("thump")
+		WeaponUtil.ground_strike(tree, w, at2, 26.0, 0.4, dps * LAVA_GEYSER, 160.0, LAVA, 0.6, [], "fire")
+	if tier >= 6 and !s._finale_done and !is_copy(s) and since >= s.effect_time - 0.05:
+		s._finale_done = true                                           # volcano: it erupts
+		WeaponFx.spawn(w, "flash", s.position, Color(1.0, 0.95, 0.7), {"radius": r * 1.5, "life": 0.4})
+		WeaponFx.spawn(w, "pillar", s.position, LAVA, {"height": 110.0, "width": 40.0, "life": 0.6})
+		WeaponFx.spawn(w, "ripple", s.position, LAVA, {"radius": r * 1.8, "rings": 3, "life": 0.7})
+		Sfx.play("ultimate")
+		LightSource.spawn(w, s.position, r * 2.0, 2.0, Color(1.0, 0.7, 0.3))
+		WeaponUtil.rain(tree, w, s.position, r * 1.3, LAVA_BOMBS, 1.2, dps * 3.0, 20.0, LAVA)
+		for e in WeaponUtil.enemies_in_circle(tree, c, r):
+			var away: Vector2 = e.global_position - c
+			e.spell_damage(dps * 4.0, "fire", true)
+			if is_instance_valid(e) and e.has_method("push"):
+				e.push((away.normalized() if away.length() > 0.5 else Vector2.RIGHT) * 200.0, 0.25)

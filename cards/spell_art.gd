@@ -13,7 +13,7 @@ static func jit(i: int, salt := 0.0) -> float:
 
 ## Cards that have their own body art here: the plain fill and rings are drawn softer under it.
 static func has_body(id: String) -> bool:
-	return id in ["fireball", "frost_ring", "flare", "rejuvenation", "gold_magnet", "aegis", "charm", "sandstorm", "blizzard"]
+	return id in ["fireball", "frost_ring", "flare", "rejuvenation", "gold_magnet", "aegis", "charm", "sandstorm", "blizzard", "lava_pool"]
 
 static func draw_flight(s, t: float, col: Color) -> void:
 	match String(s.data.get("id", "")):
@@ -44,6 +44,8 @@ static func draw(s, since: float, col: Color) -> void:
 			draw_sandstorm(s, since, col)
 		"blizzard":
 			draw_blizzard(s, since, col)
+		"lava_pool":
+			draw_lava_pool(s, since, col)
 
 ## A flame as one polygon: a wide base, a belly, and a tip that leans with `sway`.
 static func flame(s, base: Vector2, w: float, h: float, col: Color, sway := 0.0) -> void:
@@ -693,3 +695,73 @@ static func draw_blizzard(s, since: float, _col: Color) -> void:
 		if left < 1.0 and left > 0.0:
 			var t := 1.0 - left
 			s.draw_arc(Vector2.ZERO, r * (1.0 - 0.25 * t), 0, TAU, 40, Color(BLIZ_ICE, 0.25), r * 0.5 * t)
+
+# ---------------------------------------------------------------- Lava Pool
+
+const LAVA := Color(1.0, 0.4, 0.1)
+const LAVA_GLOW := Color(1.0, 0.75, 0.25)
+const CRUST := Color(0.25, 0.1, 0.08)
+const WHITE_HOT := Color(1.0, 0.95, 0.7)
+
+static func draw_lava_pool(s, since: float, _col: Color) -> void:
+	var tier := int(s.data.get("tier", 1))
+	if tier < 2:
+		return
+	var r: float = s.radius
+	var life: float = s.effect_time
+	var fade := clampf((life - since) / 1.0, 0.0, 1.0) * clampf(since / 0.2, 0.0, 1.0)
+	var left: float = life - since
+	if tier >= 5:                                                   # a brighter inner pool and three vents that glow before they erupt
+		s.draw_circle(Vector2.ZERO, r * 0.6, Color(LAVA_GLOW, 0.2 * fade))
+		var soon := fposmod(since, 2.5) > 2.1
+		for i in 3:
+			var vp := Vector2.from_angle(SpellTiers.vent_angle(i)) * r * 0.5
+			if soon:
+				vp += Vector2(sin(since * 60.0 + i), cos(since * 50.0)) * 1.2
+			s.draw_circle(vp, 4.5, Color(LAVA, 0.9 * fade) if !soon else Color(WHITE_HOT, fade))
+			s.draw_circle(vp, 3.0, Color(CRUST, fade))
+	# tier 2: a broken dark crust on the rim, bubbles that swell and pop
+	for i in 5:
+		var a := i * TAU / 5.0 + 0.2
+		s.draw_arc(Vector2.ZERO, r * 0.95, a, a + 0.9, 8, Color(CRUST, 0.85 * fade), r * 0.1)
+	for i in 5:
+		var u := fposmod(since / 1.2 + jit(i), 1.0)
+		var bp := Vector2.from_angle(jit(i, 1.0) * TAU) * r * 0.6 * jit(i, 2.0)
+		s.draw_circle(bp, lerpf(0.5, 4.0, u), Color(LAVA_GLOW, 0.85 * fade))
+		if u > 0.92:
+			s.draw_arc(bp, 6.0, 0, TAU, 8, Color(LAVA_GLOW, 0.6 * fade), 1.0)
+	if tier >= 3:                                                   # flowing streaks and heat shimmer
+		for i in 5:
+			var a2 := since * 0.4 + i * TAU / 5.0
+			s.draw_arc(Vector2.ZERO, r * (0.35 + 0.1 * i), a2, a2 + 0.6, 6, Color(WHITE_HOT, 0.4 * fade), 1.5)
+		for k in 3:
+			var pts := PackedVector2Array()
+			for j in 17:
+				var ang := j * TAU / 16.0
+				pts.append(Vector2.from_angle(ang) * (r * (1.05 + 0.04 * k) + sin(ang * 6.0 + since * 3.0 + k) * 2.0))
+			s.draw_polyline(pts, Color(LAVA_GLOW, 0.25 * fade), 1.0)
+	if tier >= 4:                                                   # a crater lip with jagged rocks, ash flecks rising
+		s.draw_arc(Vector2.ZERO, r * 1.0, 0, TAU, 40, Color(CRUST, 0.9 * fade), 3.0)
+		for i in 8:
+			var n := Vector2.from_angle(i * TAU / 8.0)
+			var b := n * r
+			s.draw_colored_polygon(PackedVector2Array([b + n.orthogonal() * 4.0, b + n * 7.0, b - n.orthogonal() * 4.0]), Color(CRUST, fade))
+		for i in 10:
+			var u2 := fposmod(since * 0.4 + jit(i, 6.0), 1.0)
+			s.draw_circle(Vector2.from_angle(jit(i, 7.0) * TAU) * r * 0.7 * jit(i, 8.0) + Vector2(0, -u2 * 22.0), 1.2, Color(CRUST.lightened(0.2), 0.8 * (1.0 - u2) * fade))
+	if tier >= 6:                                                   # the pool bulges into a volcano, ringed with rocks, whitening at the end
+		for i in 10:
+			var rp := Vector2.from_angle(i * TAU / 10.0 + 0.15) * r * 1.08
+			s.draw_circle(rp, 3.5, Color.BLACK)
+			s.draw_circle(rp, 2.7, Color(CRUST.lightened(0.15), fade))
+		var cone := PackedVector2Array([Vector2(-r * 0.4, 6), Vector2(-r * 0.12, -r * 0.35), Vector2(r * 0.12, -r * 0.35), Vector2(r * 0.4, 6)])
+		s.draw_colored_polygon(cone, Color(CRUST, 0.95 * fade))
+		for i in 6:
+			var cx := lerpf(-r * 0.3, r * 0.3, i / 5.0)
+			s.draw_line(Vector2(cx * 0.4, -r * 0.3), Vector2(cx, 4), Color(LAVA_GLOW, 0.7 * fade), 1.0)
+		s.draw_circle(Vector2(0, -r * 0.35), r * 0.1, Color(WHITE_HOT, fade))
+		for i in 6:
+			var u3 := fposmod(since * 0.3 + i / 6.0, 1.0)
+			s.draw_circle(Vector2(sin(since + i * 2.0) * 6.0, -r * 0.4 - u3 * 28.0), 3.0 + 2.0 * u3, Color(0.5, 0.5, 0.5, 0.35 * (1.0 - u3) * fade))
+		if left < 1.0 and left > 0.0:
+			s.draw_circle(Vector2.ZERO, r, Color(WHITE_HOT, 0.4 * (1.0 - left)))
