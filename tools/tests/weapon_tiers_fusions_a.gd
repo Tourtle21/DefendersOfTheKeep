@@ -466,6 +466,91 @@ func t_lance() -> void:
 	ok("lance: a full charge at tier 6 rams %.0f px (>= 120)" % (player.global_position.x - x0), player.global_position.x - x0 >= 120.0)
 	await draw_smoke("lance")
 
+func hazards(kind: String) -> int:
+	var c := 0
+	for n in world.get_children():
+		if n.get_script() != null and str(n.get_script().resource_path).ends_with("world/hazard.gd") and n.kind == kind:
+			c += 1
+	return c
+
+func t_quakepick() -> void:
+	var w
+	# Branching Fissure: the 2nd eruption forks to either side
+	w = await equip("quakepick", 2, false)
+	var side = dummy(P + Vector2(40, 26))
+	var out = dummy(P + Vector2(40, 62))
+	w.use_ability()
+	var r = await watch(1.2)
+	ok("quakepick Branching Fissure: tier 2 fork hurts a dummy 26 px to the side (%.1f) and not one 62 px out (%.1f); crack %s" % [lost(side), lost(out), r.kinds.has("crack")], lost(side) > 0.5 and lost(out) < 0.1 and r.kinds.has("crack"))
+	# Rock Spike: the 3rd swing raises a spike 40 px ahead
+	var rs := {}
+	for t in [2, 3]:
+		w = await equip("quakepick", t, false)
+		var dd = dummy(P + Vector2(44, 0))
+		var per := []
+		for i in 3:
+			var h0 := lost(dd)
+			click(w)
+			await wait(0.9)
+			per.append(snappedf(lost(dd) - h0, 0.1))
+		rs[t] = per
+	ok("quakepick Rock Spike: tier 3 spike hurts 44 px ahead only on the 3rd swing %s; tier 2 %s" % [rs[3], rs[2]], rs[3][0] < 0.1 and rs[3][1] < 0.1 and rs[3][2] > 1.0 and rs[2][2] < 0.1)
+	# Tunnel: eruptions burst along the path behind you
+	var tun := {}
+	for t in [3, 4]:
+		w = await equip("quakepick", t, false)
+		var a = dummy(P + Vector2(22, 0))
+		var b = dummy(P + Vector2(34, 0))
+		w.use_dash()
+		var rr = await watch(0.9)
+		tun[t] = [snappedf(lost(a), 0.1), snappedf(lost(b), 0.1), rr.kinds.has("streak")]
+	ok("quakepick Tunnel: tier 4 eruptions along the path hurt both dummies %s; tier 3 %s" % [tun[4], tun[3]], tun[4][0] > 1.0 and tun[4][1] > 1.0 and tun[4][2] and tun[3][0] < 0.1 and tun[3][1] < 0.1)
+	# Chasm: the centre collapses (pull, slow patch)
+	var ch := {}
+	for t in [4, 5]:
+		w = await equip("quakepick", t, false)
+		var dd = dummy(P + Vector2(60, 0))
+		w.use_ultimate()
+		await wait(1.35)
+		dd.knock_time = 0.0
+		await wait(0.15)
+		var pulled: bool = dd.knock_time > 0.0
+		await wait(0.3)
+		ch[t] = [pulled, hazards("slow")]
+	ok("quakepick Chasm: tier 5 pulls and leaves a slow patch %s; tier 4 neither %s" % [ch[5], ch[4]], ch[5][0] and ch[5][1] >= 1 and !ch[4][0] and ch[4][1] == 0)
+	# Cataclysm Prime: four pillars, the ring of cracks, the centre blast
+	var fin := {}
+	for t in [5, 6]:
+		w = await equip("quakepick", t, false)
+		var dd = dummy(P + Vector2(5, 0))
+		w.use_ultimate()
+		var seen := {}
+		var most := 0
+		for i in 80:
+			await wait(0.05)
+			fx_kinds(seen)
+			var c := 0
+			for n in world.get_children():
+				if n.get_script() != null and str(n.get_script().resource_path).ends_with("items/weapons/fx.gd") and n.kind == "pillar":
+					c += 1
+			most = maxi(most, c)
+		fin[t] = [most, seen.has("shock"), snappedf(lost(dd), 0.1)]
+	ok("quakepick Cataclysm Prime: tier 6 %s (pillars at once, shock, centre damage) vs tier 5 %s" % [fin[6], fin[5]], fin[6][0] >= 4 and fin[6][1] and fin[5][0] == 0 and fin[6][2] > fin[5][2] + 4.0)
+	# Finisher: three spikes on the 6th swing
+	var f6 := {}
+	for t in [5, 6]:
+		w = await equip("quakepick", t, false)
+		var saw := false
+		for i in 6:
+			click(w)
+			await wait(0.3)
+			if i == 5 and has_fx("crack", 16.0):
+				saw = true
+			await wait(0.5)
+		f6[t] = saw
+	ok("quakepick Finisher: the 6th swing raises three spikes at tier 6 %s, not at tier 5 %s" % [f6[6], f6[5]], f6[6] and !f6[5])
+	await draw_smoke("quakepick")
+
 func run() -> void:
 	if want("chainfangs"):
 		await t_chainfangs()
@@ -477,3 +562,5 @@ func run() -> void:
 		await t_knightblade()
 	if want("lance"):
 		await t_lance()
+	if want("quakepick"):
+		await t_quakepick()
