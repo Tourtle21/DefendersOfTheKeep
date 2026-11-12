@@ -40,6 +40,12 @@ static func draw(st, col: Color) -> bool:
 		"beacon_turret":
 			draw_beacon_turret(st, col)
 			return true
+		"bonfire_wall":
+			draw_bonfire_wall(st, col)
+			return true
+		"spiked_sentry":
+			draw_spiked_sentry(st, col)
+			return true
 	return false
 
 # ---------------------------------------------------------------- shared shapes
@@ -1103,3 +1109,197 @@ static func draw_beacon_turret(st, col: Color) -> void:
 	if st.shot_t > 0.0:
 		var to2: Vector2 = st.shot_to - st.global_position
 		st.draw_line(lamp, to2, Color(BC_FLAME.lightened(0.4), 0.95), 2.0)
+
+# ================================================================ Bonfire Wall
+const BF_FIRE := Color(1.0, 0.55, 0.2)
+const BF_CORE := Color(1.0, 0.85, 0.4)
+const BF_WHITE := Color(1.0, 0.97, 0.8)
+const BF_WOOD := Color(0.3, 0.2, 0.14)
+const BF_EMBER := Color(1.0, 0.4, 0.1)
+
+static func draw_bonfire_wall(st, col: Color) -> void:
+	var t: int = st.tier
+	var age: float = st._age
+	var r: float = st.radius
+	var top := -r * 0.8
+	var bot := r * 0.8
+	var burning: Array = st.vis.get("burning", [])
+	var heat := 0.5 + 0.5 * sin(age * 4.0)
+	# glow on the ground, scorch marks (5)
+	st.draw_circle(Vector2(0, 4), r * (2.0 if t >= 6 else 1.5), Color(BF_FIRE, 0.1 + 0.05 * heat))
+	if t >= 5:
+		for i in 4:
+			st.draw_set_transform(Vector2(-r + i * r * 0.7, bot + 4.0), 0.0, Vector2(1.0, 0.4))
+			st.draw_circle(Vector2.ZERO, 6.0, Color(0, 0, 0, 0.25))
+			st.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	# 6: a column of fire rising above the wall
+	if t >= 6:
+		st.draw_colored_polygon(PackedVector2Array([Vector2(-r * 0.5, top), Vector2(r * 0.5, top), Vector2(r * 0.25, top - 46.0), Vector2(-r * 0.25, top - 46.0)]), Color(BF_FIRE, 0.28 + 0.08 * heat))
+		st.draw_colored_polygon(PackedVector2Array([Vector2(-r * 0.25, top), Vector2(r * 0.25, top), Vector2(r * 0.1, top - 40.0), Vector2(-r * 0.1, top - 40.0)]), Color(BF_WHITE, 0.4))
+	# the wall: three stacked charred logs with bark rings at the ends
+	for k in 3:
+		var y := top + k * (bot - top) / 3.0
+		var h := (bot - top) / 3.0
+		st.draw_rect(Rect2(-r, y, r * 2.0, h), Color.BLACK)
+		st.draw_rect(Rect2(-r + 1.0, y + 1.0, r * 2.0 - 2.0, h - 2.0), BF_WOOD.lightened(0.04 * k))
+		st.draw_line(Vector2(-r + 3.0, y + h * 0.5), Vector2(r - 3.0, y + h * 0.5), BF_WOOD.darkened(0.3), 1.0)
+		for e in [-r + 2.0, r - 2.0]:
+			st.draw_arc(Vector2(e, y + h * 0.5), h * 0.28, 0, TAU, 8, Color(0.55, 0.4, 0.25), 1.0)
+		if t >= 4:
+			for c in 3:
+				var cx := -r + 6.0 + c * r * 0.7 + SpellArt.jit(k * 3 + c, 1.0) * 4.0
+				st.draw_line(Vector2(cx, y + 2.0), Vector2(cx + 3.0, y + h - 2.0), Color(BF_EMBER, 0.6 + 0.3 * heat), 1.2)
+	# 3: ready brands leaning on the wall, a lever arm that snaps when it throws
+	if t >= 3:
+		for k in 3:
+			st.draw_line(Vector2(r + 2.0 + k * 2.0, bot), Vector2(r - 3.0 + k * 2.0, top + 6.0), Color(0.45, 0.3, 0.18), 2.0)
+			SpellArt.flame(st, Vector2(r - 3.0 + k * 2.0, top + 6.0), 3.0, 5.0 + sin(age * 8.0 + k), Color(BF_FIRE, 0.95), sin(age * 5.0 + k))
+		var brand: float = st.charge if t < 6 else 0.0
+		var snap := 1.0 - clampf(brand * 8.0, 0.0, 1.0) if brand < 0.12 else 0.0
+		var ang := -0.9 + 1.2 * brand + snap * 0.0
+		st.draw_line(Vector2(-r * 0.4, top - 1.0), Vector2(-r * 0.4, top - 1.0) + Vector2.from_angle(ang - PI * 0.5 + 0.2) * 12.0, Color.BLACK, 3.0)
+		st.draw_line(Vector2(-r * 0.4, top - 1.0), Vector2(-r * 0.4, top - 1.0) + Vector2.from_angle(ang - PI * 0.5 + 0.2) * 12.0, Color(0.55, 0.4, 0.25), 2.0)
+	# the flames along the top: 5, then 7, 12 with tongues, 9 big ones at the end
+	var n := 5
+	if t >= 4:
+		n = 7
+	if t >= 5:
+		n = 12
+	if t >= 6:
+		n = 9
+	for i in n:
+		var x := -r + 2.0 + i * (r * 2.0 - 4.0) / float(maxi(n - 1, 1))
+		var hh := (8.0 + 6.0 * SpellArt.jit(i, 2.0)) * (1.0 + 0.25 * float(t >= 4)) * (1.5 if t >= 6 else 1.0)
+		hh += 2.0 * sin(age * 7.0 + i)
+		var wd := 6.0 if t < 5 else 5.0
+		if t >= 6:
+			wd = 9.0
+		var sway := sin(age * 5.0 + i) * 1.5
+		if t >= 5 and (i == 0 or i == n - 1):
+			sway = (1.0 if i == 0 else -1.0) * -5.0         # the end flames lick out sideways
+		SpellArt.flame(st, Vector2(x, top + 1.0), wd, hh, Color(BF_FIRE, 0.95), sway)
+		SpellArt.flame(st, Vector2(x, top + 1.0), wd * 0.6, hh * 0.7, Color(BF_CORE, 1.0), sway * 0.8)
+		if t >= 4:
+			SpellArt.flame(st, Vector2(x, top + 1.0), wd * 0.3, hh * 0.4, Color(BF_WHITE, 1.0), sway * 0.6)
+	# 6: iron frame bands, a crown of embers, the core hot white
+	if t >= 6:
+		for k in [-r * 0.5, r * 0.5]:
+			st.draw_rect(Rect2(k - 1.5, top, 3.0, bot - top), Color(0.1, 0.1, 0.12))
+		st.draw_rect(Rect2(-r * 0.4, top + 4.0, r * 0.8, bot - top - 8.0), Color(BF_WHITE, 0.25 + 0.15 * heat))
+		for i in 8:
+			var u := fposmod(age * 0.6 + i / 8.0, 1.0)
+			st.draw_circle(Vector2(sin(age * 2.0 + i * 1.3) * r * 0.6, top - 20.0 - u * 30.0), 1.2, Color(BF_CORE, 1.0 - u))
+	# embers
+	for i in 4:
+		var u := fposmod(age * 0.7 + SpellArt.jit(i), 1.0)
+		st.draw_circle(Vector2((SpellArt.jit(i, 4.0) - 0.5) * r * 1.6, top - u * 24.0), 1.0, Color(BF_EMBER, 1.0 - u))
+	# 4: ember streaks flow into the wall from what burns; 5: a small flame over each burning enemy
+	for q in burning:
+		if t >= 4:
+			for k in 3:
+				var u := fposmod(age * 1.2 + k / 3.0, 1.0)
+				st.draw_circle(q.lerp(Vector2(0, 0), u), 1.0, Color(BF_CORE, 0.9 * (1.0 - u)))
+		if t >= 5:
+			SpellArt.flame(st, q + Vector2(0, -2.0), 4.0, 7.0 + sin(age * 9.0), Color(BF_FIRE, 0.9), sin(age * 6.0))
+	if st.flash > 0.0:
+		st.draw_rect(Rect2(-r, top, r * 2.0, bot - top), Color(1, 1, 1, 0.3))
+	StructureArt.hp_bar(st, bot + 3.0, r, t >= 6)
+
+# ================================================================ Spiked Sentry
+const SS_IRON := Color(0.75, 0.75, 0.8)
+const SS_STONE := Color(0.62, 0.6, 0.55)
+const SS_RUST := Color(0.6, 0.3, 0.2)
+const SS_BRASS := Color(0.9, 0.8, 0.4)
+const SS_SPIKE := Color(0.85, 0.87, 0.92)
+
+## A spike: a thin triangle from `base` pointing along `dir`, `len` long.
+static func spike(st, base: Vector2, dir: Vector2, len: float, w: float, col: Color) -> void:
+	var n := dir.orthogonal() * w * 0.5
+	st.draw_colored_polygon(PackedVector2Array([base - n, base + dir * len, base + n]), col)
+	st.draw_line(base - n, base + dir * len, Color.BLACK, 1.0)
+	st.draw_line(base + n, base + dir * len, Color.BLACK, 1.0)
+
+static func draw_spiked_sentry(st, col: Color) -> void:
+	var t: int = st.tier
+	var age: float = st._age
+	var aim: Vector2 = st.aim if st.aim != Vector2.ZERO else Vector2.UP
+	var head := Vector2(0, -6)
+	var spool: float = float(st.charge) if t >= 6 else 0.0
+	# 5: a ring of stone studs on the ground; they rise a little as the field charges, then fire
+	if t >= 5:
+		var up: float = float(st.charge) if t == 5 else 0.0
+		for i in 8:
+			var a := i * TAU / 8.0 + 0.2
+			var p: Vector2 = Vector2.from_angle(a) * st.radius * 1.4
+			p.y *= 0.8
+			st.draw_circle(p, 3.2, Color.BLACK)
+			st.draw_circle(p, 2.6, SS_STONE)
+			spike(st, p + Vector2(0, 1), Vector2.UP, 2.0 + 3.0 * up, 2.4, SS_SPIKE)
+	# 3: a full collar of twelve long spikes turning very slowly; 2: six short ones
+	if t >= 3:
+		for i in 12:
+			var d := Vector2.from_angle(age * 0.15 + i * TAU / 12.0)
+			var base := Vector2(0, 2) + d * 6.0
+			spike(st, base, d, 8.0, 3.0, SS_SPIKE)
+			if SpellArt.jit(int(age * 2.0) + i, 1.0) > 0.85:
+				st.draw_circle(base + d * 8.0, 1.0, Color.WHITE)
+	elif t >= 2:
+		for i in 6:
+			var d := Vector2.from_angle(PI + i * PI / 5.0)
+			spike(st, Vector2(0, 2) + d * 7.0, d, 5.0, 3.0, SS_SPIKE)
+	StructureArt.box(st, Rect2(-7, -3, 14, 10), col.darkened(0.3))
+	if t >= 6:
+		for k in 4:
+			StructureArt.rivet(st, Vector2(-5.0 + k * 3.3, 4.5), SS_BRASS, 0.9)
+	if t >= 4:
+		for k in 3:
+			st.draw_circle(Vector2(-4.0 + k * 4.0, 1.0 + (k % 2) * 3.0), 1.0, Color(SS_RUST, 0.8))
+	# the caltrop bag on the side: a circle with four tiny jacks
+	var bag := Vector2(-11, 3)
+	st.draw_circle(bag, 3.2, Color.BLACK)
+	st.draw_circle(bag, 2.5, Color(0.55, 0.45, 0.3))
+	for k in 4:
+		st.draw_line(bag + Vector2.from_angle(k * PI / 2.0 + 0.4) * 2.5, bag + Vector2.from_angle(k * PI / 2.0 + 0.4) * 4.5, SS_SPIKE, 1.0)
+	# the head and the barrel
+	st.draw_circle(head, 5.5, Color.BLACK)
+	st.draw_circle(head, 4.5, col)
+	var side := aim.orthogonal()
+	if t >= 6:
+		# three barrels turning round the axis, a brass drum, steam vents
+		var rot: float = spool * 12.0 * age
+		for k in 3:
+			var o := side * sin(rot + k * TAU / 3.0) * 2.2
+			st.draw_line(head + o, head + o + aim * 11.0, Color.BLACK, 2.6)
+			st.draw_line(head + o, head + o + aim * 11.0, SS_IRON.darkened(0.1 * k), 1.5)
+		st.draw_circle(head - aim * 3.0, 3.2, Color.BLACK)
+		st.draw_circle(head - aim * 3.0, 2.5, SS_BRASS)
+		for k in 2:
+			var u := fposmod(age * 1.5 + k * 0.5, 1.0)
+			st.draw_circle(head + side * (k * 8.0 - 4.0) - aim * 2.0 + Vector2(0, -u * 8.0), 1.2 + u, Color(1, 1, 1, 0.4 * (1.0 - u)))
+		st.draw_arc(head, 8.0, -PI / 2.0, -PI / 2.0 + TAU * spool, 18, Color(SS_BRASS, 0.9), 1.5)
+	else:
+		st.draw_line(head, head + aim * 10.0, Color.BLACK, 3.0)
+		st.draw_line(head, head + aim * 10.0, SS_IRON, 2.0)
+		if t >= 2:
+			for k in 3:
+				spike(st, head + aim * (4.0 + k * 2.5) + side * 1.0, side, 2.5, 1.8, SS_SPIKE)
+				if t >= 4:
+					spike(st, head + aim * (4.0 + k * 2.5) - side * 1.0, -side, 2.5, 1.8, SS_RUST)
+		if t >= 5:
+			st.draw_circle(head - aim * 3.0, 3.0, Color.BLACK)
+			st.draw_circle(head - aim * 3.0, 2.3, SS_BRASS)
+	# the shot: a barbed spear at tier 4
+	if st.shot_t > 0.0:
+		var to: Vector2 = st.shot_to - st.global_position
+		st.draw_line(head, to, Color(SS_SPIKE, 0.9), 2.0)
+		if t >= 4:
+			var dir := (to - head).normalized()
+			for k in 3:
+				var q := to - dir * (3.0 + k * 3.0)
+				st.draw_line(q, q - dir * 2.0 + dir.orthogonal() * 2.0, SS_RUST, 1.0)
+				st.draw_line(q, q - dir * 2.0 - dir.orthogonal() * 2.0, SS_RUST, 1.0)
+	# 4: red drips over the bleeding enemies
+	for q in st.vis.get("bleed_pos", []):
+		for k in 2:
+			var u := fposmod(age * 1.3 + k * 0.5, 1.0)
+			st.draw_circle(q + Vector2((k - 0.5) * 3.0, -2.0 + u * 8.0), 0.9, Color(0.75, 0.15, 0.1, 1.0 - u * 0.6))

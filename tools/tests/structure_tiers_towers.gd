@@ -132,6 +132,10 @@ func _initialize() -> void:
 		await lantern()
 	if only == "" or only == "beacon_turret":
 		await beacon()
+	if only == "" or only == "bonfire_wall":
+		await bonfire()
+	if only == "" or only == "spiked_sentry":
+		await spiked_sentry()
 	quit()
 
 # ---------------------------------------------------------------- Crystal Pylon
@@ -961,3 +965,144 @@ func beacon() -> void:
 	ok("beacon t6 searchlight: the toughest lost %.1f in 4.6 s (3 x %.1f x 4 s = %.1f), marked %s, held slow %.2f, thick beam seen %s" % [lost(boss), dd, 12.0 * dd, marked, slow_seen, saw("line", -1.0, 14.0)], lost(boss) >= 8.0 * dd and marked and slow_seen <= 0.51 and saw("line", -1.0, 14.0))
 	await clear_world()
 	await draws(id, "beacon")
+
+# ---------------------------------------------------------------- Bonfire Wall
+func fx_count(kind: String, radius: float) -> int:
+	var n := 0
+	for c in world.get_children():
+		if script_is(c, "fx.gd") and str(c.kind) == kind and absf(float(c.radius) - radius) < 0.5:
+			n += 1
+	return n
+
+func bonfire() -> void:
+	var id := "bonfire_wall"
+	var pos := Vector2(0, 200)
+	# 1. scorching flames: a dummy near the wall but not chewing burns
+	var loss := {}
+	for t in [1, 2]:
+		await clear_world()
+		var st = tower(id, t, pos)
+		var e = dummy(pos + Vector2(28, 0))
+		await wait(1.6)
+		loss[t] = lost(e)
+	ok("bonfire t2 scorch: the dummy at 28 px lost %.1f (tier 1: %.1f)" % [loss[2], loss[1]], loss[2] > loss[1] + 1.0)
+	# 2. firebrand
+	await clear_world()
+	seen.clear()
+	var s3 = tower(id, 3, pos)
+	var d3 = dummy(pos + Vector2(80, 0))
+	await watch(3.6)
+	ok("bonfire t3 brand: a log fell (fx fall %s), the dummy at 80 px lost %.1f (a brand is %.1f)" % [saw("fall"), lost(d3), 2.0 * float(s3.data.thorns)], saw("fall") and lost(d3) >= 1.8 * float(s3.data.thorns))
+	# 3. feeding flame: the wall mends on what it burns
+	var gain := {}
+	for t in [3, 4]:
+		await clear_world()
+		var st4 = tower(id, t, pos)
+		st4.hp = st4.max_hp * 0.5
+		dummy(pos + Vector2(28, 0))
+		dummy(pos + Vector2(28, 10))
+		dummy(pos + Vector2(28, -10))
+		var h0: float = st4.hp
+		await wait(1.6)
+		gain[t] = st4.hp - h0
+	ok("bonfire t4 feeding: the wall mended %.1f with three burning enemies (tier 3, regrow alone: %.1f)" % [gain[4], gain[3]], gain[4] > gain[3] + 3.0)
+	# 4. spreading blaze: the neighbour outside the aura catches fire; the light is wider
+	await clear_world()
+	var s5 = tower(id, 5, pos)
+	var a5 = dummy(pos + Vector2(28, 0))
+	var b5 = dummy(pos + Vector2(48, 0))
+	await wait(2.6)
+	var base_light: float = float(game.scaled(id, 5).light)
+	ok("bonfire t5 spread: the dummy at 48 px lost %.1f, light %.0f is 1.4 x %.0f" % [lost(b5), s5.light_radius, base_light], lost(b5) > 1.0 and absf(s5.light_radius - base_light * 1.4) < 1.0)
+	# 5. pyre: a firestorm of five strikes
+	await clear_world()
+	seen.clear()
+	var s6 = tower(id, 6, pos)
+	var d6 = dummy(pos + Vector2(50, 0))
+	dummy(pos + Vector2(0, -28))
+	s6._timers["pyre"] = 14.9
+	var most := 0
+	var tt := 0.0
+	while tt < 1.0:
+		scan()
+		most = maxi(most, fx_count("ring", 22.0))
+		await wait(0.03)
+		tt += 0.03
+	ok("bonfire t6 pyre: %d strike rings at once, flash 80 seen %s, the dummy lost %.1f (a strike is %.1f), burning shown %d" % [most, saw("flash", 80.0), lost(d6), 4.0 * float(s6.data.thorns), s6.vis.get("burning", []).size()], most >= 5 and saw("flash", 80.0) and lost(d6) >= 3.5 * float(s6.data.thorns) and s6.vis.get("burning", []).size() >= 1)
+	await clear_world()
+	await draws(id, "bonfire")
+
+# ---------------------------------------------------------------- Spiked Sentry
+func spiked_sentry() -> void:
+	var id := "spiked_sentry"
+	var tc = load("res://cards/structure_tiers_c.gd")
+	var pos := Vector2(0, 200)
+	# 1. caltrop shots: a slow patch of radius 16 where the target stood
+	var patches := {}
+	for t in [1, 2]:
+		await clear_world()
+		var st = tower(id, t, pos)
+		dummy(pos + Vector2(0, -40))
+		await wait(1.0)
+		var n := 0
+		for c in world.get_children():
+			if script_is(c, "hazard.gd") and absf(float(c.radius) - 16.0) < 0.5:
+				n += 1
+		patches[t] = n
+	ok("spiked sentry t2 caltrops: slow patches %d (tier 1: %d)" % [patches[2], patches[1]], patches[2] >= 1 and patches[1] == 0)
+	# 2. spike collar: the turret is frozen and its clock driven by hand
+	var hit := {}
+	for t in [2, 3]:
+		await clear_world()
+		var st2 = tower(id, t, pos)
+		st2.set_physics_process(false)
+		var e = dummy(pos + Vector2(25, 0))
+		tc.tick_spiked_sentry(st2, 0.5)
+		hit[t] = [lost(e), e.knock_time > 0.0 and e.knock_vel.x > 0.0]
+	var dd: float = game.scaled(id, 3).damage
+	ok("spiked sentry t3 collar: dummy at 25 px lost %.1f (0.8 x %.1f) and was shoved %s (tier 2: %.1f)" % [hit[3][0], dd, hit[3][1], hit[2][0]], hit[3][0] >= 0.7 * dd and hit[3][1] and hit[2][0] < 0.1)
+	# 3. barbed bolts: bleeding and pinned, the next bolt bites a quarter harder
+	await clear_world()
+	var s4 = tower(id, 4, pos)
+	var e4 = dummy(pos + Vector2(0, -50))
+	var first_mult: float = tc.shot_spiked_sentry(s4, e4)
+	var guard := 0.0
+	while s4._shots == 0 and guard < 3.0:
+		await wait(0.02)
+		guard += 0.02
+	s4.set_physics_process(false)
+	var h0: float = e4.health
+	await wait(1.2)
+	ok("spiked sentry t4 barbs: bolt factor %.2f before, %.2f on the bleeding dummy, it bled %.1f after the shot, slow %.2f" % [first_mult, tc.shot_spiked_sentry(s4, e4), h0 - e4.health, e4.slow_mult], first_mult == 1.0 and tc.shot_spiked_sentry(s4, e4) == 1.25 and h0 - e4.health > 0.5 and e4.slow_mult <= 0.51)
+	# 4. spike field: three strikes under the group
+	await clear_world()
+	seen.clear()
+	var s5 = tower(id, 5, pos)
+	var grp := [dummy(pos + Vector2(0, -60)), dummy(pos + Vector2(14, -55)), dummy(pos + Vector2(-14, -55))]
+	s5._timers["field"] = 5.9
+	var rings := 0
+	var tt := 0.0
+	while tt < 1.4:
+		scan()
+		rings = maxi(rings, fx_count("ring", 14.0))
+		await wait(0.03)
+		tt += 0.03
+	ok("spiked sentry t5 field: %d strike rings of radius 14 at once, the middle dummy lost %.1f (3 strikes of 3 x %.1f)" % [rings, lost(grp[0]), s5.data.damage], rings >= 3 and lost(grp[0]) >= 3.0 * float(s5.data.damage))
+	# 5. gatling: after five shots it fires three spikes at a time, twice as fast; the spool runs down when idle
+	await clear_world()
+	var s6 = tower(id, 6, pos)
+	var e6 = dummy(pos + Vector2(0, -60))
+	var interval_normal: float = tc.interval_mult(s6)
+	var spikes := 0
+	var spooled := false
+	var tt2 := 0.0
+	while tt2 < 4.0:
+		spikes = maxi(spikes, count_nodes("projectile.gd"))
+		spooled = spooled or tc.interval_mult(s6) <= 0.51
+		await wait(0.03)
+		tt2 += 0.03
+	e6.queue_free()
+	await wait(3.0)
+	ok("spiked sentry t6 gatling: normal %.1f, spooled %s, %d spikes alive at once, after 3 s idle %.2f (spool %.2f)" % [interval_normal, spooled, spikes, tc.interval_mult(s6), float(s6._tdata.get("spool", 0.0))], interval_normal == 1.0 and spooled and spikes >= 3 and tc.interval_mult(s6) == 1.0)
+	await clear_world()
+	await draws(id, "spiked sentry")

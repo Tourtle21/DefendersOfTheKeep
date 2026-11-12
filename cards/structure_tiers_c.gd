@@ -5,7 +5,7 @@ extends RefCounted
 ## WeaponFx.spawn / Sfx.play, and what a client must draw is a public var of Structure (`charge`, `aim`, `vis`, ...).
 ## Host-only state of a card lives in `st._tdata` and `st._timers`.
 
-const OWN := ["crystal_pylon", "storm_spire", "magma_wall", "venom_tower", "prism_tower", "healing_grove", "sunspire", "phoenix_shrine", "healing_lantern", "beacon_turret"]
+const OWN := ["crystal_pylon", "storm_spire", "magma_wall", "venom_tower", "prism_tower", "healing_grove", "sunspire", "phoenix_shrine", "healing_lantern", "beacon_turret", "bonfire_wall", "spiked_sentry"]
 
 static func world_of(st) -> Node:
 	return st.get_parent()
@@ -70,6 +70,10 @@ static func tick(st, delta: float) -> void:
 			tick_healing_lantern(st, delta)
 		"beacon_turret":
 			tick_beacon_turret(st, delta)
+		"bonfire_wall":
+			tick_bonfire_wall(st, delta)
+		"spiked_sentry":
+			tick_spiked_sentry(st, delta)
 
 static func on_gnaw(st, e) -> void:
 	match id_of(st):
@@ -82,12 +86,16 @@ static func interval_mult(st) -> float:
 			return interval_crystal_pylon(st)
 		"sunspire":
 			return 0.7 if float(st._timers.get("noon_on", 0.0)) > 0.0 else 1.0
+		"spiked_sentry":
+			return 0.5 if st.tier >= 6 and float(st._tdata.get("spool", 0.0)) >= 1.0 else 1.0
 	return 1.0
 
 static func shot_mult(st, target) -> float:
 	match id_of(st):
 		"prism_tower":
 			return shot_prism_tower(st)
+		"spiked_sentry":
+			return shot_spiked_sentry(st, target)
 	return 1.0
 
 static func on_shot(st, target) -> void:
@@ -104,6 +112,8 @@ static func on_shot(st, target) -> void:
 			on_shot_sunspire(st, target)
 		"beacon_turret":
 			on_shot_beacon_turret(st, target)
+		"spiked_sentry":
+			on_shot_spiked_sentry(st, target)
 
 static func budget_mult(st) -> float:
 	match id_of(st):
@@ -119,6 +129,8 @@ static func on_setup(st) -> void:
 			setup_magma_wall(st)
 		"healing_lantern":
 			setup_healing_lantern(st)
+		"bonfire_wall":
+			setup_bonfire_wall(st)
 
 static func on_promote(st, new_tier: int) -> void:
 	match id_of(st):
@@ -129,6 +141,9 @@ static func on_promote(st, new_tier: int) -> void:
 			st._thr.clear()
 		"healing_lantern":
 			setup_healing_lantern(st)
+		"bonfire_wall":
+			setup_bonfire_wall(st)
+			st._thr.clear()
 
 static func on_expire(st) -> void:
 	match id_of(st):
@@ -1362,3 +1377,225 @@ static func tick_beacon_turret(st, delta: float) -> void:
 				st.vis["lock_on"] = true
 				WeaponFx.spawn(w, "flash", best.global_position, BEACON_WHITE, {"radius": 18.0, "life": 0.3})
 				StructureTiers.sfx(st, "ultimate", 0.5)
+
+# ================================================================ Bonfire Wall
+const BONF_FIRE := Color(1.0, 0.55, 0.2)
+const BONF_CORE := Color(1.0, 0.85, 0.4)
+const BONF_WHITE := Color(1.0, 0.97, 0.8)
+const BONF_SCORCH_R := 32.0
+const BONF_SCORCH := 0.5
+const BONF_BRAND_T := 3.0
+const BONF_BRAND_R := 100.0
+const BONF_BRAND := 2.0
+const BONF_FEED := 0.5
+const BONF_SPREAD_R := 25.0
+const BONF_PYRE_T := 15.0
+const BONF_PYRE := 4.0
+
+## Spreading blaze (tier 5): the light ring is bigger.
+static func setup_bonfire_wall(st) -> void:
+	if st.tier >= 5 and float(st.data.get("light", 0.0)) > 0.0:
+		ensure_light(st, float(st.data.light) * 1.4)
+
+static func tick_bonfire_wall(st, delta: float) -> void:
+	var t: int = st.tier
+	if t < 2:
+		return
+	var w := world_of(st)
+	var thorns: float = float(st.data.get("thorns", 0.0))
+	var pos: Vector2 = st.global_position
+	var burning: Dictionary = state(st, "burning", {})
+	for id in burning.keys():
+		burning[id] -= delta
+		var o = instance_from_id(id)
+		if o == null or !alive(o) or burning[id] <= 0.0:
+			burning.erase(id)
+	# 2 Scorching flames: whoever is close burns, chewing or not; 4 Feeding flame: the wall mends on what it burns
+	if StructureTiers.pace(st, "scorch", 0.5, delta):
+		var near := StructureTiers.enemies(st, BONF_SCORCH_R)
+		var n := 0
+		for e in near:
+			e.spell_damage(thorns * BONF_SCORCH, "fire", true)
+			if is_instance_valid(e):
+				burning[e.get_instance_id()] = 3.0
+				if n < 2:
+					WeaponFx.spawn(w, "burst", e.global_position, BONF_FIRE, {"radius": 6.0, "life": 0.2})
+					if t >= 4:
+						WeaponFx.spawn(w, "motes", e.global_position, BONF_CORE, {"radius": 6.0, "count": 2, "rise": 8.0, "life": 0.4})
+					n += 1
+		if t >= 4 and !near.is_empty():
+			st.hp = minf(st.max_hp, st.hp + BONF_FEED * minf(float(near.size()), 4.0))
+	if StructureTiers.pace(st, "marks", 0.2, delta):
+		var marks := []
+		for id in burning.keys():
+			if marks.size() >= 8:
+				break
+			marks.append(instance_from_id(id).global_position - pos)
+		st.vis["burning"] = marks
+	# 3 Firebrand: a burning log flung at the nearest enemy it can see
+	if t >= 3 and StructureTiers.ready(st, "brand", BONF_BRAND_T, delta):
+		var target = StructureTiers.nearest(st, BONF_BRAND_R)
+		if target != null:
+			StructureTiers.reset(st, "brand")
+			var at: Vector2 = target.global_position
+			WeaponFx.spawn(w, "fall", at, BONF_FIRE, {"radius": 3.0, "height": 50.0, "rise": 20.0, "life": 0.3})
+			WeaponUtil.ground_strike(st.get_tree(), w, at, 18.0, 0.3, thorns * BONF_BRAND, 100.0, BONF_FIRE, 0.0, [], "fire")
+			later(st, 0.3, func():
+				WeaponFx.spawn(w, "flash", at, BONF_FIRE, {"radius": 22.0, "life": 0.25})
+				Sfx.play("big_hit"))
+	# 5 Spreading blaze: a burning enemy sets one neighbour alight
+	if t >= 5 and StructureTiers.pace(st, "spread", 1.0, delta):
+		for id in burning.keys():
+			var o = instance_from_id(id)
+			if o == null or !alive(o):
+				continue
+			var best = null
+			var bd := BONF_SPREAD_R
+			for e in StructureTiers.enemies_at(st, o.global_position, BONF_SPREAD_R):
+				if e == o or !alive(e) or burning.has(e.get_instance_id()):
+					continue
+				var d: float = e.global_position.distance_to(o.global_position)
+				if d < bd:
+					bd = d
+					best = e
+			if best != null:
+				burning[best.get_instance_id()] = 3.0
+				ignite(st.get_tree(), best, 3, thorns * 0.3)
+				zap(w, o.global_position, best.global_position, BONF_FIRE, 2.0)
+				WeaponFx.spawn(w, "burst", best.global_position, BONF_FIRE, {"radius": 8.0, "life": 0.2})
+				StructureTiers.sfx(st, "whoosh", 1.0)
+	# 6 Pyre: a firestorm round the wall every fifteen seconds (it waits for company)
+	if t >= 6:
+		if StructureTiers.ready(st, "pyre", BONF_PYRE_T, delta) and !StructureTiers.enemies(st, 120.0).is_empty():
+			StructureTiers.reset(st, "pyre")
+			WeaponFx.spawn(w, "flash", pos, BONF_WHITE.lerp(BONF_CORE, 0.4), {"radius": 80.0, "life": 0.4})
+			for k in 3:
+				WeaponFx.spawn(w, "pillar", pos + Vector2((k - 1) * 14.0, 0), BONF_FIRE, {"height": 80.0, "width": 24.0, "life": 0.6})
+			WeaponFx.spawn(w, "ripple", pos, BONF_FIRE, {"radius": 80.0, "rings": 3, "life": 0.7})
+			for k in 5:
+				var a := k * TAU / 5.0 + 0.4
+				var at2: Vector2 = pos + Vector2.from_angle(a) * (30.0 + 40.0 * SpellArt.jit(k, 3.0))
+				WeaponUtil.ground_strike(st.get_tree(), w, at2, 22.0, 0.35, thorns * BONF_PYRE, 120.0, BONF_FIRE, 0.3, [], "fire")
+			StructureTiers.sfx(st, "ultimate", 0.5)
+			st.fx_pulse = 0.0
+		st.charge = snappedf(StructureTiers.fill(st, "pyre", BONF_PYRE_T), 0.02)
+	elif t >= 3:
+		st.charge = snappedf(StructureTiers.fill(st, "brand", BONF_BRAND_T), 0.02)
+
+# ================================================================ Spiked Sentry
+const SSENT_IRON := Color(0.75, 0.75, 0.8)
+const SSENT_RUST := Color(0.6, 0.3, 0.2)
+const SSENT_CALTROP_R := 16.0
+const SSENT_COLLAR_R := 30.0
+const SSENT_COLLAR := 0.8
+const SSENT_BARB := 0.3
+const SSENT_FIELD_T := 6.0
+const SSENT_FIELD := 3.0
+const SSENT_SPOOL_SHOTS := 5
+const SSENT_SPOOL_IDLE := 2.0
+
+## Barbed bolts (tier 4): a bolt into an enemy that is already bleeding bites a quarter harder.
+static func shot_spiked_sentry(st, target) -> float:
+	if st.tier >= 4 and is_instance_valid(target) and state(st, "bleeding", {}).has(target.get_instance_id()):
+		return 1.25
+	return 1.0
+
+static func on_shot_spiked_sentry(st, target) -> void:
+	var t: int = st.tier
+	if t < 2 or !is_instance_valid(target):
+		return
+	var w := world_of(st)
+	var dmg: float = float(st.data.damage)
+	var at: Vector2 = target.global_position
+	# 2 Caltrop shots: a slow patch under the target (at most four at once)
+	var patches: Array = state(st, "patches", [])
+	var now := Time.get_ticks_msec() / 1000.0
+	patches = patches.filter(func(x): return now - float(x) < 3.0)
+	st._tdata["patches"] = patches
+	WeaponFx.spawn(w, "burst", at, SSENT_IRON, {"radius": 8.0, "life": 0.2})
+	WeaponFx.spawn(w, "motes", at, SSENT_IRON, {"radius": 6.0, "count": 3, "rise": 4.0, "life": 0.4})
+	StructureTiers.sfx(st, "hit", 0.2)
+	if patches.size() < 4:
+		patches.append(now)
+		WeaponUtil.patch(w, at, "slow", SSENT_CALTROP_R, Color(SSENT_IRON, 0.25), 3.0, 0.6)
+	# 4 Barbed bolts: the hit bleeds and is pinned
+	if t >= 4:
+		var bleeding: Dictionary = state(st, "bleeding", {})
+		bleeding[target.get_instance_id()] = 2.0
+		WeaponUtil.bleed(st.get_tree(), target, 4, dmg * SSENT_BARB)
+		StructureTiers.keep_slow(target, 0.5, 2.0)
+		WeaponFx.spawn(w, "burst", at, SSENT_RUST, {"radius": 6.0, "life": 0.2})
+		StructureTiers.sfx(st, "big_hit", 0.3)
+	# 6 Gatling: every shot builds the spool; at full spool it fires three spikes and 50% faster
+	if t >= 6:
+		st._tdata["spool"] = minf(1.0, float(st._tdata.get("spool", 0.0)) + 1.0 / SSENT_SPOOL_SHOTS)
+		st._tdata["idle"] = 0.0
+		st.charge = snappedf(float(st._tdata["spool"]), 0.02)
+		if float(st._tdata["spool"]) >= 1.0:
+			var from := muzzle(st)
+			var dir: Vector2 = (at - from).normalized()
+			for k in 3:
+				var d := dir.rotated((k - 1) * 0.12)
+				WeaponProjectile.shoot(w, from, d, 320.0, dmg * 0.5, SSENT_IRON, 0.6, 0, 60.0)
+				WeaponFx.spawn(w, "line", from, Color(0.95, 0.95, 1.0, 0.8), {"dir": d, "length": (at - from).length(), "width": 1.0, "life": 0.1})
+			if st._shots % 3 == 0:
+				WeaponFx.spawn(w, "ring", from, SSENT_IRON, {"radius": 14.0, "life": 0.15})
+
+static func tick_spiked_sentry(st, delta: float) -> void:
+	var t: int = st.tier
+	if t < 2:
+		return
+	var w := world_of(st)
+	var dmg: float = float(st.data.damage)
+	var pos: Vector2 = st.global_position
+	# the barbs wear off an enemy; the places of the bleeding ones are published for the drips
+	if t >= 4:
+		var bleeding: Dictionary = state(st, "bleeding", {})
+		for id in bleeding.keys():
+			bleeding[id] -= delta
+			var o = instance_from_id(id)
+			if o == null or !alive(o) or bleeding[id] <= 0.0:
+				bleeding.erase(id)
+		if StructureTiers.pace(st, "marks", 0.2, delta):
+			var marks := []
+			for id in bleeding.keys():
+				if marks.size() >= 8:
+					break
+				marks.append(instance_from_id(id).global_position - pos)
+			st.vis["bleed_pos"] = marks
+	# 3 Spike collar: whoever gets close is stabbed and shoved away
+	if t >= 3 and StructureTiers.pace(st, "collar", 0.5, delta):
+		var close := StructureTiers.enemies(st, SSENT_COLLAR_R)
+		var n := 0
+		for e in close:
+			var dir: Vector2 = (e.global_position - pos).normalized()
+			e.spell_damage(dmg * SSENT_COLLAR, "pierce", true)
+			if is_instance_valid(e) and e.has_method("push"):
+				e.push(dir * 100.0, 0.12)
+			if n < 3 and is_instance_valid(e):
+				WeaponFx.spawn(w, "burst", e.global_position, SSENT_IRON, {"radius": 8.0, "life": 0.2})
+				n += 1
+		if !close.is_empty():
+			WeaponFx.spawn(w, "ring", pos, SSENT_IRON, {"radius": SSENT_COLLAR_R, "life": 0.3})
+	# 5 Spike field: three spikes erupt under the densest group
+	if t >= 5:
+		if StructureTiers.ready(st, "field", SSENT_FIELD_T, delta):
+			var target = StructureTiers.densest(st, float(st.data.range))
+			if target != null and Game.defence_sees(target, pos):
+				StructureTiers.reset(st, "field")
+				var c: Vector2 = target.global_position
+				for k in 3:
+					var at: Vector2 = c + Vector2.from_angle(k * TAU / 3.0 + 0.5) * 12.0
+					var delay := 0.3 + 0.15 * k
+					WeaponUtil.ground_strike(st.get_tree(), w, at, 14.0, delay, dmg * SSENT_FIELD, 100.0, SSENT_IRON, 0.3, [], "")
+					later(st, delay, func(): WeaponFx.spawn(w, "shards", at, SSENT_IRON, {"radius": 18.0, "count": 6, "life": 0.35}))
+				StructureTiers.sfx(st, "thump", 0.5)
+		if t < 6:
+			st.charge = snappedf(StructureTiers.fill(st, "field", SSENT_FIELD_T), 0.02)
+	# 6 Gatling: the spool runs down two seconds after the last target
+	if t >= 6:
+		var idle: float = float(st._tdata.get("idle", 0.0)) + delta
+		st._tdata["idle"] = idle
+		if idle > SSENT_SPOOL_IDLE and float(st._tdata.get("spool", 0.0)) > 0.0:
+			st._tdata["spool"] = maxf(0.0, float(st._tdata["spool"]) - delta * 0.5)
+			st.charge = snappedf(float(st._tdata["spool"]), 0.02)
