@@ -36,3 +36,9 @@
 - ember turret: overdrive changes `data.range` and `light_radius` for 3 s and puts them back (`on_promote` clears it); the cluster bomblets land at 0.25, 0.5 and 0.75 s after the shot (each is a `fall` of 0.25 s). The Fire shell is a Fireball copy two tiers below the turret (at least tier 1) at 80% radius.
 - thorn hedge: the rebirth seedling is a plain tier 1 hedge flagged `data.seedling` (it is not merged into neighbours); a hedge removed by the structure cap does not leave one (only `hp <= 0`).
 - tendrils, chilled rings, aura links and the mark symbol are drawn from the positions of the synced enemies/structures near the building (the enemy metas that drive the rules are host-only), so a client sees them without extra state.
+- the fused cards healing lantern, beacon turret, bonfire wall, spiked sentry and spiked wall live in the same two files (`cards/structure_tiers_c.gd`, `cards/structure_art_c.gd`) and are tested in `tools/tests/structure_tiers_towers.gd`.
+- healing lantern: the wisp's "1 hp" per spirit zap is `heal(1.0)` on the health bar scale; the dawn heals everyone within 1.5 x the field and shoves enemies with the pulse helper (no stun).
+- beacon turret: the beam angle is `_age * 1.3` as the design says, so on a LAN client the drawn beam can be out of phase with the host's (the host decides the damage); the searchlight's lock position is published as `vis.lock`.
+- bonfire wall: the pyre waits until an enemy is within 120 px; `charge` shows the brand timer (tiers 3 to 5) and the pyre (tier 6).
+- spiked sentry: the gatling's spool decays from 2 s after the last shot, so it is back to normal speed about 2 s after that (the design says "3 s idle returns to normal").
+- spiked wall: the porcupine doubles `data.thorns` (the base is kept in `_tdata.base_thorns` and reset on promotion), so every other thorns reader (gnaw damage, strip, thrust) sees the doubled value.

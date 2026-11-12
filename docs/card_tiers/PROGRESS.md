@@ -40,3 +40,5 @@ CLAIM bonfire_wall
 DONE thorn_hedge
 DONE bonfire_wall
 DONE spiked_sentry
+CLAIM spiked_wall
+DONE spiked_wall
