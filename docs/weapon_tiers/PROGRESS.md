@@ -35,3 +35,6 @@ CLAIM magmamaul
 CLAIM spellblade
 CLAIM tempest
 DONE dragoonpike
+DONE earthshaker
+CLAIM crystalwand
+DONE staff

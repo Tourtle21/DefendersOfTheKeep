@@ -67,3 +67,13 @@ static func mark(e: Node, name: String, secs: float) -> void:
 
 static func marked(e: Node, name: String) -> bool:
 	return is_instance_valid(e) and e.has_meta("wt_" + name) and e.get_meta("wt_" + name) > Time.get_ticks_msec() / 1000.0
+
+## A glowing weapon's light grows with its tier: add `bonus[tier - 1]` to its light radius and re-scale its GlowLight to match
+## (the radius Game.player_light reads is `light_radius`). Call it from the module's equip().
+static func light_bonus(w, bonus: Array) -> void:
+	w.light_radius += float(bonus[clampi(w.tier - 1, 0, bonus.size() - 1)])
+	for c in w.get_children():
+		if c is GlowLight:
+			c.texture_scale = maxf(0.1, w.light_radius * 2.0 / 128.0)
+			w._st["glow"] = c
+			w._st["glow_scale"] = c.texture_scale

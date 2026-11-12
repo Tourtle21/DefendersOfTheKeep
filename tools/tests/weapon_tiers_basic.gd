@@ -826,7 +826,126 @@ func t_frostglaive() -> void:
 	ok("frostglaive Finisher: the sixth cleave at tier 6 stuns a dummy at 40 px %s" % stunned, stunned)
 	await draw_smoke("frostglaive")
 
+func light_sources() -> Array:
+	return lights()
+
+func t_staff() -> void:
+	var w
+	var eb := {}
+	for t in [1, 2]:
+		w = await equip("staff", t, false)
+		var d1 = dummy(P + Vector2(60, 0))
+		var nb = dummy(P + Vector2(60, 15))
+		w.use_item()
+		await wait(0.8)
+		eb[t] = lost(nb)
+	ok("staff Echoing Bolt: tier 2 the bolt bursts onto the neighbour (%.1f vs %.1f at tier 1)" % [eb[2], eb[1]], eb[2] > 0.5 and eb[1] == 0.0)
+	# Rune Circle: ability pulses and the big 4th bolt
+	w = await equip("staff", 3, false)
+	var c: Vector2 = P + (player.aim_point() - P).limit_length(100.0)
+	var d = dummy(c)
+	w.use_ability()
+	var steps := []
+	var last := 0.0
+	for i in 100:
+		await wait(0.05)
+		var l := lost(d)
+		if l > last + 0.01:
+			steps.append(snappedf(i * 0.05 + 0.05, 0.05))
+			last = l
+	ok("staff Rune Circle: tier 3 the blast centre is hurt by the burst and then pulses (%s)" % [steps], steps.size() >= 4)
+	var sizes := []
+	for i in 4:
+		w._attack_cd = 0.0
+		w.use_item()
+		await wait(0.05)
+		var mx := 0.0
+		for n in world.get_children():
+			if n.get_script() != null and str(n.get_script().resource_path).ends_with("projectile.gd"):
+				mx = maxf(mx, n.size)
+		sizes.append(mx)
+		await wait(0.4)
+	ok("staff Rune Circle: the 4th bolt is a big bolt (sizes %s)" % [sizes], sizes[3] >= 1.5 and sizes[0] < 1.5)
+	# Rift Twins
+	var kinds := {}
+	w = await equip("staff", 4, false)
+	var c4: Vector2 = P + (player.aim_point() - P).limit_length(100.0)
+	var far = dummy(P - (c4 - P))
+	var far2 = dummy(P + (c4 - P) * 0.5 + Vector2(0, 30))
+	w.use_ability()
+	var seen := {}
+	for i in 30:
+		await wait(0.05)
+		fx_kinds(seen)
+	ok("staff Rift Twins: tier 4 the mirrored twin blast hits the dummy behind you (%.1f) and a lightning bridge shows %s" % [lost(far), seen.has("bolt")], lost(far) > 1.0 and seen.has("bolt"))
+	w = await equip("staff", 4, false)
+	var near = dummy(P + Vector2(60, 0))
+	var seen2 := {}
+	var rings := 0
+	w.use_dash()
+	for i in 12:
+		await wait(0.05)
+		for f in world.get_children():
+			if f.get_script() != null and str(f.get_script().resource_path).ends_with("fx.gd") and f.kind == "ring" and (f.life == 1.0 or f.life == 1.4):
+				seen2[f.get_instance_id()] = f.life
+	ok("staff Rift Twins: the blink leaves two rifts (lives %s)" % [seen2.values()], seen2.values().has(1.0) and seen2.values().has(1.4))
+	var chain_d1 = null
+	w = await equip("staff", 4, false)
+	var t1 = dummy(P + Vector2(60, 0))
+	var t2 = dummy(P + Vector2(60, 40))
+	w.use_item()
+	await wait(0.9)
+	ok("staff Echoing Bolt 2: tier 4 the bolt chains to a dummy 40 px away (%.1f)" % lost(t2), lost(t2) > 0.5)
+	var cm := {}
+	for t in [4, 5, 6]:
+		w = await equip("staff", t, false)
+		var cc: Vector2 = P + (player.aim_point() - P).limit_length(110.0)
+		var dd = dummy(cc)
+		var e2 = dummy(cc + Vector2(40, 0))
+		w.use_ultimate()
+		var ids := {}
+		var homing := 0
+		var light150 := 0.0
+		var giant := false
+		for i in 200:
+			await wait(0.05)
+			var hn := 0
+			for f in world.get_children():
+				if f.get_script() == null:
+					continue
+				var sp: String = str(f.get_script().resource_path)
+				if sp.ends_with("fx.gd") and f.kind == "fall":
+					ids[f.get_instance_id()] = f.radius
+				if sp.ends_with("projectile.gd") and f.homing > 0.0:
+					hn += 1
+			homing = maxi(homing, hn)
+			for l in lights():
+				light150 = maxf(light150, l.light_radius)
+		for k in ids:
+			if ids[k] >= 8.0:
+				giant = true
+		cm[t] = {"falls": ids.size(), "homing": homing, "light": light150, "giant": giant}
+	ok("staff Arcane Comets: tier 5 %d falling comets and %d homing orbs (tier 4: %d, %d)" % [cm[5].falls, cm[5].homing, cm[4].falls, cm[4].homing], cm[5].falls >= 8 and cm[5].homing >= 2 and cm[4].falls == 0 and cm[4].homing == 0)
+	ok("staff Cosmos: tier 6 light r%.0f, giant star %s, %d stars falling; tier 5 light %.0f" % [cm[6].light, cm[6].giant, cm[6].falls, cm[5].light], cm[6].light >= 150.0 and cm[6].giant and cm[6].falls > cm[5].falls + 4 and !cm[5].giant)
+	w = await equip("staff", 6, false)
+	var nova_dummy = dummy(P + Vector2(40, 0))
+	var peaks := []
+	for i in 8:
+		w._attack_cd = 0.0
+		w.use_item()
+		var pk := 0
+		for k in 10:
+			await wait(0.05)
+			pk = maxi(pk, count_script("projectile.gd"))
+		peaks.append(pk)
+		await wait(0.3)
+	ok("staff Cosmos finisher: the 8th bolt bursts into a nova (peak projectiles per bolt %s)" % [peaks], peaks[7] >= 8 and peaks[0] <= 2)
+	ok("staff: the light grows with tier (%.0f at tier 6)" % w.light_radius, w.light_radius == 115.0)
+	await draw_smoke("staff")
+
 func run() -> void:
+	if only == "" or only == "staff":
+		await t_staff()
 	if only == "" or only == "frostglaive":
 		await t_frostglaive()
 	if only == "" or only == "shield":

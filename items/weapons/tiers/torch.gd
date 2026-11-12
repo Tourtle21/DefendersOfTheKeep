@@ -22,12 +22,7 @@ static func palette() -> Array:
 
 static func equip(w) -> void:
 	w._st = {"burns": 0, "base_light": w.light_radius, "ult_id": 0}
-	w.light_radius += LIGHT_BONUS[clampi(w.tier - 1, 0, 5)]
-	for c in w.get_children():
-		if c is GlowLight:
-			c.texture_scale = maxf(0.1, w.light_radius * 2.0 / 128.0)
-			w._st["glow"] = c
-			w._st["glow_scale"] = c.texture_scale
+	WeaponTiers.light_bonus(w, LIGHT_BONUS)
 
 ## The torch light pulses by a few percent (the radius the game reads is unchanged).
 static func tick(w, _delta: float) -> void:

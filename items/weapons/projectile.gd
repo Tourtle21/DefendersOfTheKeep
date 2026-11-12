@@ -25,6 +25,8 @@ var chain := 0              # on a hit jump to the nearest other enemy within 55
 var burst_r := 0.0          # on a hit an area hit of damage * burst_mult around the target
 var burst_mult := 0.5
 var split := 0              # on the first hit spawn this many children at 40% damage
+var nova := 0                # on the first hit this many small copies fly out evenly all round (nova_mult of the damage, pierce 1)
+var nova_mult := 0.1
 var wobble := 0.0           # sideways sine drift in px
 var on_hit_fx := ""         # a WeaponFx kind at the hit point (flash, shards, cut)
 var owner_id := 0           # get_instance_id() of the player who fired it (public, so it replicates; lets a weapon find its own shots)
@@ -100,6 +102,10 @@ func _physics_process(delta: float) -> void:
 					WeaponUtil.hit(o, damage * burst_mult, at, 40.0, 0.0, "", true, true)
 		if split > 0 and _first:
 			_do_split(at)
+		if nova > 0 and _first:
+			for k in nova:
+				var nd := Vector2.from_angle(float(k) * TAU / float(nova) + vel.angle())
+				WeaponProjectile.shoot(get_parent(), at + nd * 5.0, nd, vel.length(), damage * nova_mult, color, 0.35, 1, knock, {"style": style, "size": size * 0.6, "radius": radius, "_first": false})
 		_first = false
 		if _hit.size() > pierce:
 			queue_free()
