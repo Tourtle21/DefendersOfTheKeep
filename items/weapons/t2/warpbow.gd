@@ -26,6 +26,9 @@ func use_ability() -> void:
 		if ability_name != "":
 			_locked_note("The ability", 2)
 		return
+	if WeaponTiers.has_fn(weapon_id, "use_ability"):        # the Warp Bow's tier module plants and chains Rift Gates
+		WeaponTiers.run(self, "use_ability")
+		return
 	var now := Time.get_ticks_msec() / 1000.0
 	if _anchor_until > now:
 		_anchor_until = 0.0
@@ -52,6 +55,12 @@ func use_ability() -> void:
 
 func _on_warped(_dest: Vector2) -> void:
 	pass
+
+func release_item() -> void:
+	var was := _drawing
+	super()
+	if was:
+		WeaponTiers.run(self, "attack")                     # one arrow released (the Bow's release does not run the hook)
 
 func dash_attack() -> void:
 	player.blink(aim * 40.0)
