@@ -57,6 +57,8 @@ static func tick(s, delta: float) -> void:
 			tick_rejuvenation(s, tier_of(s), delta)
 		"gold_magnet":
 			tick_gold_magnet(s, tier_of(s), delta)
+		"aegis":
+			tick_aegis(s, tier_of(s), delta)
 
 # ---------------------------------------------------------------- Fireball
 
@@ -496,3 +498,82 @@ static func tick_gold_magnet(s, tier: int, delta: float) -> void:
 		WeaponFx.spawn(w, "motes", s.position, GOLD, {"radius": s.radius, "count": 16, "rise": 40.0, "life": 0.9})
 		Sfx.play("ultimate")
 		Game.add_resource("gold", mini(MAGNET_TRIBUTE_MAX, s._coins / MAGNET_TRIBUTE_PER))
+
+# ---------------------------------------------------------------- Aegis Ward
+
+const AEGIS_PULSE := [0.0, 0.0, 0.0, 3.0, 5.0, 8.0]
+const AEGIS_REFLECT := 1.0
+const AEGIS_SANCTUARY := 4.0
+const WARD := Color(0.65, 0.75, 1.0)
+const AEGIS_GOLD := Color(1.0, 0.88, 0.45)
+
+static func tick_aegis(s, tier: int, delta: float) -> void:
+	if tier < 2:
+		return
+	var since: float = s.age - s.flight
+	var c: Vector2 = s.global_position
+	var r: float = s.radius
+	var w: Node = s.get_parent()
+	s._sfx_t -= delta
+	s._repel_t += delta
+	var near: Array = WeaponUtil.enemies_in_circle(s.get_tree(), c, r + 8.0)
+	if s._repel_t >= 0.2:                                            # repel: the outer band shoves enemies away from the people inside
+		s._repel_t = 0.0
+		var pushed := false
+		for e in near:
+			var rel: Vector2 = e.global_position - c
+			if rel.length() >= r * 0.8 and e.has_method("push"):
+				e.push((rel.normalized() if rel.length() > 0.5 else Vector2.RIGHT) * 70.0, 0.15)
+				WeaponFx.spawn(w, "burst", s.position + rel.normalized() * r, WARD, {"radius": 8.0, "life": 0.2})
+				pushed = true
+		if pushed and s._sfx_t <= 0.0:
+			s._sfx_t = 0.5
+			Sfx.play("whoosh")
+	if tier >= 3:                                                    # bulwark: guards and buildings inside are mended
+		for grp in ["guard", "structure"]:
+			for n in s.get_tree().get_nodes_in_group(grp):
+				if is_instance_valid(n) and n.global_position.distance_to(c) <= r and n.hp < n.max_hp:
+					n.hp = minf(n.max_hp, n.hp + n.max_hp * 0.08 * delta)
+					var id: int = n.get_instance_id()
+					if since - float(s._house.get(id, -9.0)) >= 1.5:
+						s._house[id] = since
+						WeaponFx.spawn(w, "motes", n.global_position, WARD, {"radius": 8.0, "count": 3, "rise": 12.0, "life": 0.5})
+	if tier >= 4:                                                    # rune pulse
+		s._pulse_t += delta
+		if s._pulse_t >= 1.2:
+			s._pulse_t = 0.0
+			WeaponFx.spawn(w, "ripple", s.position, WARD, {"radius": r + 10.0, "rings": 1, "life": 0.4})
+			Sfx.play("hit")
+			for e in near:
+				if !is_instance_valid(e) or e.global_position.distance_to(c) > r + 10.0 + 4.0:
+					continue
+				e.spell_damage(AEGIS_PULSE[tier - 1], "", true)
+				if is_instance_valid(e):
+					if e.has_method("apply_slow"):
+						e.apply_slow(0.5, 0.8)
+					WeaponFx.spawn(w, "burst", e.global_position, WARD, {"radius": 8.0, "life": 0.2})
+	if tier >= 5:                                                    # mirror: enemy shots that enter are sent back
+		for sh in s.get_tree().get_nodes_in_group("enemy_shot"):
+			if !is_instance_valid(sh) or sh.is_queued_for_deletion() or sh.global_position.distance_to(c) > r:
+				continue
+			var vel: Vector2 = sh.vel
+			WeaponProjectile.shoot(w, sh.position, -vel.normalized(), vel.length() * 1.3, sh.damage / 10.0 * AEGIS_REFLECT, Color(0.95, 0.97, 1.0), 1.5, 0, 60.0)
+			WeaponFx.spawn(w, "line", sh.position, Color.WHITE, {"dir": -vel.normalized(), "length": 30.0, "width": 2.0, "life": 0.15})
+			WeaponFx.spawn(w, "burst", sh.position, Color.WHITE, {"radius": 10.0, "life": 0.2})
+			Sfx.play("hit")
+			sh.queue_free()
+	if tier >= 6:
+		for p in s._in_radius("player"):                             # sanctuary
+			if p.has_method("heal"):
+				p.heal(AEGIS_SANCTUARY * delta)
+		if !s._finale_done and !is_copy(s) and since >= s.effect_time - 0.05:
+			s._finale_done = true
+			WeaponFx.spawn(w, "shards", s.position, AEGIS_GOLD, {"radius": r * 1.3, "count": 18, "life": 0.5})
+			WeaponFx.spawn(w, "flash", s.position, AEGIS_GOLD, {"radius": r * 1.3, "life": 0.4})
+			WeaponFx.spawn(w, "ripple", s.position, AEGIS_GOLD, {"radius": r * 1.6, "rings": 3, "life": 0.7})
+			Sfx.play("ultimate")
+			for e in WeaponUtil.enemies_in_circle(s.get_tree(), c, r * 1.3):
+				var away: Vector2 = e.global_position - c
+				e.spell_damage(3.0 * AEGIS_PULSE[5], "", true)
+				if is_instance_valid(e) and e.has_method("push"):
+					e.push((away.normalized() if away.length() > 0.5 else Vector2.RIGHT) * 160.0, 0.25)

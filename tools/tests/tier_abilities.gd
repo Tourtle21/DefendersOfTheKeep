@@ -68,7 +68,7 @@ func _initialize() -> void:
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("only="):
 			only = a.substr(5)
-	for id in ["fireball", "frost_ring", "flare", "rejuvenation", "gold_magnet"]:
+	for id in ["fireball", "frost_ring", "flare", "rejuvenation", "gold_magnet", "aegis"]:
 		if only == "" or only == id:
 			await call(id)
 			await clear()
@@ -464,3 +464,85 @@ func gold_magnet() -> void:
 			n.queue_free()
 		await clear()
 	ok("tier 6 ends with a flash and a tribute of 1 gold per 5 coins (max 4), a copy does not (%s)" % str(ts), ts[false][0] and ts[false][1] >= 14 and !ts[true][0] and ts[true][1] == 12)
+
+# ================================================================== Aegis Ward
+func aegis() -> void:
+	print("-- aegis")
+	var c := Vector2(0, 300)
+	var p = world.get_node("Player")
+	# Repel (tier 2)
+	var rp := {}
+	for t in [1, 2]:
+		var s0 = spell("aegis", t, c, true, {"duration": 20.0})
+		var e = dummy(c + Vector2(s0.radius * 0.9, 0))
+		e.set_physics_process(true)
+		e.speed = 0.0
+		await wait(0.6)
+		rp[t] = snappedf(e.global_position.x - c.x - s0.radius * 0.9, 0.1)
+		await clear()
+	ok("tier 2 shoves enemies in the outer band outward, tier 1 does not (%s)" % str(rp), rp[2] > 4.0 and absf(rp[1]) < 1.0)
+	# Bulwark (tier 3)
+	var bw := {}
+	for t in [2, 3]:
+		var g = load("res://cards/guard.gd").new()
+		g.setup(game.scaled("guards", 1), c + Vector2(10, 0))
+		world.add_child(g)
+		g.set_physics_process(false)
+		g.hp = 5.0
+		var st = load("res://cards/structure.gd").new()
+		st.setup(game.stats_of(game.make_entry("barricade", 1, "")), c + Vector2(-10, 0))
+		world.add_child(st)
+		await wait(0.1)
+		st.hp = st.max_hp * 0.5
+		spell("aegis", t, c, true, {"duration": 20.0})
+		await wait(2.0)
+		bw[t] = [snappedf(g.hp, 0.1), snappedf(st.hp / st.max_hp, 0.01)]
+		g.queue_free()
+		st.queue_free()
+		await clear()
+	ok("tier 3 mends guards and buildings inside, tier 2 does not (%s)" % str(bw), bw[3][0] > 6.0 and bw[3][1] > 0.55 and bw[2][0] == 5.0 and bw[2][1] == 0.5)
+	# Rune pulse (tier 4)
+	var pu := {}
+	for t in [3, 4]:
+		var e = dummy(c + Vector2(10, 0))
+		spell("aegis", t, c, true, {"duration": 20.0})
+		await wait(1.5)
+		pu[t] = [snappedf(dealt(e), 0.1), snappedf(e.slow_mult, 0.01)]
+		await clear()
+	ok("tier 4 pulses hurt and slow whatever is inside, tier 3 does not (%s)" % str(pu), pu[4][0] > 2.5 and pu[4][1] <= 0.5 and pu[3][0] == 0.0)
+	# Mirror (tier 5)
+	var mi := {}
+	for t in [4, 5]:
+		var s0 = spell("aegis", t, c, true, {"duration": 20.0})
+		await wait(0.3)
+		var shot = load("res://enemies/spitter/enemy_projectile.gd").new()
+		shot.position = c + Vector2(s0.radius * 0.5, 0)
+		shot.vel = Vector2(-60, 0)
+		world.add_child(shot)
+		await wait(0.4)
+		var back := 0
+		for nd in world.get_children():
+			if nd.get_script() != null and str(nd.get_script().resource_path).ends_with("projectile.gd") and nd.get("vel") != null and nd.vel.x > 0.0 and nd.get("expose_secs") != null:
+				back += 1
+		mi[t] = [is_instance_valid(shot) and !shot.is_queued_for_deletion(), back]
+		await clear()
+		for nd in world.get_children():
+			if nd.get_script() != null and str(nd.get_script().resource_path).ends_with("projectile.gd"):
+				nd.queue_free()
+	ok("tier 5 turns an enemy shot back, tier 4 lets it through (%s)" % str(mi), mi[5][1] >= 1 and !mi[5][0] and mi[4][0] and mi[4][1] == 0)
+	# Sanctuary and shatter (tier 6)
+	var rect = world.get_node("Hud/Control2/ColorRect/Health")
+	var sa := {}
+	for cp in [false, true]:
+		p.global_position = c + Vector2(5, 0)
+		rect.size.x = 50.0
+		var s0 = spell("aegis", 6, c, true, {"duration": 2.0, "copy": cp})
+		var e = dummy(c + Vector2(s0.radius * 1.2, 0))
+		await wait(1.0)
+		var healed: float = rect.size.x - 50.0
+		await wait(1.4)
+		sa[cp] = [snappedf(healed, 0.1), snappedf(dealt(e), 0.1), snappedf(e.knock_vel.length(), 1.0)]
+		await clear()
+	rect.size.x = 228.0
+	p.global_position = Vector2(0, 700)
+	ok("tier 6 heals players inside and ends in a shatter that hurts and shoves, a copy does not shatter (%s)" % str(sa), sa[false][0] > 2.0 and sa[false][1] > 5.0 and sa[false][2] > 100.0 and sa[true][1] == 0.0)

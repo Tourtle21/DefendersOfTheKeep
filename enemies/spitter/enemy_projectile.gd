@@ -27,6 +27,7 @@ static func fire(world: Node, from: Vector2, dir: Vector2, speed := 95.0, dmg :=
 
 func _ready() -> void:
 	add_to_group("net")
+	add_to_group("enemy_shot")          # (an Aegis Ward of tier 5 reflects these)
 	z_index = 8
 
 func _physics_process(delta: float) -> void:

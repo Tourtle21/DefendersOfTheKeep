@@ -13,7 +13,7 @@ static func jit(i: int, salt := 0.0) -> float:
 
 ## Cards that have their own body art here: the plain fill and rings are drawn softer under it.
 static func has_body(id: String) -> bool:
-	return id in ["fireball", "frost_ring", "flare", "rejuvenation", "gold_magnet"]
+	return id in ["fireball", "frost_ring", "flare", "rejuvenation", "gold_magnet", "aegis"]
 
 static func draw_flight(s, t: float, col: Color) -> void:
 	match String(s.data.get("id", "")):
@@ -34,6 +34,8 @@ static func draw(s, since: float, col: Color) -> void:
 			draw_rejuvenation(s, since, col)
 		"gold_magnet":
 			draw_gold_magnet(s, since, col)
+		"aegis":
+			draw_aegis(s, since, col)
 
 ## A flame as one polygon: a wide base, a belly, and a tip that leans with `sway`.
 static func flame(s, base: Vector2, w: float, h: float, col: Color, sway := 0.0) -> void:
@@ -406,3 +408,73 @@ static func draw_gold_magnet(s, since: float, _col: Color) -> void:
 			s.draw_circle(p, 3.0, Color(GOLD, fade))
 			s.draw_circle(p + Vector2(-1, -1), 1.0, Color(1, 1, 0.8, fade))
 		s.draw_arc(Vector2.ZERO, r * (0.9 + 0.05 * sin(since * 5.0)), 0, TAU, 40, Color(GOLD, 0.5 * fade), 1.5)
+
+# ---------------------------------------------------------------- Aegis Ward
+
+const WARD := Color(0.65, 0.75, 1.0)
+const WARD_DEEP := Color(0.3, 0.35, 0.7)
+const WARD_GOLD := Color(1.0, 0.88, 0.45)
+
+static func draw_aegis(s, since: float, _col: Color) -> void:
+	var tier := int(s.data.get("tier", 1))
+	if tier < 2:
+		return
+	var r: float = s.radius
+	var life: float = s.effect_time
+	var fade := clampf((life - since) / 1.0, 0.0, 1.0) * clampf(since / 0.3, 0.0, 1.0)
+	var pulse_lit := tier >= 4 and fposmod(since, 1.2) < 0.2
+	# tier 2: a hex dome: a hexagon, six spokes, a second rim, and sparks sliding round the rim
+	var hex := PackedVector2Array()
+	for i in 7:
+		hex.append(Vector2.from_angle(i * TAU / 6.0) * r * 0.55)
+	s.draw_polyline(hex, Color(WARD, 0.6 * fade), 1.0)
+	for i in 6:
+		var d := Vector2.from_angle(i * TAU / 6.0)
+		s.draw_line(d * r * 0.55, d * r, Color(WARD, 0.4 * fade), 1.0)
+		s.draw_circle(Vector2.from_angle(since * 1.2 + i * TAU / 6.0) * r, 2.0, Color(0.95, 0.97, 1.0, 0.9 * fade))
+	s.draw_arc(Vector2.ZERO, r * 0.92, 0, TAU, 40, Color(WARD, 0.4 * fade), 1.0)
+	if pulse_lit:
+		s.draw_arc(Vector2.ZERO, r, 0, TAU, 48, Color(1, 1, 1, fade), 3.0)
+	# tier 5: mirror facets with a glint sweeping across
+	if tier >= 5:
+		for i in 8:
+			var a := i * TAU / 8.0
+			var n := Vector2.from_angle(a)
+			var o := n.orthogonal()
+			var kite := PackedVector2Array([n * r * 0.3, n * r * 0.6 + o * r * 0.2, n * r * 0.95, n * r * 0.6 - o * r * 0.2])
+			s.draw_colored_polygon(kite, Color(1, 1, 1, 0.25 * fade))
+			s.draw_polyline(PackedVector2Array([kite[0], kite[1], kite[2], kite[3], kite[0]]), Color(1, 1, 1, 0.6 * fade), 1.0)
+		var gx := lerpf(-r, r, fposmod(since / 1.5, 1.0))
+		s.draw_colored_polygon(PackedVector2Array([Vector2(gx - 3, -r * 0.6), Vector2(gx + 3, -r * 0.6 - 0.0), Vector2(gx - 3 + r * 0.3, r * 0.6), Vector2(gx - 9 + r * 0.3, r * 0.6)]), Color(1, 1, 1, 0.3 * fade))
+	# tier 4: three rune glyphs circle the dome
+	if tier >= 4:
+		for i in 3:
+			var p := Vector2.from_angle(since * 0.9 + i * TAU / 3.0) * r * 0.78
+			s.draw_colored_polygon(PackedVector2Array([p + Vector2(0, -6), p + Vector2(4, 0), p + Vector2(0, 6), p + Vector2(-4, 0)]), Color(WARD, 0.85 * fade))
+			s.draw_line(p + Vector2(0, -3), p + Vector2(0, 3), Color(WARD_DEEP, fade), 1.0)
+			s.draw_line(p + Vector2(-2, 0), p + Vector2(2, 0), Color(WARD_DEEP, fade), 1.0)
+			s.draw_circle(p, 1.2, Color(1, 1, 1, fade))
+	# tier 6: a golden sanctuary: columns, an arch, a halo, a light column, wings
+	if tier >= 6:
+		s.draw_rect(Rect2(-1.5, -r * 0.9, 3.0, r * 0.9), Color(WARD_GOLD, 0.15 * fade))
+		for i in 4:
+			var cp := Vector2.from_angle(i * TAU / 4.0) * r
+			s.draw_rect(Rect2(cp.x - 2.5, cp.y - 15.0, 5.0, 14.0), Color.BLACK)
+			s.draw_rect(Rect2(cp.x - 1.5, cp.y - 14.0, 3.0, 12.0), Color(WARD_GOLD, fade))
+		s.draw_arc(Vector2(0, -8), r * 0.85, deg_to_rad(200.0), deg_to_rad(340.0), 24, Color(WARD_GOLD, 0.8 * fade), 2.0)
+		for i in 20:
+			var a2 := since * 0.4 + i * TAU / 20.0
+			s.draw_arc(Vector2.ZERO, r * 0.9, a2, a2 + 0.18, 3, Color(WARD_GOLD, 0.5 * fade), 1.5)
+		for sd in [-1.0, 1.0]:
+			var base := Vector2(sd * r * 0.2, -4)
+			s.draw_colored_polygon(PackedVector2Array([base, base + Vector2(sd * r * 0.5, -r * 0.25), base + Vector2(sd * r * 0.45, -r * 0.05), base + Vector2(0, 6)]), Color(1, 1, 1, 0.25 * fade))
+	# tier 3 and up: the emblem in the middle: a shield, a mirror at tier 5, nothing under the tier 6 sanctuary
+	if tier >= 3 and tier < 6:
+		var hov := -2.0 + 2.0 * sin(since * 2.0)
+		var pts := PackedVector2Array([Vector2(-8, -9 + hov), Vector2(8, -9 + hov), Vector2(8, 1 + hov), Vector2(4, 6 + hov), Vector2(0, 9 + hov), Vector2(-4, 6 + hov), Vector2(-8, 1 + hov)])
+		var body := Color(1, 1, 1, 0.9 * fade) if tier >= 5 else Color(WARD_DEEP, 0.95 * fade)
+		s.draw_colored_polygon(pts, body)
+		s.draw_polyline(PackedVector2Array([pts[0], pts[1], pts[2], pts[3], pts[4], pts[5], pts[6], pts[0]]), Color(WARD_DEEP, fade) if tier >= 5 else Color(1, 1, 1, fade), 1.5)
+		if tier < 5:
+			s.draw_line(Vector2(0, -7 + hov), Vector2(0, 5 + hov), Color(WARD_GOLD, fade), 2.0)
+			s.draw_line(Vector2(-5, -2 + hov), Vector2(5, -2 + hov), Color(WARD_GOLD, fade), 2.0)
