@@ -178,6 +178,147 @@ func t_dawnbringer() -> void:
 	await clear()
 	await draw_smoke("dawnbringer")
 
+func t_voidreaver() -> void:
+	var w
+	var mod = load("res://items/weapons/tiers/voidreaver.gd")
+	# Hunger (tier 2): a heal for what is cut, a slash, the rift collapses twice
+	w = await equip("voidreaver", 2, false)
+	dummy(P + Vector2(30, 0))
+	dummy(P + Vector2(30, 12))
+	set_health(100.0)
+	var seen := {}
+	await slash(w)
+	fx_kinds(seen)
+	await wait(0.2)
+	var healed: float = health_px() - 100.0
+	ok("voidreaver Hunger: a swing across two dummies heals %.2f (>= the old min(3, 2) = 2, <= 4), slash fx %s" % [healed, seen.has("slash")], healed >= 1.99 and healed <= 4.01 and seen.has("slash"))
+	var steps := {}
+	for t in [2]:
+		w = await equip("voidreaver", t, false)
+		var held = dummy(P + Vector2(70, 0))
+		w.use_ability()
+		var last := 0.0
+		var n := 0
+		for i in 50:
+			await wait(0.05)
+			if lost(held) > last + 0.3:
+				n += 1
+				last = lost(held)
+		steps[t] = n
+	ok("voidreaver Hunger Rift: the held dummy took %d separate blows (pull, collapse, second collapse)" % steps[2], steps[2] >= 3)
+	# Gravity (tier 3): the third swing pulls; the rift keeps pulling for 3 s
+	var gv := {}
+	for t in [2, 3]:
+		w = await equip("voidreaver", t, false)
+		var pd = dummy(P + Vector2(60, 0), HP, true)
+		var x0: float = pd.global_position.x
+		var minx := x0
+		for i in 3:
+			await slash(w)
+			await wait(0.5)
+			minx = minf(minx, pd.global_position.x)
+		gv[t] = x0 - minx
+	ok("voidreaver Gravity: the dummy at 60 px was pulled %.0f px by three swings (tier 2: %.0f)" % [gv[3], gv[2]], gv[3] > gv[2] + 12.0)
+	var wl := {}
+	for t in [2, 3]:
+		w = await equip("voidreaver", t, false)
+		var wd = dummy(P + Vector2(70 + 50, 0), HP, true)
+		w.use_ability()
+		await wait(2.6)
+		wl[t] = wd.global_position.distance_to(P + Vector2(70, 0))
+	ok("voidreaver Gravity Well: the dummy ends %.0f px from the rift at tier 3 (tier 2: %.0f)" % [wl[3], wl[2]], wl[3] < wl[2] - 8.0)
+	# Singularity (tier 4): a hole after the collapse; a kill with a swing opens a micro hole
+	w = await equip("voidreaver", 4, false)
+	dummy(P + Vector2(70, 0))
+	w.use_ability()
+	await wait(2.2)
+	var holes: int = aura_node().data.get("holes", []).size()
+	w = await equip("voidreaver", 4, false)
+	var frail = dummy(P + Vector2(30, 0), 3.0)
+	frail.max_health = 3.0
+	frail.health = 3.0
+	await slash(w)
+	await wait(0.5)
+	var micro := 0
+	for h in w._st.holes:
+		if h.kind == "micro":
+			micro += 1
+	ok("voidreaver Singularity: the rift left %d hole in the aura, a kill with a swing opened %d micro hole" % [holes, micro], holes >= 1 and micro == 1)
+	# Black Sun (tier 5): eclipse at full essence; the ultimate holds the crowd
+	w = await equip("voidreaver", 5, false)
+	var ed = dummy(P + Vector2(40, 0), HP, true)
+	mod.add_ess(w, 100.0)
+	var ecl: bool = mod.eclipse(w)
+	var seen5 := {}
+	await slash(w)
+	fx_kinds(seen5)
+	var pulled: bool = ed.knock_time > 0.0 or ed.global_position.x < P.x + 40.0
+	ok("voidreaver Black Sun: full essence starts eclipse (%s), the swing is a wider slash and pulls (%s)" % [ecl, pulled], ecl and seen5.has("slash") and pulled)
+	var hold := {}
+	for t in [4, 5]:
+		w = await equip("voidreaver", t, false)
+		var hd = dummy(P + Vector2(50, 0))
+		w.use_ultimate()
+		var low := 1.0
+		for i in 130:
+			await wait(0.05)
+			if i * 0.05 > 3.3:
+				low = minf(low, hd.slow_mult)
+		hold[t] = low
+	ok("voidreaver Black Sun: the dark disc holds the dummy (slow %.2f at tier 5, %.2f at tier 4)" % [hold[5], hold[4]], hold[5] <= 0.11 and hold[4] > 0.5)
+	# Oblivion (tier 6): the finisher erases the weak; the transformation
+	w = await equip("voidreaver", 6, false)
+	var weak = dummy(P + Vector2(30, 0))
+	weak.max_health = HP
+	weak.health = HP * 0.14
+	for i in 6:
+		await slash(w)
+		await wait(0.3)
+	await wait(0.3)
+	ok("voidreaver Oblivion: the sixth swing erases a dummy below 15%% health (%s)" % [!is_instance_valid(weak) or weak.health <= 0.0 or weak.is_queued_for_deletion()], !is_instance_valid(weak) or weak.health <= 0.0 or weak.is_queued_for_deletion())
+	w = await equip("voidreaver", 6, false)
+	await face(Vector2(1, 0))
+	var od = dummy(P + Vector2(100, 0))
+	set_health(100.0)
+	w.use_ultimate()
+	var slow_runs := 0
+	var run_len := 0
+	var orbit_seen := 0
+	var flash140 := false
+	var biggest := 0.0
+	var prev := 0.0
+	var peak := 0
+	var t0 := Time.get_ticks_msec()
+	while Time.get_ticks_msec() - t0 < 30000:
+		await wait(0.05)
+		if Engine.time_scale < 0.5:
+			run_len += 1
+		else:
+			if run_len >= 4:
+				slow_runs += 1
+			run_len = 0
+		var an = aura_node()
+		if an != null:
+			var ks: Array = an.data.get("kinds", [])
+			orbit_seen = maxi(orbit_seen, ks.count(1))
+		for f in fx_list("flash"):
+			if f.radius == 140.0:
+				flash140 = true
+		peak = maxi(peak, fx_count())
+		var l := lost(od)
+		biggest = maxf(biggest, l - prev)
+		prev = l
+		if flash140 and Time.get_ticks_msec() - t0 > 14000:
+			await wait(0.6)
+			break
+	var pw: float = game.weapon_power("voidreaver", 5)
+	var hh: float = game.basic_hit("voidreaver")
+	ok("voidreaver Oblivion: one slow-motion beat (%d), %d orbiting singularities, the final flash %s, biggest hit %.1f = %.1f H (>= 3.0), healed %.1f px, peak fx %d" % [slow_runs, orbit_seen, flash140, biggest, biggest / (hh * pw), health_px() - 100.0, peak], slow_runs == 1 and orbit_seen == 3 and flash140 and biggest >= 3.0 * hh * pw * 0.95 and health_px() - 100.0 >= 15.0 and peak <= 120)
+	await clear()
+	await draw_smoke("voidreaver")
+
 func run() -> void:
+	if only == "" or only == "voidreaver":
+		await t_voidreaver()
 	if only == "" or only == "dawnbringer":
 		await t_dawnbringer()

@@ -31,7 +31,11 @@ func attack() -> void:
 		WeaponUtil.hit(e, Game.basic_hit(weapon_id), o, 90.0)
 		cut += 1
 	if cut > 0:
-		player.heal(minf(3.0, 1.0 * cut))                # drinks what it cuts
+		var heal := minf(3.0, 1.0 * cut)                 # drinks what it cuts
+		var plan = WeaponTiers.run(self, "heal_plan", [cut, Game.basic_hit(weapon_id) * WeaponUtil.power * cut])
+		if plan != null:
+			heal = float(plan)                           # tier 2+: the tier module sets the heal (4 at most, 6 in eclipse)
+		player.heal(heal)
 
 func dash_attack() -> void:
 	var start: Vector2 = player.global_position
