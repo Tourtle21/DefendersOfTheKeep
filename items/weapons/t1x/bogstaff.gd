@@ -25,7 +25,12 @@ func _mud(pos: Vector2, r: float, secs: float, factor := 0.4) -> void:
 
 func attack() -> void:
 	thrust(5.0, 0.2)
-	WeaponProjectile.shoot(game_world(), player.global_position + aim * 10.0, aim, 210.0, Game.basic_hit(weapon_id), Color(0.5, 0.85, 0.3), 0.9, 0, 40.0, {"bleed_ticks": 4, "bleed_dmg": 0.8})
+	var extra := {"bleed_ticks": 4, "bleed_dmg": 0.8}
+	if weapon_id == "bogstaff" and tier >= 2:                    # weapon tiers: dripping globs, pods (items/weapons/tiers/bogstaff.gd)
+		extra.merge({"style": "glob", "size": 1.2, "trail": 4, "wobble": 2.0})
+		if _st.get("pod", false):
+			extra.merge({"size": 1.8, "burst_r": 30.0, "burst_mult": 0.6}, true)
+	WeaponProjectile.shoot(game_world(), player.global_position + aim * 10.0, aim, 210.0, Game.basic_hit(weapon_id), Color(0.5, 0.85, 0.3), 0.9, 0, 40.0, extra)
 
 func ability() -> void:
 	var c := cursor_target(110.0)

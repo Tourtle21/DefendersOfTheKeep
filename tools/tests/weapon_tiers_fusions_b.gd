@@ -627,6 +627,118 @@ func t_tempest() -> void:
 	ok("tempest Finisher: the 6th attack forks (%d bolts alive) at tier 6, %d at tier 5" % [fin[6], fin[5]], fin[6] >= fin[5] + 3)
 	await draw_smoke("tempest")
 
+func rot_of(e) -> int:
+	if !is_instance_valid(e) or !e.has_meta("wt_rot"):
+		return 0
+	var r = e.get_meta("wt_rot")
+	return int(r.n) if r.until > Time.get_ticks_msec() / 1000.0 else 0
+
+func glob_sizes(secs: float) -> Array:
+	var sizes := []
+	for i in int(secs / 0.05):
+		await wait(0.05)
+		for n in world.get_children():
+			if n.get_script() != null and str(n.get_script().resource_path).ends_with("items/weapons/projectile.gd") and n.style == "glob":
+				sizes.append(n.size)
+	return sizes
+
+func t_bogstaff() -> void:
+	var w
+	var mod = load("res://items/weapons/tiers/bogstaff.gd")
+	# Festering: globs rot (stacks), drip and bubble
+	w = await equip("bogstaff", 2, false)
+	var d = dummy(P + Vector2(40, 0))
+	click(w)
+	var sz: Array = await glob_sizes(0.3)
+	await wait(0.2)
+	click(w)
+	var r = await watch(0.4)
+	ok("bogstaff Festering: tier 2 globs (size %s) leave %d Rot stacks (>= 2), motes %s" % [sz.slice(0, 1), rot_of(d), r.kinds.has("motes")], rot_of(d) >= 2 and sz.size() > 0 and sz[0] >= 1.2 and r.kinds.has("motes"))
+	# Spore Pods: the fifth stack bursts, rotting a neighbour; the 3rd glob is a pod
+	var sp := {}
+	for t in [2, 3]:
+		w = await equip("bogstaff", t, false)
+		var a = dummy(P + Vector2(60, 0))
+		var b = dummy(P + Vector2(85, 0))
+		mod.rot_add(w, a, 5)
+		await wait(0.3)
+		sp[t] = [rot_of(a), rot_of(b), snappedf(lost(b), 0.1)]
+	w = await equip("bogstaff", 3, false)
+	var far = dummy(P + Vector2(150, 0))
+	var biggest := 0.0
+	for i in 3:
+		click(w)
+		var sizes: Array = await glob_sizes(0.12)
+		for x in sizes:
+			biggest = maxf(biggest, x)
+		await wait(0.3)
+	ok("bogstaff Spore Pods: tier 3 stack 5 bursts and rots the neighbour %s (tier 2 stays at 5, no burst %s); 3rd glob size %.1f (>= 1.5)" % [sp[3], sp[2], biggest], sp[3][0] == 0 and sp[3][1] >= 2 and sp[3][2] > 1.0 and sp[2][0] == 5 and sp[2][1] == 0 and biggest >= 1.5)
+	# Bog Beasts: a kill raises a beast, mud hands grab the enemy at the centre of the mire
+	var bb := {}
+	for t in [3, 4]:
+		w = await equip("bogstaff", t, false)
+		var weak = dummy(P + Vector2(40, 0), 1.0)
+		var other = dummy(P + Vector2(100, 40))
+		click(w)
+		var sizes2: Array = await glob_sizes(0.5)
+		var beast := 0
+		for x in sizes2:
+			if x >= 2.4:
+				beast += 1
+		w._ability_cd = 0.0
+		var c: Vector2 = w.cursor_target(110.0)
+		var mid = dummy(c)
+		w.use_ability()
+		await wait(1.3)
+		bb[t] = [beast, mid.slow_mult == 0.0 and mid.slow_time > 0.0]
+	ok("bogstaff Bog Beasts: tier 4 kill raises a beast and the mire grabs %s; tier 3 %s" % [bb[4], bb[3]], bb[4][0] > 0 and bb[4][1] and bb[3][0] == 0 and !bb[3][1])
+	# Mud Trail: the hop leaves three patches and splashes on arrival
+	var mt := {}
+	for t in [3, 4]:
+		w = await equip("bogstaff", t, false)
+		var before := hazards("slow")
+		var dd = dummy(P + Vector2(55, 0))
+		w.use_dash()
+		await wait(0.4)
+		mt[t] = [hazards("slow") - before, snappedf(lost(dd), 0.1)]
+	ok("bogstaff Mud Trail: tier 4 hop leaves %s patches+splash; tier 3 %s" % [mt[4], mt[3]], mt[4][0] >= 4 and mt[3][0] == 1 and mt[4][1] > mt[3][1] + 1.0)
+	# Miasma: Rot a second and toxic marks
+	var mi := {}
+	for t in [4, 5]:
+		w = await equip("bogstaff", t, false)
+		var dd = dummy(P + Vector2(100, 0))
+		w.use_ultimate()
+		await wait(4.0)
+		mi[t] = [rot_of(dd), dd.has_meta("toxic_until") and dd.get_meta("toxic_until") > Time.get_ticks_msec() / 1000.0]
+	ok("bogstaff Miasma: tier 5 fog rots (it cycles through bursts) and marks a dummy at 100 px %s; tier 4 %s" % [mi[5], mi[4]], mi[5][0] >= 1 and mi[5][1] and !mi[4][1])
+	# Swamp Lord: the mud follows, tendrils lash, every glob is a pod, the Rot Bloom
+	w = await equip("bogstaff", 6, false)
+	var dd = dummy(P + Vector2(60, 0))
+	w.use_ultimate()
+	await wait(4.8)
+	var field := hazard_r("slow", 60.0)
+	mod.rot_add(w, dd, 3)
+	var kinds := {}
+	for i in 24:
+		await wait(0.05)
+		fx_kinds(kinds)
+	click(w)
+	var pod: Array = await glob_sizes(0.15)
+	await wait(8.4)
+	var bloom := false
+	for i in 40:
+		await wait(0.05)
+		if has_fx("flash", 60.0):
+			bloom = true
+	ok("bogstaff Swamp Lord: tier 6 following mud %d, tendril bolts %s, pod glob %s, bloom %s" % [field, kinds.has("bolt"), pod.slice(0, 1), bloom], field >= 1 and kinds.has("bolt") and pod.size() > 0 and pod[0] >= 1.5 and bloom)
+	# Rot decays after 6 s
+	w = await equip("bogstaff", 2, false)
+	var rr = dummy(P + Vector2(60, 0))
+	mod.rot_add(w, rr, 3)
+	await wait(6.3)
+	ok("bogstaff: Rot decays after 6 s (stacks %d)" % rot_of(rr), rot_of(rr) == 0)
+	await draw_smoke("bogstaff")
+
 func run() -> void:
 	if want("rimelance"):
 		await t_rimelance()
@@ -640,3 +752,5 @@ func run() -> void:
 		await t_spellblade()
 	if want("tempest"):
 		await t_tempest()
+	if want("bogstaff"):
+		await t_bogstaff()

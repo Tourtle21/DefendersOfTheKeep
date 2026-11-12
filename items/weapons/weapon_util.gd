@@ -208,7 +208,15 @@ static func bleed(tree: SceneTree, e: Node, ticks: int, dmg: float) -> void:
 		await tree.create_timer(0.5).timeout
 		if !_alive(e):
 			return
-		e.spell_damage(dmg * power, element, false)
+		e.spell_damage(dmg * power * (rot_mult(e) if element == "poison" else 1.0), element, false)
+
+## Bog Staff's Rot (docs/weapon_tiers/bogstaff.md): poison ticks deal +10% per stack on a rotting enemy (meta "wt_rot" = {n, until}).
+static func rot_mult(e: Node) -> float:
+	if e.has_meta("wt_rot"):
+		var r = e.get_meta("wt_rot")
+		if r is Dictionary and float(r.get("until", 0.0)) > Time.get_ticks_msec() / 1000.0:
+			return 1.0 + 0.1 * float(r.get("n", 0))
+	return 1.0
 
 ## A temporary patch on the ground (kind: "burn", "slow" or "heal"). Uses world/hazard.gd.
 static func patch(world: Node, pos: Vector2, kind: String, radius: float, color: Color, secs: float, factor := 0.5) -> void:
