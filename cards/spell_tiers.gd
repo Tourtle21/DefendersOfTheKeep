@@ -30,6 +30,12 @@ static func pace(s, key: String, interval: float, delta: float) -> bool:
 	s._clk[key] = t
 	return false
 
+## True while a spell that has run its time should stay a little longer (the plague cloud waits for its plagued to fall).
+static func keep_alive(s) -> bool:
+	if String(s.data.get("id", "")) == "poison_cloud" and tier_of(s) >= 6 and s._finale_done and !s._plagued.is_empty():
+		return s.age - s.flight < s.effect_time + 7.0
+	return false
+
 ## One-time landing effects (a ring, motes, a sound) the first tick after landing.
 static func first_tick(s) -> bool:
 	if s._landed_fx:
@@ -91,6 +97,8 @@ static func tick(s, delta: float) -> void:
 			tick_blizzard(s, tier_of(s), delta)
 		"lava_pool":
 			tick_lava_pool(s, tier_of(s), delta)
+		"poison_cloud":
+			tick_poison_cloud(s, tier_of(s), delta)
 
 # ---------------------------------------------------------------- Fireball
 
@@ -984,3 +992,108 @@ static func tick_lava_pool(s, tier: int, delta: float) -> void:
 			e.spell_damage(dps * 4.0, "fire", true)
 			if is_instance_valid(e) and e.has_method("push"):
 				e.push((away.normalized() if away.length() > 0.5 else Vector2.RIGHT) * 200.0, 0.25)
+
+# ---------------------------------------------------------------- Poison Cloud
+
+const POISON_INFECT_T := 1.5
+const POISON_CARRIER_T := 5.0
+const POISON_CARRIER_R := 34.0
+const POISON_COUGH := 2.0
+const POISON_POD := 2.5
+const POISON_PLAGUE_MAX := 6
+const TOXIC := Color(0.5, 0.9, 0.3)
+const SPORE := Color(0.8, 1.0, 0.5)
+
+static func pod_pos(s, i: int) -> Vector2:
+	return s.global_position + Vector2.from_angle(SpellArt.jit(i, 5.0) * TAU) * s.radius * 0.35
+
+static func tick_poison_cloud(s, tier: int, delta: float) -> void:
+	if tier < 2:
+		return
+	var since: float = s.age - s.flight
+	var c: Vector2 = s.global_position
+	var r: float = s.radius
+	var dps: float = s.data.dps
+	var w: Node = s.get_parent()
+	var tree: SceneTree = s.get_tree()
+	var now := Time.get_ticks_msec() / 1000.0
+	var inside: Array = s._in_radius("enemy") if since < s.effect_time else []
+	var here := {}
+	for e in inside:                                                   # weakening toxin: they take more from everything
+		var id: int = e.get_instance_id()
+		here[id] = true
+		if !e.has_meta("toxic_until") or e.get_meta("toxic_until") < now:
+			WeaponFx.spawn(w, "burst", e.global_position, TOXIC, {"radius": 6.0, "life": 0.2})
+		e.set_meta("toxic_until", now + 1.0)
+		s._mem[id] = float(s._mem.get(id, 0.0)) + delta
+		if tier >= 3 and s._mem[id] >= POISON_INFECT_T and !s._cool.has(id):
+			s._cool[id] = POISON_CARRIER_T                              # ...and one that has stood in it long enough carries it
+	for id in s._mem.keys():
+		if !here.has(id):
+			s._mem.erase(id)
+	if tier >= 3 and pace(s, "infect", 0.5, delta):
+		for id in s._cool.keys():
+			s._cool[id] = float(s._cool[id]) - 0.5
+			var carrier = instance_from_id(id)
+			if s._cool[id] <= 0.0 or carrier == null or _dead(carrier):
+				s._cool.erase(id)
+				continue
+			for e in WeaponUtil.enemies_in_circle(tree, carrier.global_position, POISON_CARRIER_R):
+				if e != carrier and is_instance_valid(e):
+					e.spell_damage(dps * 0.25, "poison", true)
+					if is_instance_valid(e):
+						var to: Vector2 = e.global_position - carrier.global_position
+						WeaponFx.spawn(w, "line", carrier.global_position, TOXIC, {"dir": to.normalized(), "length": to.length(), "width": 2.0, "life": 0.25})
+						WeaponFx.spawn(w, "burst", e.global_position, TOXIC, {"radius": 8.0, "life": 0.2})
+	if tier >= 4 and pace(s, "cough", POISON_COUGH, delta) and !inside.is_empty():    # choking fumes
+		var v = inside[randi() % inside.size()]
+		if is_instance_valid(v):
+			WeaponFx.spawn(w, "burst", v.global_position, SPORE, {"radius": 12.0, "life": 0.25})
+			WeaponFx.spawn(w, "motes", v.global_position, SPORE, {"radius": 8.0, "count": 6, "rise": 14.0, "life": 0.6})
+			Sfx.play("hit")
+			if v.has_method("apply_slow"):
+				v.apply_slow(0.0, 0.8)
+			v.spell_damage(dps * 2.0, "poison", true)
+	if tier >= 5 and since < s.effect_time:                            # spore pods ripen in turn and burst
+		for i in 3:
+			var k := floori((since - i * POISON_POD / 3.0) / POISON_POD)
+			if k >= 1 and k > int(s._clk.get("pod" + str(i), 0)):
+				s._clk["pod" + str(i)] = k
+				var pp := pod_pos(s, i)
+				WeaponFx.spawn(w, "ripple", pp, SPORE, {"radius": 28.0, "rings": 2, "life": 0.4})
+				WeaponFx.spawn(w, "motes", pp, SPORE, {"radius": 14.0, "count": 10, "rise": 24.0, "life": 0.7})
+				Sfx.play("thump")
+				for e in WeaponUtil.enemies_in_circle(tree, pp, 28.0):
+					var away: Vector2 = e.global_position - pp
+					e.spell_damage(dps * 4.0, "poison", true)
+					if is_instance_valid(e):
+						WeaponUtil.bleed(tree, e, 4, dps * 0.4)
+						if e.has_method("push"):
+							e.push((away.normalized() if away.length() > 0.5 else Vector2.RIGHT) * 90.0, 0.15)
+	if tier >= 6:
+		if !s._finale_done and !is_copy(s) and since >= s.effect_time - 0.05:   # plague: everything near is plagued
+			s._finale_done = true
+			WeaponFx.spawn(w, "flash", s.position, SPORE, {"radius": r * 1.3, "life": 0.4})
+			WeaponFx.spawn(w, "ripple", s.position, TOXIC, {"radius": r * 1.5, "rings": 3, "life": 0.7})
+			WeaponFx.spawn(w, "motes", s.position, SPORE, {"radius": r * 1.2, "count": 20, "rise": 40.0, "life": 0.9})
+			Sfx.play("ultimate")
+			for e in WeaponUtil.enemies_in_circle(tree, c, r * 1.3):
+				s._plagued[e.get_instance_id()] = e.global_position
+				WeaponUtil.bleed(tree, e, 8, dps * 0.5)
+		for id in s._plagued.keys():                                   # a plagued enemy that falls releases a small cloud
+			var o = instance_from_id(id)
+			if o != null and !_dead(o):
+				s._plagued[id] = o.global_position
+				continue
+			var at: Vector2 = s._plagued[id]
+			s._plagued.erase(id)
+			WeaponFx.spawn(w, "burst", at, TOXIC, {"radius": 16.0, "life": 0.3})
+			if s._plague_clouds < POISON_PLAGUE_MAX:
+				s._plague_clouds += 1
+				var small: Dictionary = s.data.duplicate()
+				small.radius = r * 0.45
+				small.duration = 3.0
+				small.copy = true
+				small.adds = []
+				small.twist = ""
+				Spell.cast_copy(w, small, at)

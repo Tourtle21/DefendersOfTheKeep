@@ -384,6 +384,7 @@ var unlocked_cards: Array = ["fireball", "frost_ring", "barricade", "spike_trap"
 # little), torches, flares, fire spells, glowing buildings and fire/crystal weapons.
 var night_level := 0.0
 var night_wave_now := false          # the wave that is currently walking in is a night wave
+const TOXIC_BONUS := 1.2          # an enemy in a tier 2+ Poison Cloud takes this much more from everything (Enemy.apply_traits)
 const SHROUD := 0.6                  # damage multiplier on a shrouded enemy
 const NIGHT_SIGHT := 50.0            # how far defences see an unlit enemy in the dark
 const PLAYER_LIGHT := 46.0

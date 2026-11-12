@@ -13,7 +13,7 @@ static func jit(i: int, salt := 0.0) -> float:
 
 ## Cards that have their own body art here: the plain fill and rings are drawn softer under it.
 static func has_body(id: String) -> bool:
-	return id in ["fireball", "frost_ring", "flare", "rejuvenation", "gold_magnet", "aegis", "charm", "sandstorm", "blizzard", "lava_pool"]
+	return id in ["fireball", "frost_ring", "flare", "rejuvenation", "gold_magnet", "aegis", "charm", "sandstorm", "blizzard", "lava_pool", "poison_cloud"]
 
 static func draw_flight(s, t: float, col: Color) -> void:
 	match String(s.data.get("id", "")):
@@ -46,6 +46,8 @@ static func draw(s, since: float, col: Color) -> void:
 			draw_blizzard(s, since, col)
 		"lava_pool":
 			draw_lava_pool(s, since, col)
+		"poison_cloud":
+			draw_poison_cloud(s, since, col)
 
 ## A flame as one polygon: a wide base, a belly, and a tip that leans with `sway`.
 static func flame(s, base: Vector2, w: float, h: float, col: Color, sway := 0.0) -> void:
@@ -765,3 +767,72 @@ static func draw_lava_pool(s, since: float, _col: Color) -> void:
 			s.draw_circle(Vector2(sin(since + i * 2.0) * 6.0, -r * 0.4 - u3 * 28.0), 3.0 + 2.0 * u3, Color(0.5, 0.5, 0.5, 0.35 * (1.0 - u3) * fade))
 		if left < 1.0 and left > 0.0:
 			s.draw_circle(Vector2.ZERO, r, Color(WHITE_HOT, 0.4 * (1.0 - left)))
+
+# ---------------------------------------------------------------- Poison Cloud
+
+const TOXIC := Color(0.5, 0.9, 0.3)
+const TOXIC_DEEP := Color(0.2, 0.45, 0.15)
+const SPORE := Color(0.8, 1.0, 0.5)
+const ROT := Color(0.55, 0.3, 0.6)
+
+static func draw_poison_cloud(s, since: float, _col: Color) -> void:
+	var tier := int(s.data.get("tier", 1))
+	if tier < 2:
+		return
+	var r: float = s.radius
+	var life: float = s.effect_time
+	var fade := clampf((life - since) / 1.0, 0.0, 1.0) * clampf(since / 0.2, 0.0, 1.0)
+	if tier >= 5:                                                   # a green aura
+		s.draw_circle(Vector2.ZERO, r * 1.05, Color(TOXIC, 0.08 * fade))
+	if tier >= 3:                                                   # a dirty purple inner layer
+		s.draw_circle(Vector2.ZERO, r * 0.65, Color(ROT, 0.12 * fade))
+	if tier >= 4:                                                   # thicker: soft clouds rolling through, a darker rim
+		for i in 7:
+			var cp := Vector2(sin(since * 0.3 + i * 1.3), cos(since * 0.25 + i * 2.1)) * r * 0.55
+			s.draw_circle(cp, 10.0 + 8.0 * jit(i, 2.0), Color(TOXIC_DEEP, 0.14 * fade))
+		s.draw_arc(Vector2.ZERO, r * 0.95, 0, TAU, 40, Color(TOXIC_DEEP, 0.7 * fade), 2.0)
+	if tier >= 6:                                                   # a plague cloud: a gradient, a dashed ring, flickering plague-lights
+		s.draw_circle(Vector2.ZERO, r * 0.8, Color(ROT, 0.1 * fade))
+		for i in 24:
+			var a := since * 0.3 + i * TAU / 24.0
+			s.draw_arc(Vector2.ZERO, r * 1.03, a, a + 0.12, 3, Color(ROT, 0.8 * fade), 1.5)
+		for i in 6:
+			var fl := 0.5 + 0.5 * sin(since * 6.0 + i * 2.0)
+			s.draw_circle(Vector2.from_angle(jit(i, 9.0) * TAU) * r * 0.6 * jit(i, 10.0), 4.0, Color(ROT, 0.4 * fl * fade))
+	# tier 2: drifting wisps, floating spores, a rotating trefoil
+	for i in 6:
+		var a2 := since * 0.3 + i * TAU / 6.0
+		var rr := r * lerpf(0.3, 0.8, jit(i, 1.0))
+		var p0 := Vector2.from_angle(a2) * rr
+		var p1 := Vector2.from_angle(a2 + 0.5) * rr * 1.1 + Vector2(0, -4)
+		var p2 := Vector2.from_angle(a2 + 1.0) * rr * 0.95
+		s.draw_polyline(PackedVector2Array([p0, p1, p2]), Color(SPORE, 0.25 * fade), 3.0)
+	var spores := 32 if tier >= 6 else 16
+	for i in spores:
+		var u := fposmod(since * 0.3 + jit(i), 1.0)
+		var dir := Vector2.from_angle(jit(i, 2.0) * TAU)
+		s.draw_circle(dir * r * (0.2 + 0.7 * u) + Vector2(0, -u * 12.0), 1.5, Color(SPORE, 0.9 * (1.0 - u) * fade))
+	if tier >= 6:
+		for k in 3:
+			var ang := since * 0.5 + k * TAU / 3.0
+			s.draw_arc(Vector2.ZERO, 14.0, ang, ang + deg_to_rad(100.0), 8, Color(TOXIC_DEEP, 0.9 * fade), 4.0)
+			s.draw_circle(Vector2.from_angle(ang + 0.9) * 14.0, 3.0, Color(ROT, fade))
+	elif tier >= 3:
+		for k in 3:
+			var ang2 := since * 0.5 + k * TAU / 3.0
+			s.draw_circle(Vector2.from_angle(ang2) * 7.0, 3.0, Color(TOXIC_DEEP, 0.9 * fade))
+			s.draw_arc(Vector2.ZERO, 7.0, ang2, ang2 + 0.8, 5, Color(TOXIC, fade), 1.5)
+	else:
+		for k in 3:
+			var ang3 := since * 0.4 + k * TAU / 3.0
+			s.draw_arc(Vector2.ZERO, 7.0, ang3, ang3 + deg_to_rad(100.0), 8, Color(TOXIC_DEEP, 0.9 * fade), 2.0)
+	if tier >= 5:                                                   # three spore pods grow, then burst
+		for i in 3:
+			var g: float = fposmod(since - i * SpellTiers.POISON_POD / 3.0, SpellTiers.POISON_POD) / SpellTiers.POISON_POD
+			var pp := Vector2.from_angle(jit(i, 5.0) * TAU) * r * 0.35
+			var h: float = 3.0 + 6.0 * g
+			s.draw_rect(Rect2(pp.x - 1.0, pp.y - h, 2.0, h), Color(TOXIC_DEEP, fade))
+			var cap: float = 2.5 + 4.0 * g
+			s.draw_circle(pp + Vector2(0, -h), cap, Color(TOXIC_DEEP.lightened(0.1), 0.95 * fade))
+			s.draw_circle(pp + Vector2(-1.5, -h - 1.0), 0.8, Color(SPORE, fade))
+			s.draw_circle(pp + Vector2(1.5, -h), 0.8, Color(SPORE, fade))

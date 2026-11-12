@@ -68,7 +68,7 @@ func _initialize() -> void:
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("only="):
 			only = a.substr(5)
-	for id in ["fireball", "frost_ring", "flare", "rejuvenation", "gold_magnet", "aegis", "charm", "sandstorm", "blizzard", "lava_pool"]:
+	for id in ["fireball", "frost_ring", "flare", "rejuvenation", "gold_magnet", "aegis", "charm", "sandstorm", "blizzard", "lava_pool", "poison_cloud"]:
 		if only == "" or only == id:
 			await call(id)
 			await clear()
@@ -834,3 +834,76 @@ func lava_pool() -> void:
 	game.night_level = 0.0
 	await clear()
 	ok("it also runs at night without errors", true)
+
+# ================================================================== Poison Cloud
+func poison_cloud() -> void:
+	print("-- poison_cloud")
+	var c := Vector2(0, 300)
+	# Weakening toxin (tier 2)
+	var tx := {}
+	for t in [1, 2]:
+		var e = dummy(c + Vector2(10, 0))
+		spell("poison_cloud", t, c, true, {"duration": 20.0, "dps": 0.0})
+		await wait(0.8)
+		var h0: float = e.health
+		e.spell_damage(10.0)
+		tx[t] = snappedf(h0 - e.health, 0.1)
+		await clear()
+	ok("tier 2 makes enemies inside take 20%% more, tier 1 exactly what is dealt (%s)" % str(tx), tx[2] >= 11.9 and tx[1] == 10.0)
+	# Infection (tier 3): a carrier poisons a neighbour outside the cloud
+	var inf := {}
+	for t in [2, 3]:
+		var s0 = spell("poison_cloud", t, c, true, {"duration": 20.0, "radius": 20.0})
+		var a = dummy(c + Vector2(5, 0))
+		var b = dummy(c + Vector2(5 + 38.0 * 1.0, 0) - Vector2(10, 0))
+		b.global_position = c + Vector2(40, 0)             # outside the cloud, 35 px from the carrier
+		a.global_position = c + Vector2(6, 0)
+		await wait(3.5)
+		inf[t] = snappedf(dealt(b), 0.1)
+		await clear()
+	ok("tier 3: an enemy that stood in the cloud infects a neighbour outside it, tier 2 does not (%s)" % str(inf), inf[3] > 0.0 and inf[2] == 0.0)
+	# Choking fumes (tier 4)
+	var ck := {}
+	for t in [3, 4]:
+		var e = dummy(c + Vector2(10, 0))
+		spell("poison_cloud", t, c, true, {"duration": 20.0})
+		var stunned := false
+		var el := 0.0
+		while el < 5.0:
+			await wait(0.1)
+			el += 0.1
+			stunned = stunned or (e.slow_mult == 0.0 and e.slow_time > 0.0)
+		ck[t] = stunned
+		await clear()
+	ok("tier 4 makes an enemy cough (stun), tier 3 never (%s)" % str(ck), ck[4] and !ck[3])
+	# Spore pods (tier 5)
+	var pd := {}
+	for t in [4, 5]:
+		var s0 = spell("poison_cloud", t, c, true, {"duration": 20.0})
+		await wait(0.3)
+		var pp: Vector2 = load("res://cards/spell_tiers.gd").pod_pos(s0, 0)
+		var e = dummy(pp)
+		var seen := await fx_seen(6.0, 0.4)
+		pd[t] = [seen.get("ripple", 0), snappedf(dealt(e), 0.1)]
+		await clear()
+	ok("tier 5 pods burst (ripples) and hurt what is next to them, tier 4 none (%s)" % str(pd), pd[5][0] >= 2 and pd[4][0] == 0 and pd[5][1] > pd[4][1] * 1.5)
+	# Plague (tier 6)
+	var pg := {}
+	for cp in [false, true]:
+		var s0 = spell("poison_cloud", 6, c, true, {"duration": 1.5, "copy": cp})
+		var r6: float = s0.radius
+		var e = dummy(c + Vector2(10, 0))
+		await wait(2.0)
+		var bleeding: float = e.health
+		await wait(1.0)
+		var losing: bool = e.health < bleeding
+		e.spell_damage(99999.0 - 1.0)
+		e.spell_damage(10.0)
+		await wait(0.3)
+		var small := 0
+		for nd in world.get_children():
+			if nd.get_script() != null and str(nd.get_script().resource_path).ends_with("spell.gd") and nd.data.get("copy", false) and nd.data.get("id", "") == "poison_cloud" and absf(nd.radius - r6 * 0.45) < 1.0:
+				small += 1
+		pg[cp] = [losing, small]
+		await clear()
+	ok("tier 6 plagues everything near at the end; one that dies releases a small cloud; a copy does not (%s)" % str(pg), pg[false][0] and pg[false][1] >= 1 and !pg[true][0] and pg[true][1] == 0)

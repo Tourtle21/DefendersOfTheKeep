@@ -25,6 +25,8 @@ var _seen := {}
 var _finale_done := false
 var _ray_hit := {}
 var _landed_fx := false
+var _plagued := {}
+var _plague_clouds := 0
 var _home := Vector2.ZERO   # (host only) where a roaming spell was cast
 var _cool := {}
 var drift := Vector2.ZERO   # tier 5 Blizzard: the way the front drifts (public, so a client draws the arrows)
@@ -195,6 +197,10 @@ func _physics_process(delta: float) -> void:
 					return
 			elif data.kind == "magnet":
 				SpellTiers.magnet_sweep(self, SpellTiers.tier_of(self), radius * (SpellTiers.MAGNET_REACH if SpellTiers.tier_of(self) >= 2 else 1.0))
+		queue_redraw()
+		return
+	if age >= flight + effect_time and SpellTiers.keep_alive(self):          # (a plague cloud waits for its plagued to fall)
+		SpellTiers.tick(self, delta)
 		queue_redraw()
 		return
 	match data.kind:
