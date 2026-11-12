@@ -26,3 +26,20 @@ The design (_SCALING.md 5.2) asked for a facade on `items/item.gd`. That was dro
 - Torch: the Sunburst light bonus is applied inside `torch.gd` (`150 + [0,0,20,20,20,40][tier-1]`) instead of a second `LightSource`; the light radius bonus per tier is applied by re-scaling the weapon's `GlowLight`.
 - Spear / Bow / Hammer / Whip / Scimitar / Daggers: where a design says to edit the old script, the edit is guarded by `weapon_id` (fused weapons that extend the base script keep their old behaviour unless their own module changes it).
 - Whip test: dummies in the tests do not move (physics off), so a pull is not measured as movement; the Implosion is checked by its damage and `vortex` fx instead.
+
+## Fused weapons, mid rarity (implementer 2): chainfangs, rapier, bulwark, knightblade, lance, quakepick, rimelance, sultanguard, dragoonpike, bogstaff, magmamaul, spellblade, tempest
+Shared helpers: `items/weapons/tiers/wt_kit.gd` (tether, pull/shove, execute, near_segment, nearest_n, settle). Tests: `tools/tests/weapon_tiers_fusions_a.gd` and `_b.gd` (`-- only=<id>`).
+Where a design asked for something the old scripts cannot give a module, the old script got a one-line hook (`WeaponTiers.run(self, "<hook>", ...)`) or a small guarded edit.
+- Chain Fangs: Dragnet waits for the Hunt to settle (`Kit.settle`) instead of computing the end from a target count.
+- Rapier: new hooks `fleche` and `stab` (the Rapier overrides `use_ability`, so the generic `ability` hook never runs). Final Lunge starts 1.3 s after the press.
+- Bulwark: Overpressure fires when the brace is FULL (`max_store`), so Juggernaut (8) would need 8; the finale hits at 4.0 s with the sigil telegraph from 3.6 s. A braced left click is a bash only when the module answers true (Juggernaut/Worldbreaker keep their maul).
+- Knight's Blade: Knight's Vow keeps the old circular pulse damage (everything within 56 px, 6.0) and adds the arc's reach to 70 px, so the ultimate is never weaker than before; the design's "3.0 H per arc" would have been a nerf on one target. Vanguard Dash makes the next two strikes big through `_st.big_left`.
+- Siege Lance: the vault "hop" is a scale pulse of the hand sprite plus a shadow ellipse in the aura (the hand rotates with the aim, so a vertical rise is not possible). Reverb rings come 0.4 s and 0.8 s after the crash (crash lands 0.4 s after the press).
+- Quake Pick: as designed.
+- Rimelance: Frostbite counts every tip hit (every Rimelance hit chills) and the freeze lands one frame after the thrust (the old thrust chills right after the hit and would undo it). Glacier shatters about 6.9 s after the press.
+- Sultan's Guard: the Desert Shield bash sweeps the same side as the slash, 0.5 rad off (not behind you). At most two mirages are alive per player.
+- Dragoon Pike: the Pike has its own Roar finisher (not the Lance's full-line one) and borrows `lance.gd` helpers. Dragon Descent comes after the Wyrm Chase and the return blink: sigil r 80 telegraph, then the blast and the eight lances.
+- Magma Maul: the second crater of the molten double slam is a `slow` patch, not a new burn patch (burn patches hurt players). Kill heat counts only hits that kill (not poison/bleed ticks).
+- Spellblade: the Spellblade's own blades are drawn by its WeaponAura from `aura.data` ({ph, n, r, sp, sph, av}); the old `_draw` still draws the storm blades for Starfall (it extends the same script) until Starfall's module uses `Spellblade.draw_blades(a, c)`.
+- Tempest: the Thunderhead strikes a random enemy (and charges it) when nothing is charged, because the opening Storm clap spends every charge; Stormlord's mega-clap is 3.0 per charge (twice the normal clap), absolute damage like the old clap.
+- Bog Staff: `WeaponUtil.rot_mult` is applied in `WeaponUtil.bleed` for element poison (the Witch Staff can reuse `rot_add`, `rot_stacks`, `rot_burst` of tiers/bogstaff.gd). Beasts rise from kills by a direct hit (not from poison-tick kills). With Miasma the stacks cycle through bursts, so the count on one enemy rarely stays at 5.
