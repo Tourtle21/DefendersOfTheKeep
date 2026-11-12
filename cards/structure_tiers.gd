@@ -212,6 +212,8 @@ static func tick(st, delta: float) -> void:
 			tick_torch(st, delta)
 		"sentry":
 			tick_sentry(st, delta)
+		"mender":
+			tick_mender(st, delta)
 		_:
 			pass
 
@@ -288,6 +290,8 @@ static func on_last_use(st) -> void:
 ## Mender: a multiplier on the continuous heal for one player.
 static func heal_mult(st, p) -> float:
 	match id_of(st):
+		"mender":
+			return heal_mult_mender(st, p)
 		_:
 			return 1.0
 
@@ -644,3 +648,98 @@ static func tick_sentry(st, delta: float) -> void:
 				var to: Vector2 = pick.global_position - st.global_position
 				WeaponFx.spawn(w, "line", st.global_position + Vector2(0, -5), Color(1.0, 0.35, 0.3), {"dir": to.normalized(), "length": to.length(), "width": 1.0, "life": 0.4})
 				Sfx.play("cast")
+
+# ---------------------------------------------------------------- Mender Totem
+const MENDER_BLESS_T := 6.0
+const MENDER_MEND := 0.5
+const MENDER_LIFELINE := 2.0
+const MENDER_LIFELINE_AT := 0.4
+const MENDER_LINK := 1.5
+const MENDER_ANGEL_AT := 0.15
+const MENDER_ANGEL_TO := 0.6
+const MENDER_ANGEL_CD := 30.0
+const SPIRIT := Color(0.4, 1.0, 0.5)
+
+static func heal_mult_mender(st, p) -> float:
+	if st.tier >= 4 and hp_frac(p) < MENDER_LIFELINE_AT:         # 4 Lifeline: the badly hurt are healed twice as fast
+		return MENDER_LIFELINE
+	return 1.0
+
+## Guards and other buildings in the field that are hurt (what shared mending tends).
+static func hurt_allies(st, r: float) -> Array:
+	var out := []
+	for g in st.get_tree().get_nodes_in_group("guard"):
+		if is_instance_valid(g) and !g.get("downed") and g.global_position.distance_to(st.global_position) <= r and g.hp < g.max_hp:
+			out.append(g)
+	for o in st.get_tree().get_nodes_in_group("structure"):
+		if o != st and is_instance_valid(o) and !o.is_queued_for_deletion() and o.global_position.distance_to(st.global_position) <= r and o.hp < o.max_hp:
+			out.append(o)
+	return out
+
+static func tick_mender(st, delta: float) -> void:
+	var t: int = st.tier
+	if t < 2:
+		return
+	var w := world_of(st)
+	var pos: Vector2 = st.global_position
+	var heal: float = st.data.heal_per_sec
+	var reach: float = st.radius * (MENDER_LINK if t >= 5 else 1.0)
+	var hurt := []                                                 # players in reach that need healing
+	for p in st.get_tree().get_nodes_in_group("player"):
+		if is_instance_valid(p) and p.global_position.distance_to(pos) <= reach and p.needs_health():
+			hurt.append(p)
+	var shown := []
+	for p in hurt:
+		if shown.size() < 4:
+			shown.append(p.global_position)
+	st.healed_pos = shown if t >= 5 else ([] if hurt.is_empty() else [pos])      # (tier 5 draws a beam to each)
+	# 2 Blessing pulse: an instant heal every six seconds (it does not use the healing budget)
+	var inside := hurt.filter(func(p): return p.global_position.distance_to(pos) <= st.radius)
+	if ready(st, "bless", MENDER_BLESS_T, delta) and !inside.is_empty():
+		reset(st, "bless")
+		for p in inside:
+			p.heal(heal)
+		WeaponFx.spawn(w, "ring", pos, SPIRIT, {"radius": st.radius, "life": 0.4})
+		WeaponFx.spawn(w, "motes", pos, SPIRIT, {"radius": st.radius, "count": 8, "rise": 22.0, "life": 0.7})
+		Sfx.play("cast")
+		st.fx_pulse = 0.0
+	# 3 Shared mending: guards and buildings in the field mend at half the rate (no budget)
+	if t >= 3:
+		mend(st, st.radius, heal * MENDER_MEND, delta)
+		if pace(st, "mendfx", 1.5, delta):
+			for o in hurt_allies(st, st.radius):
+				WeaponFx.spawn(w, "motes", o.global_position, SPIRIT, {"radius": 6.0, "count": 2, "rise": 10.0, "life": 0.5})
+	# 4 Lifeline: confusion is cleansed at once
+	if t >= 4:
+		for p in st.get_tree().get_nodes_in_group("player"):
+			if is_instance_valid(p) and p.global_position.distance_to(pos) <= st.radius and p.get("confused_time") != null and p.confused_time > 0.0:
+				p.confused_time = 0.0
+				p.modulate = Color.WHITE
+				WeaponFx.spawn(w, "star", p.global_position, Color(0.8, 1.0, 0.85), {"radius": 14.0, "count": 6, "spin": 1.0, "life": 0.4})
+				Sfx.play("unlock")
+	# 5 Spirit link: players just beyond the field are healed at half rate (and use half the budget)
+	if t >= 5:
+		var beam := pace(st, "beam", 0.25, delta)
+		for p in hurt:
+			var d: float = p.global_position.distance_to(pos)
+			if d > st.radius:
+				p.heal(heal * 0.5 * delta)
+				st._healed += heal * 0.5 * delta * budget_mult(st)
+				if beam:
+					WeaponFx.spawn(w, "line", pos + Vector2(0, -8), SPIRIT, {"dir": (p.global_position - pos).normalized(), "length": d, "width": 1.5, "life": 0.15})
+	# 6 Guardian angel: a player about to fall is saved (once per 30 s each)
+	if t >= 6:
+		var now: float = st._age
+		for p in hurt:
+			var f := hp_frac(p)
+			var key: int = p.get_instance_id()
+			if f < MENDER_ANGEL_AT and now - float(st._saved.get(key, -999.0)) >= MENDER_ANGEL_CD:
+				st._saved[key] = now
+				p.heal((MENDER_ANGEL_TO - f) * 228.0 * Game.hp_scale())
+				p.shield_time = maxf(p.shield_time, 2.0)
+				var pp: Vector2 = p.global_position
+				WeaponFx.spawn(w, "pillar", pp, WALL_GOLD, {"height": 70.0, "width": 28.0, "life": 0.6})
+				WeaponFx.spawn(w, "flash", pp, Color(1.0, 0.95, 0.7), {"radius": 40.0, "life": 0.4})
+				WeaponFx.spawn(w, "star", pp, WALL_GOLD, {"radius": 36.0, "count": 8, "spin": 1.5, "life": 0.6})
+				Sfx.play("ultimate")
+				st.fx_pulse = 0.0

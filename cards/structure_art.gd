@@ -25,6 +25,9 @@ static func draw(st, col: Color) -> bool:
 		"sentry":
 			draw_sentry(st, col)
 			return true
+		"mender":
+			draw_mender(st, col)
+			return true
 		_:
 			return false
 
@@ -420,3 +423,105 @@ static func draw_sentry(st, col: Color) -> void:
 		if dist > 14.0:
 			for i in int(dist / 8.0):
 				st.draw_circle(mp.normalized() * (8.0 + i * 8.0) + Vector2(0, -5), 0.7, Color(1.0, 0.4, 0.3, 0.45))
+
+# ---------------------------------------------------------------- Mender Totem
+const TOTEM_WOOD := Color(0.6, 0.42, 0.25)
+const TOTEM_DARK := Color(0.35, 0.22, 0.12)
+const BONE := Color(0.92, 0.9, 0.78)
+const LEAF := Color(0.45, 0.8, 0.35)
+
+static func feather(st, base: Vector2, dir: Vector2, len: float, w: float, fill: Color) -> void:
+	var n := dir.orthogonal()
+	st.draw_colored_polygon(PackedVector2Array([base + n * w, base + dir * len, base - n * w]), fill)
+
+static func draw_mender(st, col: Color) -> void:
+	var r: float = st.radius
+	var t: int = st.tier
+	var age: float = st._age
+	var pulse := 0.5 + 0.5 * sin(age * 3.0)
+	var glow: bool = !st.healed_pos.is_empty() or st.fx_pulse < 0.5
+	st.draw_circle(Vector2.ZERO, r, Color(col, 0.07 + 0.05 * pulse))
+	st.draw_arc(Vector2.ZERO, r, 0, TAU, 40, Color(col, 0.35), 1.0)
+	if t >= 6:
+		st.draw_circle(Vector2.ZERO, r, Color(1.0, 0.85, 0.4, 0.06))
+	if t >= 5:                                                    # the link reaches further
+		dashed_ring(st, r * StructureTiers.MENDER_LINK, Color(col, 0.18), 36, age * 0.2)
+		for hp in st.healed_pos:
+			var d: Vector2 = hp - st.global_position
+			st.draw_line(Vector2(0, -8), d, Color(col, 0.35), 1.5)
+	if t >= 4:                                                    # a ring of runes turns in the field
+		for i in 8:
+			var a := age * 0.5 + i * TAU / 8.0
+			var rp := Vector2.from_angle(a) * r * 0.7
+			st.draw_line(rp - Vector2.from_angle(a).orthogonal() * 1.5, rp + Vector2.from_angle(a).orthogonal() * 1.5, Color(col, 0.7), 1.5)
+			st.draw_circle(rp, 0.9, Color(col, 0.9))
+	var top := -9.0 - (6.0 if t >= 6 else 0.0)
+	var hy := -11.0 - (6.0 if t >= 6 else 0.0)
+	if t >= 4:                                                    # wooden wings
+		for sx in [-1.0, 1.0]:
+			var wing := PackedVector2Array([Vector2(sx * 3, hy), Vector2(sx * 9, hy - 7), Vector2(sx * 15, hy - 5), Vector2(sx * 13, hy + 1), Vector2(sx * 9, hy + 2), Vector2(sx * 4, hy + 3)]) if t < 6 else PackedVector2Array([Vector2(sx * 3, hy), Vector2(sx * 10, hy - 13 + 2.0 * sin(age * 1.5)), Vector2(sx * 20, hy - 10 + 3.0 * sin(age * 1.5)), Vector2(sx * 22, hy + 2), Vector2(sx * 14, hy + 5), Vector2(sx * 5, hy + 3)])
+			st.draw_colored_polygon(wing, BONE if t < 6 else Color(1.0, 0.97, 0.8, 0.55))
+			st.draw_polyline(PackedVector2Array([wing[1], wing[2], wing[3]]), col if t < 6 else Color(1.0, 0.85, 0.4, 0.9), 1.5)
+	# the pole
+	st.draw_rect(Rect2(-3, top, 6, 7.0 - top), Color.BLACK)
+	st.draw_rect(Rect2(-2, top + 1.0, 4, 5.0 - top), TOTEM_WOOD)
+	if t >= 2:                                                    # painted bands
+		for y in [top + 5.0, top + 10.0]:
+			st.draw_rect(Rect2(-2, y, 4, 1.5), col)
+	if t >= 6:
+		for y in [top + 8.0]:
+			st.draw_line(Vector2(-2, y), Vector2(2, y), Color(1.0, 0.85, 0.4), 1.0)
+	if t >= 3:                                                    # vines wind round the pole
+		var vp := PackedVector2Array()
+		for i in 9:
+			var y2 := top + 1.0 + i * (5.0 - top) / 8.0
+			vp.append(Vector2(2.6 * sin(i * 1.2 + age * 0.4), y2))
+		st.draw_polyline(vp, LEAF, 1.2)
+		for i in 4:
+			var lp: Vector2 = vp[1 + i * 2]
+			st.draw_circle(lp + Vector2(1.8 if i % 2 == 0 else -1.8, 0), 1.2, LEAF.lightened(0.2))
+	if t >= 4:                                                    # hanging charms
+		for i in 3:
+			var cx := -2.0 + i * 2.0
+			var sw := sin(age * 2.0 + i) * 1.5
+			st.draw_line(Vector2(cx, top + 8.0), Vector2(cx + sw, top + 13.0), Color.BLACK, 1.0)
+			st.draw_circle(Vector2(cx + sw, top + 13.5), 1.1, BONE if i != 1 else col)
+	# the head
+	st.draw_circle(Vector2(0, hy), 5.0, Color.BLACK)
+	st.draw_circle(Vector2(0, hy), 4.0, col if t < 2 else TOTEM_WOOD.lightened(0.15))
+	if t >= 2:                                                    # a carved face with glowing eyes
+		var eye := Color(col.lightened(0.4), 1.0) if glow else Color(0.1, 0.07, 0.04)
+		var bright := 1.3 if t >= 3 else 1.0
+		st.draw_rect(Rect2(-3, hy - 1.5, 2, 1.2 * bright), eye)
+		st.draw_rect(Rect2(1, hy - 1.5, 2, 1.2 * bright), eye)
+		st.draw_line(Vector2(-1.5, hy + 1.8), Vector2(1.5, hy + 1.8), Color(0.1, 0.07, 0.04), 1.0)
+		var crest := Color(0.5, 0.85, 0.4) if t < 5 else Color(1.0, 0.9, 0.4)       # the feather crest
+		for i in 3:
+			feather(st, Vector2((i - 1) * 2.5, hy - 3.5), Vector2((i - 1) * 0.4, -1.0).normalized(), 5.0 + (2.0 if i == 1 else 0.0), 1.2, BONE if i != 1 else crest)
+	if t >= 3:                                                    # a second, smaller head stacked on the first
+		var h2 := hy - 8.0 - (2.0 if t >= 2 else 0.0)
+		st.draw_circle(Vector2(0, h2), 3.6, Color.BLACK)
+		st.draw_circle(Vector2(0, h2), 2.8, TOTEM_WOOD.lightened(0.25))
+		st.draw_rect(Rect2(-1.8, h2 - 0.8, 1.4, 1.0), Color(col.lightened(0.4)) if glow else Color(0.1, 0.07, 0.04))
+		st.draw_rect(Rect2(0.4, h2 - 0.8, 1.4, 1.0), Color(col.lightened(0.4)) if glow else Color(0.1, 0.07, 0.04))
+	if t >= 5:                                                    # three wisps circle it
+		for i in 3:
+			var a2 := age * 1.6 + i * TAU / 3.0
+			var wp := Vector2.from_angle(a2) * r * 0.55
+			st.draw_circle(wp, 5.0, Color(0.8, 1.0, 0.85, 0.18))
+			for k in 4:
+				var tp := Vector2.from_angle(a2 - (k + 1) * 0.18) * r * 0.55
+				st.draw_circle(tp, 2.2 - k * 0.4, Color(0.8, 1.0, 0.85, 0.5 - k * 0.1))
+			st.draw_circle(wp, 3.0, Color(0.9, 1.0, 0.92))
+	if t >= 6:                                                    # a gold halo and a crown of leaves
+		var hc := Vector2(0, hy - 13.0)
+		dashed_ring_at(st, hc, 8.0, Color(1.0, 0.85, 0.4, 0.9), 10, age * 0.8)
+		st.draw_arc(hc, 8.0, 0, TAU, 20, Color(1.0, 0.85, 0.4, 0.4), 1.0)
+		for i in 5:
+			var ax := (i - 2) * 2.2
+			st.draw_colored_polygon(PackedVector2Array([Vector2(ax - 1.0, hy - 5.0), Vector2(ax, hy - 9.5 + abs(i - 2) * 1.5), Vector2(ax + 1.0, hy - 5.0)]), Color(1.0, 0.85, 0.4))
+
+static func dashed_ring_at(st, c: Vector2, r: float, col: Color, n: int, spin := 0.0) -> void:
+	for i in n:
+		var a := spin + i * TAU / float(n)
+		st.draw_arc(c, r, a, a + TAU / float(n) * 0.55, 4, col, 1.5)

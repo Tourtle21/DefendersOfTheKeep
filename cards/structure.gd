@@ -54,6 +54,8 @@ var _mark_id := 0           # sentry tier 6: the enemy it has marked
 var mark_pos := Vector2.ZERO  # ... where it is (public, so a client draws the mark)
 var mark_on := false
 var alert := false          # sentry tier 5: a visible enemy is weak enough to be executed (the eye glows)
+var healed_pos: Array = []   # mender: where the players it is healing stand (at most four; public, so a client draws the beams)
+var _saved := {}            # mender tier 6: players it has saved from the brink, and when
 
 func setup(card: Dictionary, pos: Vector2) -> void:
 	data = card
