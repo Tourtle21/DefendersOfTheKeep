@@ -40,12 +40,47 @@ func _ready() -> void:
 			attack_name = "Mine"
 			dash_cooldown = 5.0
 	super()
+	_setup_tier_sprite()
 	var animation_player = $AnimationPlayer
 	if animation_player and !animation_player.is_connected("animation_finished", _on_animation_player_animation_finished):
 		animation_player.connect("animation_finished", _on_animation_player_animation_finished)
 
 func _attach_visual() -> void:
-	pass                                   # the scene is the picture
+	pass                                   # the scene is the picture (its sheet frames: swing arcs and all)
+
+## From tier 2 the tool in the hand is that tier's own picture (WeaponArt), shown while the tool is idle. The swing keeps playing the scene's
+## sheet frames (slash arcs), so the tier picture is shown only on the idle frame 0 and the sheet takes over for the animation.
+var _sheet: Sprite2D
+var _tier_sprite: Sprite2D
+
+func _setup_tier_sprite() -> void:
+	_sheet = get_node_or_null("Sprite2D2") as Sprite2D
+	if _sheet == null:
+		_sheet = get_node_or_null("Sprite2D") as Sprite2D
+	if _sheet == null or tier < 2:
+		return
+	_tier_sprite = Sprite2D.new()
+	_tier_sprite.name = "TierSprite"
+	_tier_sprite.texture = WeaponArt.icon(weapon_id, tier, str(Game.weapon_info(weapon_id).texture))
+	_tier_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_tier_sprite.flip_h = _sheet.flip_h
+	_tier_sprite.scale = _sheet.scale
+	_tier_sprite.z_index = _sheet.z_index
+	add_child(_tier_sprite)
+	move_child(_tier_sprite, _sheet.get_index() + 1)
+	_sync_tier_sprite()
+
+func _sync_tier_sprite() -> void:
+	if _tier_sprite == null or _sheet == null:
+		return
+	var idle := _sheet.frame == 0
+	_tier_sprite.visible = idle
+	_tier_sprite.position = _sheet.position
+	_sheet.self_modulate.a = 0.0 if idle else 1.0
+
+func _process(delta: float) -> void:
+	super(delta)
+	_sync_tier_sprite()
 
 ## The tool stays in the hand where the animation puts it; only the aim follows the cursor.
 func _follow() -> void:

@@ -73,6 +73,8 @@ func _diff(a: Image, b: Image) -> int:
 	var n := 0
 	for y in mini(a.get_height(), b.get_height()):
 		for x in mini(a.get_width(), b.get_width()):
-			if !a.get_pixel(x, y).is_equal_approx(b.get_pixel(x, y)):
+			var ca := a.get_pixel(x, y)
+			var cb := b.get_pixel(x, y)
+			if !(ca.is_equal_approx(cb) or (ca.a < 0.01 and cb.a < 0.01)):
 				n += 1
 	return n

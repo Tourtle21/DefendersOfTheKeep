@@ -20,6 +20,8 @@ const WHITE := Color(1, 1, 1)
 
 var img: Image
 var size := 32
+var skip_outline := false      # set when the picture already carries its own outline (a blitted icon)
+var outline_color := Color.BLACK
 
 func _init(s := 32) -> void:
 	size = s
@@ -124,3 +126,11 @@ func outline(c := Color.BLACK) -> void:
 					out.set_pixel(x, y, c)
 					break
 	img.copy_from(out)
+
+## Copies a region of a texture (a 32x32 cell of a sprite sheet, say) onto the canvas at 0,0 (tier 1 of the sword and pickaxe is their sheet's frame).
+func blit_texture(path: String, region: Rect2i) -> void:
+	var tex: Texture2D = load(path)
+	var src: Image = tex.get_image()
+	src.convert(Image.FORMAT_RGBA8)
+	img.blit_rect(src, region, Vector2i.ZERO)
+	skip_outline = true

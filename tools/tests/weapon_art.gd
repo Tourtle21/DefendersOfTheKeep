@@ -56,9 +56,9 @@ func _initialize() -> void:
 		for a in range(t0, 6):
 			for b in range(a + 1, 6):
 				ok("%s tiers %d and %d differ" % [id, a + 1, b + 1], diff(imgs[a], imgs[b]) > 0)
-		var n1 := opaque_count(imgs[t0])
+		var n1 := opaque_count(imgs[0])
 		var n6 := opaque_count(imgs[5])
-		ok("%s tier 6 is richer than tier 1 (%d vs %d pixels)" % [id, n6, n1], n6 > n1 + 20)
+		ok("%s tier 6 is far from tier 1 (%d px differ, %d vs %d filled)" % [id, diff(imgs[5], imgs[0]), n6, n1], diff(imgs[5], imgs[0]) > 150)
 		var icon := "res://items/weapons/icons/%s.png" % id
 		if FileAccess.file_exists(icon):
 			var base := Image.load_from_file(ProjectSettings.globalize_path(icon))

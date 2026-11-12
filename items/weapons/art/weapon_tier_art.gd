@@ -14,17 +14,17 @@ extends RefCounted
 ##
 ## Pure drawing, no autoload is touched: this runs in a --script test and in tools/make_weapon_tier_art.gd (the contact sheet).
 const Paint = preload("res://items/weapons/art/weapon_paint.gd")
-const GROUPS := [
-	preload("res://items/weapons/art/base_art.gd"),
-	preload("res://items/weapons/art/fused_art.gd"),
-]
+## Loaded at run time (not preloaded) so a half-written group file never stops the others from compiling.
+const GROUPS := ["res://items/weapons/art/base_art.gd", "res://items/weapons/art/fused_art.gd"]
 
 static var _insts: Array = []
 
 static func _group_of(id: String) -> Object:
 	if _insts.is_empty():
 		for g in GROUPS:
-			_insts.append(g.new())
+			var sc = load(g)
+			if sc != null and sc.can_instantiate():
+				_insts.append(sc.new())
 	for o in _insts:
 		if o.has_method("draw_" + id):
 			return o
@@ -46,5 +46,6 @@ static func image(id: String, tier: int) -> Image:
 		return null
 	var p := Paint.new(canvas(id))
 	g.call("draw_" + id, p, clampi(tier, 1, 6))
-	p.outline()
+	if !p.skip_outline:
+		p.outline(p.outline_color)
 	return p.img
