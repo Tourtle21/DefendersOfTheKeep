@@ -19,6 +19,9 @@ static func draw(st, col: Color) -> bool:
 		"spike_trap":
 			draw_spike_trap(st, col)
 			return true
+		"torch":
+			draw_torch(st, col)
+			return true
 		_:
 			return false
 
@@ -219,3 +222,96 @@ static func draw_spike_trap(st, col: Color) -> void:
 		var pr := 4.2 if hit else 5.0
 		st.draw_circle(Vector2.ZERO, pr + 0.7, col.lightened(0.3))
 		st.draw_circle(Vector2.ZERO, pr, DARK_IRON)
+
+# ---------------------------------------------------------------- Torch
+const TORCH_WOOD := Color(0.55, 0.38, 0.2)
+const TORCH_IRON := Color(0.3, 0.3, 0.34)
+const EMBER := Color(1.0, 0.45, 0.1)
+
+## One three-layer flame (the old torch flame, scaled) at `p`.
+static func torch_flame(st, p: Vector2, k: float, flick: float, tint := 0.0) -> void:
+	st.draw_circle(p, 5.0 * flick * k, Color(1.0, 0.45, 0.1, 0.9).lerp(Color(1.0, 0.8, 0.4, 0.9), tint))
+	st.draw_circle(p + Vector2(0, -1.0 * k), 3.2 * flick * k, Color(1.0, 0.8, 0.3).lerp(Color(1.0, 0.95, 0.6), tint))
+	st.draw_circle(p + Vector2(0, -1.5 * k), 1.6 * flick * k, Color(1.0, 0.98, 0.8))
+
+static func draw_torch(st, _col: Color) -> void:
+	var t: int = st.tier
+	var age: float = st._age
+	var flick := 0.8 + 0.2 * sin(age * 11.0) + 0.1 * sin(age * 17.0)
+	var lr: float = st.light_radius
+	var k := 1.0 if t == 1 else 1.3
+	if t >= 6:
+		k *= 1.0 + 0.25 * clampf((st.charge - 0.875) * 8.0, 0.0, 1.0)
+	var top := -2.0 - (6.0 if t >= 3 else 0.0)                  # the pole top (negative is up)
+	var fp := Vector2(0, -5.0 - (6.0 if t >= 3 else 0.0) - (1.0 if t >= 2 else 0.0))
+	if t >= 4:                                                    # a warm glow on the ground and a ring of stones
+		st.draw_circle(Vector2(0, 4), lr * 0.5, Color(1.0, 0.5, 0.1, 0.08))
+		for i in 6:
+			var a := i * TAU / 6.0
+			var sp := Vector2(cos(a) * 10.0, 4.0 + sin(a) * 4.5)
+			st.draw_rect(Rect2(sp.x - 2.5, sp.y - 1.5, 5, 3), Color.BLACK)
+			st.draw_rect(Rect2(sp.x - 2.0, sp.y - 1.0, 4, 2), Color(0.55, 0.55, 0.58))
+	if t >= 6:                                                    # a gold sun-disc behind the flame
+		var c := fp + Vector2(0, -1.0)
+		st.draw_circle(c, 9.0, Color(1.0, 0.85, 0.4, 0.3))
+		for i in 12:
+			var a2 := age * 0.4 + i * TAU / 12.0
+			var d := Vector2.from_angle(a2)
+			st.draw_colored_polygon(PackedVector2Array([c + d * 9.0 + d.orthogonal() * 2.0, c + d * 18.0, c + d * 9.0 - d.orthogonal() * 2.0]), Color(1.0, 0.85, 0.4, 0.6))
+		st.draw_arc(c, 20.0 + 1.5 * sin(age * 3.0), 0, TAU, 28, Color(1.0, 0.9, 0.5, 0.5), 1.0)
+	# pole
+	st.draw_rect(Rect2(-1.5, top, 3, 11.0 - top - 2.0 + 0.0), Color.BLACK)
+	st.draw_rect(Rect2(-0.5, top + 1.0, 1, 9.0 - top - 2.0), TORCH_WOOD)
+	if t >= 6:
+		for y in [top + 4.0, top + 8.0]:
+			st.draw_rect(Rect2(-1.0, y, 2, 1.2), Color(1.0, 0.85, 0.4))
+	if t >= 3:                                                    # a side arm with a small flame (and from tier 4 a lantern)
+		st.draw_line(Vector2(0, top + 4.0), Vector2(7, top + 1.0), Color.BLACK, 2.0)
+		st.draw_line(Vector2(0, top + 4.0), Vector2(7, top + 1.0), TORCH_WOOD, 1.0)
+		torch_flame(st, Vector2(7, top - 2.0), 0.45, 0.9 + 0.1 * sin(age * 13.0 + 1.0))
+		if t >= 4:
+			st.draw_line(Vector2(-6, top + 1.0), Vector2(0, top + 4.0), TORCH_WOOD, 1.0)
+			st.draw_rect(Rect2(-8, top + 1.0, 4, 5), Color.BLACK)
+			st.draw_rect(Rect2(-7.3, top + 1.8, 2.6, 3.4), Color(1.0, 0.85, 0.4, 0.8 + 0.2 * sin(age * 9.0)))
+	if t >= 2:                                                    # the iron bowl, heaped with embers
+		var by := 6.0
+		var bowl := PackedVector2Array([Vector2(-6, by), Vector2(6, by), Vector2(4, by + 5), Vector2(-4, by + 5)])
+		st.draw_colored_polygon(bowl, TORCH_IRON)
+		st.draw_polyline(PackedVector2Array([bowl[0], bowl[1], bowl[2], bowl[3], bowl[0]]), Color.BLACK, 1.0)
+		st.draw_line(Vector2(-6, by), Vector2(6, by), TORCH_IRON.lightened(0.4), 1.5)
+		for i in 3:
+			st.draw_circle(Vector2(-3 + i * 3.0, by - 0.5), 1.0, EMBER)
+		if t >= 3:
+			st.draw_polyline(PackedVector2Array([Vector2(-2, by + 1), Vector2(0, by + 3), Vector2(2, by + 2)]), Color(1.0, 0.6, 0.2, 0.8), 1.0)
+		if t >= 5:                                                # a second bowl below
+			st.draw_colored_polygon(PackedVector2Array([Vector2(-5, by + 5), Vector2(5, by + 5), Vector2(3, by + 9), Vector2(-3, by + 9)]), TORCH_IRON.darkened(0.2))
+			st.draw_line(Vector2(-5, by + 5), Vector2(5, by + 5), TORCH_IRON.lightened(0.3), 1.0)
+		if t >= 6:
+			st.draw_line(Vector2(-6, by - 0.5), Vector2(6, by - 0.5), Color(1.0, 0.85, 0.4), 1.5)
+	torch_flame(st, fp, k, flick, 0.5 if t >= 6 else 0.0)
+	if t >= 2:                                                    # sparks (and from tier 3 ember flecks) rise from the flame
+		var n := 3 if t == 2 else 6
+		for i in n:
+			var ph := fposmod(age * (0.7 + 0.3 * SpellArt.jit(i, 4.0)) + SpellArt.jit(i), 1.0)
+			var out := (SpellArt.jit(i, 5.0) - 0.5) * (7.0 if t == 2 else 16.0) * ph
+			st.draw_circle(fp + Vector2(out, -5.0 - ph * (14.0 if t == 2 else 18.0)), 0.9, Color(1.0, 0.7, 0.3, 1.0 - ph))
+	if t >= 4:                                                    # a heat shimmer over the flame
+		for j in 2:
+			var pts := PackedVector2Array()
+			for i in 6:
+				pts.append(fp + Vector2(-3.0 + j * 6.0 + 1.2 * sin(age * 4.0 + i + j * 2.0), -9.0 - i * 1.6))
+			st.draw_polyline(pts, Color(1.0, 0.8, 0.5, 0.25), 1.0)
+	if t >= 5:                                                    # three fire orbs circle it
+		st.draw_arc(Vector2.ZERO, lr * 0.45, 0, TAU, 40, Color(1.0, 0.6, 0.2, 0.12), 1.0)
+		for i in 3:
+			var a3: float = age * StructureTiers.TORCH_ORB_SPEED + i * TAU / 3.0
+			var op := Vector2.from_angle(a3) * lr * 0.45
+			for k2 in 3:
+				var tp := op - Vector2.from_angle(a3).orthogonal() * (k2 + 1) * 3.0
+				st.draw_circle(tp, 2.4 - k2 * 0.6, Color(1.0, 0.6, 0.2, 0.5 - k2 * 0.14))
+			torch_flame(st, op, 0.8, 0.85 + 0.15 * sin(age * 12.0 + i))
+	if Game.is_dark():
+		st.draw_arc(Vector2.ZERO, lr, 0, TAU, 40, Color(1.0, 0.8, 0.4, 0.15), 1.0)
+	if st.fx_pulse < 0.3:
+		st.draw_arc(Vector2.ZERO, TORCH_ARC_R, 0, TAU, 24, Color(1.0, 0.7, 0.3, 0.8 * (1.0 - st.fx_pulse / 0.3)), 1.5)
+const TORCH_ARC_R := 20.0

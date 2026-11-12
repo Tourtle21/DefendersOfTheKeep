@@ -206,7 +206,7 @@ func _ready() -> void:
 	if light_radius > 0.0 or float(data.get("light", 0.0)) > 0.0:
 		light_radius = maxf(light_radius, float(data.get("light", 0.0)))
 		add_to_group("light")
-		_glow = GlowLight.attach(self, light_radius, _color().lerp(Color(1.0, 0.85, 0.5), 0.5), 0.6)
+		_glow = GlowLight.attach(self, light_radius, StructureTiers.glow_color(self, _color().lerp(Color(1.0, 0.85, 0.5), 0.5)), 0.6)
 	if kind == "barricade":
 		add_to_group("nav_obstacle")
 		Game.nav_changed.emit()

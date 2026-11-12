@@ -190,6 +190,12 @@ static func hp_frac(p) -> float:
 		return 1.0
 	return bar.size.x / 228.0
 
+## The colour of the light a building casts (a Sun Crown torch burns white-gold).
+static func glow_color(st, base: Color) -> Color:
+	if id_of(st) == "torch" and st.tier >= 6:
+		return Color(1.0, 0.95, 0.7)
+	return base
+
 # ---------------------------------------------------------------- the hooks Structure calls
 # Each dispatches on the card id and returns the neutral value for an id without a function.
 
@@ -202,6 +208,8 @@ static func tick(st, delta: float) -> void:
 			tick_barricade(st, delta)
 		"spike_trap":
 			tick_spike_trap(st, delta)
+		"torch":
+			tick_torch(st, delta)
 		_:
 			pass
 
@@ -292,6 +300,8 @@ static func on_promote(st, new_tier: int) -> void:
 			C.on_promote(st, new_tier)
 		"barricade":
 			on_promote_barricade(st, new_tier)
+		"torch":
+			on_promote_torch(st, new_tier)
 		_:
 			pass
 
@@ -449,3 +459,84 @@ static func on_last_use_spike_trap(st) -> void:
 	Sfx.play("ultimate")
 	pulse(st, r, st.data.damage * SPIKE_GASP_MULT, 260.0, 1.0, Color(1.0, 0.85, 0.4), "pierce")
 	slow_patch(st, r, 6.0, 0.4)
+
+# ---------------------------------------------------------------- Torch
+const TORCH_DMG := [0.0, 2.0, 3.0, 5.0, 8.0, 12.0]
+const TORCH_FLAME_R := 26.0
+const TORCH_FLAME_T := 3.0
+const TORCH_EMBER_T := 2.0
+const TORCH_SUN_T := 8.0
+const TORCH_HEARTH := 1.5
+const TORCH_ORB_SPEED := 1.4
+const FLAME := Color(1.0, 0.45, 0.1)
+const FLAME_MID := Color(1.0, 0.8, 0.3)
+
+## Where orb `i` of a tier 5 torch is now (the drawing uses the same function).
+static func orb_pos(st, i: int) -> Vector2:
+	return st.global_position + Vector2.from_angle(st._age * TORCH_ORB_SPEED + i * TAU / 3.0) * st.light_radius * 0.45
+
+static func tick_torch(st, delta: float) -> void:
+	var t: int = st.tier
+	st.lit = true
+	if t < 2:
+		return
+	var dmg: float = TORCH_DMG[t - 1]
+	var w := world_of(st)
+	var pos: Vector2 = st.global_position
+	# 2 Flame guard: it flares at an enemy that comes close
+	if !st._timers.has("flame"):
+		st._timers["flame"] = TORCH_FLAME_T                          # (ready from the start)
+	if ready(st, "flame", TORCH_FLAME_T, delta) and !enemies(st, TORCH_FLAME_R).is_empty():
+		reset(st, "flame")
+		pulse(st, TORCH_FLAME_R, dmg, 140.0, 0.0, FLAME, "fire")
+		WeaponFx.spawn(w, "burst", pos, FLAME_MID, {"radius": 16.0, "life": 0.25})
+		sfx(st, "hit", 0.3)
+	# 3 Ember flick: a burning ember at the nearest enemy in its light
+	if t >= 3 and ready(st, "ember", TORCH_EMBER_T, delta):
+		var target = nearest(st, st.light_radius)
+		if target != null:
+			reset(st, "ember")
+			var dir: Vector2 = target.global_position - pos
+			WeaponProjectile.shoot(w, pos + Vector2(0, -6), dir, 200.0, dmg * 0.8, FLAME_MID, 0.7, 0, 40.0)
+			sfx(st, "whoosh", 0.3)
+			var at: Vector2 = target.global_position
+			st.get_tree().create_timer(minf(0.6, dir.length() / 200.0)).timeout.connect(func():
+				if is_instance_valid(st):
+					WeaponFx.spawn(st.get_parent(), "burst", at, FLAME, {"radius": 8.0, "life": 0.2}))
+	# 4 Hearth: players inside the light recover
+	if t >= 4:
+		var warmed := []
+		for p in st.get_tree().get_nodes_in_group("player"):
+			if is_instance_valid(p) and p.global_position.distance_to(pos) <= st.light_radius and p.needs_health():
+				p.heal(TORCH_HEARTH * delta)
+				warmed.append(p)
+		if pace(st, "hearth", 2.0, delta):
+			for p in warmed:
+				WeaponFx.spawn(w, "motes", p.global_position, FLAME_MID, {"radius": 10.0, "count": 4, "rise": 14.0, "life": 0.7})
+	# 5 Fire orbs: three flames circle the torch and burn what they touch
+	if t >= 5 and pace(st, "orb", 0.5, delta):
+		for i in 3:
+			var op := orb_pos(st, i)
+			var hit := false
+			for e in enemies_at(st, op, 12.0):
+				e.spell_damage(dmg * 0.6, "fire", true)
+				hit = true
+			if hit:
+				WeaponFx.spawn(w, "burst", op, FLAME, {"radius": 8.0, "life": 0.2})
+	# 6 Sunburst: every 8 s a flare of sunlight hurts, shoves and lights up everything in the light
+	if t >= 6:
+		if pace(st, "sun", TORCH_SUN_T, delta):
+			var r: float = st.light_radius
+			var in_light := enemies(st, r)
+			pulse(st, r, dmg * 3.0, 220.0, 0.4, WALL_GOLD, "fire")
+			for e in in_light:
+				Game.light_up(e, 6.0)
+			WeaponFx.spawn(w, "flash", pos, Color(1.0, 0.95, 0.7), {"radius": r * 0.8, "life": 0.4})
+			WeaponFx.spawn(w, "ripple", pos, WALL_GOLD, {"radius": r, "rings": 3, "life": 0.6})
+			WeaponFx.spawn(w, "star", pos, Color(1.0, 0.95, 0.7), {"radius": 24.0, "count": 12, "spin": 1.5, "life": 0.5})
+			Sfx.play("ultimate", 0.05, 1.3)
+		st.charge = fill(st, "sun", TORCH_SUN_T)
+
+static func on_promote_torch(st, new_tier: int) -> void:
+	if new_tier >= 6 and st._glow != null:
+		st._glow.color = glow_color(st, st._glow.color)
