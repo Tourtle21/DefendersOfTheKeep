@@ -119,7 +119,7 @@ func _refresh() -> void:
 	for n in ids.size():
 		var id: String = ids[n]
 		var known := _known(id)
-		var locked: bool = known and (Game.WEAPON_UNLOCK_COSTS.has(id) or id in Game.LEGENDARY_WEAPONS) and !Game.weapon_unlocked(id)
+		var locked: bool = known and (Game.WEAPON_UNLOCK_COSTS.has(id) or id in Game.LEGENDARY_EARNED) and !Game.weapon_unlocked(id)
 		var lines := []
 		if known:
 			var inst = load(_info.items[id].path).instantiate()
@@ -146,7 +146,7 @@ func _refresh() -> void:
 func _where(id: String) -> String:
 	if id in ["sword", "pickaxe"]:
 		return "A free starting tool: always unlocked. Combine two copies at the Forge to raise its tier."
-	if id in Game.LEGENDARY_WEAPONS:
+	if id in Game.LEGENDARY_EARNED:
 		return ("Unlocked. " if Game.weapon_unlocked(id) else "LOCKED. LEGENDARY: beat the whole game to earn it, then unlock it with %d Shards. " % Game.LEGENDARY_PRICE) + "Hits 50% harder than a normal weapon."
 	var parts := Fusion.parts_of(id)
 	if parts.size() == 2:

@@ -1846,7 +1846,10 @@ const REALM_LEVEL := {"s": 1, "se": 2, "ne": 3, "n": 4, "nw": 5, "sw": 6}
 # cards from the base realm that only appear a little deeper
 # Legendary cards and weapons cannot be bought or drawn from rewards. Beating the whole game unlocks one of them.
 const LEGENDARY_CARDS := ["meteor_shower", "stasis", "sunspire", "phoenix_shrine", "mass_conversion"]
-const LEGENDARY_WEAPONS := ["dawnbringer", "voidreaver", "mindbender"]
+# Every Legendary-rarity weapon (they hit 50% harder). The first three are earned by beating the game; the Prismatic Staff is a fusion you
+# forge (it is one step rarer than the Ancient Crystal Wand), so it is Legendary too but is never offered as a reward.
+const LEGENDARY_WEAPONS := ["dawnbringer", "voidreaver", "mindbender", "prismstaff"]
+const LEGENDARY_EARNED := ["dawnbringer", "voidreaver", "mindbender"]
 # Reward cards at the end of a run, by the realms you opened. None unless you got past the first wave.
 const REWARD_COUNT := {1: 1, 2: 3, 3: 5, 4: 6, 5: 7, 6: 8}
 const WIN_REWARD_COUNT := 10
@@ -1979,7 +1982,7 @@ func grant_legendary() -> Dictionary:
 	for id in LEGENDARY_CARDS:
 		if !owns_card(id) and !(id in waiting):
 			left.append({"kind": "card", "id": id})
-	for id in LEGENDARY_WEAPONS:
+	for id in LEGENDARY_EARNED:
 		if !(id in meta.weapons) and !(id in waiting):
 			left.append({"kind": "weapon", "id": id})
 	if left.is_empty():
