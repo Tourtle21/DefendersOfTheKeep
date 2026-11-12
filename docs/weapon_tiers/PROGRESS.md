@@ -24,3 +24,6 @@ DONE scimitar
 DONE lance
 DONE whip
 DONE quakepick
+DONE juggernaut
+CLAIM earthshaker
+DONE rimelance

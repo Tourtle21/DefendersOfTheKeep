@@ -26,6 +26,6 @@ func attack() -> void:
 func ability() -> void:
 	thrust(10.0, 0.25)
 	var land: Vector2 = player.global_position + aim * 130.0
-	WeaponProjectile.shoot(game_world(), player.global_position + aim * 12.0, aim, 300.0, 4.5, Color(0.7, 0.9, 1.0), 0.45, 3, 120.0, {"expose_secs": 2.0})
+	WeaponProjectile.shoot(game_world(), player.global_position + aim * 12.0, aim, 300.0, 4.5, Color(0.7, 0.9, 1.0), 0.45, 3, 120.0, {"expose_secs": 2.0, "style": "blade", "size": 1.4, "trail": 5, "slow_mult": 0.5, "slow_secs": 2.5})
 	await get_tree().create_timer(0.45).timeout
 	WeaponUtil.patch(game_world(), land, "slow", 26.0, Color(0.7, 0.9, 1.0, 0.5), 4.0, 0.45)
