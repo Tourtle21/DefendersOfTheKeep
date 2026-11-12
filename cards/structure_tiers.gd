@@ -228,6 +228,8 @@ static func tick(st, delta: float) -> void:
 			tick_frost_totem(st, delta)
 		"ember_turret":
 			tick_ember_turret(st, delta)
+		"thorn_hedge":
+			tick_thorn_hedge(st, delta)
 		_:
 			pass
 
@@ -238,6 +240,8 @@ static func on_gnaw(st, e) -> void:
 			C.on_gnaw(st, e)
 		"iron_wall":
 			on_gnaw_iron_wall(st, e)
+		"thorn_hedge":
+			on_gnaw_thorn_hedge(st, e)
 		_:
 			pass
 
@@ -356,6 +360,8 @@ static func on_expire(st) -> void:
 	match id_of(st):
 		"crystal_pylon", "storm_spire", "magma_wall", "venom_tower", "prism_tower", "healing_grove", "sunspire", "phoenix_shrine", "healing_lantern", "beacon_turret", "bonfire_wall", "spiked_sentry":
 			C.on_expire(st)
+		"thorn_hedge":
+			on_expire_thorn_hedge(st)
 		_:
 			pass
 
@@ -984,3 +990,75 @@ static func on_promote_ember_turret(st, _new_tier: int) -> void:
 	st.overdrive = false
 	st._timers.erase("rng0")
 	st._timers.erase("lr0")
+
+# ---------------------------------------------------------------- Thorn Hedge
+const HEDGE_ENTANGLE := 0.3
+const HEDGE_VOLLEY_T := 2.5
+const HEDGE_VOLLEY_R := 90.0
+const HEDGE_BRAMBLE_R := 2.2
+const HEDGE_SAP := 1.5
+const HEDGE_SAP_R := 50.0
+const HEDGE_STORM_T := 8.0
+const LEAF := Color(0.4, 0.75, 0.3)
+const THORN := Color(0.85, 0.95, 0.5)
+const SAP := Color(1.0, 0.9, 0.5)
+
+static func on_gnaw_thorn_hedge(st, e) -> void:
+	if st.tier >= 2 and is_instance_valid(e) and e.has_method("apply_slow"):          # 2 Entangle: the vines hold a gnawer fast
+		keep_slow(e, HEDGE_ENTANGLE, 0.8)
+		WeaponFx.spawn(world_of(st), "burst", e.global_position, LEAF, {"radius": 8.0, "life": 0.2})
+
+static func tick_thorn_hedge(st, delta: float) -> void:
+	var t: int = st.tier
+	if t < 3:
+		return
+	var thorns: float = float(st.data.get("thorns", 0.0))
+	var w := world_of(st)
+	var pos: Vector2 = st.global_position
+	# 3 Thorn volley: three thorns at the nearest enemy it can see
+	if ready(st, "volley", HEDGE_VOLLEY_T, delta):
+		var target = nearest(st, HEDGE_VOLLEY_R)
+		if target != null:
+			reset(st, "volley")
+			var dir: Vector2 = target.global_position - pos
+			for k in range(-1, 2):
+				WeaponProjectile.shoot(w, pos + Vector2(0, -6), dir.rotated(k * 0.15), 260.0, thorns * 0.8, THORN, 0.6, 0, 40.0)
+			Sfx.play("whoosh")
+	# 4 Bramble field: the ground round the hedge is overgrown (slow)
+	if t >= 4:
+		if !st._timers.has("bramble"):
+			st._timers["bramble"] = 4.9
+		if pace(st, "bramble", 5.0, delta):
+			slow_patch(st, st.radius * HEDGE_BRAMBLE_R, 6.0, 0.6)
+			WeaponFx.spawn(w, "motes", pos, LEAF, {"radius": st.radius * 1.5, "count": 3, "rise": 6.0, "life": 0.6})
+	# 5 Heart sap: players and guards near it recover
+	if t >= 5:
+		mend(st, HEDGE_SAP_R, HEDGE_SAP, delta)
+		var warmed := []
+		for p in st.get_tree().get_nodes_in_group("player"):
+			if is_instance_valid(p) and p.global_position.distance_to(pos) <= HEDGE_SAP_R and p.needs_health():
+				p.heal(HEDGE_SAP * delta)
+				warmed.append(p)
+		if pace(st, "sapfx", 1.5, delta):
+			for p in warmed:
+				WeaponFx.spawn(w, "motes", p.global_position, SAP, {"radius": 8.0, "count": 4, "rise": 16.0, "life": 0.7})
+	# 6 Thorn storm: every 8 s, twelve thorns in a ring
+	if t >= 6 and ready(st, "storm", HEDGE_STORM_T, delta) and nearest(st, 80.0) != null:
+		reset(st, "storm")
+		radial(st, 12, thorns, THORN)
+		WeaponFx.spawn(w, "ripple", pos, LEAF, {"radius": 50.0, "rings": 2, "life": 0.5})
+		WeaponFx.spawn(w, "shards", pos, THORN, {"radius": 50.0, "count": 12, "life": 0.4})
+		Sfx.play("big_hit")
+
+## Rebirth (tier 6): a hedge destroyed by enemies leaves a seedling that grows in its place.
+static func on_expire_thorn_hedge(st) -> void:
+	if st.tier < 6 or st.hp > 0.0 or st.data.get("seedling", false):
+		return
+	var d: Dictionary = Game.stats_of(Game.make_entry("thorn_hedge", 1, ""))
+	d.seedling = true
+	var seed := Structure.new()
+	seed.setup(d, st.position)
+	var w := world_of(st)
+	w.add_child.call_deferred(seed)
+	WeaponFx.spawn(w, "star", st.global_position, WALL_GOLD, {"radius": 22.0, "count": 6, "spin": 1.0, "life": 0.6})
+	WeaponFx.spawn(w, "motes", st.global_position, LEAF, {"radius": 14.0, "count": 12, "rise": 24.0, "life": 0.9})

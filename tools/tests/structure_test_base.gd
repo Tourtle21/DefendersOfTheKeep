@@ -69,6 +69,8 @@ func _initialize() -> void:
 	root.add_child(world)
 	await wait(1.2)
 	world.get_node("SpawnTimer").start(9999.0)
+	world.set_process(false)                 # (the day clock stands still: it is day, so defences see everything)
+	game.night_level = 0.0
 	var p = world.get_node("Player")
 	p.clear_item()
 	p.global_position = Vector2(0, 700)

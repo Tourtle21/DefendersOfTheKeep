@@ -65,6 +65,8 @@ func _initialize() -> void:
 	root.add_child(world)
 	await wait(1.2)
 	world.get_node("SpawnTimer").start(9999.0)
+	world.set_process(false)                 # (the day clock stands still: it is day, so defences see everything)
+	game.night_level = 0.0
 	var p = world.get_node("Player")
 	p.clear_item()
 	p.global_position = Vector2(0, 700)
@@ -235,7 +237,107 @@ func iron_wall() -> void:
 	var l6: float = await chewed("iron_wall", 6, 3.0)
 	var lone = build("iron_wall", 6, c + Vector2(300, 0))
 	ok("tier 6 keeps its plating (guard_mult %.2f)" % tl.guard_mult(lone), absf(tl.guard_mult(lone) - 0.75) < 0.01)
+# ================================================================== Thorn Hedge
+func hazards() -> int:
+	return world.get_tree().get_nodes_in_group("hazard").size()
+func bar():
+	return player().get_parent().get_node("Hud/Control2/ColorRect/Health")
+func away() -> void:
+	player().global_position = Vector2(0, 700)
+	bar().size.x = 228.0
 func thorn_hedge() -> void:
-	pass
+	print("-- thorn_hedge")
+	var c := Vector2(0, 300)
+	var p = player()
+	var base_hazards := hazards()
+	# Entangle (tier 2)
+	var en := {}
+	for t in [1, 2]:
+		var st = build("thorn_hedge", t, c)
+		var e = dummy(c + Vector2(20, 0))
+		var mn := 1.0
+		for i in 30:
+			await wait(0.05)
+			mn = minf(mn, e.slow_mult)
+		en[t] = mn
+		await clear()
+	ok("tier 2 vines hold a gnawer (slow %s), tier 1 does not" % str(en), en[2] <= 0.31 and en[1] == 1.0)
+	# Thorn volley (tier 3)
+	var vo := {}
+	for t in [2, 3]:
+		var st = build("thorn_hedge", t, c)
+		var e = dummy(c + Vector2(70, 0))
+		var mx := 0
+		for i in 70:
+			await wait(0.05)
+			mx = maxi(mx, count_nodes("projectile.gd"))
+		vo[t] = mx
+		await clear()
+	ok("tier 3 shoots three thorns at an enemy 70 px away, tier 2 none (%s)" % str(vo), vo[3] >= 3 and vo[2] == 0)
+	# Bramble field (tier 4)
+	var br := {}
+	for t in [3, 4]:
+		var st = build("thorn_hedge", t, c)
+		var e = dummy(c + Vector2(st.radius * 2.0, 0))
+		await wait(0.6)
+		br[t] = [hazards() - base_hazards, e.slow_mult]
+		await clear()
+		for hz in world.get_tree().get_nodes_in_group("hazard"):
+			if is_instance_valid(hz) and hz.global_position.distance_to(c) < 5.0:
+				hz.queue_free()
+		await wait(0.2)
+	ok("tier 4 overgrows the ground with a slow patch, tier 3 does not (%s)" % str(br), br[4][0] >= 1 and br[4][1] <= 0.61 and br[3][0] == 0 and br[3][1] == 1.0)
+	# Heart sap (tier 5): hurt players and guards nearby recover
+	var sp := {}
+	for t in [4, 5]:
+		var st = build("thorn_hedge", t, c)
+		var g = load("res://cards/guard.gd").new()
+		g.setup(game.stats_of(game.make_entry("guards", 1, "")), c + Vector2(30, 0))
+		world.add_child(g)
+		g.hp = 5.0
+		p.global_position = c + Vector2(0, 40)
+		bar().size.x = 100.0
+		await wait(1.0)
+		sp[t] = [snappedf(bar().size.x - 100.0, 0.1), snappedf(g.hp - 5.0, 0.1)]
+		g.queue_free()
+		await clear()
+		away()
+	ok("tier 5 sap heals a player and a guard beside it, tier 4 does not (%s)" % str(sp), sp[5][0] > 0.8 and sp[5][1] > 0.8 and sp[4][0] == 0.0 and sp[4][1] == 0.0)
+	# Thorn storm and rebirth (tier 6), plus the earlier abilities
+	var st6 = build("thorn_hedge", 6, c, false)
+	st6.hp = st6.max_hp
+	var e6 = dummy(c + Vector2(60, 0))
+	var mx6 := 0
+	var tt := 0.0
+	var mn6 := 1.0
+	var hz6 := 0
+	while tt < 8.3:
+		await wait(0.05)
+		tt += 0.05
+		mx6 = maxi(mx6, count_nodes("projectile.gd"))
+		hz6 = maxi(hz6, hazards() - base_hazards)
+	var near = dummy(c + Vector2(20, 0))
+	var mn_slow := 1.0
+	for i in 12:
+		await wait(0.05)
+		mn_slow = minf(mn_slow, near.slow_mult)
+	ok("tier 6 storm fires 12 thorns in a ring (peak %d projectiles), keeps volley/bramble patch (%d) and entangle (%.2f)" % [mx6, hz6, mn_slow], mx6 >= 12 and hz6 >= 1 and mn_slow <= 0.31)
+	st6.hp = 0.5
+	await wait(1.2)
+	var seed = null
+	for n in world.get_tree().get_nodes_in_group("structure"):
+		if is_instance_valid(n) and !n.is_queued_for_deletion() and n.data.get("seedling", false):
+			seed = n
+	ok("a tier 6 hedge that is destroyed is reborn as a seedling (tier %s at the same spot)" % str(seed.tier if seed != null else null), seed != null and seed.tier == 1 and seed.global_position.distance_to(c) < 1.0 and !is_instance_valid(st6) or st6.is_queued_for_deletion())
+	if seed != null:
+		seed.hp = 0.5
+		await wait(1.2)
+	var left := 0
+	for n in world.get_tree().get_nodes_in_group("structure"):
+		if is_instance_valid(n) and !n.is_queued_for_deletion() and n.global_position.distance_to(c) < 5.0:
+			left += 1
+	ok("the seedling, destroyed, leaves nothing (%d left)" % left, left == 0)
 func get_nodes_of(g: String) -> Array:
 	return world.get_tree().get_nodes_in_group(g)
+func player():
+	return world.get_node("Player")

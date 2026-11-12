@@ -37,6 +37,9 @@ static func draw(st, col: Color) -> bool:
 		"ember_turret":
 			draw_ember_turret(st, col)
 			return true
+		"thorn_hedge":
+			draw_thorn_hedge(st, col)
+			return true
 		_:
 			return false
 
@@ -842,3 +845,111 @@ static func draw_ember_turret(st, col: Color) -> void:
 		var to: Vector2 = st.shot_to - st.global_position
 		st.draw_line(hc + dir * 9.0, to, Color(1.0, 0.7, 0.3, 0.9), 2.0 if t == 1 else 3.0)
 		st.draw_line(hc + dir * 9.0, to, Color(1.0, 0.95, 0.8, 0.9), 1.0)
+
+# ---------------------------------------------------------------- Thorn Hedge
+const DARK_LEAF := Color(0.2, 0.45, 0.18)
+const HEDGE_THORN := Color(0.85, 0.95, 0.5)
+const BERRY := Color(0.85, 0.2, 0.3)
+const FLOWER := Color(1.0, 0.75, 0.85)
+const SAP_COL := Color(1.0, 0.9, 0.5)
+
+static func leaf(st, p: Vector2, ang: float, size: float, fill: Color) -> void:
+	var d := Vector2.from_angle(ang)
+	var n := d.orthogonal() * size * 0.4
+	st.draw_colored_polygon(PackedVector2Array([p, p + d * size * 0.5 + n, p + d * size, p + d * size * 0.5 - n]), fill)
+
+static func draw_thorn_hedge(st, col: Color) -> void:
+	var r: float = st.radius
+	var t: int = st.tier
+	var age: float = st._age
+	var top := -r * 0.8 - (3.0 if t >= 4 else 0.0) - (3.0 if t >= 6 else 0.0)
+	var bot := r * 0.8
+	var h := bot - top
+	var thorns: float = float(st.data.get("thorns", 0.0))
+	if t >= 6:                                                    # a golden-green aura
+		st.draw_circle(Vector2.ZERO, r * 1.5, Color(0.8, 1.0, 0.4, 0.1))
+	elif t >= 5:                                                  # a faint healing disc
+		st.draw_circle(Vector2.ZERO, StructureTiers.HEDGE_SAP_R, Color(0.4, 0.9, 0.4, 0.07))
+	if t >= 4:                                                    # low brambles curl on the ground
+		for i in 10:
+			var a := i * TAU / 10.0 + 0.2
+			var c := Vector2(cos(a), sin(a) * 0.6) * r * 1.7
+			st.draw_arc(c, 3.0, a + PI * 0.5, a + PI * 1.6, 6, Color(DARK_LEAF, 0.6), 1.0)
+			st.draw_line(c + Vector2.from_angle(a) * 2.5, c + Vector2.from_angle(a) * 4.5, Color(HEDGE_THORN, 0.5), 1.0)
+		for sx in [-1.0, 1.0]:
+			var m := Vector2(sx * (r + 3.0), bot - 1.0)
+			var bush := PackedVector2Array()
+			for i in 9:
+				var an := PI + i * PI / 8.0
+				bush.append(m + Vector2(cos(an) * 6.0, sin(an) * 5.0))
+			st.draw_colored_polygon(bush, DARK_LEAF)
+			st.draw_circle(m + Vector2(-1.5, -3.0), 0.9, BERRY)
+	box(st, Rect2(-r, top, r * 2.0, h), col)
+	for i in 3:
+		var y := top + h * (0.25 + 0.25 * i)
+		st.draw_line(Vector2(-r + 2, y), Vector2(r - 2, y), col.darkened(0.4), 1.5)
+	if t >= 3:                                                    # seed pods at the sides
+		for sx in [-1.0, 1.0]:
+			for k in 2:
+				st.draw_circle(Vector2(sx * r, top + h * (0.3 + 0.4 * k)), 3.2, Color.BLACK)
+				st.draw_circle(Vector2(sx * r, top + h * (0.3 + 0.4 * k)), 2.5, col.lightened(0.1))
+	if t >= 2:                                                    # vines wind along it
+		for k in 2:
+			var vp := PackedVector2Array()
+			for i in 13:
+				var x := -r + 1.0 + i * (r * 2.0 - 2.0) / 12.0
+				vp.append(Vector2(x, top + h * (0.35 + 0.3 * k) + 3.0 * sin(i * 0.9 + k * 3.0 + age * 0.3)))
+			st.draw_polyline(vp, DARK_LEAF.lightened(0.15), 2.0)
+			for i in 3:
+				leaf(st, vp[2 + i * 4], -0.8 if (i + k) % 2 == 0 else 0.8 + PI, 4.0, LEAF.lightened(0.1))
+		var n := 0                                                # tendrils whip out at the gnawers
+		for e in st.get_tree().get_nodes_in_group("enemy"):
+			if n < 4 and is_instance_valid(e) and e.global_position.distance_to(st.global_position) <= r + 9.0:
+				var d: Vector2 = e.global_position - st.global_position
+				var a2 := d.normalized() * minf(d.length(), r + 4.0)
+				var mid := a2 * 0.5 + d.orthogonal().normalized() * 3.0 * sin(age * 6.0)
+				st.draw_polyline(PackedVector2Array([a2 * 0.6, mid + a2 * 0.3, a2 + d.normalized() * 3.0]), Color(DARK_LEAF.lightened(0.25), 0.9), 1.5)
+				n += 1
+	# the top edge: thorns (bigger and red-tipped from tier 3, seven of them, with berries between)
+	if thorns > 0.0:
+		var cnt := 5 if t < 3 else 7
+		for i in cnt:
+			var x3 := -r + 3.0 + i * (r * 2.0 - 6.0) / float(cnt - 1)
+			if t < 3:
+				st.draw_colored_polygon(PackedVector2Array([Vector2(x3 - 2, top), Vector2(x3, top - 5), Vector2(x3 + 2, top)]), Color(0.75, 0.9, 0.4))
+			else:
+				st.draw_colored_polygon(PackedVector2Array([Vector2(x3 - 2.2, top), Vector2(x3, top - 8), Vector2(x3 + 2.2, top)]), HEDGE_THORN)
+				st.draw_colored_polygon(PackedVector2Array([Vector2(x3 - 0.8, top - 5.5), Vector2(x3, top - 8), Vector2(x3 + 0.8, top - 5.5)]), BERRY)
+		if t >= 3:
+			for i in 3:
+				st.draw_circle(Vector2(-r * 0.5 + i * r * 0.5, top + 2.5), 1.6, BERRY)
+	if t >= 5:                                                    # pink flowers bloom, amber sap slides down
+		for i in 5:
+			var fp := Vector2(-r + 4.0 + i * (r * 2.0 - 8.0) / 4.0, top + h * (0.3 if i % 2 == 0 else 0.62))
+			for k in 5:
+				st.draw_circle(fp + Vector2.from_angle(k * TAU / 5.0 + 0.3) * 2.2, 1.5, FLOWER)
+			st.draw_circle(fp, 1.2, Color(1.0, 0.85, 0.2))
+		for i in 3:
+			var ph := fposmod(age * 0.3 + i * 0.33, 1.0)
+			var sp := Vector2(-r * 0.6 + i * r * 0.6, top + 2.0 + ph * (h - 4.0))
+			st.draw_colored_polygon(PackedVector2Array([sp + Vector2(0, -2.0), sp + Vector2(1.3, 0.5), sp + Vector2(-1.3, 0.5)]), Color(SAP_COL, 0.9 * (1.0 - ph * 0.5)))
+			st.draw_circle(sp + Vector2(0, 0.8), 1.3, Color(SAP_COL, 0.9 * (1.0 - ph * 0.5)))
+	if t >= 6:                                                    # a twisted arch of branches, a great bloom, spores
+		for sx in [-1.0, 1.0]:
+			var ap := PackedVector2Array()
+			for i in 9:
+				var u := i / 8.0
+				ap.append(Vector2(sx * (r - 1.0) * (1.0 - u * 0.95), top - 4.0 - 10.0 * sin(u * PI * 0.5) + 1.5 * sin(u * 9.0 + age)))
+			st.draw_polyline(ap, Color.BLACK, 3.0)
+			st.draw_polyline(ap, DARK_LEAF.lightened(0.1), 1.8)
+			for i in 3:
+				leaf(st, ap[2 + i * 2], -PI / 2.0 + sx * 0.7, 4.0, LEAF.lightened(0.15))
+		var bc := Vector2(0, top + h * 0.5)
+		for k in 8:
+			var a3 := k * TAU / 8.0 + sin(age * 0.5) * 0.1
+			st.draw_circle(bc + Vector2.from_angle(a3) * 4.0, 2.6, Color(1.0, 0.97, 0.85))
+		st.draw_circle(bc, 2.6, Color(1.0, 0.85, 0.3))
+		for i in 6:
+			var ph2 := fposmod(age * 0.35 + SpellArt.jit(i, 3.0), 1.0)
+			st.draw_circle(Vector2((SpellArt.jit(i, 4.0) - 0.5) * r * 1.6, top - 2.0 - ph2 * 20.0), 1.0, Color(1.0, 0.9, 0.4, 1.0 - ph2))
+	hp_bar(st, bot + 3.0, r, t >= 6)
