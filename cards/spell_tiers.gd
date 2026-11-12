@@ -60,6 +60,9 @@ static func effect_time(s, base: float) -> float:
 			return 4.0 if tier_of(s) >= 3 else base
 		"meteor_shower":
 			return float(s.data.get("duration", 3.5)) + 3.0 if tier_of(s) >= 2 else base
+		"mass_conversion":
+			var t2 := tier_of(s)
+			return float(s.data.get("duration", 25.0)) if t2 >= 3 else (1.5 if t2 >= 2 else base)
 		"charm":
 			var t := tier_of(s)
 			if t >= 5:
@@ -118,6 +121,8 @@ static func tick(s, delta: float) -> void:
 			tick_meteor_shower(s, tier_of(s), delta)
 		"stasis":
 			tick_stasis(s, tier_of(s), delta)
+		"mass_conversion":
+			tick_mass_conversion(s, tier_of(s), delta)
 
 # ---------------------------------------------------------------- Fireball
 
@@ -653,6 +658,8 @@ static func _can_charm(e) -> bool:
 ## Landing: charm what is in the area (with the tier's devotion), and from tier 6 crown a Favourite. Returns whether the spell stays to be drawn / keep working.
 static func land_charm(s) -> bool:
 	var dur: float = s.data.get("duration", 6.0)
+	if String(s.data.get("id", "")) == "mass_conversion":
+		return land_mass_conversion(s)
 	if String(s.data.get("id", "")) != "charm":
 		for e in s._in_radius("enemy"):
 			if e.has_method("charm"):
@@ -1376,3 +1383,142 @@ static func tick_stasis(s, tier: int, delta: float) -> void:
 			e.spell_damage(maxf(8.0, float(e.max_health) * (STASIS_BREAK_BOSS if boss else STASIS_BREAK)), "pierce", true)
 			if is_instance_valid(e) and e.has_method("push"):
 				e.push((away.normalized() if away.length() > 0.5 else Vector2.RIGHT) * 600.0, 0.25)
+
+# ---------------------------------------------------------------- Mass Conversion
+
+const MC_POWER := [1.0, 1.3, 1.3, 1.3, 1.3, 1.3]
+const MC_SURGE := 2.0
+const MC_SURGE_T := 2.0
+const MC_WARCRY := 5.0
+const MC_LIEUTENANTS := 3
+const MC_SPREAD_MAX := 12
+const MC_GUARDS := 5
+const MIND := Color(0.55, 0.9, 1.0)
+const MC_GOLD := Color(1.0, 0.85, 0.4)
+
+static func _mc_base(s, tier: int) -> float:
+	return MC_POWER[tier - 1] * (1.25 if "potent" in s.data.get("adds", []) else 1.0)
+
+## Landing: convert everything in the area. Returns whether the spell stays (it does from tier 2: first to be drawn, from tier 3 to keep working).
+static func land_mass_conversion(s) -> bool:
+	var tier := tier_of(s)
+	var dur: float = s.data.get("duration", 25.0)
+	var w: Node = s.get_parent()
+	var base := _mc_base(s, tier)
+	for e in s._in_radius("enemy"):
+		if e.has_method("charm"):
+			e.charm(dur, base, 0.0)
+			s._cool[e.get_instance_id()] = base
+			if tier >= 2:
+				e.health = e.max_health                    # conscription: converts come in at full health
+	if tier >= 2:
+		WeaponFx.spawn(w, "ripple", s.position, MIND, {"radius": s.radius, "rings": 3, "life": 0.7})
+		WeaponFx.spawn(w, "motes", s.position, Color(0.55, 0.4, 0.95), {"radius": s.radius, "count": 14, "rise": 24.0, "life": 0.9})
+		Sfx.play("cast")
+	if tier >= 3:
+		s.banner_on = true
+	if tier >= 5:
+		_mc_pick_lieutenants(s, tier)
+	if tier >= 6 and !is_copy(s):                         # dominion: a flourish, and five honour guards
+		WeaponFx.spawn(w, "flash", s.position, Color(0.55, 0.4, 0.95), {"radius": s.radius, "life": 0.4})
+		WeaponFx.spawn(w, "ripple", s.position, MIND, {"radius": s.radius * 1.5, "rings": 4, "life": 0.8})
+		WeaponFx.spawn(w, "star", s.position, MC_GOLD, {"radius": s.radius, "count": 8, "spin": 1.0, "life": 0.5})
+		WeaponFx.spawn(w, "pillar", s.position, MIND, {"height": 120.0, "width": 36.0, "life": 0.8})
+		Sfx.play("ultimate")
+		var card: Dictionary = Game.stats_of(Game.make_entry("guards", 4, ""))
+		for i in MC_GUARDS:
+			var g := Guard.new()
+			var gp: Vector2 = s.position + Vector2.from_angle(i * TAU / float(MC_GUARDS)) * 18.0
+			g.setup(card, gp)
+			w.add_child(g)
+			WeaponFx.spawn(w, "ring", gp, MIND, {"radius": 14.0, "life": 0.4})
+	return tier >= 2
+
+static func _mc_pick_lieutenants(s, tier: int) -> void:
+	var w: Node = s.get_parent()
+	var have := 0
+	var pool := []
+	for id in s._cool.keys():
+		var e = instance_from_id(id)
+		if e == null or _dead(e) or e.charm_time <= 0.0:
+			continue
+		if e.has_meta("lieutenant_of") and e.get_meta("lieutenant_of") == s.get_instance_id():
+			have += 1
+		else:
+			pool.append(e)
+	pool.sort_custom(func(a, b): return float(a.max_health) > float(b.max_health))
+	for i in mini(MC_LIEUTENANTS - have, pool.size()):
+		var e = pool[i]
+		e.set_meta("lieutenant_of", s.get_instance_id())
+		e.max_health *= 2.0
+		e.health = e.max_health
+		if e._charm_scale == 1.0:
+			e.scale *= 1.3
+			e._charm_scale = 1.3
+		e.charm_power = 2.5
+		s._cool[e.get_instance_id()] = 2.5
+		WeaponFx.spawn(w, "star", e.global_position, MC_GOLD, {"radius": 16.0, "count": 5, "spin": 1.0, "life": 0.4})
+		Sfx.play("unlock")
+
+static func tick_mass_conversion(s, tier: int, delta: float) -> void:
+	if tier < 3:
+		return
+	var since: float = s.age - s.flight
+	var c: Vector2 = s.global_position
+	var w: Node = s.get_parent()
+	var tree: SceneTree = s.get_tree()
+	var dur: float = s.data.get("duration", 25.0)
+	if pace(s, "mc", 0.5, delta):
+		var lts := []
+		if tier >= 5:
+			_mc_pick_lieutenants(s, tier)
+			for id in s._cool.keys():
+				var e = instance_from_id(id)
+				if e != null and !_dead(e) and e.has_meta("lieutenant_of") and e.get_meta("lieutenant_of") == s.get_instance_id():
+					lts.append(e)
+		for id in s._cool.keys():                              # rally: converts with nobody to fight walk back to the banner (or the nearest lieutenant)
+			var e = instance_from_id(id)
+			if e == null or _dead(e):
+				s._cool.erase(id)
+				continue
+			var rp := c
+			var best := 1e9
+			for l in lts:
+				var d: float = l.global_position.distance_to(e.global_position)
+				if l != e and d < best:
+					best = d
+					rp = l.global_position
+			e.rally_point = rp
+		if tier >= 6:                                       # dominion: the conversion spreads
+			if int(s._clk.get("spread", 0)) < MC_SPREAD_MAX:
+				for id in s._cool.keys():
+					var carrier = instance_from_id(id)
+					if carrier == null or _dead(carrier) or int(s._clk.get("spread", 0)) >= MC_SPREAD_MAX:
+						continue
+					for e2 in WeaponUtil.enemies_in_circle(tree, carrier.global_position, 60.0):
+						if _can_charm(e2) and !s._cool.has(e2.get_instance_id()):
+							s._clk["spread"] = int(s._clk.get("spread", 0)) + 1
+							var base := _mc_base(s, tier)
+							e2.charm(maxf(1.0, dur - since), base, 0.0)
+							s._cool[e2.get_instance_id()] = base
+							e2.rally_point = c
+							WeaponFx.spawn(w, "burst", e2.global_position, MIND, {"radius": 10.0, "life": 0.25})
+							break
+		s.lieutenants = lts.map(func(l): return l.global_position)
+	if tier >= 4:                                              # war cry: a surge every five seconds
+		var surge_end: float = float(s._clk.get("surge_end", -1.0))
+		if pace(s, "warcry", MC_WARCRY, delta):
+			s._clk["surge_end"] = since + MC_SURGE_T
+			WeaponFx.spawn(w, "ripple", s.position, MIND, {"radius": s.radius, "rings": 2, "life": 0.6})
+			WeaponFx.spawn(w, "star", s.position, MC_GOLD, {"radius": 24.0, "count": 6, "spin": 1.0, "life": 0.4})
+			Sfx.play("boss_roar")
+			for id in s._cool.keys():
+				var e = instance_from_id(id)
+				if e != null and !_dead(e):
+					e.charm_power = maxf(MC_SURGE, float(s._cool[id]))
+		elif surge_end > 0.0 and since >= surge_end:
+			s._clk["surge_end"] = -1.0
+			for id in s._cool.keys():
+				var e = instance_from_id(id)
+				if e != null and !_dead(e):
+					e.charm_power = float(s._cool[id])

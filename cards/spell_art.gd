@@ -13,7 +13,7 @@ static func jit(i: int, salt := 0.0) -> float:
 
 ## Cards that have their own body art here: the plain fill and rings are drawn softer under it.
 static func has_body(id: String) -> bool:
-	return id in ["fireball", "frost_ring", "flare", "rejuvenation", "gold_magnet", "aegis", "charm", "sandstorm", "blizzard", "lava_pool", "poison_cloud", "crystal_spikes", "meteor_shower", "stasis"]
+	return id in ["fireball", "frost_ring", "flare", "rejuvenation", "gold_magnet", "aegis", "charm", "sandstorm", "blizzard", "lava_pool", "poison_cloud", "crystal_spikes", "meteor_shower", "stasis", "mass_conversion"]
 
 static func draw_flight(s, t: float, col: Color) -> void:
 	match String(s.data.get("id", "")):
@@ -54,6 +54,8 @@ static func draw(s, since: float, col: Color) -> void:
 			draw_meteor_shower(s, since, col)
 		"stasis":
 			draw_stasis(s, since, col)
+		"mass_conversion":
+			draw_mass_conversion(s, since, col)
 
 ## A flame as one polygon: a wide base, a belly, and a tip that leans with `sway`.
 static func flame(s, base: Vector2, w: float, h: float, col: Color, sway := 0.0) -> void:
@@ -1095,3 +1097,104 @@ static func draw_stasis(s, since: float, _col: Color) -> void:
 	for sh in s.get_tree().get_nodes_in_group("enemy_shot"):
 		if is_instance_valid(sh) and sh.global_position.distance_to(s.global_position) <= r and sh.has_meta("held_by"):
 			s.draw_arc(sh.global_position - s.global_position, 8.0, 0, TAU, 12, Color(STAR, 0.8 * fade), 1.0)
+
+# ---------------------------------------------------------------- Mass Conversion
+
+const MIND := Color(0.55, 0.9, 1.0)
+const MIND_VIOLET := Color(0.55, 0.4, 0.95)
+const MC_GOLD := Color(1.0, 0.85, 0.4)
+
+static func crown(canvas, p: Vector2, col: Color) -> void:
+	canvas.draw_colored_polygon(PackedVector2Array([p + Vector2(-5, 4), p + Vector2(-5, -3), p + Vector2(-2.5, 0), p + Vector2(0, -5), p + Vector2(2.5, 0), p + Vector2(5, -3), p + Vector2(5, 4)]), col)
+
+## A banner on a pole: a waving flag with an eye, a gold finial.
+static func banner(s, pole_h: float, fw: float, fh: float, since: float, alpha: float, flames: bool) -> void:
+	s.draw_rect(Rect2(-1.0, -pole_h, 2.0, pole_h), Color(0.3, 0.25, 0.4, alpha))
+	var wave := sin(since * 4.0) * 2.0
+	var top := Vector2(1.0, -pole_h)
+	var pts := PackedVector2Array([top, top + Vector2(fw * 0.5, wave), top + Vector2(fw, 0), top + Vector2(fw, fh), top + Vector2(fw * 0.5, fh + wave), top + Vector2(0, fh)])
+	s.draw_colored_polygon(pts, Color(MIND, 0.9 * alpha))
+	var ec := top + Vector2(fw * 0.5, fh * 0.5 + wave * 0.5)
+	s.draw_arc(ec, fh * 0.28, 0, TAU, 12, Color(MIND_VIOLET, alpha), 1.5)
+	s.draw_circle(ec, fh * 0.12, Color(MIND_VIOLET, alpha))
+	s.draw_circle(top + Vector2(0, -2), 2.0, Color(MC_GOLD, alpha))
+	if flames:
+		for i in 8:
+			var fx := top.x + fw * (i + 0.5) / 8.0
+			var fl := 2.0 + 2.0 * sin(since * 9.0 + i)
+			s.draw_colored_polygon(PackedVector2Array([Vector2(fx - 1.5, top.y + fh * 0.1), Vector2(fx, top.y - 3.0 - fl), Vector2(fx + 1.5, top.y + fh * 0.1)]), Color(MIND, 0.8 * alpha))
+
+static func draw_mass_conversion(s, since: float, _col: Color) -> void:
+	var tier := int(s.data.get("tier", 1))
+	if tier < 2:
+		return
+	var r: float = s.radius
+	var life: float = s.effect_time
+	var fade := clampf((life - since) / 1.0, 0.0, 1.0) * clampf(since / 0.2, 0.0, 1.0)
+	if tier >= 6:                                                   # a dome of three rings with turning runes, a starfield, a column of mind light
+		for k in 3:
+			s.draw_arc(Vector2.ZERO, r * [0.4, 0.7, 1.0][k], 0, TAU, 40, Color(MIND_VIOLET, 0.35 * fade), 2.0)
+		for i in 12:
+			var a := since * 0.3 + i * TAU / 12.0
+			var gp := Vector2.from_angle(a) * r * 0.85
+			s.draw_rect(Rect2(gp.x - 2.0, gp.y - 2.0, 4.0, 4.0), Color(MIND, 0.8 * fade))
+		for i in 20:
+			s.draw_circle(Vector2.from_angle(jit(i, 2.0) * TAU) * r * 0.95 * sqrt(jit(i, 3.0)), 1.2, Color(1, 1, 1, (0.4 + 0.4 * sin(since * 3.0 + i)) * fade))
+		s.draw_rect(Rect2(-6, -r * 0.9, 12, r * 0.9), Color(MIND, 0.12 * fade))
+		for i in 8:
+			var sa := since * 0.8 + i * TAU / 8.0
+			var sp := Vector2.from_angle(sa) * 22.0 + Vector2(0, -20)
+			var d := Vector2.from_angle(sa)
+			s.draw_colored_polygon(PackedVector2Array([sp - d * 4.0 + d.orthogonal() * 1.5, sp + d * 5.0, sp - d * 4.0 - d.orthogonal() * 1.5]), Color(0.95, 0.98, 1.0, 0.9 * fade))
+	if tier >= 3:                                                   # the banner, and a faint ring round it
+		for i in 24:
+			var a2 := i * TAU / 24.0
+			s.draw_arc(Vector2.ZERO, r * 0.9, a2, a2 + 0.1, 3, Color(MIND, 0.25 * fade), 1.0)
+		if tier >= 6:
+			banner(s, 36.0, 28.0, 16.0, since, fade, true)
+		elif tier >= 4:
+			banner(s, 26.0, 20.0, 12.0, since, fade, true)
+		else:
+			banner(s, 26.0, 14.0, 9.0, since, fade, false)
+		var glow := 0.5 + 0.5 * sin(since * PI)
+		s.draw_circle(Vector2(0, -26), 8.0, Color(MIND, 0.15 * glow * fade))
+	if tier >= 4 and fposmod(since, 5.0) < 1.0:                     # the war cry: runes expand from the banner
+		var u := fposmod(since, 5.0)
+		for i in 8:
+			var p := Vector2.from_angle(i * TAU / 8.0) * r * u
+			s.draw_colored_polygon(PackedVector2Array([p + Vector2(0, -4), p + Vector2(3, 0), p + Vector2(0, 4), p + Vector2(-3, 0)]), Color(MIND, 0.9 * (1.0 - u) * fade))
+	# tier 2: a mind-eye at the centre for a moment after landing
+	if since < 1.0 and tier < 3:
+		var open := absf(cos(since * 6.0)) * 0.6 + 0.4
+		for sd in [-1.0, 1.0]:
+			var pts := PackedVector2Array()
+			for i in 9:
+				var u2 := i / 8.0
+				pts.append(Vector2(lerpf(-14.0, 14.0, u2), sd * sin(u2 * PI) * 7.0 * open))
+			s.draw_polyline(pts, Color(MIND_VIOLET, fade), 1.5)
+		s.draw_circle(Vector2.ZERO, 4.0 * open, Color(MIND_VIOLET, fade))
+		s.draw_circle(Vector2.ZERO, 2.0, Color.BLACK)
+	# the converts: a cyan ring under their feet (violet-gold for lieutenants), halos in a war cry, a crown on each lieutenant
+	var n := 0
+	var lts: Array = s.lieutenants
+	for e in s.get_tree().get_nodes_in_group("enemy"):
+		if n >= 40:
+			break
+		if !is_instance_valid(e) or e.get("charm_time") == null or e.charm_time <= 0.0 or e.global_position.distance_to(s.global_position) > r * 1.3 + 40.0:
+			continue
+		n += 1
+		var ep: Vector2 = e.global_position - s.global_position
+		var is_lt := false
+		for l in lts:
+			if (l - e.global_position).length() < 3.0:
+				is_lt = true
+		s.draw_arc(ep + Vector2(0, 6), 9.0, 0, TAU, 14, Color(MIND_VIOLET if is_lt else MIND, 0.8 * fade), 1.5)
+		if is_lt:
+			s.draw_arc(ep + Vector2(0, 6), 12.0, 0, TAU, 14, Color(MC_GOLD, 0.8 * fade), 1.5)
+			crown(s, ep + Vector2(0, -22), MC_GOLD)
+		if tier < 3 and since < 1.5:
+			s.draw_colored_polygon(PackedVector2Array([ep + Vector2(-2, -12), ep + Vector2(0, -20 - 2.0 * sin(since * 10.0)), ep + Vector2(2, -12)]), Color(MIND, 0.9))
+		if e.get("charm_power") != null and e.charm_power >= 2.0 and tier >= 4:
+			s.draw_arc(ep, 14.0 + 2.0 * sin(since * 8.0), 0, TAU, 14, Color(MIND, 0.7 * fade), 1.5)
+		if tier >= 3 and n <= 12:
+			s.draw_line(Vector2.ZERO, ep, Color(MIND, 0.18 * fade), 1.0)

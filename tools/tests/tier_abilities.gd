@@ -68,7 +68,7 @@ func _initialize() -> void:
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("only="):
 			only = a.substr(5)
-	for id in ["fireball", "frost_ring", "flare", "rejuvenation", "gold_magnet", "aegis", "charm", "sandstorm", "blizzard", "lava_pool", "poison_cloud", "crystal_spikes", "meteor_shower", "stasis"]:
+	for id in ["fireball", "frost_ring", "flare", "rejuvenation", "gold_magnet", "aegis", "charm", "sandstorm", "blizzard", "lava_pool", "poison_cloud", "crystal_spikes", "meteor_shower", "stasis", "mass_conversion"]:
 		if only == "" or only == id:
 			await call(id)
 			await clear()
@@ -1134,3 +1134,73 @@ func stasis() -> void:
 		tb[cp] = [seen.has("flash"), snappedf(1000.0 - e.health, 0.1)]
 		await clear()
 	ok("tier 6 ends with a blow worth 15%% of max health, a copy does not (%s)" % str(tb), tb[false][0] and tb[false][1] > 150.0 and !tb[true][0] and tb[true][1] < 150.0)
+
+# ================================================================== Mass Conversion
+func mass_conversion() -> void:
+	print("-- mass_conversion")
+	var c := Vector2(0, 300)
+	# Conscription (tier 2)
+	var cs := {}
+	for t in [1, 2]:
+		var e = dummy(c + Vector2(10, 0), 100.0)
+		e.max_health = 100.0
+		e.health = 10.0
+		spell("mass_conversion", t, c)
+		await wait(0.3)
+		cs[t] = [e.health, e.charm_power, e.charm_time > 0.0]
+		await clear()
+	ok("tier 2 converts at full health and harder-hitting, tier 1 neither (%s)" % str(cs), cs[2][0] == 100.0 and cs[2][1] >= 1.3 and cs[1][0] == 10.0 and cs[1][2])
+	# Rally (tier 3): a convert with nobody near walks back to the banner
+	var ra := {}
+	for t in [2, 3]:
+		var e = dummy(c + Vector2(60, 0))
+		e.set_physics_process(true)
+		spell("mass_conversion", t, c, true, {"duration": 20.0, "radius": 90.0})
+		await wait(0.4)
+		var d0: float = e.global_position.distance_to(c)
+		e.global_position = c + Vector2(80, 0)
+		d0 = 80.0
+		await wait(2.0)
+		ra[t] = snappedf(d0 - e.global_position.distance_to(c), 1.0)
+		await clear()
+	ok("tier 3 converts march back to the banner, tier 2 stay put (%s)" % str(ra), ra[3] > 20.0 and absf(ra[2]) < 5.0)
+	# War cry (tier 4)
+	var wc := []
+	var e = dummy(c + Vector2(10, 0))
+	spell("mass_conversion", 4, c, true, {"duration": 30.0})
+	await wait(0.3)
+	wc.append(e.charm_power)
+	var seen := await fx_seen(5.3)
+	wc.append(e.charm_power)
+	await wait(2.2)
+	wc.append(e.charm_power)
+	await clear()
+	ok("tier 4 war cry: a surge to 2.0 every five seconds, then back (%s)" % str(wc), wc[0] == 1.3 and wc[1] == 2.0 and wc[2] == 1.3 and seen.has("star"))
+	# Lieutenants (tier 5)
+	var es := []
+	for i in 5:
+		es.append(dummy(c + Vector2(i * 8.0, 0), 100.0 + 50.0 * i))
+		es[i].max_health = 100.0 + 50.0 * i
+	var s5 = spell("mass_conversion", 5, c, true, {"duration": 30.0})
+	await wait(0.8)
+	var doubled := es.map(func(x): return x.max_health > 300.0 or (x.max_health > 200.0 and x.health == x.max_health and x.scale.x > 1.2))
+	var count := 0
+	for x in es:
+		if x.has_meta("lieutenant_of"):
+			count += 1
+	ok("tier 5: exactly the 3 toughest become lieutenants (doubled health), listed on the spell (%s, %d listed)" % [str(es.map(func(x): return x.max_health)), s5.lieutenants.size()], count == 3 and es[4].has_meta("lieutenant_of") and es[3].has_meta("lieutenant_of") and es[2].has_meta("lieutenant_of") and !es[0].has_meta("lieutenant_of") and s5.lieutenants.size() == 3)
+	await clear()
+	# Dominion (tier 6)
+	var dm := {}
+	for cp in [false, true]:
+		var a = dummy(c)
+		var b = dummy(c + Vector2(40, 0))
+		var s6 = spell("mass_conversion", 6, c, true, {"duration": 20.0, "radius": 30.0, "copy": cp})
+		await wait(0.3)
+		var guards := get_nodes_in_group("guard").size()
+		await wait(1.2)
+		dm[cp] = [guards, b.charm_time > 0.0]
+		for g in get_nodes_in_group("guard"):
+			g.queue_free()
+		await clear()
+	ok("tier 6 dominion: five honour guards and the conversion spreads; a copy has no guards (%s)" % str(dm), dm[false][0] == 5 and dm[false][1] and dm[true][0] == 0)

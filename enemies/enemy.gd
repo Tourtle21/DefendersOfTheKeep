@@ -30,6 +30,7 @@ var charm_time = 0.0     # >0: fights for the defenders (Charm card)
 var _charm_hit := 0.0
 var charm_power := 1.0   # a charmed enemy's devotion: hits this much harder (Charm card tiers)
 var charm_blast := 0.0   # > 0: when it dies charmed, it bursts and hurts the enemies that are not charmed (Heartbreak)
+var rally_point := Vector2.INF   # a converted enemy with nobody to fight walks back to this (Mass Conversion banner)
 var _charm_scale := 1.0  # (the Favourite of a Royal Decree is bigger while charmed)
 var _unstick := Unstick.new()
 
@@ -383,6 +384,7 @@ func _charmed(delta: float) -> void:
 		remove_from_group("ally")
 		charm_power = 1.0
 		charm_blast = 0.0
+		rally_point = Vector2.INF
 		if _charm_scale != 1.0:
 			scale /= _charm_scale
 			_charm_scale = 1.0
@@ -395,6 +397,8 @@ func _charmed(delta: float) -> void:
 			best = e
 	if best == null:
 		velocity = Vector2.ZERO
+		if rally_point != Vector2.INF and global_position.distance_to(rally_point) > 30.0:
+			Game.move_on_map(self, (rally_point - global_position).normalized() * speed * 1.4, delta)       # back to the banner
 		return
 	var to: Vector2 = best.global_position - global_position
 	if to.length() > 14.0:
