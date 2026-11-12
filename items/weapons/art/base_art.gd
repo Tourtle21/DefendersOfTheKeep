@@ -1200,3 +1200,234 @@ func draw_crystalwand(p: Paint, t: int) -> void:
 		for y in range(17, 28, 3):
 			p.rect(15, y, 16, y, Paint.GOLD_L)
 		p.rect(15, 4, 16, 8, Color.WHITE)
+
+# ------------------------------------------------------------------------------------------------------------------ legendaries
+
+func draw_dawnbringer(p: Paint, t: int) -> void:
+	var lt := Color("fff0a0")
+	var dk := Color("e8c040")
+	if t == 1:
+		for i in 24:
+			var w := 2.4 * (1.0 - 0.45 * i / 23.0)
+			for dx in range(-int(w), int(w) + 1):
+				p.px(16 + dx, 24 - i, lt if dx <= 0 else dk)
+		p.px(16, 0, Color("fff8d0"))
+		p.rect(9, 24, 23, 25, Paint.GOLD)
+		p.disc(16.0, 25.0, 3.0, Color("ffd45a"))
+		p.disc(16.0, 25.0, 1.5, Color("fffbe0"))
+		p.rect(15, 26, 17, 30, Paint.WOOD)
+		return
+	var wmax: float = [0.0, 2.4, 2.9, 3.2, 3.5, 3.8, 4.2][t]
+	var n := 24
+	# tier 2: a broader blade with a bright fuller, an edge of deeper gold, a stronger sun at the guard and a wrapped grip with a pommel
+	for i in n:
+		var w := wmax * (1.0 - 0.45 * i / 23.0)
+		if i > 20:
+			w = wmax * 0.55 * (1.0 - float(i - 20) * 0.22)
+		for dx in range(-int(w), int(w) + 1):
+			var c := lt if dx <= 0 else dk
+			if absi(dx) == int(w) and int(w) >= 2:
+				c = Color("d8a820")
+			p.px(16 + dx, 24 - i, c)
+		if i > 2 and i < 22:
+			p.px(16, 24 - i, Color("fffbe0"))
+	p.px(16, 0, Color("fff8d0"))
+	p.rect(8, 24, 24, 25, Paint.GOLD)
+	p.rect(8, 24, 24, 24, Paint.GOLD_L)
+	p.rect(8, 25, 24, 25, Paint.GOLD_D)
+	p.disc(16.0, 25.0, 3.4, Color("ffd45a"))
+	p.disc(16.0, 25.0, 1.8, Color("fffbe0"))
+	p.rect(15, 26, 17, 30, Paint.WOOD)
+	for y in [27, 29]:
+		p.rect(15, y, 17, y, Paint.WOOD_D)
+	p.rect(14, 31, 18, 31, Paint.GOLD)
+	# tier 3: a sun with short rays round the guard disc, the guard tips curl up
+	if t >= 3:
+		for a in 8:
+			var d := Vector2.from_angle(a * TAU / 8.0)
+			for k in range(4, 6):
+				var q := Vector2(16, 25) + d * float(k)
+				p.px(int(q.x), int(q.y), Paint.GOLD_L if k == 4 else Paint.GOLD)
+		for sx in [8, 24]:
+			p.px(sx, 23, Paint.GOLD)
+			p.px(sx + (1 if sx < 15 else -1), 22, Paint.GOLD_L)
+		p.gem(16.0, 31.0, 1.0, Color("e04060"))
+	# tier 4: longer sun rays and a ruby at the heart, rays of light along the blade edge
+	if t >= 4:
+		for a in 8:
+			var d := Vector2.from_angle(a * TAU / 8.0 + 0.39)
+			for k in range(5, 8):
+				var q := Vector2(16, 25) + d * float(k)
+				p.px(int(q.x), int(q.y), Paint.GOLD_L if k < 7 else Paint.WHITE)
+		for y in range(4, 20, 4):
+			p.px(16 - int(wmax * (1.0 - 0.45 * (24 - y) / 23.0)) - 1, y, Paint.WHITE)
+			p.px(16 + int(wmax * (1.0 - 0.45 * (24 - y) / 23.0)) + 1, y, Paint.GOLD_L)
+		p.gem(16.0, 25.0, 1.4, Color("e04060"))
+	# tier 5: feathered wings sweep up from the guard and a flaming edge
+	if t >= 5:
+		for side in [-1, 1]:
+			for k in 4:
+				var x0: int = 16 + side * (6 + k * 2)
+				p.line(Vector2(x0, 24 - k * 2), Vector2(x0 + side * 1, 20 - k * 3), Paint.WHITE if k % 2 == 0 else Paint.GOLD_L, 1)
+		for y in range(2, 22, 3):
+			var hw := int(wmax * (1.0 - 0.45 * (24 - y) / 23.0))
+			p.px(16 - hw, y, Color("ff9a2a"))
+			p.px(16 + hw, y + 1, Color("ffd45a"))
+	# tier 6: a halo ring round the blade tip, a golden crown pommel, a white-hot core
+	if t >= 6:
+		p.ring(16.0, 4.0, 5.6, 1.0, Color("fff0a0"))
+		p.disc(16.0, 25.0, 1.0, Color.WHITE)
+		for k in 3:
+			p.px(14 + k * 2, 31 - (k % 2), Paint.GOLD_L)
+			p.px(14 + k * 2, 30 - (k % 2), Paint.GOLD)
+		p.rect(15, 5, 17, 20, Color("fffbe0"))
+		p.px(16, 0, Color.WHITE)
+
+func draw_voidreaver(p: Paint, t: int) -> void:
+	var shaft := Color("3a2a4a")
+	var shaft_l := Color("5a4470")
+	var bl := Color("b080ff")
+	var bd := Color("6a3ac8")
+	if t == 1:
+		p.rect(15, 8, 16, 31, shaft)
+		p.rect(15, 8, 15, 31, shaft_l)
+		for i in 30:
+			var u := i / 29.0
+			var q := Vector2(16.0 + 14.0 * u, 8.0 - 6.0 * sin(u * PI * 0.9))
+			var w := 2.6 * (1.0 - 0.8 * u)
+			for dy in range(-int(w), int(w) + 1):
+				p.px(int(q.x), int(q.y) + dy + 3, bl if dy <= 0 else bd)
+		p.disc(16.0, 8.0, 2.4, Color("9a5aff"))
+		return
+	var reach: float = [0.0, 14.0, 14.5, 15.0, 15.5, 15.5, 15.5][t]
+	var wmax: float = [0.0, 2.6, 3.2, 3.6, 3.9, 4.2, 4.5][t]
+	var lift: float = [0.0, 6.0, 6.5, 7.0, 7.0, 7.5, 7.5][t]
+	# tier 2: a deeper scythe blade with a jagged inner edge, rune bands down a darker shaft, a spiked butt
+	p.rect(15, 9, 16, 31, shaft)
+	p.rect(15, 9, 15, 31, shaft_l)
+	for y in [14, 19, 24, 29]:
+		p.rect(15, y, 16, y, Color("8a5ae0"))
+	p.rect(14, 29, 17, 31, Color("2a1a3a"))
+	p.px(15, 31, Color("b080ff"))
+	for i in 34:
+		var u := i / 33.0
+		var q := Vector2(16.0 + reach * u, 9.0 - lift * sin(u * PI * 0.9))
+		var w := wmax * (1.0 - 0.8 * u)
+		for dy in range(-int(w), int(w) + 1):
+			p.px(int(q.x), int(q.y) + dy + 3, bl if dy <= 0 else bd)
+		if i % 4 == 2 and u > 0.1 and u < 0.9:
+			p.px(int(q.x), int(q.y) + int(w) + 4, bd.darkened(0.2))        # a jagged inner edge
+	p.disc(16.0, 9.0, 2.6, Color("9a5aff"))
+	p.disc(15.2, 8.2, 1.0, Color("e0c8ff"))
+	# tier 3: a bone skull at the join, and a smaller second blade curling the other way
+	if t >= 3:
+		p.disc(16.0, 12.5, 2.2, Color("e8e0d0"))
+		p.px(15, 12, Color("2a1a3a"))
+		p.px(17, 12, Color("2a1a3a"))
+		p.px(16, 14, Color("2a1a3a"))
+		for i in 12:
+			var u := i / 11.0
+			var q := Vector2(15.0 - 8.0 * u, 9.0 - 4.0 * sin(u * PI * 0.9))
+			var w := 1.8 * (1.0 - 0.8 * u)
+			for dy in range(-int(w), int(w) + 1):
+				p.px(int(q.x), int(q.y) + dy + 2, bl if dy <= 0 else bd)
+	# tier 4: glowing runes along the blade and violet flames licking the spine
+	if t >= 4:
+		for i in range(4, 30, 4):
+			var u := i / 33.0
+			var q := Vector2(16.0 + reach * u, 9.0 - lift * sin(u * PI * 0.9))
+			p.px(int(q.x), int(q.y) + 3, Color("f0e0ff"))
+		for i in range(2, 30, 5):
+			var u := i / 33.0
+			var q := Vector2(16.0 + reach * u, 9.0 - lift * sin(u * PI * 0.9))
+			p.px(int(q.x), int(q.y) + 3 - int(wmax * (1.0 - 0.8 * u)) - 1, Color("c060ff"))
+			p.px(int(q.x), int(q.y) + 3 - int(wmax * (1.0 - 0.8 * u)) - 2, Color("8a3ae0"))
+	# tier 5: chains hang from the shaft with a soul flame, the shaft gets silver bands
+	if t >= 5:
+		for k in 6:
+			p.px(18 + (k % 2), 14 + k * 2, Color("b8b8d0"))
+		p.disc(18.5, 27.0, 1.4, Color("60ffd0"))
+		p.px(18, 25, Color("c0ffe8"))
+		for y in [12, 17, 22, 27]:
+			p.rect(15, y, 16, y, Color("c8c0e0"))
+	# tier 6: a black-gold violet crown: a third crescent and gold trim, floating soul wisps round the blade
+	if t >= 6:
+		for i in 14:
+			var u := i / 13.0
+			var q := Vector2(16.0 + 7.0 * u, 11.0 + 3.0 * sin(u * PI * 0.9) + 4.0 * u)
+			p.px(int(q.x), int(q.y), Color("d0a0ff") if i % 2 == 0 else Color("8a3ae0"))
+		for q in [Vector2(27, 3), Vector2(5, 3), Vector2(7, 15), Vector2(27, 17)]:
+			p.disc(q.x, q.y, 1.2, Color("60ffd0"))
+		p.rect(14, 12, 17, 12, Paint.GOLD)
+		p.rect(14, 20, 17, 20, Paint.GOLD)
+		p.gem(16.0, 9.0, 1.8, Color("fff0ff"))
+
+func draw_mindbender(p: Paint, t: int) -> void:
+	if t == 1:
+		p.rect(15, 12, 16, 31, Color("b89030"))
+		p.rect(15, 12, 15, 31, Color("e8c040"))
+		p.rect(13, 22, 18, 23, Color("e8c040"))
+		p.disc(16.0, 8.0, 6.2, Color("3a6a8a"))
+		p.disc(16.0, 8.0, 4.6, Color("c8f4ff"))
+		p.disc(16.0, 8.0, 2.6, Color("2a9ad0"))
+		p.disc(16.0, 8.0, 1.2, Color("101830"))
+		for i in 5:
+			var ang := -PI / 2.0 + (i - 2) * 0.55
+			var q := Vector2(16.0, 8.0) + Vector2.from_angle(ang) * 9.0
+			p.px(int(q.x), int(q.y), Color("e8c040"))
+			p.px(int(q.x), int(q.y) + 1, Color("e8c040"))
+		return
+	var cy := 9.5
+	var gold := Color("e8c040")
+	var gold_d := Color("b89030")
+	# tier 2: the eye sits in a gold ring, filigree bands on the shaft, a bigger collar, a gold orb at the butt
+	p.rect(15, 14, 16, 31, gold_d)
+	p.rect(15, 14, 15, 31, gold)
+	for y in range(16, 30, 3):
+		p.rect(15, y, 16, y, Paint.GOLD_L)
+	p.rect(12, 22, 19, 23, gold)
+	p.rect(12, 22, 19, 22, Paint.GOLD_L)
+	p.disc(15.5, 31.0, 1.6, gold)
+	p.disc(16.0, cy, 7.0, gold_d)
+	p.ring(16.0, cy, 7.0, 1.4, gold)
+	p.disc(16.0, cy, 5.6, Color("3a6a8a"))
+	p.disc(16.0, cy, 4.4, Color("c8f4ff"))
+	p.disc(16.0, cy, 2.6, Color("2a9ad0"))
+	p.disc(16.0, cy, 1.2, Color("101830"))
+	p.px(14, int(cy) - 2, Color.WHITE)
+	var prongs := 5 if t < 3 else (7 if t < 5 else 9)
+	for i in prongs:
+		var ang := -PI / 2.0 + (i - (prongs - 1) / 2.0) * (0.55 if prongs == 5 else (0.42 if prongs == 7 else 0.36))
+		var q := Vector2(16.0, cy) + Vector2.from_angle(ang) * 8.4
+		p.px(int(q.x), int(q.y), gold)
+		p.px(int(q.x), int(q.y) - 1, Paint.GOLD_L)
+	# tier 3: a slit pupil, a crown of seven prongs and a ruby in the collar
+	if t >= 3:
+		p.rect(16, int(cy) - 2, 16, int(cy) + 2, Color("101830"))
+		p.gem(15.5, 22.8, 1.0, Color("e04060"))
+		for side in [-1, 1]:                                  # small gold wings flank the eye
+			for k in 3:
+				p.line(Vector2(16 + side * 8, cy + 1 + k * 2), Vector2(16 + side * (11 - k), cy - 2 + k * 3), gold if k % 2 == 0 else Paint.GOLD_L, 1)
+	# tier 4: three gems orbit the eye on a thin ring, a second collar
+	if t >= 4:
+		for a in 3:
+			var q := Vector2(16, cy) + Vector2.from_angle(a * TAU / 3.0 + 0.5) * 10.6
+			p.gem(q.x, q.y, 1.8, Color("5be0ff"))
+		p.rect(12, 27, 19, 28, gold)
+		p.rect(12, 27, 19, 27, Paint.GOLD_L)
+		p.ring(16.0, cy, 8.4, 1.0, gold_d)
+	# tier 5: nine prongs, runes glowing in the iris, the shaft wrapped in silver
+	if t >= 5:
+		for a in 6:
+			var q := Vector2(16, cy) + Vector2.from_angle(a * TAU / 6.0) * 3.6
+			p.px(int(q.x), int(q.y), Color("e0f8ff"))
+		for y in [18, 25]:
+			p.rect(15, y, 16, y, Color("e8e8f0"))
+	# tier 6: a halo of light rays, white-hot iris, a jewelled golden butt
+	if t >= 6:
+		for a in 12:
+			var q := Vector2(16, cy) + Vector2.from_angle(a * TAU / 12.0 + 0.26) * 11.6
+			p.px(int(q.x), int(q.y), Color("fff0a0") if a % 2 == 0 else Color("ffffff"))
+		p.disc(16.0, cy, 2.6, Color("ffffff"))
+		p.disc(16.0, cy, 1.2, Color("101830"))
+		p.gem(15.5, 31.0, 1.5, Color("e04060"))
