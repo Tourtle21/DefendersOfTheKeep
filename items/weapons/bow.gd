@@ -32,6 +32,7 @@ func use_item() -> void:
 	_drawing = true
 	_draw_t = 0.0
 	player.speed_mult = 0.6
+	_st["draw_ms"] = Time.get_ticks_msec()
 
 func _process(delta: float) -> void:
 	super(delta)
@@ -71,21 +72,53 @@ func release_item() -> void:
 		player.shake(1.5, 0.12)
 	var pierce := 1 if ratio >= 1.0 else 0
 	thrust(-3.0, 0.15)
-	WeaponProjectile.shoot(game_world(), player.global_position + aim * 8.0, aim, speed, dmg, col, 1.1, pierce, 80.0 + 60.0 * ratio)
+	var extra := {}
+	var finisher := false
+	if weapon_id == "bow" and tier >= 2:          # (the tier riders of items/weapons/tiers/bow.gd; fused bows keep the plain shot)
+		extra["trail"] = 3
+		if tier >= 3 and perfect:
+			extra["split"] = 2                  # Overdraw: a perfect shot splits in two on its first hit
+		elif tier >= 3 and ratio >= 1.0:
+			col = Color(1, 1, 1)                # fully drawn, not perfect: a white trail
+		if tier >= 6 and ratio >= 1.0:
+			_st["full"] = int(_st.get("full", 0)) + 1
+			finisher = int(_st.full) % 6 == 0   # every sixth full draw: Piercing Gale
+			if finisher:
+				pierce = 4
+	_st["shot"] = {"ratio": ratio, "perfect": perfect, "finisher": finisher, "dir": aim, "o": player.global_position}
+	WeaponProjectile.shoot(game_world(), player.global_position + aim * 8.0, aim, speed, dmg, col, 1.1, pierce, 80.0 + 60.0 * ratio, extra)
+	if weapon_id == "bow":
+		WeaponTiers.run(self, "release_item")
 
 func dash_attack() -> void:
 	# Roll Shot: dash the way you are moving (`aim` is the dash direction here) while firing at the cursor
 	var shot: Vector2 = player.aim_point() - player.global_position
 	shot = shot.normalized() if shot.length() > 1.0 else aim
 	player.dash(aim, 46.0, 0.15)
-	WeaponProjectile.shoot(game_world(), player.global_position + shot * 8.0, shot, 300.0, 2.0, Color(1.0, 0.85, 0.4), 1.0, 0, 90.0)
+	var roll := weapon_id == "bow" and tier >= 4          # Smoke Roll: a three-arrow fan
+	var ex := {"trail": 3} if weapon_id == "bow" and tier >= 2 else {}
+	WeaponProjectile.shoot(game_world(), player.global_position + shot * 8.0, shot, 300.0, 2.0, Color(1.0, 0.85, 0.4), 1.0, 0, 90.0, ex)
+	if roll:
+		for sd in [-0.2, 0.2]:
+			WeaponProjectile.shoot(game_world(), player.global_position + shot * 8.0, shot.rotated(sd), 300.0, 0.6, Color(1.0, 0.85, 0.4), 1.0, 0, 60.0, ex)
 	fx("line", player.global_position, Color(1, 1, 1), {"dir": -aim, "length": 30.0, "width": 4.0, "life": 0.2})
 
 func ability() -> void:
 	thrust(-6.0, 0.3)
-	for i in 5:
-		var d := aim.rotated((i - 2) * 0.17)
-		WeaponProjectile.shoot(game_world(), player.global_position + d * 8.0, d, 290.0, 1.5, Color(1.0, 0.85, 0.4), 1.0, 0, 80.0)
+	var fan_n := 7 if weapon_id == "bow" and tier >= 2 else 5          # Fan: seven arrows, the middle one a lead arrow
+	var gap := 0.14 if fan_n == 7 else 0.17
+	for i in fan_n:
+		var d := aim.rotated((i - fan_n / 2) * gap)
+		var extra := {}
+		var pierce := 0
+		var col := Color(1.0, 0.85, 0.4)
+		if fan_n == 7:
+			extra["trail"] = 3
+			if i == fan_n / 2:
+				pierce = 2
+				col = Color(1.0, 0.85, 0.2)
+				extra = {"trail": 3, "expose_secs": 1.5, "size": 1.2}
+		WeaponProjectile.shoot(game_world(), player.global_position + d * 8.0, d, 290.0, 1.5, col, 1.0, pierce, 80.0, extra)
 
 func ultimate() -> void:
 	# Arrow Storm: two seconds of rapid fire toward the cursor (you can still move)
@@ -97,6 +130,9 @@ func ultimate() -> void:
 		WeaponProjectile.shoot(game_world(), player.global_position + d * 8.0, d, 320.0, 1.7, Color(1.0, 0.85, 0.4), 0.9, 0, 70.0)
 		await get_tree().create_timer(0.1).timeout
 	if is_inside_tree():                                           # finale: one big arrow slams down at the cursor
-		ground_strike(cursor_target(150.0), 38.0, 0.4, 4.0, 200.0, Color(1.0, 0.9, 0.4), 0.4)
+		var big := weapon_id == "bow" and tier >= 6
+		_st["finale_c"] = cursor_target(150.0)
+		WeaponTiers.run(self, "finale")
+		ground_strike(_st["finale_c"], 48.0 if big else 38.0, 0.4, 4.0, 200.0, Color(1.0, 0.9, 0.4), 0.6 if big else 0.4)
 	if is_inside_tree():
 		player.speed_mult = 1.0

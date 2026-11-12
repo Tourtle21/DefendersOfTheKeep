@@ -13,3 +13,5 @@ DONE rapier
 DONE warpbow
 CLAIM juggernaut
 DONE bulwark
+DONE bow
+DONE daggers

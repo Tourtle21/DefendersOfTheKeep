@@ -268,7 +268,203 @@ func t_hammer() -> void:
 	ok("hammer Worldfall: tier 6 comet %s, slow crater r%.0f, more damage (%.1f vs %.1f); tier 5 no comet/crater (%s, %.0f)" % [mt[6].comet, mt[6].hz, mt[6].lost, mt[5].lost, mt[5].comet, mt[5].hz], mt[6].comet and mt[6].hz == 60.0 and !mt[5].comet and mt[5].hz == 0.0 and mt[6].lost > mt[5].lost + 3.0)
 	await draw_smoke("hammer")
 
+func shoot_hold(w, secs: float) -> void:
+	w.use_item()
+	await wait(secs)
+	w.release_item()
+
+func t_bow() -> void:
+	var w
+	var fan := {}
+	for t in [1, 2]:
+		w = await equip("bow", t, false)
+		var ds := [dummy(P + Vector2(60, 0))]
+		w.use_ability()
+		await wait(0.02)
+		var n := count_script("projectile.gd")
+		await wait(0.5)
+		fan[t] = [n, is_exposed(ds[0])]
+	ok("bow Fan: tier 2 volley fires %d arrows (tier 1 has no volley: %d) and the lead arrow exposes the dummy %s" % [fan[2][0], fan[1][0], fan[2][1]], fan[2][0] == 7 and fan[1][0] == 0 and fan[2][1])
+	var od := {}
+	for t in [2, 3]:
+		w = await equip("bow", t, false)
+		var d = dummy(P + Vector2(40, 0))
+		await shoot_hold(w, 0.9)
+		var peak := 0
+		var seen := {}
+		for i in 14:
+			await wait(0.05)
+			peak = maxi(peak, count_script("projectile.gd"))
+			fx_kinds(seen)
+		od[t] = [peak, seen.has("star")]
+	ok("bow Overdraw: tier 3 perfect shot splits (%d projectiles, star %s); tier 2 one (%d)" % [od[3][0], od[3][1], od[2][0]], od[3][0] >= 3 and od[3][1] and od[2][0] == 1 and !od[2][1])
+	var sr := {}
+	for t in [3, 4]:
+		w = await equip("bow", t, false)
+		w.use_dash()
+		await wait(0.02)
+		var n := count_script("projectile.gd")
+		await wait(0.15)
+		var hz := 0.0
+		for f in world.get_children():
+			if f.get_script() != null and str(f.get_script().resource_path).ends_with("hazard.gd"):
+				hz = f.radius
+		sr[t] = [n, hz]
+	ok("bow Smoke Roll: tier 4 dash %d arrows and a slow patch r%.0f; tier 3 %d arrows, no patch (%.0f)" % [sr[4][0], sr[4][1], sr[3][0], sr[3][1]], sr[4][0] == 3 and sr[4][1] == 24.0 and sr[3][0] == 1 and sr[3][1] == 0.0)
+	var st := {}
+	for t in [4, 5, 6]:
+		w = await equip("bow", t, false)
+		var c: Vector2 = P + (player.aim_point() - P).limit_length(150.0)
+		var ds := []
+		for ring in [30.0, 45.0, 60.0]:
+			for k in 8:
+				ds.append(dummy(c + Vector2.from_angle(float(k) * TAU / 8.0) * ring))
+		w.use_ultimate()
+		var falls := 0
+		var giant := false
+		var proj_after := 0
+		var seen_ids := {}
+		var at_23 := 0.0
+		for i in 70:
+			await wait(0.05)
+			for f in world.get_children():
+				if f.get_script() != null and str(f.get_script().resource_path).ends_with("fx.gd") and f.kind == "fall":
+					seen_ids[f.get_instance_id()] = f.radius
+			if i >= 28:
+				proj_after = maxi(proj_after, count_script("projectile.gd"))
+			if i == 45:
+				for d in ds:
+					at_23 += lost(d)
+		var total := 0.0
+		for d in ds:
+			total += lost(d)
+		for k in seen_ids:
+			if seen_ids[k] == 2.0:
+				falls += 1
+			if seen_ids[k] >= 6.0:
+				giant = true
+		var d = ds[0]
+		st[t] = {"falls": falls, "giant": giant, "lost": total - at_23, "proj": proj_after}
+	ok("bow Rainstorm: tier 5 drops %d arrows (tier 4: %d) and deals more after 2.3 s (%.1f vs %.1f)" % [st[5].falls, st[4].falls, st[5].lost, st[4].lost], st[5].falls >= 8 and st[4].falls == 0 and st[5].lost > st[4].lost + 1.0)
+	ok("bow Skyfall: tier 6 giant arrow %s and %d radial arrows; tier 5 %s/%d" % [st[6].giant, st[6].proj, st[5].giant, st[5].proj], st[6].giant and st[6].proj >= 6 and !st[5].giant)
+	# Piercing Gale: the sixth full draw
+	w = await equip("bow", 6, false)
+	var far = dummy(P + Vector2(100, 0))
+	var beam := false
+	for i in 6:
+		w._attack_cd = 0.0
+		w.use_item()
+		await wait(0.85)
+		w.release_item()
+		var seen := {}
+		for k in 4:
+			await wait(0.05)
+			fx_kinds(seen)
+		if seen.has("beam"):
+			beam = i == 5
+		await wait(0.3)
+	ok("bow Piercing Gale: the sixth full draw at tier 6 shows a beam %s" % beam, beam)
+	await draw_smoke("bow")
+
+## Hits on a dummy: count the drops of its health, sampling every 0.02 s for `secs`.
+func hit_steps(d, secs: float) -> Array:
+	var out := []
+	var last := lost(d)
+	for i in int(secs / 0.02):
+		await wait(0.02)
+		var l := lost(d)
+		if l > last + 0.01:
+			out.append(snappedf(i * 0.02, 0.02))
+			last = l
+	return out
+
+func t_daggers() -> void:
+	var w
+	var kn := {}
+	for t in [1, 2]:
+		w = await equip("daggers", t, false)
+		w.use_ability()
+		await wait(0.02)
+		kn[t] = count_script("projectile.gd")
+	ok("daggers Fan of Knives: tier 2 throws %d knives (tier 1 has no ability)" % kn[2], kn[2] == 5)
+	var fl := {}
+	for t in [2, 3]:
+		w = await equip("daggers", t, false)
+		var d = dummy(P + Vector2(20, 0))
+		var per := []
+		var counts := []
+		for i in 3:
+			w._attack_cd = 0.0
+			var h0 := lost(d)
+			w.use_item()
+			var st: Array = await hit_steps(d, 0.4)
+			per.append(lost(d) - h0)
+			counts.append(st.size())
+			await wait(0.1)
+		fl[t] = [per, counts]
+	ok("daggers Flurry: tier 3 third slash adds two cuts after the first (%s later hits, damage %s); tier 2 %s" % [fl[3][1], fl[3][0], fl[2][1]], fl[3][1][2] == 2 and fl[3][1][0] == 0 and fl[2][1] == [0, 0, 0] and fl[3][0][2] > fl[3][0][0] * 1.8 and fl[2][0][2] < fl[2][0][0] * 1.2)
+	var ph := {}
+	for t in [3, 4]:
+		w = await equip("daggers", t, false)
+		var d = dummy(P + Vector2(0, 15))
+		w.use_dash()
+		await wait(0.9)
+		ph[t] = [lost(d), is_exposed(d)]
+	ok("daggers Phantom Step: tier 4 phantom strikes the dummy by the start point (%.1f vs %.1f), exposed %s" % [ph[4][0], ph[3][0], ph[4][1]], ph[4][0] > ph[3][0] + 1.0 and ph[4][1])
+	var sc := {}
+	for t in [4, 5]:
+		w = await equip("daggers", t, false)
+		var d = dummy(P + Vector2(80, 0))
+		w.use_ultimate()
+		var steps := await hit_steps(d, 3.0)
+		sc[t] = steps
+	ok("daggers Shadow Clones: tier 5 the marked dummy takes %d separate hits in 3 s, tier 4 %d" % [sc[5].size(), sc[4].size()], sc[5].size() >= 4 and sc[4].size() == 0)
+	var tc := {}
+	for t in [5, 6]:
+		w = await equip("daggers", t, false)
+		var d = dummy(P + Vector2(100, 0))
+		w.use_ultimate()
+		await wait(5.95)
+		var seen := {}
+		var st := []
+		var last := lost(d)
+		for i in 40:
+			await wait(0.02)
+			fx_kinds(seen)
+			var l := lost(d)
+			if l > last + 0.01:
+				st.append(i)
+				last = l
+		tc[t] = [st.size(), seen]
+	ok("daggers Thousand Cuts: tier 6 the end of the mark is %d quick hits (tier 5: %d), cut fx %s" % [tc[6][0], tc[5][0], tc[6][1].has("cut")], tc[6][0] >= 5 and tc[6][1].has("cut") and tc[5][0] <= 2)
+	# finisher: the sixth slash at tier 6 hits harder than the fifth
+	w = await equip("daggers", 6, false)
+	var d6 = dummy(P + Vector2(20, 0))
+	var dm := []
+	for i in 6:
+		w._attack_cd = 0.0
+		d6.remove_meta("exposed_until") if d6.has_meta("exposed_until") else null
+		var h0 := lost(d6)
+		w.use_item()
+		await wait(0.45)
+		dm.append(lost(d6) - h0)
+	ok("daggers Finisher: the sixth slash at tier 6 hits harder than the fifth (%.1f vs %.1f)" % [dm[5], dm[4]], dm[5] > dm[4] * 1.5)
+	# the backstab refund still works at tier 6
+	w = await equip("daggers", 6, false)
+	var d7 = dummy(P + Vector2(20, 0))
+	d7.set_meta("exposed_until", Time.get_ticks_msec() / 1000.0 + 5.0)
+	w._dash_cd = 4.0
+	w._attack_cd = 0.0
+	w.use_item()
+	await wait(0.1)
+	ok("daggers: the backstab still refunds the dash cooldown at tier 6 (%.2f left)" % w._dash_cd, w._dash_cd < 3.0)
+	await draw_smoke("daggers")
+
 func run() -> void:
+	if only == "" or only == "daggers":
+		await t_daggers()
+	if only == "" or only == "bow":
+		await t_bow()
 	if only == "" or only == "hammer":
 		await t_hammer()
 	if only == "" or only == "spear":

@@ -29,6 +29,11 @@ func lost(e) -> float:
 func clear() -> void:
 	for e in world.get_node("Enemies").get_children():
 		e.queue_free()
+	for n in world.get_children():                # leftovers of the last test: arrows, patches, lights, effects
+		if n.get_script() != null:
+			var sp: String = str(n.get_script().resource_path)
+			if sp.ends_with("projectile.gd") or sp.ends_with("hazard.gd") or sp.ends_with("fx.gd") or sp.ends_with("light_source.gd"):
+				n.queue_free()
 	await wait(0.1)
 func aim_at(p: Vector2) -> void:                 # the weapon aims at the cursor (the pad cursor: a headless mouse cannot be warped)
 	await wait(0.1)

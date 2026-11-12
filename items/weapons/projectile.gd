@@ -126,7 +126,7 @@ func _do_chain(from) -> void:
 
 func _do_split(at: Vector2) -> void:
 	for s in split:
-		var u := 0.0 if split == 1 else (float(s) / float(split - 1) - 0.5) * 1.0
+		var u := 0.0 if split == 1 else (float(s) / float(split - 1) - 0.5) * 0.7
 		var dir := vel.normalized().rotated(u)
 		var extra := {"style": style, "size": size * 0.8, "glow": glow, "split": 0, "radius": radius, "_first": false}
 		WeaponProjectile.shoot(get_parent(), at + dir * 5.0, dir, vel.length(), damage * 0.4, color, 0.35, 0, knock, extra)
@@ -174,8 +174,8 @@ func _draw() -> void:
 			draw_line(Vector2(-10, 0) * sc, Vector2(7, 0) * sc, color, 2.0)
 			draw_colored_polygon(_sc([Vector2(14, 0), Vector2(6, -2), Vector2(6, 2)], sc), Color(1, 1, 1, 0.9))
 		_:
-			draw_line(Vector2(-7, 0), Vector2(3, 0), color, 2.0)
-			draw_colored_polygon(PackedVector2Array([Vector2(7, 0), Vector2(2, -3), Vector2(2, 3)]), color.lightened(0.3))
+			draw_line(Vector2(-7, 0) * sc, Vector2(3, 0) * sc, color, 2.0)
+			draw_colored_polygon(_sc([Vector2(7, 0), Vector2(2, -3), Vector2(2, 3)], sc), color.lightened(0.3))
 	if style == "arrow" and glow > 0.0:
 		draw_circle(Vector2.ZERO, 5.0, Color(color, glow))
 	for i in trail:

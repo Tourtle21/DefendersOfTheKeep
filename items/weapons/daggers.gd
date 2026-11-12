@@ -39,10 +39,15 @@ func attack() -> void:
 			WeaponUtil.hit(e, Game.basic_hit(weapon_id), o, 60.0)
 
 func ability() -> void:
-	# Throwing Knives: three knives that expose whatever they hit
-	for i in 3:
-		var d := aim.rotated((i - 1) * 0.16)
-		WeaponProjectile.shoot(game_world(), player.global_position + d * 8.0, d, 280.0, 1.0, Color(0.8, 0.85, 1.0), 0.36, 0, 60.0, {"expose_secs": 2.0})
+	# Throwing Knives: three knives that expose whatever they hit (tier 2+: five blades with a short trail)
+	var n := 5 if tier >= 2 else 3
+	var gap := 0.14 if tier >= 2 else 0.16
+	var extra := {"expose_secs": 2.0}
+	if tier >= 2:
+		extra = {"expose_secs": 2.0, "style": "blade", "trail": 3}
+	for i in n:
+		var d := aim.rotated((i - n / 2) * gap)
+		WeaponProjectile.shoot(game_world(), player.global_position + d * 8.0, d, 280.0, 1.0, Color(0.8, 0.85, 1.0), 0.36, 0, 60.0, extra)
 
 func dash_attack() -> void:
 	fx("line", player.global_position, Color(0.6, 0.5, 0.9), {"dir": aim, "length": 44.0, "width": 6.0, "life": 0.3})
