@@ -279,6 +279,120 @@ func t_juggernaut() -> void:
 	ok("juggernaut Colossus: the final slam lands (flash %s, %.1f taken, stunned %s, scale back to %.2f)" % [flash, final_hit, stunned, w.scale.x], flash and final_hit >= 21.0 and stunned and w.scale.x < 1.05)
 	await draw_smoke("juggernaut")
 
+func hazards() -> int:
+	return count_script("hazard.gd")
+func health_px() -> float:
+	return world.get_node("Hud").get_node("Control2").get_node("ColorRect").get_node("Health").size.x
+
+func t_earthshaker() -> void:
+	var w
+	var mod = load("res://items/weapons/tiers/earthshaker.gd")
+	# Fault Lines (entry, tier 3): the fissure leaves faults, every third swing a spike leaves one
+	w = await equip("earthshaker", 3)
+	w.use_ability()
+	await wait(1.4)
+	var nf: int = hazards()
+	ok("earthshaker Fault Lines: the fissure leaves %d fault patches (cap 14)" % nf, nf >= 10 and nf <= 14)
+	w = await equip("earthshaker", 3)
+	for h in world.get_children():
+		if h.get_script() != null and str(h.get_script().resource_path).ends_with("hazard.gd"):
+			h.queue_free()
+	await wait(0.2)
+	w._st.faults.clear()
+	dummy(P + Vector2(40, 0))
+	var f0 := hazards()
+	var seen3 := {}
+	for i in 3:
+		w.use_item()
+		for k in 9:
+			await wait(0.05)
+			fx_kinds(seen3)
+		await wait(0.55)
+	ok("earthshaker Fault Lines: the third swing's spike leaves a fault (%d -> %d), shards on the swing %s" % [f0, hazards(), seen3.has("shards")], hazards() - f0 == 1 and seen3.has("shards"))
+	# Tremor: two extra hits on a swing, a return wave, the burrow erupts faults on arrival
+	var tr := {}
+	for t in [3, 4]:
+		w = await equip("earthshaker", t)
+		var d1 = dummy(P + Vector2(40, 0))
+		w.use_item()
+		await wait(0.7)
+		tr[t] = lost(d1)
+	ok("earthshaker Tremor: a swing hits a dummy at 40 px harder at tier 4 (%.1f vs %.1f)" % [tr[4], tr[3]], tr[4] > tr[3] + 0.5)
+	var rw := {}
+	for t in [3, 4]:
+		w = await equip("earthshaker", t, false)
+		var d2 = dummy(P + Vector2(22, 0))
+		w.use_ability()
+		await wait(1.2)
+		var first := lost(d2)
+		await wait(1.6)
+		rw[t] = lost(d2) - first
+	ok("earthshaker Tremor: the return wave hits the line's start again (%.1f vs %.1f at tier 3)" % [rw[4], rw[3]], rw[4] > rw[3] + 0.5)
+	var bu := {}
+	for t in [3, 4]:
+		w = await equip("earthshaker", t)
+		await face(Vector2(1, 0))
+		w._st.faults.clear()
+		for k in 3:
+			mod.add_fault(w, P + Vector2(60 + 6.0 * k, 0))
+		await wait(0.1)
+		w.use_dash()
+		await wait(1.0)
+		bu[t] = hazards()
+	ok("earthshaker Tremor: arriving erupts the faults within 60 px (%d left vs %d at tier 3)" % [bu[4], bu[3]], bu[4] < bu[3])
+	# Tectonic Shift: the crowd is dragged in, an aftershock spends the faults
+	var ts := {}
+	for t in [4, 5]:
+		w = await equip("earthshaker", t)
+		var d3 = dummy(P + Vector2(100, 0), HP, true)
+		w.use_ultimate()
+		await wait(1.5)
+		var x0: float = d3.global_position.distance_to(player.global_position)
+		var pulled := 0.0
+		for i in 30:
+			await wait(0.05)
+			pulled = maxf(pulled, x0 - d3.global_position.distance_to(player.global_position))
+		await wait(1.0)
+		ts[t] = {"pull": pulled, "haz": hazards()}
+	ok("earthshaker Tectonic Shift: tier 5 drags the dummy %.0f px (tier 4: %.0f) and spends the faults (%d vs %d)" % [ts[5].pull, ts[4].pull, ts[5].haz, ts[4].haz], ts[5].pull > ts[4].pull + 15.0 and ts[5].haz < ts[4].haz)
+	# World Shaker
+	w = await equip("earthshaker", 6)
+	var d4 = dummy(P + Vector2(100, 0))
+	w.use_ultimate()
+	await wait(3.6)
+	Input.action_press(player.controls.left)
+	var maxf_ := 0
+	var pill := 0
+	for i in 30:
+		await wait(0.05)
+		maxf_ = maxi(maxf_, hazards())
+		var s5 := {}
+		fx_kinds(s5)
+		pill += int(s5.get("pillar", 0) > 0)
+	Input.action_release(player.controls.left)
+	Input.action_press(player.controls.right)
+	for i in 30:
+		await wait(0.05)
+	Input.action_release(player.controls.right)
+	var live := int(mod.fault_count(w))
+	ok("earthshaker World Shaker: footsteps leave faults (%d live, max seen %d <= 14), pillars at the cursor in %d frames" % [live, maxf_, pill], live >= 3 and maxf_ <= 14 and pill >= 1)
+	var b0 := lost(d4)
+	var fl := false
+	var peak2 := 0
+	for i in 110:
+		await wait(0.05)
+		var s6 := {}
+		fx_kinds(s6)
+		fl = fl or s6.has("flash")
+	ok("earthshaker World Shaker: the final quake lands (flash %s, %.1f taken, scale of the strike 2.0 H)" % [fl, lost(d4) - b0], fl and lost(d4) - b0 >= 12.0)
+	# faults never hurt the player
+	w = await equip("earthshaker", 3)
+	mod.add_fault(w, player.global_position)
+	var hp0 := health_px()
+	await wait(3.0)
+	ok("earthshaker: standing in a fault for 3 s costs no health (%.1f -> %.1f)" % [hp0, health_px()], is_equal_approx(hp0, health_px()))
+	await draw_smoke("earthshaker")
+
 func aura_data_state() -> float:
 	for n in world.get_children():
 		if n.get_script() != null and str(n.get_script().resource_path).ends_with("weapon_aura.gd"):
@@ -290,3 +404,5 @@ func run() -> void:
 		await t_warpbow()
 	if only == "" or only == "juggernaut":
 		await t_juggernaut()
+	if only == "" or only == "earthshaker":
+		await t_earthshaker()
