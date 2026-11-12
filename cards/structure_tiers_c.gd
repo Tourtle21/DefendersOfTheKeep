@@ -54,9 +54,13 @@ static func tick(st, delta: float) -> void:
 			tick_crystal_pylon(st, delta)
 		"storm_spire":
 			tick_storm_spire(st, delta)
+		"magma_wall":
+			tick_magma_wall(st, delta)
 
 static func on_gnaw(st, e) -> void:
-	pass
+	match id_of(st):
+		"magma_wall":
+			on_gnaw_magma_wall(st, e)
 
 static func interval_mult(st) -> float:
 	match id_of(st):
@@ -81,14 +85,21 @@ static func on_setup(st) -> void:
 	match id_of(st):
 		"crystal_pylon":
 			setup_crystal_pylon(st)
+		"magma_wall":
+			setup_magma_wall(st)
 
 static func on_promote(st, new_tier: int) -> void:
 	match id_of(st):
 		"crystal_pylon":
 			setup_crystal_pylon(st)
+		"magma_wall":
+			setup_magma_wall(st)
+			st._thr.clear()
 
 static func on_expire(st) -> void:
-	pass
+	match id_of(st):
+		"magma_wall":
+			on_expire_magma_wall(st)
 
 # ================================================================ Crystal Pylon
 const PYLON_AMETHYST := Color(0.8, 0.6, 1.0)
@@ -369,3 +380,93 @@ static func tick_storm_spire(st, delta: float) -> void:
 		if StructureTiers.pace(st, "gale_fx", 2.0, delta):
 			WeaponFx.spawn(w, "ripple", st.global_position, Color(SPIRE_BOLT, 0.6), {"radius": float(st.data.range), "rings": 1, "life": 0.9})
 			StructureTiers.sfx(st, "whoosh", 2.0, 0.8)
+
+# ================================================================ Magma Wall
+const MAGMA_LAVA := Color(1.0, 0.55, 0.15)
+const MAGMA_HOT := Color(1.0, 0.95, 0.7)
+const MAGMA_BLEED := 0.3
+const MAGMA_SPIT_T := 3.0
+const MAGMA_SPIT_R := 90.0
+const MAGMA_SPIT := 1.2
+const MAGMA_HEAT_R := 40.0
+const MAGMA_HEAT := 0.4
+const MAGMA_ERUPT_R := 55.0
+const MAGMA_ERUPT := 4.0
+const MAGMA_LIGHT := 60.0
+const MAGMA_RAGE_AT := 0.3
+
+static func magma_rage(st) -> bool:
+	return st.tier >= 6 and st.hp < MAGMA_RAGE_AT * st.max_hp
+
+## Heat wall (tier 4): the wall is a light at night.
+static func setup_magma_wall(st) -> void:
+	if st.tier >= 4:
+		ensure_light(st, MAGMA_LIGHT)
+
+## Burning: `ticks` hits of `dmg` half a second apart; a new gnaw refreshes the count instead of starting another fire.
+static func ignite(tree: SceneTree, e, ticks: int, dmg: float) -> void:
+	var running: bool = int(e.get_meta("mw_burn", 0)) > 0
+	e.set_meta("mw_burn", ticks)
+	e.set_meta("mw_burn_dmg", dmg)
+	if running:
+		return
+	while is_instance_valid(e) and int(e.get_meta("mw_burn", 0)) > 0:
+		await tree.create_timer(0.5).timeout
+		if !alive(e):
+			return
+		e.set_meta("mw_burn", int(e.get_meta("mw_burn", 0)) - 1)
+		e.spell_damage(float(e.get_meta("mw_burn_dmg", 0.0)), "fire", false)
+
+static func on_gnaw_magma_wall(st, e) -> void:
+	if st.tier < 2 or !is_instance_valid(e):
+		return
+	var thorns: float = float(st.data.get("thorns", 0.0))
+	WeaponFx.spawn(world_of(st), "burst", e.global_position, MAGMA_LAVA, {"radius": 8.0, "life": 0.2})
+	ignite(st.get_tree(), e, 3, thorns * MAGMA_BLEED * (2.0 if magma_rage(st) else 1.0))
+
+static func tick_magma_wall(st, delta: float) -> void:
+	var t: int = st.tier
+	if t < 2:
+		return
+	var w := world_of(st)
+	var thorns: float = float(st.data.get("thorns", 0.0))
+	var pos: Vector2 = st.global_position
+	# 3 Lava spit: a glob at the nearest enemy it can see
+	if t >= 3 and StructureTiers.ready(st, "spit", MAGMA_SPIT_T, delta):
+		var target = StructureTiers.nearest(st, MAGMA_SPIT_R)
+		if target != null:
+			StructureTiers.reset(st, "spit")
+			var to: Vector2 = target.global_position - pos
+			WeaponProjectile.shoot(w, pos + Vector2(0, 8), to, 200.0, thorns * MAGMA_SPIT, MAGMA_LAVA, to.length() / 200.0 + 0.3, 0, 40.0, {"bleed_ticks": 3, "bleed_dmg": thorns * 0.2})
+			var at: Vector2 = target.global_position
+			later(st, to.length() / 200.0, func(): WeaponFx.spawn(w, "burst", at, MAGMA_LAVA, {"radius": 10.0, "life": 0.2}))
+			StructureTiers.sfx(st, "hit", 0.4)
+	# 4 Heat wall: whoever is close burns, chewing or not
+	if t >= 4 and StructureTiers.pace(st, "heat", 0.5, delta):
+		var mult := 2.0 if magma_rage(st) else 1.0
+		var n := 0
+		for e in StructureTiers.enemies(st, MAGMA_HEAT_R):
+			e.spell_damage(thorns * MAGMA_HEAT * mult, "fire", true)
+			if n < 2 and is_instance_valid(e):
+				WeaponFx.spawn(w, "motes", e.global_position, MAGMA_LAVA, {"radius": 8.0, "count": 2, "rise": 10.0, "life": 0.5})
+				n += 1
+	# 5 Eruption: at two thirds and at one third of its health
+	if t >= 5:
+		for key in [["r66", 0.66], ["r33", 0.33]]:
+			if StructureTiers.threshold(st, key[0], key[1]):
+				StructureTiers.pulse(st, MAGMA_ERUPT_R, thorns * MAGMA_ERUPT, 240.0, 0.6, MAGMA_LAVA, "fire")
+				WeaponFx.spawn(w, "flash", pos, MAGMA_LAVA, {"radius": MAGMA_ERUPT_R, "life": 0.3})
+				WeaponFx.spawn(w, "ripple", pos, MAGMA_LAVA, {"radius": MAGMA_ERUPT_R, "rings": 2, "life": 0.5})
+				WeaponFx.spawn(w, "pillar", pos, MAGMA_LAVA, {"height": 60.0, "width": 20.0, "life": 0.5})
+				StructureTiers.cast(st, "lava_pool", pos, 0.8, -2)
+				Sfx.play("big_hit")
+
+static func on_expire_magma_wall(st) -> void:
+	if st.tier < 6 or st.hp > 0.0:
+		return
+	var w := world_of(st)
+	var pos: Vector2 = st.global_position
+	WeaponFx.spawn(w, "flash", pos, Color.WHITE, {"radius": 70.0, "life": 0.4})
+	WeaponFx.spawn(w, "pillar", pos, MAGMA_LAVA, {"height": 100.0, "width": 40.0, "life": 0.6})
+	StructureTiers.cast(st, "lava_pool", pos, 1.0, -1)
+	Sfx.play("ultimate")

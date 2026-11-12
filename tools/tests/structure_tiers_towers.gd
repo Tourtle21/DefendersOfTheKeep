@@ -50,9 +50,27 @@ func saw(kind: String, radius := -1.0, width := -1.0) -> bool:
 			return true
 	return false
 
+func script_is(n: Node, file: String) -> bool:
+	return n.get_script() != null and str(n.get_script().resource_path).ends_with(file)
+
+func count_nodes(file: String) -> int:
+	var c := 0
+	for n in world.get_children():
+		if script_is(n, file):
+			c += 1
+	return c
+
+## Spells in the world that are copies of the card `id` (a building borrowing a spell).
+func spells_of(id: String) -> int:
+	var c := 0
+	for n in world.get_children():
+		if script_is(n, "spell.gd") and str(n.data.get("id", "")) == id:
+			c += 1
+	return c
+
 func clear_world() -> void:
 	for n in world.get_children():
-		if n.is_in_group("structure") or n.is_in_group("enemy"):
+		if n.is_in_group("structure") or n.is_in_group("enemy") or script_is(n, "projectile.gd") or script_is(n, "hazard.gd") or script_is(n, "spell.gd"):
 			n.queue_free()
 	for n in root.get_tree().get_nodes_in_group("enemy"):
 		n.queue_free()
@@ -98,6 +116,8 @@ func _initialize() -> void:
 		await pylon()
 	if only == "" or only == "storm_spire":
 		await spire()
+	if only == "" or only == "magma_wall":
+		await magma()
 	quit()
 
 # ---------------------------------------------------------------- Crystal Pylon
@@ -250,3 +270,74 @@ func spire() -> void:
 	ok("spire t6 keeps clap (flash 70 %s), conductor (ring 30 %s)" % [saw("flash", 70.0), saw("ring", 30.0)], saw("flash", 70.0) and saw("ring", 30.0))
 	await clear_world()
 	await draws(id, "spire")
+
+# ---------------------------------------------------------------- Magma Wall
+func magma() -> void:
+	var id := "magma_wall"
+	var tc = load("res://cards/structure_tiers_c.gd")
+	# 1. molten cracks: whoever chewed keeps burning after it is led away
+	var after := {}
+	for t in [1, 2]:
+		await clear_world()
+		var st = tower(id, t, Vector2(0, 200))
+		var e = dummy(Vector2(0, 225))
+		await wait(1.2)
+		e.global_position = Vector2(0, 700)
+		var h0: float = e.health
+		await wait(1.8)
+		after[t] = h0 - e.health
+		st.queue_free()
+	ok("magma t2 cracks: burning after leaving the wall %.2f (tier 1: %.2f)" % [after[2], after[1]], after[2] > 0.5 and after[1] < 0.1)
+	# 2. lava spit
+	await clear_world()
+	var s3 = tower(id, 3, Vector2(0, 200))
+	var d3 = dummy(Vector2(70, 200))
+	var glob := false
+	var t := 0.0
+	while t < 3.6:
+		glob = glob or count_nodes("projectile.gd") > 0
+		await wait(0.05)
+		t += 0.05
+	ok("magma t3 spit: a glob flew %s, the dummy at 70 px lost %.1f" % [glob, lost(d3)], glob and lost(d3) > 0.5)
+	# 3. heat wall
+	var lose := {}
+	for tt in [3, 4]:
+		await clear_world()
+		var sh = tower(id, tt, Vector2(0, 200))
+		var dh = dummy(Vector2(35, 200))
+		await wait(1.6)
+		lose[tt] = lost(dh)
+		if tt == 4:
+			ok("magma t4 heat wall: dummy at 35 px lost %.1f (tier 3: %.1f), the wall is a light %s" % [lose[4], lose[3], sh.is_in_group("light")], lose[4] > lose[3] + 5.0 and sh.is_in_group("light") and sh.light_radius > 0.0)
+	# 4. eruption at two thirds and one third
+	await clear_world()
+	seen.clear()
+	var s5 = tower(id, 5, Vector2(0, 200))
+	var d5 = dummy(Vector2(30, 200))
+	await wait(0.3)
+	s5.hp = s5.max_hp * 0.6
+	await watch(0.5)
+	var first := spells_of("lava_pool")
+	var flash1 := saw("flash", 55.0)
+	s5.hp = s5.max_hp * 0.3
+	await watch(0.5)
+	var second := spells_of("lava_pool")
+	s5.hp = s5.max_hp * 0.2
+	await watch(0.5)
+	ok("magma t5 eruption: pools after 60%% %d, after 30%% %d, after 20%% (no new one) %d, flash %s, dummy hurt %.1f" % [first, second, spells_of("lava_pool"), flash1, lost(d5)], first == 1 and second == 2 and spells_of("lava_pool") == 2 and flash1 and lost(d5) > 10.0)
+	# 5. magma core: rage below 30%, and a full pool when it falls
+	await clear_world()
+	var s6 = tower(id, 6, Vector2(0, 200))
+	var chewer = dummy(Vector2(0, 225))
+	await wait(0.6)
+	var calm: float = chewer.get_meta("mw_burn_dmg", 0.0)
+	s6.hp = s6.max_hp * 0.25
+	await wait(1.2)
+	var raged: float = chewer.get_meta("mw_burn_dmg", 0.0)
+	ok("magma t6 rage: burn damage %.2f calm, %.2f below 30%%, rage %s" % [calm, raged, tc.magma_rage(s6)], raged > calm * 1.9 and tc.magma_rage(s6))
+	var before := spells_of("lava_pool")
+	s6.hp = 0.0
+	await wait(0.9)
+	ok("magma t6 core: the wall is gone %s and a lava pool lies where it stood (%d more)" % [!is_instance_valid(s6), spells_of("lava_pool") - before], !is_instance_valid(s6) and spells_of("lava_pool") > before)
+	await clear_world()
+	await draws(id, "magma")

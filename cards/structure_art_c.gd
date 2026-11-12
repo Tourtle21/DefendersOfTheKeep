@@ -16,6 +16,9 @@ static func draw(st, col: Color) -> bool:
 		"storm_spire":
 			draw_storm_spire(st, col)
 			return true
+		"magma_wall":
+			draw_magma_wall(st, col)
+			return true
 	return false
 
 # ---------------------------------------------------------------- shared shapes
@@ -232,3 +235,104 @@ static func draw_storm_spire(st, col: Color) -> void:
 			var x := (SpellArt.jit(i, 2.0) - 0.5) * 70.0
 			var y := -30.0 + u * 44.0
 			st.draw_line(Vector2(x, y), Vector2(x - 1.0, y + 4.0), Color(0.7, 0.85, 1.0, 0.6 * (1.0 - u * 0.5)), 1.0)
+
+# ================================================================ Magma Wall
+const MW_CRUST := Color(0.25, 0.12, 0.1)
+const MW_LAVA := Color(1.0, 0.55, 0.15)
+const MW_HOT := Color(1.0, 0.95, 0.7)
+const MW_ASH := Color(0.4, 0.35, 0.35)
+
+## A zig-zag crack across the face, from (x, y0) down to (x2, y1).
+static func crack(st, x: float, y0: float, y1: float, seed: float, col: Color, width: float) -> void:
+	var pts := PackedVector2Array()
+	var n := 5
+	for i in n + 1:
+		var u := float(i) / n
+		pts.append(Vector2(x + (SpellArt.jit(i, seed) - 0.5) * 7.0, lerpf(y0, y1, u)))
+	st.draw_polyline(pts, col, width)
+
+static func draw_magma_wall(st, col: Color) -> void:
+	var t: int = st.tier
+	var age: float = st._age
+	var r: float = st.radius
+	var f: float = clampf(st.hp / st.max_hp, 0.0, 1.0)
+	var rage: bool = t >= 6 and f < 0.3
+	var glow := 0.55 + 0.25 * sin(age * 2.5)
+	if f < 0.66:
+		glow += 0.2
+	if rage:
+		glow = 1.0
+	var top := -r * 0.8
+	var bot := r * 0.8
+	# 4: a halo behind the wall and a shimmer above it; 6: a glow on the floor
+	if t >= 4:
+		st.draw_circle(Vector2.ZERO, r * 1.8, Color(MW_LAVA, 0.12))
+		for k in 2:
+			var pts := PackedVector2Array()
+			for i in 9:
+				pts.append(Vector2(-r + i * r * 0.25, top - 5.0 - k * 4.0 + sin(age * 4.0 + i * 0.9 + k * 2.0) * 1.5))
+			st.draw_polyline(pts, Color(1.0, 0.8, 0.5, 0.25), 1.0)
+	if t >= 6:
+		st.draw_circle(Vector2(0, bot + 2.0), r * 1.3, Color(MW_LAVA, 0.14 + 0.08 * glow))
+		if rage:
+			st.draw_circle(Vector2.ZERO, r * 1.5, Color(MW_HOT, 0.18 + 0.1 * sin(age * 8.0)))
+	# 6: a crater rim of black rocks
+	if t >= 6:
+		for i in 5:
+			var x := -r + 2.0 + i * (r * 2.0 - 4.0) / 4.0
+			StructureArt.poly(st, PackedVector2Array([Vector2(x - 4, bot + 3), Vector2(x - 2, bot - 1.5 - (i % 2) * 2.0), Vector2(x + 3, bot - 1), Vector2(x + 4, bot + 3)]), MW_CRUST.lightened(0.15))
+	# the body: crust with a thicker rim
+	StructureArt.box(st, Rect2(-r, top, r * 2.0, bot - top), MW_CRUST)
+	if t >= 3:
+		st.draw_rect(Rect2(-r + 1, top + 1, 3, bot - top - 2), MW_CRUST.lightened(0.12))
+		st.draw_rect(Rect2(r - 4, top + 1, 3, bot - top - 2), MW_CRUST.lightened(0.12))
+	# 5: the lower half is molten when it is hurt
+	if t >= 5 and f < 0.66:
+		for i in 6:
+			var u := float(i) / 5.0
+			st.draw_rect(Rect2(-r + 1, bot - (bot - top) * 0.4 + u * (bot - top) * 0.4 - 1.0, r * 2.0 - 2, (bot - top) * 0.4 / 6.0 + 0.5), Color(MW_LAVA.lerp(MW_HOT, u), (0.25 + 0.5 * u) * (1.0 - f)))
+	# 6: a white-hot core shines through
+	if t >= 6:
+		st.draw_rect(Rect2(-r * 0.45, top + 4.0, r * 0.9, bot - top - 8.0), Color(MW_HOT, (0.25 + 0.2 * sin(age * 3.0)) * (2.5 if rage else 1.0)))
+	# the cracks
+	var cw := 2.2 if t >= 4 else 1.5
+	for i in 4:
+		crack(st, -r * 0.65 + i * r * 0.43, top + 2.0, bot - 2.0, float(i) * 3.0 + 1.0, Color(MW_HOT if rage else MW_LAVA, clampf(glow, 0.0, 1.0)), cw)
+	# 3: two lava channels run down to a dripping spout
+	if t >= 3:
+		for x in [-r * 0.32, r * 0.32]:
+			st.draw_polyline(PackedVector2Array([Vector2(x, top + 2.0), Vector2(x, bot - 5.0), Vector2(x * 0.2, bot - 1.0)]), Color(MW_LAVA, 0.85), 1.5)
+		st.draw_colored_polygon(PackedVector2Array([Vector2(-3, bot - 1), Vector2(3, bot - 1), Vector2(1.5, bot + 3), Vector2(-1.5, bot + 3)]), MW_LAVA)
+		for i in 2:
+			var u := fposmod(age * 1.2 + i * 0.5, 1.0)
+			if u < 0.75:
+				st.draw_circle(Vector2(0, bot + 3.0 + u * 10.0), 1.3, MW_LAVA)
+			else:
+				st.draw_circle(Vector2(0, bot + 13.0), 1.0 + (u - 0.75) * 8.0, Color(MW_LAVA, 1.0 - (u - 0.75) * 3.5))
+	# the spikes: black obsidian with orange tips
+	for i in 5:
+		var x := -r + 3.0 + i * (r * 2.0 - 6.0) / 4.0
+		st.draw_colored_polygon(PackedVector2Array([Vector2(x - 2.2, top), Vector2(x, top - 6.0), Vector2(x + 2.2, top)]), Color(0.08, 0.06, 0.08))
+		st.draw_colored_polygon(PackedVector2Array([Vector2(x - 0.9, top - 3.6), Vector2(x, top - 6.0), Vector2(x + 0.9, top - 3.6)]), MW_LAVA)
+	# 5: two vents spout flames; 6: five flame tongues crown the wall
+	if t >= 6:
+		for i in 5:
+			var x := -r + 4.0 + i * (r * 2.0 - 8.0) / 4.0
+			SpellArt.flame(st, Vector2(x, top - 4.0), 5.0, 9.0 + 3.0 * sin(age * 7.0 + i * 1.3), Color(MW_LAVA, 0.85), sin(age * 5.0 + i) * 1.5)
+			SpellArt.flame(st, Vector2(x, top - 4.0), 2.5, 5.0 + 2.0 * sin(age * 9.0 + i), Color(MW_HOT, 0.9), sin(age * 5.0 + i) * 1.0)
+	elif t >= 5:
+		for x in [-r * 0.5, r * 0.5]:
+			st.draw_rect(Rect2(x - 2.5, top - 1.0, 5.0, 3.0), Color.BLACK)
+			SpellArt.flame(st, Vector2(x, top - 1.0), 4.0, 8.0 + 3.0 * sin(age * 8.0 + x), Color(MW_LAVA, 0.9), sin(age * 6.0 + x))
+			SpellArt.flame(st, Vector2(x, top - 1.0), 2.0, 4.0 + 2.0 * sin(age * 8.0 + x), Color(MW_HOT, 0.95), 0.0)
+	# embers rise off it
+	for i in 4:
+		var u := fposmod(age * 0.7 + SpellArt.jit(i), 1.0)
+		st.draw_circle(Vector2((SpellArt.jit(i, 4.0) - 0.5) * r * 1.6 + sin(age * 3.0 + i) * 2.0, top - u * 22.0), 1.1, Color(MW_LAVA, 1.0 - u))
+	# 5: a thin lava drip trail on the ground
+	if t >= 5:
+		for i in 4:
+			st.draw_circle(Vector2(-6.0 + i * 5.0, bot + 8.0 + (i % 2) * 3.0), 0.9, Color(MW_LAVA, 0.5))
+	if st.flash > 0.0:
+		st.draw_rect(Rect2(-r, top, r * 2.0, bot - top), Color(1, 1, 1, 0.4))
+	StructureArt.hp_bar(st, bot + 15.0 if t >= 3 else bot + 3.0, r, t >= 6)
