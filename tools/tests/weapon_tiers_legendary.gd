@@ -317,7 +317,124 @@ func t_voidreaver() -> void:
 	await clear()
 	await draw_smoke("voidreaver")
 
+func bolt_at(w) -> void:
+	w._attack_cd = 0.0
+	w.use_item()
+	await wait(0.45)
+
+func t_mindbender() -> void:
+	var w
+	var mod = load("res://items/weapons/tiers/mindbender.gd")
+	# Thralls (tier 2): three bolts convert; tier 1 never; Turncoat heals the convert to full
+	var th := {}
+	for t in [1, 2]:
+		w = await equip("mindbender", t, false)
+		var d1 = dummy(P + Vector2(60, 0))
+		for i in 3:
+			await bolt_at(w)
+		th[t] = {"ct": d1.charm_time, "pw": d1.charm_power}
+	ok("mindbender Thralls: three bolts convert at tier 2 (%.1f s, power %.1f), never at tier 1 (%.1f)" % [th[2].ct, th[2].pw, th[1].ct], th[2].ct > 3.0 and th[2].pw >= 1.3 and th[1].ct <= 0.0)
+	w = await equip("mindbender", 2, false)
+	var hurt = dummy(P + Vector2(40, 0))
+	hurt.health = 100.0
+	w.use_ability()
+	await wait(0.8)
+	ok("mindbender Thralls: Turncoat converts and heals to full (%.0f of %.0f, power %.1f)" % [hurt.health, hurt.max_health, hurt.charm_power], hurt.charm_time > 0.0 and hurt.health >= hurt.max_health and hurt.charm_power >= 1.3)
+	# Banner (tier 3)
+	var bn := {}
+	for t in [2, 3]:
+		w = await equip("mindbender", t, false)
+		await face(Vector2(1, 0))
+		var d3 = dummy(P + Vector2(70, 0))
+		w.use_ability()
+		await wait(0.9)
+		bn[t] = d3.rally_point
+	ok("mindbender Banner: tier 3 sets the convert's rally point (%s vs %s)" % [bn[3], bn[2]], bn[3] != Vector2.INF and bn[2] == Vector2.INF)
+	# Puppeteer (tier 4): chain, command, gate
+	w = await equip("mindbender", 4, false)
+	var c1 = dummy(P + Vector2(60, 0))
+	var c2 = dummy(P + Vector2(60, 40))
+	await bolt_at(w)
+	ok("mindbender Puppeteer: the bolt chains to a second dummy (%.1f taken)" % lost(c2), lost(c2) > 0.0)
+	w = await equip("mindbender", 4, false)
+	await face(Vector2(1, 0))
+	var army1 = dummy(P + Vector2(50, 0))
+	w.use_ability()
+	await wait(0.9)
+	w.use_ability()
+	await wait(0.2)
+	ok("mindbender Puppeteer: the second right click surges the army (power %.1f, rally %s)" % [army1.charm_power, army1.rally_point], army1.charm_power >= 2.0 and army1.rally_point != Vector2.INF)
+	w = await equip("mindbender", 4, false)
+	await face(Vector2(1, 0))
+	var passer = dummy(P + Vector2(0, 8))
+	w.use_dash()
+	await wait(0.4)
+	ok("mindbender Puppeteer Step: the dash leaves a gate that converts what passes (%.1f s, aura gates %d)" % [passer.charm_time, aura_node().data.get("gates", []).size()], passer.charm_time > 3.0 and aura_node().data.get("gates", []).size() == 1)
+	# Lieutenants (tier 5)
+	w = await equip("mindbender", 5, false)
+	await face(Vector2(1, 0))
+	var ds := []
+	for i in 5:
+		var dd = dummy(P + Vector2(50 + i * 4, -20 + i * 10), 100.0 * (i + 1))
+		dd.max_health = 100.0 * (i + 1)
+		dd.health = dd.max_health
+		ds.append(dd)
+	w.use_ability()
+	await wait(1.4)
+	var big := 0
+	for dd in ds:
+		if dd.charm_power >= 2.5:
+			big += 1
+	ok("mindbender Lieutenants: the three toughest were promoted (%d, powers %s)" % [big, ds.map(func(x): return x.charm_power)], big == 3 and ds[4].charm_power == 2.5 and ds[0].charm_power < 2.0)
+	w = await equip("mindbender", 5, false)
+	await face(Vector2(1, 0))
+	var conv_d = dummy(P + Vector2(70, 0))
+	var other = dummy(P + Vector2(70, 50))
+	w.use_ultimate()
+	await wait(3.2)
+	ok("mindbender Lieutenants: the ultimate spreads to a dummy 50 px from a convert (%.1f s)" % other.charm_time, other.charm_time > 0.0)
+	# Sovereign (tier 6)
+	w = await equip("mindbender", 6, false)
+	await face(Vector2(1, 0))
+	var near = dummy(P + Vector2(60, 0))
+	var foe = dummy(P + Vector2(60, 120))
+	var boss = dummy(P + Vector2(50, 30))
+	boss.add_to_group("boss")
+	set_health(100.0)
+	w.use_ultimate()
+	var slow_runs := 0
+	var run_len := 0
+	var guards := 0
+	var seen_bolt := {}
+	var peak := 0
+	var flash_rose := false
+	var t0 := Time.get_ticks_msec()
+	while Time.get_ticks_msec() - t0 < 30000:
+		await wait(0.05)
+		if Engine.time_scale < 0.5:
+			run_len += 1
+		else:
+			if run_len >= 4:
+				slow_runs += 1
+			run_len = 0
+		guards = maxi(guards, w.get_tree().get_nodes_in_group("guard").size())
+		for b in fx_list("bolt"):
+			seen_bolt[b.get_instance_id()] = true
+		for f in fx_list("flash"):
+			if f.radius == 30.0:
+				flash_rose = true
+		peak = maxi(peak, w.get_tree().get_nodes_in_group("ally").size())
+		if flash_rose:
+			break
+	ok("mindbender Sovereign: one slow-motion beat (%d), %d guards, %d thought-storm bolts, rebellion flash %s, boss never converted (%s), army peak %d <= 40" % [slow_runs, guards, seen_bolt.size(), flash_rose, boss.charm_time <= 0.0, peak], slow_runs == 1 and guards >= 5 and seen_bolt.size() >= 8 and flash_rose and boss.charm_time <= 0.0 and peak <= 40)
+	for g in w.get_tree().get_nodes_in_group("guard"):
+		g.queue_free()
+	await clear()
+	await draw_smoke("mindbender")
+
 func run() -> void:
+	if only == "" or only == "mindbender":
+		await t_mindbender()
 	if only == "" or only == "voidreaver":
 		await t_voidreaver()
 	if only == "" or only == "dawnbringer":

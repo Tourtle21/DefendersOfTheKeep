@@ -24,7 +24,8 @@ func _init() -> void:
 
 func attack() -> void:
 	thrust(5.0, 0.2)
-	WeaponProjectile.shoot(game_world(), player.global_position + aim * 10.0, aim, 240.0, Game.basic_hit(weapon_id), Color(0.55, 0.9, 1.0), 1.2, 0, 60.0)
+	var extra = WeaponTiers.run(self, "bolt_extra")             # tier 2+: an orb with a spiral trail that adds Will
+	WeaponProjectile.shoot(game_world(), player.global_position + aim * 10.0, aim, 240.0, Game.basic_hit(weapon_id), Color(0.55, 0.9, 1.0), 1.2, 0, 60.0, extra if extra != null else {})
 
 func dash_attack() -> void:
 	# Mind Step: a short slip forward that charms whatever it brushes for a moment
@@ -41,18 +42,35 @@ func _convert(center: Vector2, radius: float, seconds: float) -> int:
 	var n := 0
 	for e in WeaponUtil.enemies_in_circle(get_tree(), center, radius):
 		if is_instance_valid(e) and !e.is_queued_for_deletion() and e.has_method("charm"):
-			e.charm(seconds)
-			n += 1
+			if WeaponTiers.has_fn(weapon_id, "conv") and tier >= 2:     # the tier module converts (power, healing, army cap)
+				if WeaponTiers.run(self, "conv", [e, seconds]):
+					n += 1
+			else:
+				e.charm(seconds)
+				n += 1
 	return n
+
+## Puppeteer: a second right click inside the window commands the army (no cooldown of its own).
+func use_ability() -> void:
+	_claim()
+	if ability_unlocked() and WeaponTiers.run(self, "command_ready") == true:
+		WeaponTiers.run(self, "command")
+		return
+	super()
 
 func ability() -> void:
 	# Turncoat: a ring at the cursor; everything inside changes sides
 	var c := cursor_target(110.0)
-	fx("ring", c, Color(0.55, 0.9, 1.0), {"radius": 45.0, "life": 0.35})
+	var r := 45.0
+	var rr = WeaponTiers.run(self, "ring_r")
+	if rr != null:
+		r = float(rr)
+	fx("ring", c, Color(0.55, 0.9, 1.0), {"radius": r, "life": 0.35})
 	await get_tree().create_timer(0.3).timeout
 	if !is_inside_tree():
 		return
-	_convert(c, 45.0, 12.0)
+	_claim()
+	_convert(c, r, 12.0)
 
 func ultimate() -> void:
 	# Mass Conversion: a wide wave around the cursor, a long while
@@ -61,4 +79,7 @@ func ultimate() -> void:
 	await get_tree().create_timer(0.5).timeout
 	if !is_inside_tree():
 		return
+	if tier >= 6 and WeaponTiers.has_fn(weapon_id, "ultimate"):
+		return                                                  # Sovereign: the tier module runs the whole show
+	_claim()
 	_convert(c, 120.0, 25.0)
