@@ -17,13 +17,13 @@ const PS_REFRACT_MULT := 0.6
 const PS_REFRACT_R := 80.0
 const PS_LENS_MULT := 0.35
 const PS_LENSES := [0, 0, 0, 2, 2, 4]
-const PS_BARRAGE_MULT := 1.0
+const PS_BARRAGE_MULT := 0.25
 const PS_WHITE_SECS := 10.0
 const PS_SWEEP_EVERY := 1.5
-const PS_SWEEP_MULT := 0.5
-const PS_LENS_TICK_MULT := 0.1
+const PS_SWEEP_MULT := 0.1
+const PS_LENS_TICK_MULT := 0.02
 const PS_HEAL_PER_SEC := 0.01
-const PS_FINALE_MULT := 3.0
+const PS_FINALE_MULT := 0.9
 const PS_FINISHER_EVERY := 6
 const PS_PROJ_CAP := 40
 const NAMES := ["", "Prismatic Staff", "Spectrum", "Refraction", "Lens Array", "Rainbow Barrage", "White Light"]
@@ -75,14 +75,14 @@ static func hue_status(w, e, i: int) -> void:
 	w.fx("burst", at, hue_col(i), {"radius": 8.0, "life": 0.2})
 	match ((i % PS_HUES) + PS_HUES) % PS_HUES:
 		0:
-			WeaponUtil.bleed(tree, e, 3, H(w) * 0.15)
+			WeaponUtil.bleed(tree, e, 3, H(w) * 0.08)
 		1:
 			if e.has_method("push"):
 				e.push((at - w.player.global_position).normalized() * (140.0 * (0.4 if e.is_in_group("boss") else 1.0)), 0.15)
 		2:
 			WeaponUtil.expose(e, 2.0)
 		3:
-			WeaponUtil.bleed(tree, e, 4, H(w) * 0.1)
+			WeaponUtil.bleed(tree, e, 4, H(w) * 0.05)
 		4:
 			if e.has_method("apply_slow"):
 				e.apply_slow(0.5, 1.5)
@@ -90,7 +90,7 @@ static func hue_status(w, e, i: int) -> void:
 			var o = WeaponUtil.nearest(tree, at, 55.0, [e])
 			if o != null:
 				w.fx("bolt", at, hue_col(5), {"dir": (o.global_position - at).normalized(), "length": at.distance_to(o.global_position), "width": 1.2, "life": 0.18})
-				WeaponUtil.hit(o, H(w) * 0.5, at, 20.0, 0.0, "", true, true)
+				WeaponUtil.hit(o, H(w) * 0.15, at, 20.0, 0.0, "", true, true)
 
 static func all_statuses(w, e) -> void:
 	for i in PS_HUES:
@@ -287,8 +287,7 @@ static func tick(w, _delta: float) -> void:
 					var d2: Vector2 = (tgt.global_position - p).normalized()
 					w.fx("beam", p, hue_col(k), {"dir": d2, "length": p.distance_to(tgt.global_position), "width": 2.0, "life": 0.25, "col2": WHITE})
 					WeaponUtil.hit(tgt, H(w) * PS_LENS_TICK_MULT, p, 0.0, 0.0, "", true, true)
-					hue_status(w, tgt, k)
-					Wand.add_crystal(w, tgt, 1)
+					hue_status(w, tgt, k)                       # (the lenses apply a hue but add no crystals: each fourth crystal shatters, and four lenses every half second shatter without end)
 				k += 1
 		if now >= float(st.sweep_next):
 			st.sweep_next = now + PS_SWEEP_EVERY
@@ -311,7 +310,6 @@ static func _sweep(w) -> void:
 			if !hit.has(e):
 				hit[e] = true
 				WeaponUtil.hit(e, H(w) * PS_SWEEP_MULT, o, 40.0, 0.0, "", true, true)
-				Wand.add_crystal(w, e, 1)
 		if !await WeaponTiers.pause(w, 0.05):
 			return
 
@@ -353,14 +351,13 @@ static func _barrage(w, c: Vector2, my: int) -> void:
 		for e in WeaponUtil.enemies_in_line(w.get_tree(), a, d, 140.0, 8.0):
 			WeaponUtil.hit(e, H(w) * PS_BARRAGE_MULT, a, 40.0, 0.0, "", true, true)
 			hue_status(w, e, k)
-			Wand.add_crystal(w, e, 1)
 		var lp: Array = _lenses(w)
 		if k < lp.size():                                    # the lenses fire the barrage again
 			var p: Vector2 = lp[k]
 			var dd: Vector2 = (c - p).normalized()
 			w.fx("beam", p, hue_col(k + 3), {"dir": dd, "length": p.distance_to(c), "width": 4.0, "life": 0.4, "col2": WHITE})
 			for e2 in WeaponUtil.enemies_in_line(w.get_tree(), p, dd, p.distance_to(c), 6.0):
-				WeaponUtil.hit(e2, H(w) * 0.6, p, 0.0, 0.0, "", true, true)
+				WeaponUtil.hit(e2, H(w) * 0.25, p, 0.0, 0.0, "", true, true)
 		w.player.shake(2.0, 0.1)
 		if !await WeaponTiers.pause(w, 0.2):
 			return

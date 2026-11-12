@@ -136,7 +136,7 @@ func _apply_add(tw: String, world: Node, tree: SceneTree, pos: Vector2, plain: D
 		"shrapnel":
 			var dmg: float = data.get("damage", data.get("dps", 2.0))
 			for i in 6:
-				WeaponProjectile.shoot(world, pos, Vector2.from_angle(i * TAU / 6.0), 150.0, dmg * 0.4, _color(), 0.5, 1, 60.0)
+				WeaponProjectile.shoot(world, pos, Vector2.from_angle(i * TAU / 6.0), 150.0, dmg * 0.2, _color(), 0.5, 1, 60.0)
 
 static func cast_copy(world: Node, d: Dictionary, pos: Vector2) -> void:
 	if !is_instance_valid(world):

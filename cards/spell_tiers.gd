@@ -16,7 +16,7 @@ const FIREBALL_PUSH := 150.0            # tier 2: the blast shoves enemies away 
 const FIREBALL_CORE := 0.4              # tier 3: this much of the radius, from the centre, takes double damage
 const FIREBALL_POP := 0.45              # tier 4: an enemy killed by the blast pops for this much of the damage
 const FIREBALL_POP_RANGE := 30.0
-const FIREBALL_PULSE := 0.4             # tier 5: three pulses of this much of the damage, 0.4 s apart
+const FIREBALL_PULSE := 0.15            # tier 5: three pulses of this much of the damage, 0.4 s apart
 const FIREBALL_FINALE_KNOCK := 220.0    # tier 6: the finale shockwave
 const FIREBALL_METEORS := 6
 const HOT := Color(1.0, 0.8, 0.3)
@@ -171,7 +171,7 @@ static func blast_fireball(s) -> void:
 		"solar_burst":
 			blast_solar_burst(s)
 			return
-	var tier := tier_of(s) if String(s.data.get("id", "")) == "fireball" else 1
+	var tier := tier_of(s) if String(s.data.get("id", "")) == "fireball" and !is_copy(s) else 1          # (a twin or echo is the plain blast)
 	var c: Vector2 = s.global_position
 	var dmg: float = s.data.damage
 	var el: String = s.data.get("element", "")
@@ -205,7 +205,7 @@ static func _pop(s, at: Vector2, amount: float) -> void:
 
 ## Tier 5: three pulses from the pillar of fire. Each hurts, and holds whoever it hits for a moment.
 static func tick_fireball(s, tier: int, _delta: float) -> void:
-	if tier < 5:
+	if tier < 5 or is_copy(s):
 		return
 	var since: float = s.age - s.flight
 	while s._pulses < 3 and since >= FIREBALL_PULSE * (s._pulses + 1):
@@ -226,10 +226,10 @@ static func _finale_fireball(s, dmg: float) -> void:
 	var c: Vector2 = s.global_position
 	for e in WeaponUtil.enemies_in_circle(tree, c, s.radius * 2.0):
 		var away: Vector2 = e.global_position - c
-		e.spell_damage(dmg * 0.35, s.data.get("element", ""), true)
+		e.spell_damage(dmg * 0.25, s.data.get("element", ""), true)
 		if is_instance_valid(e) and e.has_method("push"):
 			e.push((away.normalized() if away.length() > 0.5 else Vector2.RIGHT) * FIREBALL_FINALE_KNOCK, 0.25)
-	WeaponUtil.rain(tree, s.get_parent(), s.position, s.radius * 1.3, FIREBALL_METEORS, 1.0, dmg * 0.4, 16.0, HOT)
+	WeaponUtil.rain(tree, s.get_parent(), s.position, s.radius * 1.3, FIREBALL_METEORS, 1.0, dmg * 0.15, 16.0, HOT)
 
 # ---------------------------------------------------------------- Frost Ring
 
@@ -1347,7 +1347,7 @@ static func _meteor_hit(s, tier: int, spot: Vector2, i: int, boulder: bool, dmg:
 const STASIS_ENTROPY := 0.01
 const STASIS_REWIND_T := 1.5
 const STASIS_REWIND_PUSH := 600.0
-const STASIS_BREAK := 0.15
+const STASIS_BREAK := 0.10
 const STASIS_BREAK_BOSS := 0.02
 const TIME := Color(0.75, 0.9, 1.0)
 
@@ -1398,7 +1398,7 @@ static func tick_stasis(s, tier: int, delta: float) -> void:
 		for e in WeaponUtil.enemies_in_circle(tree, c, r):
 			var boss: bool = e.is_in_group("boss")
 			var away: Vector2 = e.global_position - c
-			e.spell_damage(maxf(8.0, float(e.max_health) * (STASIS_BREAK_BOSS if boss else STASIS_BREAK)), "pierce", true)
+			e.spell_damage(maxf(3.0, float(e.max_health) * (STASIS_BREAK_BOSS if boss else STASIS_BREAK)), "pierce", true)
 			if is_instance_valid(e) and e.has_method("push"):
 				e.push((away.normalized() if away.length() > 0.5 else Vector2.RIGHT) * 600.0, 0.25)
 

@@ -79,3 +79,4 @@ Local split screen: `split_two_pads.gd` (two simulated controllers, 22 checks: e
 | conversion.gd | the legendary Mass Conversion card (costs crystal gems) and the Mindbender weapon turn enemies to your side; allies fight the rest and the rest turn on them |
 | card_adds.gd | every card adds something new at each tier 2-6 and keeps the earlier ones; the card says Added; spells and buildings apply all of them |
 | tier_abilities.gd | spell and building tiers 2-6 (docs/card_tiers): each tier's own ability on top of the stacked additions, one section per card; fireball: shove, double-damage core, kill pops, pillar pulses, finale |
+| weapon_budget.gd | probe: the tier 6 ultimate of each legendary on three dummies over 20 s, to compare their damage (the Prismatic Staff must not outdo the earned ones) |
