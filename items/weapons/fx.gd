@@ -17,6 +17,7 @@ var spin := 0.0             # start angle (shards) or turn (star)
 var height := 40.0          # pillar
 var rise := 30.0            # motes drift up by this much
 var rings := 3              # ripple
+var core := Color(1.0, 0.97, 0.85)   # fall: the colour of the glowing heart of the rock
 
 static func spawn(world: Node, k: String, pos: Vector2, col: Color, params := {}) -> void:
 	if world == null:
@@ -101,3 +102,19 @@ func _draw() -> void:
 				pts2.append(dir * length * i / 7.0 + (side * off if i < 7 else Vector2.ZERO))
 			draw_polyline(pts2, Color(color, 0.6 * fade), width * 2.0)
 			draw_polyline(pts2, Color(1, 1, 1, fade), maxf(1.0, width * 0.6))
+		"fall":
+			# a rock coming down onto this point: it starts `height` above and `rise` to the side, with a tail of embers
+			var start := Vector2(-rise, -height)
+			var p := start.lerp(Vector2.ZERO, t)
+			var back := start.normalized()
+			var n := int(12 + radius * 1.5)
+			for i in n:
+				var q := p + back * (float(i) * (3.0 + radius * 0.15))
+				draw_circle(q, maxf(0.6, radius * 0.7 - float(i) * 0.3), Color(color, maxf(0.0, 0.8 - float(i) / float(n))))
+			draw_circle(p, radius * 1.8, Color(color, 0.35))
+			draw_circle(p, radius, Color(0.3, 0.15, 0.1))
+			draw_circle(p, radius * 0.5, core)
+			if radius >= 6.0:
+				for k in 3:
+					var a := k * TAU / 3.0 + 0.5
+					draw_line(p, p + Vector2.from_angle(a) * radius * 0.9, color, 1.0)

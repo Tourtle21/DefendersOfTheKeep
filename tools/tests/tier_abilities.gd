@@ -68,7 +68,7 @@ func _initialize() -> void:
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("only="):
 			only = a.substr(5)
-	for id in ["fireball", "frost_ring", "flare", "rejuvenation", "gold_magnet", "aegis", "charm", "sandstorm", "blizzard", "lava_pool", "poison_cloud", "crystal_spikes"]:
+	for id in ["fireball", "frost_ring", "flare", "rejuvenation", "gold_magnet", "aegis", "charm", "sandstorm", "blizzard", "lava_pool", "poison_cloud", "crystal_spikes", "meteor_shower"]:
 		if only == "" or only == id:
 			await call(id)
 			await clear()
@@ -974,3 +974,93 @@ func crystal_spikes() -> void:
 		bl[cp] = [snappedf(dealt(e), 0.1), n]
 		await clear()
 	ok("tier 6 bloom erupts: big hit far out and 12 crystal shards, a copy does not (%s)" % str(bl), bl[false][0] > 0.0 and bl[false][1] >= 12 and bl[true][1] < 6 and bl[true][0] == 0.0)
+
+# ================================================================== Meteor Shower
+func meteor_shower() -> void:
+	print("-- meteor_shower")
+	var c := Vector2(0, 300)
+	var data1: Dictionary = game.stats_of("meteor_shower")
+	# the count of meteors by tier: 10, 12, ... 20 (and one big one at tier 6)
+	var counts := []
+	for t in range(1, 7):
+		counts.append(int(game.stats_of(game.make_entry("meteor_shower", t, "")).count))
+	ok("10 to 20 meteors by tier (%s)" % str(counts), counts == [10, 12, 14, 16, 18, 20])
+	# Burning rocks (tier 2): falling rocks and a lasting burn
+	var br := {}
+	for t in [1, 2]:
+		var es := []
+		for i in 8:
+			es.append(dummy(c + Vector2.from_angle(i * 0.8) * 50.0))
+		var s0 = spell("meteor_shower", t, c)
+		var seen := await fx_seen(5.0)
+		var tot := 0.0
+		for e in es:
+			tot += dealt(e)
+		br[t] = [seen.get("fall", 0), snappedf(tot, 0.1)]
+		await clear()
+	ok("tier 2 meteors are falling rocks that set enemies alight, tier 1 plain strikes (%s)" % str(br), br[2][0] >= 10 and br[1][0] == 0 and br[2][1] > 0.0)
+	# Heavy rocks (tier 3): every third is a boulder
+	var hv := {}
+	for t in [2, 3]:
+		var es := []
+		for i in 36:
+			es.append(dummy(c + Vector2.from_angle(i * 0.7) * (20.0 + 3.0 * i)))
+		spell("meteor_shower", t, c)
+		var big := 0
+		var stunned := false
+		var seen := {}
+		var el := 0.0
+		while el < 5.0:
+			await wait(0.05)
+			el += 0.05
+			for nd in world.get_children():
+				if nd.get_script() != null and str(nd.get_script().resource_path).ends_with("fx.gd") and !seen.has(nd.get_instance_id()) and nd.kind == "ring" and nd.radius > 40.0 and nd.radius < 43.0:
+					seen[nd.get_instance_id()] = true
+					big += 1
+			for e in es:
+				stunned = stunned or (e.slow_mult == 0.0 and e.slow_time > 0.0)
+		hv[t] = [big, stunned]
+		await clear()
+	ok("tier 3 boulders (a third of the meteors: wide rings and stuns), tier 2 none (%s)" % str(hv), hv[3][0] >= 3 and hv[3][1] and hv[2][0] == 0)
+	# Splinters (tier 4)
+	var sp := {}
+	for t in [3, 4]:
+		spell("meteor_shower", t, c)
+		var n := 0
+		var seen := {}
+		var el := 0.0
+		while el < 1.5:
+			await wait(0.05)
+			el += 0.05
+			for nd in world.get_children():
+				if nd.get_script() != null and str(nd.get_script().resource_path).ends_with("projectile.gd") and !seen.has(nd.get_instance_id()):
+					seen[nd.get_instance_id()] = true
+					n += 1
+		sp[t] = n
+		await clear()
+	ok("tier 4 meteors break into fragments (projectiles), tier 3 none (%s)" % str(sp), sp[4] >= sp[3] + 3)
+	# Seeker stars (tier 5): they find the enemies
+	var sk := {}
+	for t in [4, 5]:
+		var es := []
+		for i in 6:
+			es.append(dummy(c + Vector2(40, 40) + Vector2(i % 3, i / 3) * 14.0))
+		spell("meteor_shower", t, c)
+		await wait(6.0)
+		var hit := 0
+		for e in es:
+			if dealt(e) > 0.0:
+				hit += 1
+		sk[t] = hit
+		await clear()
+	ok("tier 5 seekers hit the stationary crowd more often than tier 4 (%s of 6)" % str(sk), sk[5] >= sk[4] and sk[5] >= 5)
+	# Extinction (tier 6)
+	var ex := {}
+	for cp in [false, true]:
+		var s0 = spell("meteor_shower", 6, c, true, {"copy": cp})
+		var e = dummy(c)
+		var dur6: float = s0.data.duration
+		var seen := await fx_seen(dur6 + 2.6)
+		ex[cp] = [seen.has("pillar"), snappedf(dealt(e), 0.1), snappedf(s0.data.damage, 0.1)]
+		await clear()
+	ok("tier 6 ends with one gigantic meteor at the centre (pillar fx, 6x damage), a copy does not (%s)" % str(ex), ex[false][0] and ex[false][1] > ex[false][2] * 6.0 and !ex[true][0])

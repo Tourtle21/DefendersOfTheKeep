@@ -25,6 +25,8 @@ var _seen := {}
 var _finale_done := false
 var _ray_hit := {}
 var _landed_fx := false
+var spots: Array = []       # tier 2+ Meteor Shower: where each meteor has landed or is about to (public: a client draws the craters)
+var _queue: Array = []
 var _plagued := {}
 var _plague_clouds := 0
 var _home := Vector2.ZERO   # (host only) where a roaming spell was cast
@@ -168,8 +170,9 @@ func _physics_process(delta: float) -> void:
 				LightSource.spawn(get_parent(), position, radius * lit[0], lit[1], Color(1.0, 0.7, 0.3))      # the blast lights the area for a while
 				SpellTiers.blast_fireball(self)
 			elif data.kind == "meteor":
-				LightSource.spawn(get_parent(), position, radius * 1.4, data.duration + 1.0, Color(1.0, 0.7, 0.3))
-				WeaponUtil.rain(get_tree(), get_parent(), position, radius, int(data.get("count", 10)), data.duration, data.damage, 26.0, _color())
+				LightSource.spawn(get_parent(), position, radius * SpellTiers.meteor_light(self), data.duration + 1.0, Color(1.0, 0.7, 0.3))
+				if !SpellTiers.meteors_by_tier(self):
+					WeaponUtil.rain(get_tree(), get_parent(), position, radius, int(data.get("count", 10)), data.duration, data.damage, 26.0, _color())
 			elif data.kind == "spikes":
 				SpellTiers.land_crystal_spikes(self)
 			elif data.kind == "build":

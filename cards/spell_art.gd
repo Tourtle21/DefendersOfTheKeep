@@ -13,7 +13,7 @@ static func jit(i: int, salt := 0.0) -> float:
 
 ## Cards that have their own body art here: the plain fill and rings are drawn softer under it.
 static func has_body(id: String) -> bool:
-	return id in ["fireball", "frost_ring", "flare", "rejuvenation", "gold_magnet", "aegis", "charm", "sandstorm", "blizzard", "lava_pool", "poison_cloud", "crystal_spikes"]
+	return id in ["fireball", "frost_ring", "flare", "rejuvenation", "gold_magnet", "aegis", "charm", "sandstorm", "blizzard", "lava_pool", "poison_cloud", "crystal_spikes", "meteor_shower"]
 
 static func draw_flight(s, t: float, col: Color) -> void:
 	match String(s.data.get("id", "")):
@@ -50,6 +50,8 @@ static func draw(s, since: float, col: Color) -> void:
 			draw_poison_cloud(s, since, col)
 		"crystal_spikes":
 			draw_crystal_spikes(s, since, col)
+		"meteor_shower":
+			draw_meteor_shower(s, since, col)
 
 ## A flame as one polygon: a wide base, a belly, and a tip that leans with `sway`.
 static func flame(s, base: Vector2, w: float, h: float, col: Color, sway := 0.0) -> void:
@@ -929,3 +931,59 @@ static func draw_crystal_spikes(s, since: float, _col: Color) -> void:
 			var grow := clampf((since - 0.5) / 0.4, 0.0, 1.0)
 			var a3 := (i + 0.5) * TAU / 4.0 - PI / 2.0 + 0.5
 			crystal(s, Vector2.from_angle(a3) * 14.0, 5.0, (8.0 + 3.0 * jit(i, 3.0)) * grow, fade)
+
+# ---------------------------------------------------------------- Meteor Shower
+
+const METEOR_FIRE := Color(1.0, 0.5, 0.15)
+const METEOR_HOT := Color(1.0, 0.85, 0.4)
+const METEOR_SMOKE := Color(0.25, 0.18, 0.15)
+
+static func draw_meteor_shower(s, since: float, _col: Color) -> void:
+	var tier := int(s.data.get("tier", 1))
+	if tier < 2:
+		return
+	var r: float = s.radius
+	var life: float = s.effect_time
+	var dur: float = s.data.get("duration", 3.5)
+	var fade := clampf((life - since) / 0.6, 0.0, 1.0) * clampf(since / 0.2, 0.0, 1.0)
+	if tier >= 5:                                                   # a redder sky and a ring of heat flares
+		s.draw_circle(Vector2.ZERO, r, Color(METEOR_FIRE, 0.12 * fade))
+		for i in 12:
+			var a := since * 0.3 + i * TAU / 12.0
+			s.draw_circle(Vector2.from_angle(a) * r, 3.0 + 2.0 * sin(since * 4.0 + i), Color(METEOR_HOT, 0.6 * fade))
+	if tier >= 6:                                                   # a firestorm: a dark vortex ring turns over the zone
+		for i in 28:
+			var a2 := since * 0.4 + i * TAU / 28.0
+			s.draw_arc(Vector2.ZERO, r * 0.9, a2, a2 + 0.14, 3, Color(0.5, 0.1, 0.08, 0.7 * fade), 3.0)
+	# tier 2: a smouldering sky and falling embers
+	var layers := 2 if tier >= 6 else 1
+	for l in layers:
+		for i in 7:
+			var cp := Vector2(sin(since * 0.3 + i * 1.7 + l), cos(since * 0.2 + i * 2.3 + l * 2.0)) * r * 0.6
+			s.draw_circle(cp, 14.0 + 8.0 * jit(i + l * 7, 1.0), Color(0.5, 0.1, 0.08, 0.16 * fade))
+	var embers := 40 if tier >= 6 else 18
+	for i in embers:
+		var u := fposmod(since * 0.6 + jit(i), 1.0)
+		var p := Vector2((jit(i, 1.0) - 0.5) * r * 1.8, lerpf(-r * 0.8, r * 0.6, u))
+		if p.length() < r:
+			s.draw_circle(p, 1.4, Color(METEOR_HOT, 0.9 * sin(u * PI) * fade))
+	# the craters each meteor leaves: a scorched patch with a glowing heart, fading over 2.5 s
+	for i in s.spots.size():
+		var landed_at: float = SpellTiers.meteor_launch(s, i) + SpellTiers.meteor_fall_time(tier, i)
+		var age := since - landed_at
+		if age < 0.0 or age > 2.5:
+			continue
+		var k := 1.0 - age / 2.5
+		var cr := 24.0 if SpellTiers.is_boulder(tier, i) else 14.0
+		var sp: Vector2 = s.spots[i] - s.position
+		s.draw_set_transform(sp, 0.0, Vector2(1.0, 0.6))
+		s.draw_circle(Vector2.ZERO, cr, Color(0.1, 0.05, 0.04, 0.35 * k))
+		s.draw_circle(Vector2.ZERO, cr * 0.35, Color(METEOR_FIRE, 0.6 * k))
+		s.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	if tier >= 6 and since > dur and since < dur + 2.0:              # a crosshair of three rings closes in on the centre
+		var cl := clampf((since - dur) / 1.2, 0.0, 1.0)
+		for k2 in 3:
+			var rr := r * lerpf(0.3 + 0.25 * k2, 0.05 + 0.05 * k2, cl)
+			s.draw_arc(Vector2.ZERO, rr, 0, TAU, 32, Color(1.0, 0.3, 0.2, 0.8 * fade), 2.0)
+		s.draw_line(Vector2(-r * 0.9, 0), Vector2(r * 0.9, 0), Color(1.0, 0.3, 0.2, 0.4 * fade), 1.0)
+		s.draw_line(Vector2(0, -r * 0.9), Vector2(0, r * 0.9), Color(1.0, 0.3, 0.2, 0.4 * fade), 1.0)

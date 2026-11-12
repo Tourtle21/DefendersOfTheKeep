@@ -58,6 +58,8 @@ static func effect_time(s, base: float) -> float:
 			return MAGNET_STORM_TIME if tier_of(s) >= 5 else base
 		"crystal_spikes":
 			return 4.0 if tier_of(s) >= 3 else base
+		"meteor_shower":
+			return float(s.data.get("duration", 3.5)) + 3.0 if tier_of(s) >= 2 else base
 		"charm":
 			var t := tier_of(s)
 			if t >= 5:
@@ -103,6 +105,8 @@ static func tick(s, delta: float) -> void:
 			tick_poison_cloud(s, tier_of(s), delta)
 		"crystal_spikes":
 			tick_crystal_spikes(s, tier_of(s), delta)
+		"meteor_shower":
+			tick_meteor_shower(s, tier_of(s), delta)
 
 # ---------------------------------------------------------------- Fireball
 
@@ -1184,3 +1188,120 @@ static func tick_crystal_spikes(s, tier: int, delta: float) -> void:
 			Sfx.play("ultimate")
 			for i in 12:
 				WeaponProjectile.shoot(w, c, Vector2.from_angle(i * TAU / 12.0), 200.0, dmg * 0.5, AMETHYST, 0.6, 1, 40.0))
+
+# ---------------------------------------------------------------- Meteor Shower
+
+const METEOR_BOULDER_EVERY := 3
+const METEOR_BOULDER_MULT := 2.0
+const METEOR_SPLINTER := 0.3
+const METEOR_SEEK := 0.7
+const METEOR_BIG := 6.0
+const METEOR_FIRE := Color(1.0, 0.5, 0.15)
+const METEOR_HOT := Color(1.0, 0.85, 0.4)
+
+## From tier 2 the shower is run by `tick_meteor_shower` (looks, abilities, craters); tier 1 keeps the plain rain.
+static func meteors_by_tier(s) -> bool:
+	return String(s.data.get("id", "")) == "meteor_shower" and tier_of(s) >= 2
+
+static func meteor_light(s) -> float:
+	if String(s.data.get("id", "")) != "meteor_shower":
+		return 1.4
+	var t := tier_of(s)
+	return 2.4 if t >= 6 else (1.8 if t >= 4 else 1.4)
+
+## Where meteor i lands (when nothing seeks): a steady spot in the disc, the same on every machine.
+static func meteor_spot(s, i: int) -> Vector2:
+	return s.position + Vector2.from_angle(SpellArt.jit(i, 1.0) * TAU) * sqrt(SpellArt.jit(i, 2.0)) * s.radius
+
+static func is_boulder(tier: int, i: int) -> bool:
+	return tier >= 3 and i % METEOR_BOULDER_EVERY == 2
+
+## When meteor i is launched (seconds after landing) and when it hits.
+static func meteor_launch(s, i: int) -> float:
+	return float(i) * float(s.data.get("duration", 3.5)) / float(maxi(int(s.data.get("count", 10)), 1))
+
+static func meteor_fall_time(tier: int, i: int) -> float:
+	return 0.55 if is_boulder(tier, i) else 0.45
+
+static func tick_meteor_shower(s, tier: int, delta: float) -> void:
+	if tier < 2:
+		return
+	var since: float = s.age - s.flight
+	var w: Node = s.get_parent()
+	var tree: SceneTree = s.get_tree()
+	var dmg: float = s.data.damage
+	var count := int(s.data.get("count", 10))
+	var dur: float = s.data.get("duration", 3.5)
+	var launched := int(s._clk.get("launched", 0))
+	while launched < count and since >= meteor_launch(s, launched):     # launch the next meteor
+		var i := launched
+		launched += 1
+		var spot := meteor_spot(s, i)
+		var boulder := is_boulder(tier, i)
+		var seeker := false
+		if tier >= 5 and SpellArt.jit(i, 3.0) < METEOR_SEEK:             # seeker stars: most of them pick a real enemy
+			var near: Array = s._in_radius("enemy")
+			if !near.is_empty():
+				var pick = near[int(SpellArt.jit(i, 4.0) * near.size()) % near.size()]
+				if is_instance_valid(pick):
+					spot = pick.global_position
+					seeker = true
+					WeaponFx.spawn(w, "line", spot + Vector2(-7, 0), METEOR_HOT, {"dir": Vector2.RIGHT, "length": 14.0, "width": 1.5, "life": 0.45})
+					WeaponFx.spawn(w, "line", spot + Vector2(0, -7), METEOR_HOT, {"dir": Vector2.DOWN, "length": 14.0, "width": 1.5, "life": 0.45})
+					Sfx.play("whoosh")
+		s.spots.append(spot)
+		var fall_t := meteor_fall_time(tier, i)
+		var rad := 7.0 if boulder else (5.0 if tier >= 5 else 4.0)
+		WeaponFx.spawn(w, "fall", spot, METEOR_FIRE, {"radius": rad, "height": 130.0 if boulder else 90.0, "rise": 40.0, "life": fall_t, "core": Color(0.8, 0.9, 1.0) if tier >= 5 else Color(1.0, 0.97, 0.85)})
+		WeaponFx.spawn(w, "ring", spot, METEOR_FIRE, {"radius": 26.0 * (1.6 if boulder else 1.0), "life": fall_t})
+		s._queue.append({"t": since + fall_t, "spot": spot, "i": i, "boulder": boulder})
+	s._clk["launched"] = launched
+	for q in s._queue.duplicate():                                       # impacts
+		if since < float(q.t):
+			continue
+		s._queue.erase(q)
+		_meteor_hit(s, tier, q.spot, int(q.i), q.boulder, dmg)
+	if tier >= 4 and pace(s, "streak", 0.5, delta) and since < dur:      # shooting streaks across the sky
+		var k := int(since * 2.0)
+		var a: Vector2 = s.position + Vector2(-s.radius, -s.radius * 0.9) + Vector2(SpellArt.jit(k, 6.0) * s.radius * 0.6, SpellArt.jit(k, 7.0) * s.radius * 0.5)
+		WeaponFx.spawn(w, "line", a, METEOR_HOT, {"dir": Vector2(1, 0.6).normalized(), "length": s.radius * 1.4, "width": 1.0, "life": 0.3})
+	if tier >= 6 and !s._finale_done and !is_copy(s) and since >= dur + 0.8:   # extinction: one gigantic meteor
+		s._finale_done = true
+		var gp: Vector2 = s.global_position
+		var c: Vector2 = s.position
+		var r: float = s.radius
+		WeaponFx.spawn(w, "fall", c, METEOR_FIRE, {"radius": 18.0, "height": 260.0, "rise": 120.0, "life": 1.2, "core": Color(1.0, 0.97, 0.85)})
+		WeaponUtil.ground_strike(tree, w, gp, r * 0.7, 1.2, dmg * METEOR_BIG, 260.0, METEOR_FIRE, 1.0, [], "fire")
+		tree.create_timer(1.2).timeout.connect(func():
+			if !is_instance_valid(w):
+				return
+			WeaponFx.spawn(w, "flash", c, Color(1.0, 0.97, 0.85), {"radius": r * 1.2, "life": 0.4})
+			WeaponFx.spawn(w, "ripple", c, METEOR_FIRE, {"radius": r * 1.5, "rings": 3, "life": 0.7})
+			WeaponFx.spawn(w, "pillar", c, METEOR_FIRE, {"height": 120.0, "width": 50.0, "life": 0.6})
+			WeaponFx.spawn(w, "shards", c, METEOR_FIRE, {"radius": r * 1.2, "count": 20, "life": 0.5})
+			Sfx.play("ultimate")
+			LightSource.spawn(w, c, r * 2.4, 5.0, Color(1.0, 0.7, 0.3)))
+
+static func _meteor_hit(s, tier: int, spot: Vector2, i: int, boulder: bool, dmg: float) -> void:
+	var w: Node = s.get_parent()
+	var tree: SceneTree = s.get_tree()
+	var rad: float = 26.0 * (1.6 if boulder else 1.0)
+	var d := dmg * (METEOR_BOULDER_MULT if boulder else 1.0)
+	WeaponFx.spawn(w, "flash", spot, METEOR_FIRE, {"radius": 34.0 if boulder else 18.0, "life": 0.25})
+	WeaponFx.spawn(w, "burst", spot, METEOR_FIRE, {"radius": 22.0, "life": 0.25})
+	if boulder:
+		WeaponFx.spawn(w, "ripple", spot, METEOR_HOT, {"radius": 34.0, "rings": 2, "life": 0.4})
+		Sfx.play("thump")
+	elif i % 2 == 0:
+		Sfx.play("big_hit")
+	for e in WeaponUtil.enemies_in_circle(tree, spot, rad):
+		WeaponUtil.hit(e, d, spot, 220.0 if boulder else 140.0, 0.6 if boulder else 0.0, "fire", true)
+		if is_instance_valid(e):
+			WeaponUtil.bleed(tree, e, 3, dmg * 0.2)                      # burning rocks: whatever is hit catches fire
+	WeaponFx.spawn(w, "ring", spot, METEOR_HOT, {"radius": rad * 1.1, "life": 0.25})
+	if tier >= 4:                                                        # splinters
+		WeaponFx.spawn(w, "shards", spot, METEOR_FIRE, {"radius": 26.0, "count": 5, "life": 0.3})
+		var n := 5 if boulder else 3
+		var base := SpellArt.jit(i, 7.0) * TAU
+		for k in n:
+			WeaponProjectile.shoot(w, spot, Vector2.from_angle(base + k * TAU / float(n)), 170.0, dmg * METEOR_SPLINTER, METEOR_FIRE, 0.4, 0, 60.0)
