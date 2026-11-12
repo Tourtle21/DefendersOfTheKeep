@@ -29,3 +29,4 @@ CLAIM earthshaker
 DONE rimelance
 DONE shield
 DONE frostglaive
+DONE sultanguard
