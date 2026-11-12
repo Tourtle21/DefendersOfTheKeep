@@ -15,3 +15,4 @@ CLAIM juggernaut
 DONE bulwark
 DONE bow
 DONE daggers
+DONE knightblade

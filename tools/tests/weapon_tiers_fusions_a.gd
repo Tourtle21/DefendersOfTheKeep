@@ -280,6 +280,100 @@ func t_bulwark() -> void:
 	ok("bulwark Finisher: the 6th maul rings twice at tier 6 %s, not at tier 5 %s" % [fin[6], fin[5]], fin[6] and !fin[5])
 	await draw_smoke("bulwark")
 
+func t_knightblade() -> void:
+	var w
+	# Oathkeeper: a successful riposte shields and shoves what stands round the attacker; a whiff costs 3.5 s
+	w = await equip("knightblade", 2, false)
+	var att = dummy(P + Vector2(30, 0))
+	var nb = dummy(P + Vector2(30, 28))
+	w.use_ability()
+	await wait(0.1)
+	player.take_damage(att.global_position, 10.0)
+	var r = await watch(0.35)
+	ok("knightblade Oathkeeper: tier 2 riposte shields %.2f s (>= 0.2), shoves the neighbour (knock %.2f) and pops a star %s" % [player.shield_time, nb.knock_time, r.kinds.has("star")], player.shield_time > 0.2 and nb.knock_time > 0.0 and r.kinds.has("star"))
+	w = await equip("knightblade", 2, false)
+	w.use_ability()
+	await wait(0.85)
+	ok("knightblade Oathkeeper: a whiffed riposte costs 3.5 s instead of 4.5 (cooldown %.2f)" % w._ability_cd, w._ability_cd > 3.1 and w._ability_cd <= 3.5)
+	# Crescent Third: the third strike throws a crescent that reaches a dummy at 80 px
+	var cres := {}
+	for t in [2, 3]:
+		w = await equip("knightblade", t, false)
+		var dd = dummy(P + Vector2(80, 0))
+		var peak := []
+		for i in 3:
+			click(w)
+			var rr = await watch(0.3)
+			peak.append(rr.proj)
+			await wait(0.1)
+		cres[t] = [peak, snappedf(lost(dd), 0.1)]
+	ok("knightblade Crescent Third: tier 3 throws a crescent on the 3rd strike only %s and reaches 80 px; tier 2 %s" % [cres[3], cres[2]], cres[3][0][0] == 0 and cres[3][0][1] == 0 and cres[3][0][2] >= 1 and cres[3][1] > 0.5 and cres[2][1] < 0.1)
+	# Counter-Thrust: the counter slash after the riposte; Vanguard Dash makes the next two strikes big
+	var ct := {}
+	for t in [3, 4]:
+		w = await equip("knightblade", t, false)
+		var at2 = dummy(P + Vector2(40, 0))
+		var near2 = dummy(P + Vector2(82, 20))
+		w.use_ability()
+		await wait(0.1)
+		player.take_damage(at2.global_position, 10.0)
+		var rr = await watch(0.9)
+		ct[t] = [snappedf(lost(near2), 0.1), snappedf(exposed_for(at2), 0.1), rr.kinds.has("slash")]
+	ok("knightblade Counter-Thrust: tier 4 counter slash hurts the dummy at the arrival %s; tier 3 %s" % [ct[4], ct[3]], ct[4][0] > ct[3][0] + 3.0 and ct[4][1] > 1.5)
+	var bigs := {}
+	for t in [3, 4]:
+		w = await equip("knightblade", t, false)
+		w.use_dash()
+		await wait(0.5)
+		var seq := []
+		for i in 3:
+			click(w)
+			await wait(0.1)
+			seq.append(w._st.get("big", false))
+			await wait(0.35)
+		bigs[t] = seq
+	ok("knightblade Vanguard Dash: tier 4 makes the next two strikes big %s; tier 3 only one %s" % [bigs[4], bigs[3]], bigs[4][0] and bigs[4][1] and !bigs[4][2] and bigs[3][0] and !bigs[3][1])
+	# Knight's Vow: arcs in three directions and swords circle you
+	var vow := {}
+	for t in [4, 5]:
+		w = await equip("knightblade", t, false)
+		var dd = dummy(P + Vector2(40, 0))
+		w.use_ultimate()
+		var seen := {}
+		var cones := 0
+		for i in 70:
+			await wait(0.05)
+			fx_kinds(seen)
+		vow[t] = [snappedf(lost(dd), 0.1), seen.get("cone", 0) > 0, seen.get("orbit", 0) > 0]
+	ok("knightblade Vow: tier 5 has cones and the swords cut more %s than tier 4 %s" % [vow[5], vow[4]], vow[5][1] and vow[5][2] and !vow[4][1] and vow[5][0] > vow[4][0] + 2.0)
+	# Judgment Day: the falling sword
+	var jd := {}
+	for t in [5, 6]:
+		w = await equip("knightblade", t, false)
+		var dd = dummy(P + Vector2(60, 0))
+		w.use_ultimate()
+		var seen := {}
+		for i in 60:
+			await wait(0.05)
+			fx_kinds(seen)
+		jd[t] = [snappedf(lost(dd), 0.1), seen.has("fall"), seen.has("flash")]
+	ok("knightblade Judgment Day: tier 6 sword falls and flashes %s; tier 5 not %s" % [jd[6], jd[5]], jd[6][1] and jd[6][2] and !jd[5][1] and jd[6][0] > jd[5][0] + 6.0)
+	# Finisher: the 9th strike raises a pillar and strikes down again
+	var fin := {}
+	for t in [5, 6]:
+		w = await equip("knightblade", t, false)
+		var dd = dummy(P + Vector2(30, 0))
+		var saw := false
+		for i in 9:
+			click(w)
+			await wait(0.1)
+			if i == 8 and has_fx("pillar"):
+				saw = true
+			await wait(0.3)
+		fin[t] = saw
+	ok("knightblade Judgment Day finisher: the 9th strike raises a pillar at tier 6 %s, not at tier 5 %s" % [fin[6], fin[5]], fin[6] and !fin[5])
+	await draw_smoke("knightblade")
+
 func run() -> void:
 	if want("chainfangs"):
 		await t_chainfangs()
@@ -287,3 +381,5 @@ func run() -> void:
 		await t_rapier()
 	if want("bulwark"):
 		await t_bulwark()
+	if want("knightblade"):
+		await t_knightblade()
