@@ -124,6 +124,8 @@ func _initialize() -> void:
 		await prism()
 	if only == "" or only == "healing_grove":
 		await grove()
+	if only == "" or only == "sunspire":
+		await sunspire()
 	quit()
 
 # ---------------------------------------------------------------- Crystal Pylon
@@ -597,3 +599,95 @@ func grove() -> void:
 	hurt_player(228.0)
 	await clear_world()
 	await draws(id, "grove")
+
+# ---------------------------------------------------------------- Sunspire
+func lit_now(e) -> bool:
+	return e.has_meta("lit_until") and float(e.get_meta("lit_until")) > Time.get_ticks_msec() / 1000.0
+
+func sunspire() -> void:
+	var id := "sunspire"
+	var tc = load("res://cards/structure_tiers_c.gd")
+	var p = world.get_node("Player")
+	var pos := Vector2(0, 200)
+	# 1. solar flare: the target burns on and is lit (the tower is frozen after its first shot)
+	var res := {}
+	for t in [1, 2]:
+		await clear_world()
+		var st = tower(id, t, pos)
+		var e = dummy(Vector2(0, 160))
+		var guard := 0.0
+		while st._shots == 0 and guard < 3.0:
+			await wait(0.02)
+			guard += 0.02
+		st.set_physics_process(false)
+		var h0: float = e.health
+		await wait(1.6)
+		res[t] = [h0 - e.health, lit_now(e)]
+	ok("sunspire t2 flare: burning %.1f after the shot (tier 1: %.1f), lit %s" % [res[2][0], res[1][0], res[2][1]], res[2][0] > res[1][0] + 1.0 and res[2][1])
+	# 2. solar lance: a dummy far along the line, never aimed at, takes three shots' worth
+	await clear_world()
+	seen.clear()
+	var s3 = tower(id, 3, pos)
+	dummy(Vector2(0, 170))
+	dummy(Vector2(35, 170))
+	var far = dummy(Vector2(0, 50))
+	s3._timers["lance"] = 4.0
+	var guard2 := 0.0
+	while s3._shots == 0 and guard2 < 3.0:
+		scan()
+		await wait(0.02)
+		guard2 += 0.02
+	s3.set_physics_process(false)
+	await watch(0.4)
+	var dd: float = s3.data.damage
+	ok("sunspire t3 lance: width-10 beam seen %s, the far dummy lost %.1f (3 x %.1f = %.1f)" % [saw("line", -1.0, 10.0), lost(far), dd, 3.0 * dd], saw("line", -1.0, 10.0) and lost(far) >= 2.7 * dd and lost(far) <= 3.6 * dd)
+	# 3. radiant pulse: the ring hurts what is close and heals a hurt player inside
+	await clear_world()
+	seen.clear()
+	var s4 = tower(id, 4, pos)
+	var near = dummy(Vector2(60, 200))
+	p.global_position = pos + Vector2(0, 40)
+	health_bar().size.x = 100.0
+	s4._timers["pulse"] = 5.99
+	await watch(0.12)
+	var gained: float = health_bar().size.x - 100.0
+	ok("sunspire t4 pulse: ring 80 seen %s, dummy at 60 px lost %.1f (2.5 x %.1f), the player gained %.1f" % [saw("ring", 80.0), lost(near), s4.data.damage, gained], saw("ring", 80.0) and lost(near) >= 2.4 * float(s4.data.damage) and gained > 8.0)
+	p.global_position = Vector2(0, 600)
+	health_bar().size.x = 228.0
+	# 4. heliostats: four mirrors fire in turn (the tower itself is frozen, so only the mirrors act)
+	await clear_world()
+	seen.clear()
+	var s5 = tower(id, 5, pos)
+	var lone = dummy(Vector2(0, 120))
+	s5.set_physics_process(false)
+	var mirror_lines := 0
+	for i in 9:
+		tc.tick_sunspire(s5, 0.25)
+		s5._age += 0.25
+		await wait(0.02)
+		for c in world.get_children():
+			if script_is(c, "fx.gd") and str(c.kind) == "line" and absf(float(c.width) - 1.5) < 0.1:
+				mirror_lines = maxi(mirror_lines, 1)
+		scan()
+	var shots_lines := 0
+	for k in seen:
+		if k[0] == "line" and absf(k[2] - 1.5) < 0.1:
+			shots_lines += 1
+	ok("sunspire t5 heliostats: mirror beams seen %s, the lone dummy lost %.1f from the mirrors alone (4 x 0.5 x %.1f = %.1f)" % [mirror_lines > 0, lost(lone), s5.data.damage, 2.0 * float(s5.data.damage)], mirror_lines > 0 and lost(lone) >= 1.9 * float(s5.data.damage) * 0.9)
+	# 5. high noon: a pillar of light, everything in range hurt and lit, the tower fires faster for ten seconds
+	await clear_world()
+	seen.clear()
+	var s6 = tower(id, 6, pos)
+	var crowd := [dummy(Vector2(0, 120)), dummy(Vector2(90, 180)), dummy(Vector2(-120, 140))]
+	s6._timers["noon"] = 19.95
+	await watch(0.5)
+	var all_lit := true
+	var all_hurt := true
+	for e in crowd:
+		all_lit = all_lit and lit_now(e)
+		all_hurt = all_hurt and lost(e) >= 5.5 * float(s6.data.damage)
+	ok("sunspire t6 noon: pillar seen %s, all lit %s, all hurt %s, interval factor %.2f" % [saw("pillar"), all_lit, all_hurt, tc.interval_mult(s6)], saw("pillar") and all_lit and all_hurt and tc.interval_mult(s6) <= 0.71)
+	await watch(6.3)
+	ok("sunspire t6 keeps the lance (width 10 %s) and the pulse (ring 80 %s)" % [saw("line", -1.0, 10.0), saw("ring", 80.0)], saw("line", -1.0, 10.0) and saw("ring", 80.0))
+	await clear_world()
+	await draws(id, "sunspire")

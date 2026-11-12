@@ -62,6 +62,8 @@ static func tick(st, delta: float) -> void:
 			tick_prism_tower(st, delta)
 		"healing_grove":
 			tick_healing_grove(st, delta)
+		"sunspire":
+			tick_sunspire(st, delta)
 
 static func on_gnaw(st, e) -> void:
 	match id_of(st):
@@ -72,6 +74,8 @@ static func interval_mult(st) -> float:
 	match id_of(st):
 		"crystal_pylon":
 			return interval_crystal_pylon(st)
+		"sunspire":
+			return 0.7 if float(st._timers.get("noon_on", 0.0)) > 0.0 else 1.0
 	return 1.0
 
 static func shot_mult(st, target) -> float:
@@ -90,6 +94,8 @@ static func on_shot(st, target) -> void:
 			on_shot_venom_tower(st, target)
 		"prism_tower":
 			on_shot_prism_tower(st, target)
+		"sunspire":
+			on_shot_sunspire(st, target)
 
 static func budget_mult(st) -> float:
 	match id_of(st):
@@ -253,7 +259,7 @@ static func tick_crystal_pylon(st, delta: float) -> void:
 			st.fx_pulse = 0.0
 			StructureTiers.sfx(st, "ultimate", 0.5, 1.2)
 	if t >= 6:
-		st.vis["star"] = StructureTiers.fill(st, "star", PYLON_STAR_T)
+		st.vis["star"] = snappedf(StructureTiers.fill(st, "star", PYLON_STAR_T), 0.02)
 
 # ================================================================ Storm Spire
 const SPIRE_BOLT := Color(0.95, 0.97, 1.0)
@@ -608,7 +614,7 @@ static func tick_venom_tower(st, delta: float) -> void:
 			StructureTiers.sfx(st, "ultimate", 1.0, 0.8)
 			st.fx_pulse = 0.0
 	if t >= 6:
-		st.charge = StructureTiers.fill(st, "plague", VENOM_PLAGUE_T)
+		st.charge = snappedf(StructureTiers.fill(st, "plague", VENOM_PLAGUE_T), 0.02)
 
 # ================================================================ Prism Tower
 const PRISM_RED := Color(1.0, 0.35, 0.3)
@@ -740,7 +746,7 @@ static func tick_prism_tower(st, delta: float) -> void:
 					prism_effect(st, e, ci, dmg)
 			StructureTiers.sfx(st, "ultimate", 0.5)
 			st.fx_pulse = 0.0
-	st.vis["lance"] = StructureTiers.fill(st, "lance", PRISM_LANCE_T)
+	st.vis["lance"] = snappedf(StructureTiers.fill(st, "lance", PRISM_LANCE_T), 0.02)
 
 # ================================================================ Healing Grove
 const GROVE_FRUIT_COL := Color(1.0, 0.55, 0.2)
@@ -847,3 +853,123 @@ static func tick_healing_grove(st, delta: float) -> void:
 				WeaponFx.spawn(w, "star", pos, GROVE_GOLD, {"radius": 30.0, "count": 8, "spin": 2.0, "life": 0.7})
 				StructureTiers.sfx(st, "ultimate", 0.5)
 				break
+
+# ================================================================ Sunspire
+const SUN_GOLD := Color(1.0, 0.8, 0.3)
+const SUN_WHITE := Color(1.0, 0.99, 0.9)
+const SUN_AMBER := Color(1.0, 0.6, 0.2)
+const SUN_FLARE := 0.25
+const SUN_LANCE_T := 4.0
+const SUN_LANCE := 3.0
+const SUN_PULSE_T := 6.0
+const SUN_PULSE_R := 80.0
+const SUN_PULSE := 2.5
+const SUN_PULSE_HEAL := 0.05
+const SUN_HELIO := 0.5
+const SUN_HELIO_R := 26.0
+const SUN_NOON_T := 20.0
+const SUN_NOON := 6.0
+const SUN_NOON_LEN := 10.0
+
+## Where heliostat mirror `i` is (a function of the building's clock, so a LAN client draws it in the same place).
+static func orb_pos(st, i: int) -> Vector2:
+	return st.global_position + Vector2.from_angle(st._age * 0.6 + i * TAU / 4.0) * SUN_HELIO_R
+
+static func on_shot_sunspire(st, target) -> void:
+	var t: int = st.tier
+	if t < 2 or !is_instance_valid(target):
+		return
+	var w := world_of(st)
+	var dmg: float = float(st.data.damage)
+	var from := muzzle(st)
+	var at: Vector2 = target.global_position
+	# 2 Solar flare: the hit sets the target ablaze and lights it
+	WeaponFx.spawn(w, "line", from, SUN_GOLD, {"dir": (at - from).normalized(), "length": (at - from).length(), "width": 3.0, "life": 0.18})
+	WeaponFx.spawn(w, "burst", at, SUN_AMBER, {"radius": 10.0, "life": 0.2})
+	WeaponFx.spawn(w, "star", at, SUN_WHITE, {"radius": 8.0, "count": 4, "spin": 1.5, "life": 0.25})
+	StructureTiers.sfx(st, "big_hit", 0.4)
+	WeaponUtil.bleed(st.get_tree(), target, 3, dmg * SUN_FLARE)
+	Game.light_up(target, 3.0)
+	# 3 Solar lance: every four seconds a line of light goes through the target out to the edge of its range
+	if t >= 3 and float(st._timers.get("lance", 0.0)) >= SUN_LANCE_T:
+		st._timers["lance"] = 0.0
+		var dir: Vector2 = (at - from).normalized()
+		var rng: float = float(st.data.range)
+		WeaponFx.spawn(w, "line", from, SUN_GOLD.lerp(SUN_WHITE, 0.5), {"dir": dir, "length": rng, "width": 10.0, "life": 0.3})
+		WeaponFx.spawn(w, "line", from, SUN_WHITE, {"dir": dir, "length": rng, "width": 3.0, "life": 0.3})
+		WeaponFx.spawn(w, "flash", from, SUN_GOLD, {"radius": 16.0, "life": 0.2})
+		for e in WeaponUtil.enemies_in_line(st.get_tree(), from, dir, rng, 8.0):
+			e.spell_damage(dmg * SUN_LANCE, "fire", true)
+		StructureTiers.sfx(st, "ultimate", 0.5, 1.5)
+		st.fx_pulse = 0.0
+
+static func tick_sunspire(st, delta: float) -> void:
+	var t: int = st.tier
+	if t < 2:
+		return
+	var w := world_of(st)
+	var dmg: float = float(st.data.damage)
+	var pos: Vector2 = st.global_position
+	st._timers["noon_on"] = maxf(0.0, float(st._timers.get("noon_on", 0.0)) - delta)
+	if t >= 3:
+		st._timers["lance"] = minf(SUN_LANCE_T, float(st._timers.get("lance", 0.0)) + delta)
+		st.vis["lance"] = snappedf(float(st._timers["lance"]) / SUN_LANCE_T, 0.02)
+		st.charge = st.vis["lance"]
+	# 4 Radiant pulse: a ring of sunlight when something is close
+	if t >= 4 and StructureTiers.ready(st, "pulse", SUN_PULSE_T, delta):
+		if !StructureTiers.enemies(st, 100.0).is_empty():
+			StructureTiers.reset(st, "pulse")
+			StructureTiers.pulse(st, SUN_PULSE_R, dmg * SUN_PULSE, 220.0, 0.4, SUN_GOLD, "fire")
+			WeaponFx.spawn(w, "ripple", pos, SUN_GOLD, {"radius": SUN_PULSE_R, "rings": 3, "life": 0.6})
+			WeaponFx.spawn(w, "flash", pos, SUN_WHITE, {"radius": 60.0, "life": 0.25})
+			for p in st.get_tree().get_nodes_in_group("player"):
+				if is_instance_valid(p) and p.global_position.distance_to(pos) <= SUN_PULSE_R:
+					p.heal(SUN_PULSE_HEAL * 228.0 * Game.hp_scale())
+			StructureTiers.sfx(st, "whoosh", 0.5)
+	# 5 Heliostats: four mirrors circle the spire, each firing at the nearest enemy it can see
+	if t >= 5:
+		for i in 4:
+			var key := "m%d" % i
+			if !st._timers.has(key):
+				st._timers[key] = -0.25 * i                      # staggered by a quarter second
+			st._timers[key] += delta
+			if st._timers[key] >= 1.0:
+				var mp := orb_pos(st, i)
+				var best = null
+				var bd := float(st.data.range)
+				for e in StructureTiers.enemies_at(st, mp, float(st.data.range)):
+					if !Game.defence_sees(e, pos):
+						continue
+					var d: float = e.global_position.distance_to(mp)
+					if d < bd:
+						bd = d
+						best = e
+				if best != null:
+					st._timers[key] = 0.0
+					var to: Vector2 = best.global_position
+					WeaponFx.spawn(w, "line", mp, SUN_GOLD, {"dir": (to - mp).normalized(), "length": (to - mp).length(), "width": 1.5, "life": 0.2})
+					WeaponFx.spawn(w, "burst", to, SUN_GOLD, {"radius": 8.0, "life": 0.2})
+					best.spell_damage(dmg * SUN_HELIO, "fire")
+				else:
+					st._timers[key] = 1.0
+	# 6 High noon: a judgement on everything in range
+	if t >= 6:
+		if StructureTiers.ready(st, "noon", SUN_NOON_T, delta):
+			var judged := StructureTiers.enemies(st, float(st.data.range))
+			if !judged.is_empty():
+				StructureTiers.reset(st, "noon")
+				st._timers["noon_on"] = SUN_NOON_LEN
+				WeaponFx.spawn(w, "pillar", pos, SUN_WHITE.lerp(SUN_GOLD, 0.4), {"height": 160.0, "width": 60.0, "life": 0.8})
+				WeaponFx.spawn(w, "flash", pos, SUN_GOLD, {"radius": 120.0, "life": 0.4})
+				WeaponFx.spawn(w, "ripple", pos, SUN_GOLD, {"radius": 170.0, "rings": 4, "life": 0.9})
+				var n := 0
+				for e in judged:
+					if n < 12:
+						WeaponFx.spawn(w, "flash", e.global_position, SUN_WHITE, {"radius": 16.0, "life": 0.3})
+						n += 1
+					e.spell_damage(dmg * SUN_NOON, "fire", true)
+					Game.light_up(e, SUN_NOON_LEN)
+				StructureTiers.sfx(st, "ultimate", 0.5)
+				st.fx_pulse = 0.0
+		st.vis["noon"] = float(st._timers["noon_on"]) > 0.0
+		st.charge = snappedf(StructureTiers.fill(st, "noon", SUN_NOON_T), 0.02)

@@ -28,6 +28,9 @@ static func draw(st, col: Color) -> bool:
 		"healing_grove":
 			draw_healing_grove(st, col)
 			return true
+		"sunspire":
+			draw_sunspire(st, col)
+			return true
 	return false
 
 # ---------------------------------------------------------------- shared shapes
@@ -660,3 +663,92 @@ static func draw_healing_grove(st, col: Color) -> void:
 			var x := Vector2.from_angle(i * 1.1 + age * 0.2).x * 20.0
 			st.draw_circle(Vector2(x, ty - u * 50.0), 1.8, Color(GR_GOLD, 0.8 * (1.0 - u)))
 			st.draw_circle(Vector2(x, ty - u * 50.0), 3.2, Color(GR_GOLD, 0.2 * (1.0 - u)))
+
+# ================================================================ Sunspire
+const SU_SUN := Color(1.0, 0.92, 0.5)
+const SU_GOLD := Color(1.0, 0.8, 0.3)
+const SU_WHITE := Color(1.0, 0.99, 0.9)
+const SU_AMBER := Color(1.0, 0.6, 0.2)
+const SU_STONE := Color(0.85, 0.8, 0.7)
+
+## A sun disc with `n` rays of length `len` turning at `spin`.
+static func sun_disc(st, c: Vector2, r: float, n: int, len: float, spin: float, col: Color) -> void:
+	for i in n:
+		var d := Vector2.from_angle(spin + i * TAU / n)
+		st.draw_line(c + d * (r + 1.0), c + d * (r + len), Color(col, 0.9), 1.5 if len < 10.0 else 1.2)
+	st.draw_circle(c, r + 1.0, Color.BLACK)
+	st.draw_circle(c, r, col)
+	st.draw_circle(c, r * 0.6, SU_WHITE)
+
+## A flat ellipse (a step), drawn with a squashed transform.
+static func flat_ellipse(st, c: Vector2, rx: float, ry: float, col: Color) -> void:
+	st.draw_set_transform(c, 0.0, Vector2(1.0, ry / rx))
+	st.draw_circle(Vector2.ZERO, rx, col)
+	st.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+
+static func draw_sunspire(st, col: Color) -> void:
+	var t: int = st.tier
+	var age: float = st._age
+	var noon: bool = bool(st.vis.get("noon", false))
+	var lance: float = float(st.vis.get("lance", 0.0))
+	var breathe := 0.5 + 0.5 * sin(age * 1.6)
+	var stone := SU_STONE.lerp(SU_GOLD, 0.45) if t >= 6 else SU_STONE
+	var disc_y := -34.0 if t >= 6 else -19.0
+	# 4: glowing golden steps at the base
+	if t >= 4:
+		for i in 3:
+			flat_ellipse(st, Vector2(0, 6.0 - i * 1.5), 14.0 - i * 2.0, 4.0, Color(SU_GOLD, 0.35 + 0.1 * breathe))
+	# 6: the halo breathes, a column of light falls to the ground
+	if t >= 6:
+		st.draw_circle(Vector2(0, disc_y), 26.0 + 4.0 * breathe, Color(SU_SUN, 0.1))
+		st.draw_colored_polygon(PackedVector2Array([Vector2(-5, disc_y), Vector2(5, disc_y), Vector2(9, 4), Vector2(-9, 4)]), Color(SU_WHITE, 0.14 + 0.06 * breathe))
+		for i in 6:
+			var u := fposmod(age * 0.7 + i / 6.0, 1.0)
+			st.draw_circle(Vector2(sin(age * 2.0 + i * 2.0) * 3.0, disc_y + u * (4.0 - disc_y)), 0.9, Color(SU_GOLD, 1.0 - u))
+	# the stone column: a tapered pillar with a gold band
+	StructureArt.box(st, Rect2(-7, -3, 14, 10), stone.darkened(0.35))
+	StructureArt.poly(st, PackedVector2Array([Vector2(-4.5, -2), Vector2(-3, -16 if t < 6 else -14), Vector2(3, -16 if t < 6 else -14), Vector2(4.5, -2)]), stone)
+	st.draw_rect(Rect2(-4, -8, 8, 2), SU_GOLD)
+	if t >= 3:
+		# gold filigree on the base
+		st.draw_arc(Vector2(-3, 3), 2.0, PI, TAU * 0.9, 8, SU_GOLD, 1.0)
+		st.draw_arc(Vector2(3, 3), 2.0, PI * 0.1, PI * 1.9, 8, SU_GOLD, 1.0)
+		st.draw_line(Vector2(-6, 5), Vector2(6, 5), SU_GOLD, 1.0)
+	if t >= 6:
+		# the stone is gold-plated; a slim pillar carries the sun
+		st.draw_line(Vector2(0, -14), Vector2(0, disc_y + 10.0), Color.BLACK, 3.0)
+		st.draw_line(Vector2(0, -14), Vector2(0, disc_y + 10.0), SU_GOLD, 1.5)
+	var c := Vector2(0, disc_y)
+	# 4: a wide corona round the disc, longer rays turning the other way
+	if t >= 4:
+		var cr := (14.0 if t >= 6 else 9.0) + breathe
+		st.draw_circle(c, cr, Color(SU_SUN, 0.25))
+		for i in 12:
+			var d := Vector2.from_angle(-age * 0.5 + i * TAU / 12.0)
+			st.draw_line(c + d * (cr * 0.8), c + d * (cr * 0.8 + 14.0), Color(SU_GOLD, 0.55), 1.0)
+	# 3: a lens ring round the disc, a focusing crystal, a charge ball at the tip
+	if t >= 3 and t < 6:
+		st.draw_arc(c, 7.5, PI * 0.15, PI * 1.85, 14, Color(SU_WHITE, 0.9), 1.5)
+		st.draw_circle(c + Vector2(0, -9.0 - 3.0), 1.0 + 3.0 * lance, Color(SU_WHITE, 0.5 + 0.5 * lance))
+	if t >= 6:
+		sun_disc(st, c, 12.0, 16, 18.0, age * 0.4, SU_SUN)
+		st.draw_arc(c, 17.0, 0, TAU, 28, Color(SU_WHITE, 0.4), 1.0)
+		st.draw_circle(c + Vector2(0, -20.0), 1.0 + 3.0 * float(st.charge), Color(SU_WHITE, 0.4 + 0.5 * float(st.charge)))
+		if noon:
+			st.draw_circle(c, 20.0, Color(SU_WHITE, 0.25 + 0.15 * sin(age * 10.0)))
+	else:
+		sun_disc(st, c, 5.0, 8, 4.0, age * 0.5, SU_SUN)
+	# the lens-flare star flickers at the disc
+	if SpellArt.jit(int(age * 8.0), 2.0) > 0.4:
+		glint(st, c + Vector2(1, -1), 7.0 if t < 6 else 12.0, Color(SU_WHITE, 0.8))
+	# 5: four mirror dishes circle the spire, tilted at the target, with light bouncing to each
+	if t >= 5:
+		var aim: Vector2 = st.aim if st.aim != Vector2.ZERO else Vector2.UP
+		for i in 4:
+			var mp: Vector2 = TC.orb_pos(st, i) - st.global_position
+			st.draw_line(c, mp, Color(SU_GOLD, 0.3), 1.0)
+			var ang := aim.angle()
+			st.draw_arc(mp, 3.6, ang - PI * 0.6, ang + PI * 0.6, 8, Color.BLACK, 3.0)
+			st.draw_arc(mp, 3.6, ang - PI * 0.6, ang + PI * 0.6, 8, Color(0.85, 0.87, 0.92), 1.5)
+			st.draw_circle(mp - aim * 1.5, 1.0, SU_GOLD)
+	shot_line(st, c, SU_GOLD, 3.0)
