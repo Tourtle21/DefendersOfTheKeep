@@ -6,3 +6,4 @@ CLAIM knightblade
 DONE sword
 DONE pickaxe
 DONE torch
+DONE chainfangs

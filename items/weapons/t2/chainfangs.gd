@@ -44,11 +44,13 @@ func attack() -> void:
 		WeaponUtil.hit(e, dmg, o, 60.0)
 		if _combo >= 2 and is_instance_valid(e) and !e.is_queued_for_deletion():
 			e.push((o - e.global_position).normalized() * 170.0, 0.12)
+	_st["second"] = _combo >= 2            # (weapon tiers: this swing closed a pair)
 	if _combo >= 2:
 		_combo = 0
 
 func ability() -> void:
 	var o: Vector2 = player.global_position
+	_st["grapple"] = null
 	var best = null
 	for e in WeaponUtil.enemies_in_line(get_tree(), o, aim, 130.0, 12.0):
 		if best == null or e.global_position.distance_to(o) < best.global_position.distance_to(o):
@@ -63,6 +65,7 @@ func ability() -> void:
 	WeaponUtil.hit(best, 1.0, o)
 	if is_instance_valid(best) and !best.is_queued_for_deletion():
 		WeaponUtil.expose(best, 2.0)
+		_st["grapple"] = best
 
 func dash_attack() -> void:
 	player.dash(aim, 40.0, 0.1)
@@ -76,6 +79,7 @@ func _on_dash_hit(e) -> void:
 func ultimate() -> void:
 	# Hunt: chain through up to five enemies, exposing and backstabbing each
 	var hit_list := []
+	_st["hunt"] = hit_list                 # (weapon tiers: the module waits for the hunt to end)
 	for i in 5:
 		if !is_inside_tree():
 			return
