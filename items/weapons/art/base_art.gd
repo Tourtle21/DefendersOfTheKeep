@@ -456,3 +456,299 @@ func draw_pickaxe(p: Paint, t: int) -> void:
 			var pt := PK_O + Vector2((q.x + q.y) * 0.7071, (-q.x + q.y) * 0.7071)
 			p.gem(pt.x, pt.y, 1.3, Color("5be0ff"))
 		p.gem(PK_O.x + 0.8, PK_O.y - 1.0, 1.4, Color("e04060"))
+
+# ------------------------------------------------------------------------------------------------------------------------ bow
+
+func draw_bow(p: Paint, t: int) -> void:
+	var x0: int = [0, 3, 2, 2, 1, 1, 1][t]
+	var x1: int = [0, 29, 30, 30, 31, 31, 31][t]
+	var b: float = [0.0, 10.0, 10.5, 11.0, 12.0, 12.5, 12.5][t]
+	var wood := Paint.WOOD
+	var wood_l := Paint.WOOD_L
+	if t >= 4:
+		wood = Color("6a3a1c")
+		wood_l = Color("c98a4a")
+	if t >= 6:
+		wood = Paint.GOLD_D
+		wood_l = Paint.GOLD_L
+	var thick := 2 if t < 3 else 3
+	var cn := 40 if t == 1 else 40 + (x1 - x0) * 2
+	for i in cn + 1:
+		var u := i / float(cn)
+		var x := x0 + (x1 - x0) * u
+		var y := 16.0 - b * sin(PI * u) + 0.0001          # (the tier 1 icon was drawn in float32, which rounds the last point up)
+		for k in thick:
+			p.px(int(x), int(y) + k, wood if k < thick - 1 or thick == 2 and k == 0 else wood_l)
+		p.px(int(x), int(y) + thick - 1, wood_l)
+		if thick == 3:
+			p.px(int(x), int(y), wood)
+	var sy := 17
+	if t >= 2:
+		# tier 2: recurved tips (they curl back toward the string) with metal nocks, a leather grip wrap, a brighter two-ply string
+		for sgn in [0, 1]:
+			var tx: int = x0 if sgn == 0 else x1
+			var dir := -1 if sgn == 0 else 1
+			p.px(tx, 17, wood)
+			p.px(tx + dir * 0, 18, wood)
+			p.px(tx + dir, 18, wood_l)
+			p.px(tx + dir, 19, wood)
+			sy = 17
+			p.rect(tx - 1 if sgn == 0 else tx, 16, tx + 1 if sgn == 1 else tx, 16, Paint.STEEL_L)
+			p.px(tx, 15, Paint.STEEL)
+		p.rect(13, int(16.0 - b) - 1, 18, int(16.0 - b) + thick, Color("5a3a1c"))
+		p.rect(13, int(16.0 - b), 18, int(16.0 - b), Color("a07840"))
+		p.rect(13, int(16.0 - b) + 2, 18, int(16.0 - b) + 2, Color("a07840"))
+	var string_c := Color("e8e8e8") if t < 5 else Color("bff4ff")
+	p.line(Vector2(x0, sy), Vector2(x1, sy), string_c)
+	if t >= 2:
+		p.line(Vector2(x0 + 1, sy + 1), Vector2(x1 - 1, sy + 1), Color("b8b8c0") if t < 5 else Color("7fd0f0"))
+	# the arrow: shaft, head, fletching (grows more elaborate)
+	p.line(Vector2(16, 6), Vector2(16, 25), Color("a07840") if t < 6 else Paint.GOLD_L)
+	var head_top := 2
+	var head_col := Paint.STEEL if t < 4 else Paint.STEEL_L
+	for y in range(head_top, 7):
+		var half := (y - head_top) * 0.5
+		if t >= 2:
+			half = (y - head_top) * 0.6
+		for x in range(int(15.5 - half), int(16.5 + half) + 1):
+			p.px(x, y, head_col if t < 6 else Paint.GOLD_L)
+	if t >= 4:
+		for off in [-2, 3]:                     # barbs
+			p.px(16 + off, 6, head_col if t < 6 else Paint.GOLD)
+			p.px(16 + off, 5, head_col if t < 6 else Paint.GOLD)
+	p.rect(14, 24, 18, 26, Color("d85a4a"))
+	if t >= 3:
+		p.rect(14, 24, 18, 24, Color("f2e8d8"))
+		p.rect(13, 25, 13, 26, Color("d85a4a"))
+		p.rect(19, 25, 19, 26, Color("d85a4a"))
+		p.rect(14, 27, 18, 27, Color("c8d0d8") if t < 5 else Paint.GOLD)
+	# tier 3: a gem set in the grip and gold caps on the limb tips
+	if t >= 3:
+		p.gem(15.5, 16.0 - b + 1.5, 1.7, Color("e04060"))
+		for tx in [x0, x1]:
+			p.px(tx, 15, Paint.GOLD)
+			p.px(tx, 14, Paint.GOLD_L)
+	# tier 4: the bigger, deeper-curved limbs and the laminated stripe along them are drawn above; add rune notches on the limbs
+	if t >= 4:
+		for i in range(3, cn - 2, 6):
+			var u := i / float(cn)
+			var x := x0 + (x1 - x0) * u
+			var y := 16.0 - b * sin(PI * u)
+			p.px(int(x), int(y) + 1, Paint.GOLD_D)
+	# tier 5: feather plumes hanging from the limb tips, gold inlay along the limbs, glowing string
+	if t >= 5:
+		for i in range(2, cn - 1, 3):
+			var u := i / float(cn)
+			var x := x0 + (x1 - x0) * u
+			var y := 16.0 - b * sin(PI * u)
+			p.px(int(x), int(y) + 1, Paint.GOLD)
+		for sgn in [0, 1]:
+			var fx: int = x0 - 1 if sgn == 0 else x1 + 1
+			for k in 4:
+				p.px(fx, 18 + k, Color("f2e8d8") if k % 2 == 0 else Color("d85a4a"))
+	# tier 6: golden limbs, a crystal in the grip, a diamond arrow head and a long plume on each tip
+	if t >= 6:
+		p.gem(15.5, 16.0 - b + 1.5, 2.1, Color("5be0ff"))
+		for sgn in [0, 1]:
+			var fx: int = x0 - 1 if sgn == 0 else x1 + 1
+			for k in 3:
+				p.px(fx, 22 + k, Color("bff4ff"))
+		p.diamond(15.5, 3.5, 1.6, 2.2, Paint.WHITE)
+
+# --------------------------------------------------------------------------------------------------------------------- daggers
+
+func _dagger(p: Paint, cx: int, t: int, mirror: int) -> void:
+	var top: int = [0, 3, 1, 1, 0, 0, 0][t]
+	var hw: float = [0.0, 1.6, 1.8, 2.2, 2.4, 2.7, 3.0][t]
+	for y in range(top, 20):
+		var half := hw
+		if y < top + 5:
+			half = (y - top) * (hw / 5.0) if t >= 2 else (hw if y >= 7 else (y - 3) * 0.4)
+		# tier 5-6: a wavy (kris) blade
+		for x in range(int(cx - half), int(cx + half) + 1):
+			p.px(x, y, Paint.STEEL if x <= cx else Paint.STEEL_D)
+		if t >= 2 and y > top + 3 and y < 19:
+			p.px(cx, y, Paint.STEEL_L)               # fuller
+		if t >= 5 and y > top + 2 and y < 19:
+			_if_on(p, int(cx - half), y, Paint.GOLD_L)           # gold along the edges
+			_if_on(p, int(cx + half), y, Paint.GOLD)
+			if t >= 6:
+				p.px(cx + 1, y, Color("7fd0f0") if y % 2 == 0 else Paint.STEEL_D)
+	# guard
+	var gw := 3 if t < 3 else (4 if t < 5 else 5)
+	p.rect(cx - gw, 20, cx + gw, 21, Paint.GOLD)
+	if t >= 2:
+		p.rect(cx - gw, 20, cx + gw, 20, Paint.GOLD_L)
+		p.rect(cx - gw, 21, cx + gw, 21, Paint.GOLD_D)
+		p.px(cx - gw, 19, Paint.GOLD)
+		p.px(cx + gw, 19, Paint.GOLD)
+	p.rect(cx - 1, 22, cx, 27, Paint.WOOD)
+	if t >= 2:
+		for y in [23, 25, 27]:
+			p.rect(cx - 1, y, cx, y, Paint.WOOD_D)
+		p.rect(cx - 1, 22, cx - 1, 27, Paint.WOOD_L if t < 4 else Color("c9a86a"))
+	# tier 3: a ruby in the guard and a ball pommel
+	p.rect(cx - 2, 28, cx + 1, 29, Paint.GOLD)
+	if t >= 3:
+		p.gem(cx + 0.0, 20.8, 1.1, Color("e04060"))
+		p.px(cx - 1, 30, Paint.GOLD)
+		p.px(cx, 30, Paint.GOLD_D)
+	# tier 4: a hooked parrying prong on the outer side of the guard, serrations along the outer edge
+	if t >= 4:
+		var side := mirror
+		p.rect(cx + side * (gw + 1), 17, cx + side * (gw + 1), 20, Paint.STEEL)
+		p.px(cx + side * (gw + 1), 16, Paint.STEEL_L)
+		for y in range(7, 19, 3):
+			p.px(cx + side * 2, y, Paint.CLEAR)
+	# tier 5: gold along the edges, a bigger pommel gem
+	if t >= 5:
+		p.gem(cx - 0.0, 29.0, 1.5, Color("5be0ff"))
+	# tier 6: gold wings on the guard and a rune light down the blade
+	if t >= 6:
+		for sgn in [-1, 1]:
+			p.line(Vector2(cx + sgn * gw, 20), Vector2(cx + sgn * (gw + 2), 17), Paint.GOLD, 1)
+		for y in range(6, 18, 3):
+			p.px(cx, y, Color("bff4ff"))
+		p.px(cx, 0, Paint.WHITE)
+
+func draw_daggers(p: Paint, t: int) -> void:
+	_dagger(p, 9, t, -1)
+	_dagger(p, 22, t, 1)
+
+# -------------------------------------------------------------------------------------------------------------------- scimitar
+
+func draw_scimitar(p: Paint, t: int) -> void:
+	var n := 40 if t == 1 else 60
+	var amp: float = [0.0, 7.0, 7.5, 8.0, 8.5, 9.0, 9.0][t]
+	var w0: float = [0.0, 2.6, 2.8, 3.2, 3.6, 3.6, 3.9][t]
+	var y_top: float = [0.0, 2.0, 1.5, 1.0, 1.0, 0.5, 0.0][t]
+	var y_bot := 27.0 if t == 1 else 26.0
+	for i in n:
+		var u := i / float(n - 1)
+		var pt := Vector2(14.0 + amp * sin(u * 1.9), y_bot - (y_bot - y_top) * u)
+		var w := w0 * (1.0 - 0.7 * u)
+		if t >= 2:
+			w = w0 * (1.0 - 0.55 * pow(u, 1.5)) if u < 0.85 else w0 * (1.0 - 0.55 * pow(u, 1.5)) * (1.0 - (u - 0.85) * 5.0)
+		for dx in range(-int(w), int(w) + 1):
+			var col := Paint.STEEL if dx <= 0 else Paint.STEEL_D
+			if t >= 2 and dx == 0 and u > 0.05 and u < 0.9:
+				col = Paint.STEEL_L              # fuller
+			p.px(int(pt.x) + dx, int(pt.y), col)
+		if t >= 3 and u > 0.08 and u < 0.9 and i % 3 == 0:
+			p.px(int(pt.x) - int(w), int(pt.y), Paint.STEEL_L)
+		if t >= 4 and u > 0.1 and u < 0.9:
+			p.px(int(pt.x) + int(w), int(pt.y), Paint.STEEL_D.darkened(0.15) if i % 4 else Paint.CLEAR)       # a serrated back edge
+		if t >= 5 and u > 0.1 and u < 0.9 and i % 2 == 0:
+			p.px(int(pt.x), int(pt.y), Color("5be0ff"))                          # runes along the fuller
+		if t >= 6 and u > 0.05 and u < 0.95:
+			p.px(int(pt.x) - int(w) - 0, int(pt.y), Paint.GOLD_L)
+	# guard, grip, pommel
+	if t == 1:
+		p.rect(11, 25, 17, 26, Paint.GOLD)
+		p.rect(13, 27, 15, 30, Paint.WOOD)
+		return
+	p.rect(10, 26, 18, 27, Paint.GOLD)
+	p.rect(10, 26, 18, 26, Paint.GOLD_L)
+	p.rect(10, 27, 18, 27, Paint.GOLD_D)
+	p.rect(13, 28, 15, 30, Paint.WOOD)
+	p.rect(13, 28, 13, 30, Paint.WOOD_L)
+	p.rect(13, 29, 15, 29, Paint.WOOD_D)
+	p.rect(12, 31, 16, 31, Paint.GOLD)
+	if t >= 3:
+		p.px(9, 25, Paint.GOLD)              # curled quillons
+		p.px(19, 25, Paint.GOLD)
+		p.px(9, 24, Paint.GOLD_L)
+		p.px(19, 24, Paint.GOLD_L)
+		p.gem(14.5, 28.5, 1.0, Color("e04060"))
+	if t >= 4:
+		p.disc(14.0, 26.5, 4.0, Paint.GOLD)           # a disc hand-guard
+		p.disc(14.0, 26.5, 2.6, Paint.GOLD_D)
+		p.gem(14.0, 26.5, 1.8, Color("e04060"))
+		p.rect(13, 28, 15, 30, Paint.WOOD)
+		p.rect(13, 29, 15, 29, Paint.WOOD_D)
+	if t >= 5:
+		for k in 3:                                   # a tassel
+			p.px(18 + k, 29 + k % 2, Color("c0392b"))
+		p.px(17, 29, Paint.GOLD)
+	if t >= 6:
+		p.ring(14.0, 26.5, 4.0, 1.0, Paint.GOLD_L)
+		p.gem(14.0, 26.5, 2.0, Color("5be0ff"))
+		p.line(Vector2(10, 24), Vector2(8, 21), Paint.GOLD)
+		p.line(Vector2(18, 24), Vector2(20, 21), Paint.GOLD)
+
+# ---------------------------------------------------------------------------------------------------------------------- whip
+
+func draw_whip(p: Paint, t: int) -> void:
+	var lash := Color("a0522d")
+	if t == 1:
+		p.rect(14, 23, 17, 30, Paint.WOOD)
+		p.rect(14, 23, 14, 30, Paint.WOOD_L)
+		var prev := Vector2(15.5, 23.0)
+		for y in range(22, 2, -1):
+			var pt := Vector2(16.0 + 6.0 * sin((22 - y) * 0.55), y)
+			p.line(prev, pt, lash, 2)
+			prev = pt
+		p.px(int(prev.x), 2, Color("e0b040"))
+		p.px(int(prev.x) + 1, 2, Color("e0b040"))
+		return
+	# the lash path: more segments (more turns) as the tier grows
+	var freq: float = [0.0, 0.55, 0.57, 0.6, 0.6, 0.62, 0.62][t]
+	var amp: float = [0.0, 6.0, 6.0, 6.5, 6.5, 6.5, 6.5][t]
+	var thick := 2
+	var pts := []
+	for y in range(22, 1, -1):
+		pts.append(Vector2(15.5 + amp * sin((22 - y) * freq) * (1.0 if y > 3 else 0.6), y))
+	# tier 2: thicker braided lash (two-tone plait), a leather-wrapped handle with a knotted pommel, a metal tip cap
+	for i in pts.size():
+		var pt: Vector2 = pts[i]
+		var braid := Color("a0522d") if i % 3 != 0 else Color("6a3418")
+		if t >= 4:
+			braid = Color("e0e8f0") if i % 4 < 2 else Color("6c7680")           # tier 4: a plated lash of metal segments
+		if t >= 6:
+			braid = Paint.GOLD if i % 4 < 2 else Paint.GOLD_D
+		if i == 0:
+			p.line(Vector2(15.5, 23), pt, braid, thick)
+		else:
+			p.line(pts[i - 1], pt, braid, thick)
+	p.rect(14, 23, 17, 30, Paint.WOOD)
+	p.rect(14, 23, 14, 30, Paint.WOOD_L)
+	for y in [25, 27, 29]:
+		p.rect(14, y, 17, y, Paint.WOOD_D)
+	p.rect(13, 31, 18, 31, Paint.IRON)
+	p.rect(14, 22, 17, 22, Paint.IRON_D)
+	var tip: Vector2 = pts[pts.size() - 1]
+	p.rect(int(tip.x), 1, int(tip.x) + 1, 2, Paint.STEEL)
+	# tier 3: barbs along the lash, a gold ring on the handle, a steel blade for a tip
+	if t >= 3:
+		for i in range(4, pts.size() - 2, 3):
+			var pt: Vector2 = pts[i]
+			var dir := 1 if sin((22 - pt.y) * freq + 0.5) > 0 else -1
+			p.px(int(pt.x) + dir * (thick + 1), int(pt.y), Paint.STEEL_L)
+			p.px(int(pt.x) + dir * (thick + 2), int(pt.y) - 1, Paint.STEEL)
+		p.rect(14, 24, 17, 24, Paint.GOLD)
+		p.px(int(tip.x), 0, Paint.STEEL_L)
+		p.px(int(tip.x) + 1, 1, Paint.STEEL_L)
+	# tier 4: a guard disc between handle and lash and a heavy spiked head at the end (the metal links are drawn above)
+	if t >= 4:
+		p.rect(12, 22, 19, 22, Paint.IRON)
+		p.rect(12, 21, 19, 21, Paint.IRON_D)
+		p.disc(tip.x + 0.5, 2.5, 2.2, Paint.IRON)
+		p.px(int(tip.x) - 2, 1, Paint.STEEL_L)
+		p.px(int(tip.x) + 3, 1, Paint.STEEL_L)
+		p.px(int(tip.x) + 0, 0, Paint.STEEL_L)
+	# tier 5: a forked tail, gold on the handle, a gem pommel
+	if t >= 5:
+		for k in 4:
+			p.px(int(tip.x) + 3 + k, 3 + k, Paint.STEEL if k % 2 == 0 else Paint.STEEL_D)
+		p.rect(13, 21, 18, 21, Paint.GOLD)
+		p.rect(14, 28, 17, 28, Paint.GOLD)
+		p.gem(15.5, 31.0, 1.4, Color("5be0ff"))
+	# tier 6: a golden chain whip tipped with a crystal flame and a jewelled golden grip
+	if t >= 6:
+		p.rect(14, 23, 17, 30, Paint.GOLD_D)
+		p.rect(14, 23, 14, 30, Paint.GOLD)
+		for y in [25, 27, 29]:
+			p.rect(14, y, 17, y, Paint.GOLD_L)
+		p.gem(tip.x + 0.5, 2.5, 2.2, Color("e04060"))
+		p.px(int(tip.x) + 1, 0, Color("ff9a2a"))
+		p.px(int(tip.x), 0, Color("ffd45a"))
