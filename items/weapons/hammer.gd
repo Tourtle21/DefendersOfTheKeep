@@ -74,7 +74,8 @@ func dash_attack() -> void:
 	# Leap Slam: jump the way you are moving and land with a shockwave
 	var d: Vector2 = aim * 70.0
 	player.dash(d.normalized(), min(70.0, d.length()), 0.2)
-	ground_strike(player.global_position + d.limit_length(70.0), 30.0, 0.22, 3.0, 260.0, Color(1.0, 0.5, 0.2), 0.5, ["stone"])
+	var crater := tier >= 4                  # Crater Leap: a wider, longer-stunning landing
+	ground_strike(player.global_position + d.limit_length(70.0), 40.0 if crater else 30.0, 0.22, 3.0, 260.0, Color(1.0, 0.5, 0.2), 0.8 if crater else 0.5, ["stone"])
 
 func release_ability() -> void:
 	_claim()
@@ -99,6 +100,8 @@ func release_ability() -> void:
 		WeaponUtil.hit(e, dmg, o, 200.0 + 200.0 * ratio, stun)
 	WeaponUtil.hit_breakables(get_tree(), o, radius, ["stone", "stick"])
 	_charge = 0.0
+	_st["slam"] = {"o": o, "radius": radius, "dmg": dmg, "perfect": perfect, "ratio": ratio}      # (for the tier riders)
+	WeaponTiers.run(self, "release")
 
 func ultimate() -> void:
 	# Meteor: after a long wind-up, a huge impact at the cursor

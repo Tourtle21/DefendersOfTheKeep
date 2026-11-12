@@ -183,7 +183,94 @@ func t_spear() -> void:
 	ok("spear: the Lunge refund still works at tier 6 (cooldown left %.2f of %.2f)" % [w._dash_cd, w.dash_cooldown], w._dash_cd <= w.dash_cooldown * 0.36)
 	await draw_smoke("spear")
 
+func stun_secs(d, secs: float) -> float:
+	var t := 0.0
+	for i in int(secs / 0.05):
+		await wait(0.05)
+		if is_instance_valid(d) and d.slow_mult == 0.0:
+			t += 0.05
+	return t
+
+func t_hammer() -> void:
+	var w
+	var rp := {}
+	for t in [1, 2]:
+		w = await equip("hammer", t, false)
+		# tier 1 has no charged slam: a tier 1 dummy only shows what nothing does
+		var r := 70.0
+		var d = dummy(P + Vector2(r * 1.3, 0))
+		w.use_ability()
+		await wait(1.25)
+		var state_seen: float = w._aura.state if w._aura != null else -1.0
+		w.release_ability()
+		var seen := {}
+		var low := 1.0
+		for i in 16:
+			await wait(0.05)
+			fx_kinds(seen)
+			low = minf(low, d.slow_mult)
+		rp[t] = [lost(d), low, seen, state_seen]
+	ok("hammer Ripple: tier 2 second ring hurts a dummy at 1.3 x radius (%.1f), chills it (%.2f), ripple fx %s; tier 1 nothing (%.1f)" % [rp[2][0], rp[2][1], rp[2][2].has("ripple"), rp[1][0]], rp[2][0] > 0.5 and rp[2][1] <= 0.51 and rp[2][2].has("ripple") and rp[1][0] == 0.0)
+	ok("hammer: the aura state rises while charging (%.0f at tier 2)" % rp[2][3], rp[2][3] >= 90.0)
+	var gp := {}
+	for t in [2, 3]:
+		w = await equip("hammer", t, false)
+		var d = dummy(P + Vector2(22 + 33, 0))
+		var per := []
+		var seen := {}
+		for i in 3:
+			var h0 := lost(d)
+			w.use_item()
+			for k in 9:
+				await wait(0.05)
+				fx_kinds(seen)
+			per.append(lost(d) - h0)
+			await wait(0.6)
+		gp[t] = [per, seen]
+	ok("hammer Ground Pound: tier 3 only the third smash reaches 33 px past the head (%s), shock and crack %s; tier 2 never %s" % [gp[3][0], gp[3][1].has("shock") and gp[3][1].has("crack"), gp[2][0]], gp[3][0][0] == 0.0 and gp[3][0][1] == 0.0 and gp[3][0][2] > 0.0 and gp[3][1].has("shock") and gp[2][0] == [0.0, 0.0, 0.0])
+	var cl := {}
+	for t in [3, 4]:
+		w = await equip("hammer", t, false)
+		var land: Vector2 = P + Vector2(70, 0)
+		var inner = dummy(land + Vector2(0, 33))
+		var outer = dummy(land + Vector2(0, 52))
+		w.use_dash()
+		await wait(0.22)
+		var stun: float = await stun_secs(inner, 1.4)
+		cl[t] = [lost(outer), stun, lost(inner)]
+	ok("hammer Crater Leap: tier 4 outer dummy takes the rubble (%.1f vs %.1f), inner stunned %.2f s (tier 3 %.2f)" % [cl[4][0], cl[3][0], cl[4][1], cl[3][1]], cl[4][0] > 1.0 and cl[3][0] == 0.0 and cl[4][1] >= 0.7)
+	var mt := {}
+	for t in [4, 5, 6]:
+		w = await equip("hammer", t, false)
+		var c: Vector2 = P + (player.aim_point() - P).limit_length(120.0)
+		var frag = dummy(c + Vector2(50, 0))
+		w.use_ultimate()
+		var seen := {}
+		var slow_hz := 0.0
+		var comet := false
+		var big_after := 0.0
+		var l_imp := 0.0
+		for i in 60:
+			await wait(0.05)
+			fx_kinds(seen)
+			for f in world.get_children():
+				if f.get_script() == null:
+					continue
+				var sp: String = str(f.get_script().resource_path)
+				if sp.ends_with("hazard.gd"):
+					slow_hz = maxf(slow_hz, f.radius)
+				if sp.ends_with("fx.gd") and f.kind == "fall" and f.radius >= 8.0:
+					comet = true
+			if i == 31:
+				l_imp = lost(frag)
+		mt[t] = {"lost": lost(frag), "seen": seen, "hz": slow_hz, "comet": comet, "imp": l_imp}
+	ok("hammer Shatter: tier 5 fragments hurt a dummy at radius 50 (%.1f vs %.1f)" % [mt[5].lost, mt[4].lost], mt[5].lost > mt[4].lost + 2.0)
+	ok("hammer Worldfall: tier 6 comet %s, slow crater r%.0f, more damage (%.1f vs %.1f); tier 5 no comet/crater (%s, %.0f)" % [mt[6].comet, mt[6].hz, mt[6].lost, mt[5].lost, mt[5].comet, mt[5].hz], mt[6].comet and mt[6].hz == 60.0 and !mt[5].comet and mt[5].hz == 0.0 and mt[6].lost > mt[5].lost + 3.0)
+	await draw_smoke("hammer")
+
 func run() -> void:
+	if only == "" or only == "hammer":
+		await t_hammer()
 	if only == "" or only == "spear":
 		await t_spear()
 	if only == "" or only == "torch":
