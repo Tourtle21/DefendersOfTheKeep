@@ -13,7 +13,7 @@ static func jit(i: int, salt := 0.0) -> float:
 
 ## Cards that have their own body art here: the plain fill and rings are drawn softer under it.
 static func has_body(id: String) -> bool:
-	return id in ["fireball", "frost_ring", "flare", "rejuvenation", "gold_magnet", "aegis", "charm", "sandstorm", "blizzard", "lava_pool", "poison_cloud"]
+	return id in ["fireball", "frost_ring", "flare", "rejuvenation", "gold_magnet", "aegis", "charm", "sandstorm", "blizzard", "lava_pool", "poison_cloud", "crystal_spikes"]
 
 static func draw_flight(s, t: float, col: Color) -> void:
 	match String(s.data.get("id", "")):
@@ -48,6 +48,8 @@ static func draw(s, since: float, col: Color) -> void:
 			draw_lava_pool(s, since, col)
 		"poison_cloud":
 			draw_poison_cloud(s, since, col)
+		"crystal_spikes":
+			draw_crystal_spikes(s, since, col)
 
 ## A flame as one polygon: a wide base, a belly, and a tip that leans with `sway`.
 static func flame(s, base: Vector2, w: float, h: float, col: Color, sway := 0.0) -> void:
@@ -836,3 +838,94 @@ static func draw_poison_cloud(s, since: float, _col: Color) -> void:
 			s.draw_circle(pp + Vector2(0, -h), cap, Color(TOXIC_DEEP.lightened(0.1), 0.95 * fade))
 			s.draw_circle(pp + Vector2(-1.5, -h - 1.0), 0.8, Color(SPORE, fade))
 			s.draw_circle(pp + Vector2(1.5, -h), 0.8, Color(SPORE, fade))
+
+# ---------------------------------------------------------------- Crystal Spikes
+
+const AMETHYST := Color(0.8, 0.6, 1.0)
+const AMETHYST_DEEP := Color(0.45, 0.25, 0.75)
+const CRYSTAL_WHITE := Color(0.95, 0.9, 1.0)
+
+## A crystal prism rising out of the ground: three facets (dark left, amethyst middle, white right) and a black outline.
+static func crystal(s, base: Vector2, w: float, h: float, alpha: float, tint := Color(0, 0, 0, 0)) -> void:
+	if h < 1.0:
+		return
+	var mid := AMETHYST if tint.a == 0.0 else tint
+	var top := base + Vector2(0, -h)
+	var l0 := base + Vector2(-w / 2.0, 0)
+	var l1 := base + Vector2(-w / 2.0, -h * 0.7)
+	var r1 := base + Vector2(w / 2.0, -h * 0.7)
+	var r0 := base + Vector2(w / 2.0, 0)
+	s.draw_polyline(PackedVector2Array([l0, l1, top, r1, r0, l0]), Color(0, 0, 0, alpha), 3.0)
+	s.draw_colored_polygon(PackedVector2Array([l0, l1, top, base + Vector2(-w / 6.0, 0)]), Color(AMETHYST_DEEP, alpha))
+	s.draw_colored_polygon(PackedVector2Array([base + Vector2(-w / 6.0, 0), top, base + Vector2(w / 6.0, 0)]), Color(mid, alpha))
+	s.draw_colored_polygon(PackedVector2Array([base + Vector2(w / 6.0, 0), top, r1, r0]), Color(CRYSTAL_WHITE, alpha))
+
+static func draw_crystal_spikes(s, since: float, _col: Color) -> void:
+	var tier := int(s.data.get("tier", 1))
+	if tier < 2:
+		return
+	var life: float = s.effect_time
+	var fade := clampf((life - since) / 0.5, 0.0, 1.0)
+	var spots := []
+	for i in 3:
+		spots.append(Vector2.from_angle(i * TAU / 3.0 - PI / 2.0) * 22.0)
+	if tier >= 6:                                                   # a rainbow glow, and a flower of prisms at the centre
+		var growth := clampf((since - 0.6) / 0.6, 0.0, 1.0)
+		s.draw_circle(Vector2.ZERO, s.radius * 1.2, Color.from_hsv(fposmod(since * 0.2, 1.0), 0.3, 1.0, 0.18 * fade * growth))
+		var hs := [34.0, 28.0, 28.0, 24.0, 24.0, 20.0, 20.0]
+		var order := [0, 1, 2, 3, 4, 5, 6]
+		for k in order:
+			var ang := lerpf(-50.0, 50.0, k / 6.0)
+			crystal(s, Vector2(sin(deg_to_rad(ang)) * 12.0, 4.0), 8.0, hs[k] * growth, fade, Color.from_hsv(fposmod(since * 0.3 + k * 0.1, 1.0), 0.35, 1.0))
+		for i in 12:
+			var tw := 0.5 + 0.5 * sin(since * 5.0 + i)
+			s.draw_circle(Vector2.from_angle(jit(i, 4.0) * TAU) * s.radius * 1.1 * jit(i, 5.0), 1.5, Color(1, 1, 1, tw * fade * growth))
+	if tier >= 4:                                                   # three fissures run outward, with smaller crystals along them
+		for i in 3:
+			var d: Vector2 = spots[i].normalized()
+			var pts := PackedVector2Array([spots[i]])
+			for k in range(1, 8):
+				var u := k / 7.0
+				pts.append(spots[i] + d * 70.0 * u + d.orthogonal() * (jit(k + i * 7, 2.0) - 0.5) * 8.0)
+			var shown := clampf((since - SpellTiers.SPIKE_DELAYS[i]) / 0.45, 0.0, 1.0)
+			var n := int(shown * 7.0) + 1
+			s.draw_polyline(pts.slice(0, n), Color(AMETHYST_DEEP, 0.9 * fade), 3.0)
+			s.draw_polyline(pts.slice(0, n), Color(1, 1, 1, 0.5 * fade), 1.0)
+			var hs2 := [16.0, 12.0, 9.0]
+			for k in 3:
+				if shown > (k + 1) / 4.0:
+					crystal(s, spots[i] + d * 26.0 * (k + 1), 6.0, hs2[k], fade)
+	if tier >= 5:                                                   # three beams link the crystals, a prism floats above each
+		for i in 3:
+			var a: Vector2 = spots[i]
+			var b: Vector2 = spots[(i + 1) % 3]
+			var pulse := 0.6 + 0.4 * sin(since * 6.0 + i)
+			s.draw_line(a + Vector2(0, -8), b + Vector2(0, -8), Color(CRYSTAL_WHITE, 0.25 * fade * pulse), 3.0)
+			s.draw_line(a + Vector2(0, -8), b + Vector2(0, -8), Color(1, 1, 1, 0.9 * fade), 1.0)
+	# tier 2: the three big crystals (and the small ones that grow between them from tier 3)
+	for i in 3:
+		var h := clampf((since - SpellTiers.SPIKE_DELAYS[i]) / 0.15, 0.0, 1.0) * (18.0 + 2.0 * i)
+		var hum := 0.85 + 0.15 * sin(since * 3.0 + i) if tier >= 3 else 1.0
+		var base: Vector2 = spots[i]
+		var tint := Color.from_hsv(fposmod(since * 0.3 + i * 0.33, 1.0), 0.35, 1.0) if tier >= 5 else Color(0, 0, 0, 0)
+		for k in 3:
+			var a2 := i * 2.0 + k * 2.1
+			s.draw_line(base, base + Vector2.from_angle(a2) * 7.0, Color(AMETHYST_DEEP, 0.7 * fade), 1.0)
+		crystal(s, base, 8.0, h, hum * fade, tint)
+		if tier >= 3 and h > 0.0:
+			var gl := fposmod(since / 1.2 + i * 0.3, 1.0)
+			if gl < 0.25:
+				var gp := base + Vector2(0, -h * 0.6)
+				for q in 4:
+					var dd := Vector2.from_angle(q * PI / 4.0)
+					s.draw_line(gp - dd * 3.0, gp + dd * 3.0, Color(0.85, 1.0, 1.0, fade), 1.0)
+		if tier >= 5:
+			var pp := base + Vector2(0, -h - 8.0)
+			var col5 := Color.from_hsv(fposmod(since * 0.3 + i * 0.33, 1.0), 0.35, 1.0)
+			var sq := absf(cos(since * 2.0 + i)) * 5.0 + 1.0
+			s.draw_colored_polygon(PackedVector2Array([pp + Vector2(0, -4), pp + Vector2(sq, 0), pp + Vector2(0, 4), pp + Vector2(-sq, 0)]), Color(col5, fade))
+	if tier >= 3:
+		for i in 4:
+			var grow := clampf((since - 0.5) / 0.4, 0.0, 1.0)
+			var a3 := (i + 0.5) * TAU / 4.0 - PI / 2.0 + 0.5
+			crystal(s, Vector2.from_angle(a3) * 14.0, 5.0, (8.0 + 3.0 * jit(i, 3.0)) * grow, fade)

@@ -171,9 +171,7 @@ func _physics_process(delta: float) -> void:
 				LightSource.spawn(get_parent(), position, radius * 1.4, data.duration + 1.0, Color(1.0, 0.7, 0.3))
 				WeaponUtil.rain(get_tree(), get_parent(), position, radius, int(data.get("count", 10)), data.duration, data.damage, 26.0, _color())
 			elif data.kind == "spikes":
-				for i in 3:
-					var spot := position + Vector2.from_angle(i * TAU / 3.0 - PI / 2.0) * 22.0
-					WeaponUtil.ground_strike(get_tree(), get_parent(), spot, radius, 0.3 + i * 0.15, data.damage, 160.0, data.color, 0.3, [], data.get("element", ""))
+				SpellTiers.land_crystal_spikes(self)
 			elif data.kind == "build":
 				var st := Structure.new()
 				st.setup(data, position)

@@ -68,7 +68,7 @@ func _initialize() -> void:
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("only="):
 			only = a.substr(5)
-	for id in ["fireball", "frost_ring", "flare", "rejuvenation", "gold_magnet", "aegis", "charm", "sandstorm", "blizzard", "lava_pool", "poison_cloud"]:
+	for id in ["fireball", "frost_ring", "flare", "rejuvenation", "gold_magnet", "aegis", "charm", "sandstorm", "blizzard", "lava_pool", "poison_cloud", "crystal_spikes"]:
 		if only == "" or only == id:
 			await call(id)
 			await clear()
@@ -907,3 +907,70 @@ func poison_cloud() -> void:
 		pg[cp] = [losing, small]
 		await clear()
 	ok("tier 6 plagues everything near at the end; one that dies releases a small cloud; a copy does not (%s)" % str(pg), pg[false][0] and pg[false][1] >= 1 and !pg[true][0] and pg[true][1] == 0)
+
+# ================================================================== Crystal Spikes
+func crystal_spikes() -> void:
+	print("-- crystal_spikes")
+	var c := Vector2(0, 300)
+	var spot0: Vector2 = c + Vector2.from_angle(-PI / 2.0) * 22.0
+	# Impale (tier 2)
+	var im := {}
+	for t in [1, 2]:
+		var e = dummy(spot0)
+		spell("crystal_spikes", t, c, true)
+		await wait(0.55)
+		im[t] = [snappedf(e.slow_time, 0.01), load("res://items/weapons/weapon_util.gd").is_exposed(e)]
+		await clear()
+	ok("tier 2 skewers: held over a second and exposed; tier 1 only a flinch (%s)" % str(im), im[2][0] > 1.0 and im[2][1] and im[1][0] < 0.4)
+	# Crystal garden (tier 3): the crystals stay and zap
+	var ga := {}
+	for t in [2, 3]:
+		var s0 = spell("crystal_spikes", t, c, true)
+		await wait(2.0)
+		var e = dummy(spot0 + Vector2(10, 0))
+		await wait(1.2)
+		ga[t] = [is_instance_valid(s0), snappedf(dealt(e), 0.1)]
+		await clear()
+	ok("tier 3 garden: the crystals stay and zap, tier 2 is gone (%s)" % str(ga), ga[3][0] and ga[3][1] > ga[2][1] + 5.0 and !ga[2][0])
+	# Fissure (tier 4): extra spikes run outward
+	var fi := {}
+	for t in [3, 4]:
+		var e = dummy(c + (spot0 - c).normalized() * 75.0 + (spot0 - c))
+		spell("crystal_spikes", t, c, true)
+		var seen := await fx_seen(1.5)
+		fi[t] = [seen.get("ring", 0), snappedf(dealt(e), 0.1)]
+		await clear()
+	ok("tier 4 fissures: far more telegraph rings and a hit far out along the line, tier 3 not (%s)" % str(fi), fi[4][0] >= fi[3][0] + 9 and fi[4][1] > fi[3][1] + 10.0)
+	# Prism web (tier 5)
+	var wb := {}
+	var spots := [spot0, c + Vector2.from_angle(PI / 6.0) * 22.0]
+	for t in [4, 5]:
+		var mid: Vector2 = (spots[0] + spots[1]) * 0.5
+		var e = dummy(mid)
+		spell("crystal_spikes", t, c, true)
+		await wait(1.0)
+		var h1: float = e.health
+		e.slow_mult = 1.0
+		await wait(1.0)
+		wb[t] = [snappedf(h1 - e.health, 0.1), snappedf(e.slow_mult, 0.01)]
+		await clear()
+	ok("tier 5 web hurts and slows an enemy on an edge, tier 4 much less (%s)" % str(wb), wb[5][0] > wb[4][0] * 2.0 and wb[5][1] <= 0.5 and wb[4][1] > 0.5)
+	# Crystal bloom (tier 6)
+	var bl := {}
+	for cp in [false, true]:
+		var s0 = spell("crystal_spikes", 6, c, true, {"copy": cp})
+		var r6: float = s0.radius * 1.4
+		var e = dummy(c + Vector2(r6, 0))
+		var n := 0
+		var seen := {}
+		var el := 0.0
+		while el < 2.2:
+			await wait(0.05)
+			el += 0.05
+			for nd in world.get_children():
+				if nd.get_script() != null and str(nd.get_script().resource_path).ends_with("projectile.gd") and !seen.has(nd.get_instance_id()):
+					seen[nd.get_instance_id()] = true
+					n += 1
+		bl[cp] = [snappedf(dealt(e), 0.1), n]
+		await clear()
+	ok("tier 6 bloom erupts: big hit far out and 12 crystal shards, a copy does not (%s)" % str(bl), bl[false][0] > 0.0 and bl[false][1] >= 12 and bl[true][1] < 6 and bl[true][0] == 0.0)

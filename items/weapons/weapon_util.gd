@@ -127,11 +127,13 @@ static func clear_exposed(e: Node) -> void:
 		e.remove_meta("exposed_until")
 
 ## Telegraphed strike on the ground: a ring shows where it will land, then it hits.
-static func ground_strike(tree: SceneTree, world: Node, center: Vector2, radius: float, delay: float, dmg: float, knock: float, color: Color, stun := 0.0, breakable_types: Array = [], elem := "") -> void:
+static func ground_strike(tree: SceneTree, world: Node, center: Vector2, radius: float, delay: float, dmg: float, knock: float, color: Color, stun := 0.0, breakable_types: Array = [], elem := "", on_hit := Callable()) -> void:
 	WeaponFx.spawn(world, "ring", center, color, {"radius": radius, "life": delay})
 	await tree.create_timer(delay).timeout
 	for e in enemies_in_circle(tree, center, radius):
 		hit(e, dmg, center, knock, stun, elem, true)
+		if on_hit.is_valid() and _alive(e):
+			on_hit.call(e)                       # (e.g. mark the enemy that was hit)
 	if !breakable_types.is_empty():
 		hit_breakables(tree, center, radius, breakable_types)
 	WeaponFx.spawn(world, "ring", center, color.lightened(0.3), {"radius": radius * 1.1, "life": 0.25})

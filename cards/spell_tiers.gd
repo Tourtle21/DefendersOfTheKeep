@@ -56,6 +56,8 @@ static func effect_time(s, base: float) -> float:
 			return 1.6 if tier_of(s) >= 5 else base
 		"gold_magnet":
 			return MAGNET_STORM_TIME if tier_of(s) >= 5 else base
+		"crystal_spikes":
+			return 4.0 if tier_of(s) >= 3 else base
 		"charm":
 			var t := tier_of(s)
 			if t >= 5:
@@ -99,6 +101,8 @@ static func tick(s, delta: float) -> void:
 			tick_lava_pool(s, tier_of(s), delta)
 		"poison_cloud":
 			tick_poison_cloud(s, tier_of(s), delta)
+		"crystal_spikes":
+			tick_crystal_spikes(s, tier_of(s), delta)
 
 # ---------------------------------------------------------------- Fireball
 
@@ -1097,3 +1101,86 @@ static func tick_poison_cloud(s, tier: int, delta: float) -> void:
 				small.adds = []
 				small.twist = ""
 				Spell.cast_copy(w, small, at)
+
+# ---------------------------------------------------------------- Crystal Spikes
+
+const SPIKE_STUN := [0.3, 1.2, 1.2, 1.2, 1.2, 1.2]
+const SPIKE_ZAP_T := 0.6
+const SPIKE_ZAP_R := 20.0
+const SPIKE_WEB_T := 0.25
+const SPIKE_BLOOM := 2.0
+const SPIKE_DELAYS := [0.3, 0.45, 0.6]
+const AMETHYST := Color(0.8, 0.6, 1.0)
+
+## The three spots the crystals rise from (a triangle round the target).
+static func spike_spots(s) -> Array:
+	var out := []
+	for i in 3:
+		out.append(s.global_position + Vector2.from_angle(i * TAU / 3.0 - PI / 2.0) * 22.0)
+	return out
+
+static func land_crystal_spikes(s) -> void:
+	var tier := tier_of(s)
+	var tree: SceneTree = s.get_tree()
+	var w: Node = s.get_parent()
+	var dmg: float = s.data.damage
+	var col: Color = s.data.get("color", AMETHYST)
+	var el: String = s.data.get("element", "")
+	var expose := Callable()
+	if tier >= 2:
+		expose = func(e): WeaponUtil.expose(e, 2.0)                 # impale: a skewered enemy takes more from everything
+	var spots := spike_spots(s)
+	for i in 3:
+		WeaponUtil.ground_strike(tree, w, spots[i], s.radius, SPIKE_DELAYS[i], dmg, 160.0, col, SPIKE_STUN[tier - 1], [], el, expose)
+		if tier >= 4:                                               # fissure: a line of smaller spikes runs outward from each
+			var dir: Vector2 = (spots[i] - s.global_position).normalized()
+			for k in range(1, 4):
+				WeaponUtil.ground_strike(tree, w, spots[i] + dir * 26.0 * k, 14.0, SPIKE_DELAYS[i] + 0.15 * k, dmg * 0.5, 160.0, col, 0.3, [], el)
+
+static func tick_crystal_spikes(s, tier: int, delta: float) -> void:
+	if tier < 2:
+		return
+	var since: float = s.age - s.flight
+	var tree: SceneTree = s.get_tree()
+	var w: Node = s.get_parent()
+	var dmg: float = s.data.damage
+	var spots := spike_spots(s)
+	for i in 3:                                                       # each eruption: shards and a burst
+		if since >= SPIKE_DELAYS[i] and !s._clk.has("sp" + str(i)):
+			s._clk["sp" + str(i)] = true
+			WeaponFx.spawn(w, "shards", spots[i], AMETHYST, {"radius": 20.0, "count": 6, "life": 0.3})
+			WeaponFx.spawn(w, "burst", spots[i], AMETHYST, {"radius": 14.0, "life": 0.25})
+			Sfx.play("big_hit")
+	if since < SPIKE_DELAYS[2]:
+		return
+	if tier >= 3 and pace(s, "zap", SPIKE_ZAP_T, delta):               # crystal garden: each crystal zaps what comes near
+		for sp in spots:
+			for e in WeaponUtil.enemies_in_circle(tree, sp, SPIKE_ZAP_R):
+				var to: Vector2 = e.global_position - sp
+				WeaponFx.spawn(w, "bolt", sp + Vector2(0, -18), Color(0.85, 1.0, 1.0), {"dir": (e.global_position - sp - Vector2(0, -18)).normalized(), "length": (e.global_position - sp - Vector2(0, -18)).length(), "width": 2.0, "life": 0.15})
+				e.spell_damage(dmg * 0.3, "pierce", true)
+	if tier >= 5 and pace(s, "web", SPIKE_WEB_T, delta):               # prism web: the three crystals are linked
+		for i in 3:
+			var a: Vector2 = spots[i]
+			var b: Vector2 = spots[(i + 1) % 3]
+			var d := (b - a).normalized()
+			for e in WeaponUtil.enemies_in_line(tree, a, d, a.distance_to(b), 5.0):
+				e.spell_damage(dmg * 0.4, "pierce", true)
+				if is_instance_valid(e):
+					keep_slow(e, 0.5, 0.4)
+					WeaponFx.spawn(w, "burst", e.global_position, Color.from_hsv(fposmod(since * 0.3 + i * 0.33, 1.0), 0.35, 1.0), {"radius": 8.0, "life": 0.2})
+	if tier >= 6 and !s._finale_done and !is_copy(s) and since >= 0.9:   # crystal bloom: a huge crystal erupts at the cast point
+		s._finale_done = true
+		var r: float = s.radius * 1.6
+		var c: Vector2 = s.position
+		var gp: Vector2 = s.global_position
+		WeaponUtil.ground_strike(tree, w, gp, r, 0.4, dmg * SPIKE_BLOOM, 220.0, AMETHYST, 0.8, [], "pierce")
+		tree.create_timer(0.4).timeout.connect(func():
+			if !is_instance_valid(w):
+				return
+			WeaponFx.spawn(w, "flash", c, AMETHYST, {"radius": r, "life": 0.4})
+			WeaponFx.spawn(w, "shards", c, AMETHYST, {"radius": r, "count": 14, "life": 0.5})
+			WeaponFx.spawn(w, "ripple", c, AMETHYST, {"radius": r, "rings": 2, "life": 0.6})
+			Sfx.play("ultimate")
+			for i in 12:
+				WeaponProjectile.shoot(w, c, Vector2.from_angle(i * TAU / 12.0), 200.0, dmg * 0.5, AMETHYST, 0.6, 1, 40.0))
