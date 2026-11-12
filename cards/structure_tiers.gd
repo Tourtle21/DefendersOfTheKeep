@@ -198,6 +198,8 @@ static func tick(st, delta: float) -> void:
 	match id_of(st):
 		"crystal_pylon", "storm_spire", "magma_wall", "venom_tower", "prism_tower", "healing_grove", "sunspire", "phoenix_shrine":
 			C.tick(st, delta)
+		"barricade":
+			tick_barricade(st, delta)
 		_:
 			pass
 
@@ -282,6 +284,8 @@ static func on_promote(st, new_tier: int) -> void:
 	match id_of(st):
 		"crystal_pylon", "storm_spire", "magma_wall", "venom_tower", "prism_tower", "healing_grove", "sunspire", "phoenix_shrine":
 			C.on_promote(st, new_tier)
+		"barricade":
+			on_promote_barricade(st, new_tier)
 		_:
 			pass
 
@@ -292,3 +296,87 @@ static func on_expire(st) -> void:
 			C.on_expire(st)
 		_:
 			pass
+
+# ---------------------------------------------------------------- Barricade
+const BARR_SHOVE_T := 4.0
+const BARR_STAKE_T := 3.0
+const BARR_BALLISTA_T := 1.5
+const BARR_BALLISTA_RANGE := 100.0
+const BARR_REBUKE_R := 44.0
+const BARR_WIND_R := 60.0
+const WOOD := Color(0.65, 0.45, 0.25)
+const PALE_WOOD := Color(0.9, 0.78, 0.55)
+const WALL_GOLD := Color(1.0, 0.85, 0.4)
+
+## A thin line of light from a building to a target (a bolt or arrow), and the damage.
+static func shaft(st, target, dmg: float, col: Color, elem := "", width := 3.0) -> void:
+	if !is_instance_valid(target):
+		return
+	var to: Vector2 = target.global_position - st.global_position
+	WeaponFx.spawn(world_of(st), "line", st.global_position, col, {"dir": to.normalized(), "length": to.length(), "width": width, "life": 0.18})
+	WeaponFx.spawn(world_of(st), "burst", target.global_position, col, {"radius": 8.0, "life": 0.2})
+	target.spell_damage(dmg, elem)
+
+static func tick_barricade(st, delta: float) -> void:
+	var t: int = st.tier
+	var thorns: float = float(st.data.get("thorns", 0.0))
+	st.invuln_view = st._invuln > 0.0
+	if t < 2:
+		return
+	var w := world_of(st)
+	var pos: Vector2 = st.global_position
+	# 2 Shove: the wall bucks and knocks its gnawers back (waits at full until somebody is there)
+	if ready(st, "shove", BARR_SHOVE_T, delta):
+		st.charge = 1.0
+		if !enemies(st, st.radius + 14.0).is_empty():
+			reset(st, "shove")
+			pulse(st, st.radius + 14.0, 0.0, 220.0, 0.3, WOOD)
+			sfx(st, "thump", 0.4)
+	else:
+		st.charge = fill(st, "shove", BARR_SHOVE_T)
+	# 3 Stakes: the gnawer nearest the middle is skewered and left exposed
+	if t >= 3 and ready(st, "stake", BARR_STAKE_T, delta):
+		var victim = null
+		var bd := INF
+		for e in enemies(st, st.radius + 9.0):
+			var d: float = e.global_position.distance_to(pos)
+			if d < bd:
+				bd = d
+				victim = e
+		if victim != null:
+			reset(st, "stake")
+			WeaponFx.spawn(w, "pillar", victim.global_position, PALE_WOOD, {"height": 28.0, "width": 6.0, "life": 0.3})
+			WeaponFx.spawn(w, "burst", victim.global_position, WOOD, {"radius": 8.0, "life": 0.2})
+			victim.spell_damage(thorns * 4.0, "pierce")
+			if is_instance_valid(victim) and !_dead(victim):
+				WeaponUtil.expose(victim, 1.5)
+			sfx(st, "hit", 0.3)
+	# 4 Ballista: shoots the nearest enemy it can see
+	if t >= 4 and ready(st, "ballista", BARR_BALLISTA_T, delta):
+		var target = nearest(st, BARR_BALLISTA_RANGE)
+		if target != null:
+			reset(st, "ballista")
+			shaft(st, target, thorns * 0.8, PALE_WOOD, "pierce")
+			sfx(st, "whoosh", 0.3)
+	# 5 Rebuke: a shockwave each time it falls below 75%, 50%, 25%
+	if t >= 5:
+		for key in [["r75", 0.75], ["r50", 0.5], ["r25", 0.25]]:
+			if threshold(st, key[0], key[1]):
+				pulse(st, BARR_REBUKE_R, thorns * 3.0, 260.0, 0.5, WALL_GOLD)
+				WeaponFx.spawn(w, "ripple", pos, Color(1.0, 0.95, 0.7), {"radius": BARR_REBUKE_R, "rings": 2, "life": 0.45})
+				WeaponFx.spawn(w, "shards", pos, Color(1.0, 0.95, 0.7), {"radius": BARR_REBUKE_R, "count": 10, "life": 0.4})
+				Sfx.play("big_hit")
+	# 6 Second wind: once, it heals itself, shrugs everything off for a moment and bursts
+	if t >= 6 and !st._wind_used and st.hp < 0.2 * st.max_hp:
+		st._wind_used = true
+		st.hp = st.max_hp * 0.6
+		st._invuln = 3.0
+		st.invuln_view = true
+		pulse(st, BARR_WIND_R, thorns * 5.0, 320.0, 0.8, WALL_GOLD)
+		WeaponFx.spawn(w, "flash", pos, Color(1.0, 0.95, 0.7), {"radius": 50.0, "life": 0.4})
+		WeaponFx.spawn(w, "ripple", pos, WALL_GOLD, {"radius": 70.0, "rings": 3, "life": 0.6})
+		Sfx.play("ultimate")
+
+static func on_promote_barricade(st, _new_tier: int) -> void:
+	st._wind_used = false
+	st._thr.clear()

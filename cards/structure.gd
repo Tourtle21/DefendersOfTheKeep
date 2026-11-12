@@ -46,14 +46,16 @@ var lit := false            # a flame is burning
 var fx_pulse := 1.0         # seconds since the last ability pulse, capped at 1 (the drawing flashes while it is small)
 var vis := {}               # card-specific things a client must draw (plain numbers, vectors, arrays of them): stacks, fruit, a phoenix dive...
 var _tdata := {}             # host-only per-card state of the second batch of tier abilities (cards/structure_tiers_c.gd)
+var invuln_view := false   # barricade tier 6: untouchable for a moment (the drawing shows a dome)
+var _wind_used := false
 
 func setup(card: Dictionary, pos: Vector2) -> void:
 	data = card
 	twist = str(card.get("twist", ""))
 	adds = card.get("adds", [twist] if twist != "" else [])
+	tier = int(card.get("level", 1))              # a card drawn at a higher tier is placed at that tier (before its additions, which scale with it)
 	_apply_twist()
 	kind = card.build
-	tier = int(card.get("level", 1))              # a card drawn at a higher tier is placed at that tier
 	points = 1 << (tier - 1)
 	position = pos
 	radius = card.radius
