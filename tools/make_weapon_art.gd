@@ -2,6 +2,7 @@ extends SceneTree
 ## Generates the 32x32 weapon icons (tip pointing up) into res://items/weapons/icons/.
 ## Run:  Godot --path . --headless --script res://tools/make_weapon_art.gd
 
+const TierArt = preload("res://items/weapons/art/weapon_tier_art.gd")
 const CLEAR := Color(0, 0, 0, 0)
 const STEEL := Color("cfd8e3")
 const STEEL_D := Color("8f9db0")
@@ -16,6 +17,11 @@ func _initialize() -> void:
 		save(voidreaver(), "voidreaver")
 		save(mindbender(), "mindbender")
 		print("legendary weapon icons written")
+		quit()
+		return
+	if "only=fused" in OS.get_cmdline_user_args():
+		make_fused_icons()               # the fused weapons' first-tier pictures, from items/weapons/art/fused_art.gd
+		print("fused weapon icons written")
 		quit()
 		return
 	if "only=torch" in OS.get_cmdline_user_args():
@@ -283,52 +289,11 @@ func crystalwand() -> Image:
 			px(img, x, y, Color("d9bfff") if x <= 15 else Color("9a6fe0"))
 	return img
 
-# ---------- fused (tier 2+) icons: the two parents crossed, with a tier-coloured outline ----------
-
-const TIER_COLORS := {2: Color("e8c040"), 3: Color("5be0ff"), 4: Color("c080ff")}
-
-func load_icon(id: String) -> Image:
-	var path := ProjectSettings.globalize_path("res://items/weapons/icons/%s.png" % id)
-	if FileAccess.file_exists(path):
-		return Image.load_from_file(path)
-	var legacy := {"sword": "res://items/tools/sword/excalibur_.png", "pickaxe": "res://items/tools/pickaxe/pickaxe.png"}
-	var img := Image.load_from_file(ProjectSettings.globalize_path(legacy[id]))
-	img.convert(Image.FORMAT_RGBA8)
-	return img.get_region(Rect2i(0, 0, 32, 32))
-
-func composite(a: Image, b: Image, tier: int) -> Image:
-	var out := new_img()
-	for layer in [[b, 0.55, 3.0], [a, -0.55, -3.0]]:
-		var src: Image = layer[0]
-		var ang: float = layer[1]
-		var shift: float = layer[2]
-		for y in 32:
-			for x in 32:
-				var p := Vector2(x + 0.5 - shift - 16.0, y + 0.5 - 16.0).rotated(-ang) / 0.92 + Vector2(16, 16)
-				var sx := int(p.x)
-				var sy := int(p.y)
-				if sx >= 0 and sy >= 0 and sx < 32 and sy < 32 and src.get_pixel(sx, sy).a > 0.5:
-					out.set_pixel(x, y, src.get_pixel(sx, sy))
-	# tier-coloured outline (gold for tier 2, cyan for tier 3)
-	var col: Color = TIER_COLORS.get(tier, Color.WHITE)
-	var edge := out.duplicate() as Image
-	for y in 32:
-		for x in 32:
-			if out.get_pixel(x, y).a > 0.5:
-				continue
-			for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
-				var q: Vector2i = Vector2i(x, y) + d
-				if q.x >= 0 and q.y >= 0 and q.x < 32 and q.y < 32 and out.get_pixel(q.x, q.y).a > 0.5:
-					edge.set_pixel(x, y, col)
-					break
-	return edge
+# ---------- fused (tier 2+) icons: drawn from scratch by items/weapons/art/fused_art.gd (the picture of the fusion's first tier) ----------
 
 func make_fused_icons() -> void:
-	for tier in [2, 3, 4]:
-		for key in Fusion.RECIPES:
-			var r: Dictionary = Fusion.RECIPES[key]
-			if r.tier != tier:
-				continue
-			var parts: PackedStringArray = key.split("+")
-			var img := composite(load_icon(parts[0]), load_icon(parts[1]), tier)
+	for key in Fusion.RECIPES:
+		var r: Dictionary = Fusion.RECIPES[key]
+		var img: Image = TierArt.image(str(r.id), int(r.tier))
+		if img != null:
 			img.save_png(ProjectSettings.globalize_path("res://items/weapons/icons/%s.png" % r.id))

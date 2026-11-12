@@ -17,7 +17,9 @@ func diff(a: Image, b: Image) -> int:
 	var n := 0
 	for y in mini(a.get_height(), b.get_height()):
 		for x in mini(a.get_width(), b.get_width()):
-			if !a.get_pixel(x, y).is_equal_approx(b.get_pixel(x, y)):
+			var ca := a.get_pixel(x, y)
+			var cb := b.get_pixel(x, y)
+			if !(ca.is_equal_approx(cb) or (ca.a < 0.01 and cb.a < 0.01)):
 				n += 1
 	return n
 
@@ -47,19 +49,20 @@ func _initialize() -> void:
 			continue
 		var w: int = imgs[0].get_width()
 		ok("%s same size every tier" % id, imgs.all(func(i): return i.get_width() == w and i.get_height() == w))
-		for t in range(1, 6):
+		var t0 := Fusion.tier_of(id) - 1          # a fused weapon only ever shows tiers tier_of..6 (index t0..5)
+		for t in range(t0 + 1, 6):
 			var d := diff(imgs[t], imgs[t - 1])
 			ok("%s tier %d vs %d differ by %d (>= %d)" % [id, t + 1, t, d, MIN_STEP], d >= MIN_STEP)
-		for a in 6:
+		for a in range(t0, 6):
 			for b in range(a + 1, 6):
 				ok("%s tiers %d and %d differ" % [id, a + 1, b + 1], diff(imgs[a], imgs[b]) > 0)
-		var n1 := opaque_count(imgs[0])
+		var n1 := opaque_count(imgs[t0])
 		var n6 := opaque_count(imgs[5])
 		ok("%s tier 6 is richer than tier 1 (%d vs %d pixels)" % [id, n6, n1], n6 > n1 + 20)
 		var icon := "res://items/weapons/icons/%s.png" % id
 		if FileAccess.file_exists(icon):
 			var base := Image.load_from_file(ProjectSettings.globalize_path(icon))
 			base.convert(Image.FORMAT_RGBA8)
-			ok("%s tier 1 is its icon file (%d px differ)" % [id, diff(imgs[0], base)], diff(imgs[0], base) == 0)
+			ok("%s first tier is its icon file (%d px differ)" % [id, diff(imgs[t0], base)], diff(imgs[t0], base) == 0)
 	print("weapon_art: %d weapons checked, %d failures" % [ids.size(), fails])
 	quit(1 if fails > 0 else 0)
