@@ -13,6 +13,8 @@ var radius := 7.0
 var expose_secs := 0.0
 var bleed_ticks := 0
 var bleed_dmg := 1.0
+var slow_mult := 1.0        # > 0 secs: a hit chills the enemy to this fraction (Frostfire's ice bolts)
+var slow_secs := 0.0
 var _hit := []
 
 static func shoot(world: Node, pos: Vector2, dir: Vector2, speed: float, dmg: float, col: Color, life_s := 1.2, pierce_n := 0, knock_s := 80.0, extra := {}) -> void:
@@ -46,6 +48,8 @@ func _physics_process(delta: float) -> void:
 			WeaponUtil.expose(e, expose_secs)
 		if bleed_ticks > 0 and is_instance_valid(e) and !e.is_queued_for_deletion():
 			WeaponUtil.bleed(get_tree(), e, bleed_ticks, bleed_dmg)
+		if slow_secs > 0.0 and is_instance_valid(e) and !e.is_queued_for_deletion() and e.has_method("apply_slow"):
+			e.apply_slow(slow_mult, slow_secs)
 		if _hit.size() > pierce:
 			queue_free()
 			return

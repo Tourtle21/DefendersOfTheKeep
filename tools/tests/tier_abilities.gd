@@ -68,7 +68,7 @@ func _initialize() -> void:
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("only="):
 			only = a.substr(5)
-	for id in ["fireball", "frost_ring", "flare", "rejuvenation", "gold_magnet", "aegis", "charm", "sandstorm", "blizzard", "lava_pool", "poison_cloud", "crystal_spikes", "meteor_shower", "stasis", "mass_conversion"]:
+	for id in ["fireball", "frost_ring", "flare", "rejuvenation", "gold_magnet", "aegis", "charm", "sandstorm", "blizzard", "lava_pool", "poison_cloud", "crystal_spikes", "meteor_shower", "stasis", "mass_conversion", "frostfire", "solar_burst"]:
 		if only == "" or only == id:
 			await call(id)
 			await clear()
@@ -1204,3 +1204,153 @@ func mass_conversion() -> void:
 			g.queue_free()
 		await clear()
 	ok("tier 6 dominion: five honour guards and the conversion spreads; a copy has no guards (%s)" % str(dm), dm[false][0] == 5 and dm[false][1] and dm[true][0] == 0)
+
+func projectiles_seen(secs: float) -> Array:
+	var seen := {}
+	var out := []
+	var t := 0.0
+	while t < secs:
+		await wait(0.05)
+		t += 0.05
+		for nd in world.get_children():
+			if nd.get_script() != null and str(nd.get_script().resource_path).ends_with("projectile.gd") and !seen.has(nd.get_instance_id()):
+				seen[nd.get_instance_id()] = true
+				out.append([nd.color, nd.slow_secs, nd.bleed_ticks])
+	return out
+
+# ================================================================== Frostfire
+func frostfire() -> void:
+	print("-- frostfire")
+	var c := Vector2(0, 300)
+	# Thermal shock (tier 2): the already slowed take 30% more, and everything is chilled
+	var sh := {}
+	for t in [1, 2]:
+		var a = dummy(c + Vector2(5, 0))
+		var b = dummy(c + Vector2(-5, 0))
+		b.apply_slow(0.5, 5.0)
+		spell("frostfire", t, c)
+		await wait(0.5)
+		sh[t] = [snappedf(dealt(b) / maxf(dealt(a), 0.001), 0.01), snappedf(a.slow_mult, 0.01)]
+		await clear()
+	ok("tier 2 thermal shock: slowed enemies take 1.3x and all are chilled, tier 1 neither (%s)" % str(sh), absf(sh[2][0] - 1.3) < 0.05 and sh[2][1] <= 0.51 and sh[1][0] < 1.05 and sh[1][1] == 1.0)
+	# Frost and flame bolts (tier 3)
+	var bo := {}
+	for t in [2, 3]:
+		spell("frostfire", t, c)
+		bo[t] = await projectiles_seen(0.6)
+		await clear()
+	var ice_n: int = bo[3].filter(func(p): return p[1] > 0.0).size()
+	var fire_n: int = bo[3].filter(func(p): return p[2] > 0).size()
+	ok("tier 3 throws 8 bolts, ice that chill and fire that burn in turn, tier 2 none (%d ice, %d fire, tier 2 %d)" % [ice_n, fire_n, bo[2].size()], ice_n == 4 and fire_n == 4 and bo[2].size() == 0)
+	# Fracture (tier 4)
+	var fr := {}
+	for t in [3, 4]:
+		var e = dummy(c + Vector2(5, 0))
+		spell("frostfire", t, c)
+		await wait(0.5)
+		var h0: float = e.health
+		e.slow_mult = 1.0
+		e.spell_damage(10.0)
+		fr[t] = [snappedf(h0 - e.health, 0.1), get_nodes_in_group("hazard").filter(func(h): return h.kind == "slow" and h.lifetime > 2.0).size()]
+		for h in get_nodes_in_group("hazard"):
+			if h.lifetime > 0.0:
+				h.queue_free()
+		await clear()
+	ok("tier 4 fractures what it hits (+25%%) and leaves a steam patch, tier 3 neither (%s)" % str(fr), absf(fr[4][0] - 12.5) < 0.6 and fr[4][1] >= 1 and absf(fr[3][0] - 10.0) < 0.6)
+	# Helix (tier 5): a frost wave then a fire wave
+	var hx := {}
+	for t in [4, 5]:
+		var s0 = spell("frostfire", t, c, true, {"adds": []})
+		var r5: float = s0.radius
+		var e = dummy(c + Vector2(r5 * 1.2, 0))
+		var kinds := []
+		var seen := {}
+		var el := 0.0
+		var stunned := false
+		while el < 1.4:
+			await wait(0.05)
+			el += 0.05
+			stunned = stunned or (e.slow_mult == 0.0 and e.slow_time > 0.0)
+			for nd in world.get_children():
+				if nd.get_script() != null and str(nd.get_script().resource_path).ends_with("fx.gd") and nd.kind == "ripple" and absf(nd.radius - r5 * 1.3) < 1.0 and !seen.has(nd.get_instance_id()):
+					seen[nd.get_instance_id()] = true
+					kinds.append(snappedf(el, 0.1))
+		hx[t] = [kinds, stunned, snappedf(dealt(e), 0.1)]
+		await clear()
+	ok("tier 5: two more waves, frost at about 0.4 s (stun) and fire at about 0.8 s; tier 4 only the steam (%s)" % str(hx), hx[5][0].size() >= 2 and hx[5][1] and hx[5][2] > hx[4][2])
+	# Nova (tier 6)
+	var nv := {}
+	for cp in [false, true]:
+		var s0 = spell("frostfire", 6, c, true, {"copy": cp})
+		var r6: float = s0.radius
+		var e = dummy(c + Vector2(r6 * 1.8, 0))
+		var seen := await fx_seen(0.8)
+		nv[cp] = [seen.has("flash"), e.slow_mult == 0.0 or e.slow_time > 0.0, snappedf(dealt(e), 0.1)]
+		await clear()
+	ok("tier 6 nova: a flash, and an enemy at 1.8 r is frozen and hurt; a copy does not (%s)" % str(nv), nv[false][0] and nv[false][2] > nv[true][2] and nv[false][1])
+
+# ================================================================== Solar Burst
+func solar_burst() -> void:
+	print("-- solar_burst")
+	var c := Vector2(0, 300)
+	# Blinding flash (tier 2)
+	var bf := {}
+	for t in [1, 2]:
+		var e = dummy(c + Vector2(5, 0))
+		spell("solar_burst", t, c, true, {"adds": []})
+		await wait(0.4)
+		bf[t] = [e.slow_mult == 0.0 and e.slow_time > 0.0, game.is_lit(e)]
+		await clear()
+	ok("tier 2 dazzles and lights what it hits, tier 1 does not (%s)" % str(bf), bf[2][0] and bf[2][1] and !bf[1][0])
+	# Seeking sparks (tier 3)
+	var sp := {}
+	for t in [2, 3]:
+		var s0 = spell("solar_burst", t, c, true, {"adds": []})
+		var es := []
+		for i in 6:
+			es.append(dummy(c + Vector2.from_angle(i * 1.0) * 100.0))
+		sp[t] = (await projectiles_seen(0.7)).size()
+		await clear()
+	ok("tier 3 sends six sparks after six enemies, tier 2 none (%s)" % str(sp), sp[3] >= sp[2] + 5)
+	# Radiance (tier 4): three rings, the enemy is pushed
+	var rd := {}
+	for t in [3, 4]:
+		var s0 = spell("solar_burst", t, c, true, {"adds": []})
+		var e = dummy(c + Vector2(s0.radius * 1.2, 0))
+		var rings := 0
+		var seen := {}
+		var el := 0.0
+		var peak := 0.0
+		while el < 1.0:
+			await wait(0.05)
+			el += 0.05
+			peak = maxf(peak, e.knock_vel.length())
+		rd[t] = [snappedf(peak, 1.0), snappedf(dealt(e), 0.1)]
+		await clear()
+	ok("tier 4 radiance: rings of light hurt and push an enemy at 1.2 r, tier 3 does not reach it (%s)" % str(rd), rd[4][0] >= 250.0 and rd[4][1] > rd[3][1] + 5.0 and rd[3][0] < 100.0)
+	# Sun wheel (tier 5): a full turn of beams cuts an enemy more than once
+	var wh := {}
+	for t in [4, 5]:
+		var s0 = spell("solar_burst", t, c, true, {"adds": []})
+		var e = dummy(c + Vector2(s0.radius * 0.8, 0))
+		var hits := 0
+		var last: float = e.health
+		var el := 0.0
+		while el < 1.8:
+			await wait(0.02)
+			el += 0.02
+			if e.health < last - 0.001:
+				hits += 1
+			last = e.health
+		wh[t] = hits
+		await clear()
+	ok("tier 5 sun wheel hits an enemy several times in one turn (%s damage events)" % str(wh), wh[5] >= wh[4] + 3)
+	# Supernova (tier 6)
+	var sn := {}
+	for cp in [false, true]:
+		var s0 = spell("solar_burst", 6, c, true, {"adds": [], "copy": cp})
+		var e = dummy(c + Vector2(s0.radius * 2.3, 0))
+		await wait(0.6)
+		sn[cp] = [snappedf(dealt(e), 0.1), game.is_lit(e)]
+		await clear()
+	ok("tier 6 supernova reaches an enemy at 2.3 r and lights it; a copy does not (%s)" % str(sn), sn[false][0] > sn[true][0] + 10.0 and sn[false][1])

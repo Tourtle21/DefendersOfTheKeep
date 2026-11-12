@@ -54,6 +54,11 @@ static func effect_time(s, base: float) -> float:
 	match String(s.data.get("id", "")):
 		"fireball":
 			return 1.6 if tier_of(s) >= 5 else base
+		"frostfire":
+			return 3.0 if tier_of(s) >= 4 else base
+		"solar_burst":
+			var ts := tier_of(s)
+			return 1.6 if ts >= 6 else (1.4 if ts >= 5 else base)
 		"gold_magnet":
 			return MAGNET_STORM_TIME if tier_of(s) >= 5 else base
 		"crystal_spikes":
@@ -95,6 +100,10 @@ static func tick(s, delta: float) -> void:
 	match String(s.data.get("id", "")):
 		"fireball":
 			tick_fireball(s, tier_of(s), delta)
+		"frostfire":
+			tick_frostfire(s, tier_of(s), delta)
+		"solar_burst":
+			tick_solar_burst(s, tier_of(s), delta)
 		"frost_ring":
 			tick_frost_ring(s, tier_of(s), delta)
 		"flare":
@@ -128,6 +137,8 @@ static func tick(s, delta: float) -> void:
 
 ## [radius multiplier, seconds] of the light the blast leaves.
 static func fireball_light(s) -> Array:
+	if String(s.data.get("id", "")) == "solar_burst" and tier_of(s) >= 2:
+		return [3.0, 6.0] if tier_of(s) >= 6 else [2.0, 5.0]
 	match tier_of(s) if String(s.data.get("id", "")) == "fireball" else 1:
 		4: return [2.2, 3.0]
 		5: return [2.4, 1.8]
@@ -153,6 +164,13 @@ static func land_fireball(s, tier: int) -> void:
 
 ## The blast itself: damage (double in the core from tier 3), the shove (tier 2), and the kill pops (tier 4). Tier 6 follows with its finale.
 static func blast_fireball(s) -> void:
+	match String(s.data.get("id", "")):
+		"frostfire":
+			blast_frostfire(s)
+			return
+		"solar_burst":
+			blast_solar_burst(s)
+			return
 	var tier := tier_of(s) if String(s.data.get("id", "")) == "fireball" else 1
 	var c: Vector2 = s.global_position
 	var dmg: float = s.data.damage
@@ -1522,3 +1540,195 @@ static func tick_mass_conversion(s, tier: int, delta: float) -> void:
 				var e = instance_from_id(id)
 				if e != null and !_dead(e):
 					e.charm_power = float(s._cool[id])
+
+# ---------------------------------------------------------------- Frostfire (fused Fireball + Frost Ring)
+
+const FF_SHOCK := 1.3
+const FF_CHILL := 0.5
+const FF_BOLT := 0.3
+const FF_FRACTURE_T := 4.0
+const FF_HELIX := [0.4, 0.6]
+const FF_NOVA_R := 2.0
+const FF_ICE := Color(0.7, 0.85, 1.0)
+const FF_FIRE := Color(1.0, 0.5, 0.15)
+const FF_STEAM := Color(0.9, 0.93, 1.0)
+
+static func blast_frostfire(s) -> void:
+	var tier := tier_of(s)
+	var w: Node = s.get_parent()
+	var tree: SceneTree = s.get_tree()
+	var c: Vector2 = s.global_position
+	var r: float = s.radius
+	var dmg: float = s.data.damage
+	var now := Time.get_ticks_msec() / 1000.0
+	if tier >= 2:
+		WeaponFx.spawn(w, "ring", s.position, FF_ICE, {"radius": r, "life": 0.3})
+		WeaponFx.spawn(w, "burst", s.position, FF_FIRE, {"radius": r * 0.7, "life": 0.3})
+	for e in s._in_radius("enemy"):
+		var slowed: bool = e.get("slow_mult") != null and e.slow_mult < 1.0     # (read before this blast chills it)
+		e.spell_damage(dmg * (FF_SHOCK if tier >= 2 and slowed else 1.0), "fire", true)
+		if !is_instance_valid(e):
+			continue
+		if tier >= 2 and e.has_method("apply_slow"):                          # thermal shock: chilled, and the contrast cracks the already slowed
+			e.apply_slow(FF_CHILL, 2.0)
+		if tier >= 4:
+			e.set_meta("chilled_until", now + FF_FRACTURE_T)
+	if tier >= 3:                                                              # eight bolts, ice and fire in turn
+		Sfx.play("whoosh")
+		for k in 8:
+			var ice := k % 2 == 0
+			var extra := {"slow_mult": 0.6, "slow_secs": 1.5} if ice else {"bleed_ticks": 3, "bleed_dmg": dmg * 0.1}
+			WeaponProjectile.shoot(w, s.position, Vector2.from_angle(k * TAU / 8.0), 170.0, dmg * FF_BOLT, FF_ICE if ice else FF_FIRE, 0.5, 0, 60.0, extra)
+	if tier >= 4:                                                              # steam
+		WeaponFx.spawn(w, "ripple", s.position, FF_STEAM, {"radius": r, "rings": 2, "life": 0.6})
+		WeaponFx.spawn(w, "motes", s.position, Color.WHITE, {"radius": r, "count": 12, "rise": 20.0, "life": 0.9})
+		WeaponUtil.patch(w, s.position, "slow", r * 0.9, FF_STEAM, 4.0, 0.6)
+	if tier >= 6 and !is_copy(s):                                              # nova: a cold-hot supernova
+		WeaponFx.spawn(w, "flash", s.position, Color(0.85, 0.8, 1.0), {"radius": r * 1.5, "life": 0.4})
+		WeaponFx.spawn(w, "ripple", s.position, Color(0.75, 0.6, 1.0), {"radius": r * 2.2, "rings": 4, "life": 0.8})
+		WeaponFx.spawn(w, "shards", s.position, FF_ICE, {"radius": r * 1.6, "count": 16, "life": 0.5})
+		WeaponFx.spawn(w, "shards", s.position, FF_FIRE, {"radius": r * 1.6, "count": 16, "spin": 0.2, "life": 0.5})
+		Sfx.play("ultimate")
+		LightSource.spawn(w, s.position, r * 2.5, 4.0, Color(0.9, 0.8, 1.0))
+		for e in WeaponUtil.enemies_in_circle(tree, c, r * FF_NOVA_R):
+			var away: Vector2 = e.global_position - c
+			if e.has_method("apply_slow"):
+				e.apply_slow(0.0, 1.0)
+			e.spell_damage(dmg, "fire", true)
+			if is_instance_valid(e):
+				WeaponUtil.bleed(tree, e, 5, dmg * 0.15)
+				if e.has_method("push"):
+					e.push((away.normalized() if away.length() > 0.5 else Vector2.RIGHT) * 220.0, 0.25)
+
+static func tick_frostfire(s, tier: int, _delta: float) -> void:
+	if tier < 5:
+		return
+	var since: float = s.age - s.flight
+	var w: Node = s.get_parent()
+	var tree: SceneTree = s.get_tree()
+	var c: Vector2 = s.global_position
+	var r: float = s.radius
+	var dmg: float = s.data.damage
+	if int(s._clk.get("wave", 0)) < 1 and since >= 0.4:                       # helix: first a frost wave...
+		s._clk["wave"] = 1
+		WeaponFx.spawn(w, "ripple", s.position, FF_ICE, {"radius": r * 1.3, "rings": 1, "life": 0.5})
+		Sfx.play("big_hit")
+		for e in WeaponUtil.enemies_in_circle(tree, c, r * 1.3):
+			e.spell_damage(dmg * FF_HELIX[0], "ice", true)
+			if is_instance_valid(e) and e.has_method("apply_slow"):
+				e.apply_slow(0.0, 0.6)
+	if int(s._clk.get("wave", 0)) < 2 and since >= 0.8:                       # ...then a fire wave
+		s._clk["wave"] = 2
+		WeaponFx.spawn(w, "ripple", s.position, FF_FIRE, {"radius": r * 1.3, "rings": 1, "life": 0.5})
+		WeaponFx.spawn(w, "flash", s.position, FF_FIRE, {"radius": r, "life": 0.3})
+		Sfx.play("big_hit")
+		for e in WeaponUtil.enemies_in_circle(tree, c, r * 1.3):
+			var away: Vector2 = e.global_position - c
+			e.spell_damage(dmg * FF_HELIX[1], "fire", true)
+			if is_instance_valid(e) and e.has_method("push"):
+				e.push((away.normalized() if away.length() > 0.5 else Vector2.RIGHT) * 600.0, 0.2)
+
+# ---------------------------------------------------------------- Solar Burst (fused Fireball + Flare)
+
+const SB_STUN := 0.5
+const SB_LIT := 5.0
+const SB_SPARK := 0.4
+const SB_RING := 0.3
+const SB_WHEEL := 0.35
+const SB_NOVA := 1.2
+const SB_NOVA_R := 2.5
+const SB_SUN := Color(1.0, 0.9, 0.5)
+const SB_AMBER := Color(1.0, 0.65, 0.2)
+
+static func wheel_angle(since: float) -> float:
+	return since * 4.5
+
+static func blast_solar_burst(s) -> void:
+	var tier := tier_of(s)
+	var w: Node = s.get_parent()
+	var tree: SceneTree = s.get_tree()
+	var c: Vector2 = s.global_position
+	var r: float = s.radius
+	var dmg: float = s.data.damage
+	if tier >= 2:
+		WeaponFx.spawn(w, "flash", s.position, Color(1.0, 0.99, 0.9), {"radius": r * 1.2, "life": 0.35})
+		WeaponFx.spawn(w, "star", s.position, SB_SUN, {"radius": r, "count": 8, "spin": 1.0, "life": 0.4})
+		Sfx.play("big_hit")
+	for e in s._in_radius("enemy"):
+		e.spell_damage(dmg, "fire", true)
+		if tier >= 2 and is_instance_valid(e):                                # blinding flash: dazzled and lit
+			if e.has_method("apply_slow"):
+				e.apply_slow(0.0, SB_STUN)
+			Game.light_up(e, SB_LIT)
+	if tier >= 3:                                                              # six sparks, each after a different enemy
+		var near: Array = WeaponUtil.enemies_in_circle(tree, c, r * 1.8)
+		near.sort_custom(func(a, b): return a.global_position.distance_to(c) < b.global_position.distance_to(c))
+		Sfx.play("whoosh")
+		for k in 6:
+			var dir := Vector2.from_angle(k * TAU / 6.0)
+			var life := 0.8
+			if k < near.size() and is_instance_valid(near[k]):
+				var to: Vector2 = near[k].global_position - c
+				dir = to.normalized() if to.length() > 1.0 else dir
+				life = to.length() / 200.0 + 0.2
+			WeaponProjectile.shoot(w, s.position, dir, 200.0, dmg * SB_SPARK, SB_AMBER, life, 0, 60.0)
+	if tier >= 4:                                                              # radiance: the first of three rings of light
+		_radiance_ring(s, dmg)
+		WeaponFx.spawn(w, "ripple", s.position, Color(1.0, 0.95, 0.7), {"radius": r * 1.3, "rings": 3, "life": 0.7})
+	if tier >= 6 and !is_copy(s):                                              # supernova: a shell of light to 2.5 r
+		WeaponFx.spawn(w, "flash", s.position, SB_SUN, {"radius": r * 2.0, "life": 0.4})
+		WeaponFx.spawn(w, "ripple", s.position, SB_SUN, {"radius": r * SB_NOVA_R, "rings": 4, "life": 0.9})
+		WeaponFx.spawn(w, "star", s.position, SB_SUN, {"radius": r * 2.0, "count": 12, "spin": 1.0, "life": 0.5})
+		WeaponFx.spawn(w, "pillar", s.position, SB_SUN, {"height": 120.0, "width": 60.0, "life": 0.7})
+		Sfx.play("ultimate")
+		for e in WeaponUtil.enemies_in_circle(tree, c, r * SB_NOVA_R):
+			var away: Vector2 = e.global_position - c
+			e.spell_damage(dmg * SB_NOVA, "fire", true)
+			if is_instance_valid(e):
+				Game.light_up(e, 8.0)
+				WeaponUtil.bleed(tree, e, 5, dmg * 0.15)
+				if e.has_method("push"):
+					e.push((away.normalized() if away.length() > 0.5 else Vector2.RIGHT) * 260.0, 0.25)
+
+static func _radiance_ring(s, dmg: float) -> void:
+	Sfx.play("hit")
+	var c: Vector2 = s.global_position
+	for e in WeaponUtil.enemies_in_circle(s.get_tree(), c, s.radius * 1.3):
+		var away: Vector2 = e.global_position - c
+		e.spell_damage(dmg * SB_RING, "fire", true)
+		if is_instance_valid(e) and e.has_method("push"):
+			e.push((away.normalized() if away.length() > 0.5 else Vector2.RIGHT) * 300.0, 0.2)
+
+static func tick_solar_burst(s, tier: int, delta: float) -> void:
+	if tier < 4:
+		return
+	var since: float = s.age - s.flight
+	var w: Node = s.get_parent()
+	var tree: SceneTree = s.get_tree()
+	var dmg: float = s.data.damage
+	var rings := int(s._clk.get("rings", 0))
+	if rings < 2 and since >= 0.25 * (rings + 1):                              # radiance: two more rings, a quarter second apart
+		s._clk["rings"] = rings + 1
+		_radiance_ring(s, dmg)
+	if tier >= 5 and since < 1.4:                                              # sun wheel: eight beams sweep a full turn
+		var a := wheel_angle(since)
+		var c: Vector2 = s.global_position
+		var r: float = s.radius
+		if pace(s, "beam", 0.1, delta):
+			if int(s._clk.get("wheel_sfx", 0)) == 0:
+				Sfx.play("whoosh")
+				s._clk["wheel_sfx"] = 1
+			for i in 8:
+				WeaponFx.spawn(w, "line", s.position, SB_SUN, {"dir": Vector2.from_angle(a + i * TAU / 8.0), "length": r * 1.2, "width": 3.0, "life": 0.1})
+		for e in WeaponUtil.enemies_in_circle(tree, c, r * 1.2):
+			var rel: Vector2 = e.global_position - c
+			if rel.length() < 3.0:
+				continue
+			var id: int = e.get_instance_id()
+			if since - float(s._mem.get(id, -9.0)) < 0.15:
+				continue
+			for i in 8:
+				if absf(angle_difference(rel.angle(), a + i * TAU / 8.0)) < 0.12:
+					s._mem[id] = since
+					e.spell_damage(dmg * SB_WHEEL, "fire", true)
+					break

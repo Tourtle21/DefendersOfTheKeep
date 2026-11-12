@@ -385,6 +385,7 @@ var unlocked_cards: Array = ["fireball", "frost_ring", "barricade", "spike_trap"
 var night_level := 0.0
 var night_wave_now := false          # the wave that is currently walking in is a night wave
 const TOXIC_BONUS := 1.2          # an enemy in a tier 2+ Poison Cloud takes this much more from everything (Enemy.apply_traits)
+const FRACTURE_BONUS := 1.25      # an enemy fractured by a tier 4+ Frostfire takes this much more from everything
 const BRITTLE_BONUS := 1.5        # an enemy held in a tier 4+ Stasis Field takes this much more from everything
 
 ## The damage multiplier of the temporary marks on an enemy (one source for Poison Cloud's toxin and Stasis's brittleness).
@@ -395,6 +396,8 @@ func mark_mult(e: Node) -> float:
 		m *= TOXIC_BONUS
 	if e.has_meta("brittle_until") and e.get_meta("brittle_until") > now:
 		m *= BRITTLE_BONUS
+	if e.has_meta("chilled_until") and e.get_meta("chilled_until") > now:
+		m *= FRACTURE_BONUS
 	return m
 const SHROUD := 0.6                  # damage multiplier on a shrouded enemy
 const NIGHT_SIGHT := 50.0            # how far defences see an unlit enemy in the dark

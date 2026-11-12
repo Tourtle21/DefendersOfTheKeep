@@ -13,7 +13,7 @@ static func jit(i: int, salt := 0.0) -> float:
 
 ## Cards that have their own body art here: the plain fill and rings are drawn softer under it.
 static func has_body(id: String) -> bool:
-	return id in ["fireball", "frost_ring", "flare", "rejuvenation", "gold_magnet", "aegis", "charm", "sandstorm", "blizzard", "lava_pool", "poison_cloud", "crystal_spikes", "meteor_shower", "stasis", "mass_conversion"]
+	return id in ["fireball", "frost_ring", "flare", "rejuvenation", "gold_magnet", "aegis", "charm", "sandstorm", "blizzard", "lava_pool", "poison_cloud", "crystal_spikes", "meteor_shower", "stasis", "mass_conversion", "frostfire", "solar_burst"]
 
 static func draw_flight(s, t: float, col: Color) -> void:
 	match String(s.data.get("id", "")):
@@ -23,6 +23,10 @@ static func draw_flight(s, t: float, col: Color) -> void:
 			flight_frost_ring(s, t, col)
 		"sandstorm":
 			flight_sandstorm(s, t, col)
+		"frostfire":
+			flight_frostfire(s, t, col)
+		"solar_burst":
+			flight_solar_burst(s, t, col)
 
 static func draw(s, since: float, col: Color) -> void:
 	match String(s.data.get("id", "")):
@@ -56,6 +60,10 @@ static func draw(s, since: float, col: Color) -> void:
 			draw_stasis(s, since, col)
 		"mass_conversion":
 			draw_mass_conversion(s, since, col)
+		"frostfire":
+			draw_frostfire(s, since, col)
+		"solar_burst":
+			draw_solar_burst(s, since, col)
 
 ## A flame as one polygon: a wide base, a belly, and a tip that leans with `sway`.
 static func flame(s, base: Vector2, w: float, h: float, col: Color, sway := 0.0) -> void:
@@ -1198,3 +1206,160 @@ static func draw_mass_conversion(s, since: float, _col: Color) -> void:
 			s.draw_arc(ep, 14.0 + 2.0 * sin(since * 8.0), 0, TAU, 14, Color(MIND, 0.7 * fade), 1.5)
 		if tier >= 3 and n <= 12:
 			s.draw_line(Vector2.ZERO, ep, Color(MIND, 0.18 * fade), 1.0)
+
+# ---------------------------------------------------------------- Frostfire
+
+const FF_ICE := Color(0.7, 0.85, 1.0)
+const FF_FIRE := Color(1.0, 0.5, 0.15)
+const FF_STEAM := Color(0.9, 0.93, 1.0)
+const FF_VIOLET := Color(0.75, 0.6, 1.0)
+
+static func flight_frostfire(s, t: float, _col: Color) -> void:
+	var tier := int(s.data.get("tier", 1))
+	if tier < 2:
+		return
+	var from_local: Vector2 = s.origin - s.position
+	var p := from_local.lerp(Vector2.ZERO, t)
+	var back := from_local.normalized() if from_local.length() > 1.0 else Vector2.UP
+	var side := back.orthogonal()
+	var n := 14 if tier >= 6 else (9 if tier >= 3 else 5)               # tails grow with the tier; the tier 6 comet is long and two-coloured
+	for k in 2:
+		var sgn := 1.0 if k == 0 else -1.0
+		var col := FF_ICE if k == 0 else FF_FIRE
+		var ang: float = s.age * 8.0 + k * PI
+		var head := p + side * sin(ang) * 3.0
+		for i in n:
+			var tt := i * (3.0 if tier < 3 else 4.0)
+			s.draw_circle(p + back * tt + side * sin(ang - i * 0.5) * 3.0, maxf(0.6, 3.0 - i * 0.2), Color(col, 0.85 - i * 0.05))
+		s.draw_circle(head, 3.5, col)
+	if tier >= 6:
+		s.draw_circle(p, 9.0, Color(FF_VIOLET, 0.3))
+
+static func draw_frostfire(s, since: float, _col: Color) -> void:
+	var tier := int(s.data.get("tier", 1))
+	if tier < 2:
+		return
+	var r: float = s.radius
+	var life: float = s.effect_time
+	var base_fade := clampf(1.0 - since / 0.4, 0.0, 1.0)
+	var end_fade := clampf((life - since) / 0.4, 0.0, 1.0)
+	# tier 2: left half blue, right half orange, a steam wisp at the wavy seam
+	var left := PackedVector2Array()
+	var right := PackedVector2Array()
+	for i in 17:
+		var a := -PI / 2.0 + i * PI / 16.0
+		right.append(Vector2.from_angle(a) * r)
+		left.append(Vector2.from_angle(a + PI) * r)
+	s.draw_colored_polygon(right, Color(FF_FIRE, 0.28 * base_fade))
+	s.draw_colored_polygon(left, Color(FF_ICE, 0.28 * base_fade))
+	var seam := PackedVector2Array()
+	for i in 9:
+		seam.append(Vector2(sin(since * 5.0 + i) * 3.0, lerpf(-r, r, i / 8.0)))
+	s.draw_polyline(seam, Color(FF_STEAM, 0.7 * base_fade), 1.5)
+	for k in 3:
+		var u := fposmod(since * 1.0 + k / 3.0, 1.0)
+		s.draw_arc(Vector2(0, -u * 12.0 - r * 0.2), 4.0 + k, PI * 0.2, PI * 1.6, 8, Color(1, 1, 1, 0.8 * (1.0 - u) * base_fade), 1.5)
+	if tier >= 3:                                                   # eight glyphs, snowflakes and flames in turn, orbit the edge
+		for i in 8:
+			var gp := Vector2.from_angle(since * 1.0 + i * TAU / 8.0) * r
+			if i % 2 == 0:
+				for q in 3:
+					var d := Vector2.from_angle(q * PI / 3.0)
+					s.draw_line(gp - d * 3.0, gp + d * 3.0, Color(FF_ICE, 0.9 * end_fade * base_fade + 0.0), 1.0)
+			else:
+				s.draw_colored_polygon(PackedVector2Array([gp + Vector2(-2, 2), gp + Vector2(0, -4), gp + Vector2(2, 2)]), Color(FF_FIRE, 0.9 * base_fade))
+	if tier >= 4 and since < 3.0:                                   # a steam cloud rolls over the disc
+		var sf := clampf((3.0 - since) / 0.6, 0.0, 1.0)
+		for i in 8:
+			var cp := Vector2(sin(since * 0.6 + i * 1.7), cos(since * 0.5 + i * 2.3)) * r * 0.55
+			s.draw_circle(cp, 8.0 + 6.0 * jit(i, 1.0), Color(1, 1, 1, 0.18 * sf))
+		for i in 6:
+			var u2 := fposmod(since * 0.7 + jit(i), 1.0)
+			s.draw_circle(Vector2(-r * 0.5 + jit(i, 2.0) * r * 0.3, -u2 * 14.0 + r * 0.3), 1.2, Color(FF_ICE, 0.8 * (1.0 - u2) * sf))
+			s.draw_circle(Vector2(r * 0.4 + jit(i, 3.0) * r * 0.3, -u2 * 14.0 + r * 0.3), 1.2, Color(FF_FIRE, 0.8 * (1.0 - u2) * sf))
+	if tier >= 5 and since < 1.2:                                   # two spirals, one blue and one orange, wind round the disc
+		var f5 := clampf((1.2 - since) / 0.3, 0.0, 1.0)
+		s.draw_arc(Vector2.ZERO, r * 0.5, since * 3.0, since * 3.0 + deg_to_rad(270.0), 20, Color(FF_ICE, 0.9 * f5), 2.5)
+		s.draw_arc(Vector2.ZERO, r * 0.8, -since * 3.0, -since * 3.0 + deg_to_rad(270.0), 20, Color(FF_FIRE, 0.9 * f5), 2.5)
+		s.draw_arc(Vector2.ZERO, r * 0.2, since * 4.0, since * 4.0 + PI, 10, Color(FF_ICE, 0.9 * f5), 3.0)
+		s.draw_arc(Vector2.ZERO, r * 0.2, since * 4.0 + PI, since * 4.0 + TAU, 10, Color(FF_FIRE, 0.9 * f5), 3.0)
+	if tier >= 6 and since < 1.6:                                   # a binary star: a blue and an orange sun circle each other
+		var f6 := clampf((1.6 - since) / 0.3, 0.0, 1.0)
+		s.draw_circle(Vector2.ZERO, r * 0.5, Color(FF_VIOLET, 0.2 * f6))
+		var a2 := since * 6.0
+		for k in 2:
+			var sp := Vector2.from_angle(a2 + k * PI) * 6.0
+			s.draw_circle(sp, 7.0, Color(FF_ICE if k == 0 else FF_FIRE, f6))
+		for i in 16:
+			var d2 := Vector2.from_angle(-since * 0.8 + i * TAU / 16.0)
+			s.draw_line(d2 * 10.0, d2 * r * 0.9, Color(FF_ICE if i % 2 == 0 else FF_FIRE, 0.5 * f6), 1.5)
+
+# ---------------------------------------------------------------- Solar Burst
+
+const SB_SUN := Color(1.0, 0.9, 0.5)
+const SB_AMBER := Color(1.0, 0.65, 0.2)
+const SB_EMBER := Color(1.0, 0.4, 0.1)
+
+static func flight_solar_burst(s, t: float, _col: Color) -> void:
+	var tier := int(s.data.get("tier", 1))
+	if tier < 2:
+		return
+	var p: Vector2 = (s.origin - s.position).lerp(Vector2.ZERO, t)
+	s.draw_circle(p, 8.0, Color(SB_SUN, 0.3))
+	for i in 6:
+		var d := Vector2.from_angle(s.age * 4.0 + i * TAU / 6.0)
+		s.draw_line(p + d * 3.0, p + d * 8.0, Color(SB_SUN, 0.9), 1.5)
+	s.draw_circle(p, 3.0, Color(1, 1, 0.9))
+
+static func draw_solar_burst(s, since: float, _col: Color) -> void:
+	var tier := int(s.data.get("tier", 1))
+	if tier < 2:
+		return
+	var r: float = s.radius
+	var life: float = s.effect_time
+	var base_fade := clampf(1.0 - since / 0.4, 0.0, 1.0)
+	var glare := clampf(1.0 - since / 0.5, 0.0, 1.0)
+	# tier 2: a white-gold glare, sharp rays to 1.2 r, a lens-flare star
+	s.draw_circle(Vector2.ZERO, r, Color(1, 0.99, 0.9, 0.35 * glare))
+	for i in 8:
+		var d := Vector2.from_angle(i * TAU / 8.0 + 0.2)
+		ray(s, Vector2.ZERO, d, r * 1.2, 8.0, 0.0, Color(SB_SUN, 0.4 * glare))
+	for i in 2:
+		var d2 := Vector2.from_angle(since + i * PI / 2.0)
+		ray(s, Vector2.ZERO, d2, r * 0.5, 6.0, 0.0, Color(1, 1, 1, 0.6 * base_fade))
+		ray(s, Vector2.ZERO, -d2, r * 0.5, 6.0, 0.0, Color(1, 1, 1, 0.6 * base_fade))
+	if tier >= 3 and since < 0.4:                                   # six spark orbs circle the edge before they leave
+		for i in 6:
+			var sp := Vector2.from_angle(since * 6.0 + i * TAU / 6.0) * r
+			s.draw_circle(sp, 4.0, Color(SB_AMBER, 0.5))
+			s.draw_circle(sp, 2.5, Color(1, 1, 1, 0.9))
+	if tier >= 4:                                                   # three rings of light, a layered glow
+		s.draw_circle(Vector2.ZERO, r * 0.8, Color(SB_AMBER, 0.14 * base_fade))
+		s.draw_circle(Vector2.ZERO, r * 0.5, Color(SB_SUN, 0.16 * base_fade))
+		s.draw_circle(Vector2.ZERO, r * 0.25, Color(1, 1, 1, 0.2 * base_fade))
+		for k in 3:
+			var u := (since - 0.25 * k) / 0.7
+			if u > 0.0 and u < 1.0:
+				s.draw_arc(Vector2.ZERO, r * 1.3 * u, 0, TAU, 40, Color(SB_SUN, 0.9 * (1.0 - u)), 3.0)
+	if tier >= 5 and since < 1.4:                                   # a spoked wheel of eight beams turns, with a bright hub
+		var a := SpellTiers.wheel_angle(since)
+		var f := clampf((1.4 - since) / 0.2, 0.0, 1.0)
+		for i in 8:
+			var d3 := Vector2.from_angle(a + i * TAU / 8.0)
+			s.draw_line(Vector2.ZERO, d3 * r * 1.2, Color(SB_SUN, 0.6 * f), 3.0)
+			s.draw_circle(d3 * r * 1.2, 2.5, Color(1, 1, 0.9, 0.8 * f))
+		s.draw_circle(Vector2.ZERO, 6.0, Color(1, 1, 0.95, f))
+	if tier >= 6 and since < 1.6:                                   # a miniature sun: discs, long rays, prominences, a gold shock ring
+		var f6 := clampf((1.6 - since) / 0.3, 0.0, 1.0)
+		s.draw_circle(Vector2.ZERO, r * 0.9, Color(SB_EMBER, 0.25 * f6))
+		s.draw_circle(Vector2.ZERO, r * 0.7, Color(SB_AMBER, 0.3 * f6))
+		s.draw_circle(Vector2.ZERO, r * 0.5, Color(SB_SUN, 0.35 * f6))
+		s.draw_circle(Vector2.ZERO, r * 0.3, Color(1, 1, 0.95, 0.5 * f6))
+		for i in 16:
+			var d4 := Vector2.from_angle(-since * 0.6 + i * TAU / 16.0)
+			s.draw_line(d4 * r * 0.4, d4 * r * 1.6, Color(SB_SUN, 0.4 * f6), 2.0)
+		for i in 6:
+			var pa := i * TAU / 6.0 + since * 0.3
+			s.draw_arc(Vector2.from_angle(pa) * r * 0.9, r * 0.2, pa - 1.2, pa + 1.2, 10, Color(SB_AMBER, 0.8 * f6), 2.0)
+		if since < 1.0:
+			s.draw_arc(Vector2.ZERO, r * SpellTiers.SB_NOVA_R * since, 0, TAU, 48, Color(SB_SUN, 0.9 * (1.0 - since)), 3.0)
