@@ -216,6 +216,8 @@ static func tick(st, delta: float) -> void:
 			tick_mender(st, delta)
 		"iron_wall":
 			tick_iron_wall(st, delta)
+		"frost_totem":
+			tick_frost_totem(st, delta)
 		_:
 			pass
 
@@ -800,3 +802,72 @@ static func tick_iron_wall(st, delta: float) -> void:
 			WeaponFx.spawn(w, "shards", pos, WALL_GOLD, {"radius": IRON_BELL_R, "count": 14, "life": 0.5})
 			Sfx.play("gong")
 		st.charge = fill(st, "bell", IRON_BELL_T)
+
+# ---------------------------------------------------------------- Frost Totem
+const FT_DPS := [0.0, 1.0, 1.8, 3.0, 5.0, 8.0]
+const FT_SPEAR_T := 2.5
+const FT_BLIZZ_T := 15.0
+const FT_ZERO_T := 20.0
+const FT_NOVA_R := 36.0
+const ICE := Color(0.6, 0.85, 1.0)
+const SNOW := Color(0.95, 0.98, 1.0)
+
+static func tick_frost_totem(st, delta: float) -> void:
+	var t: int = st.tier
+	if t < 2:
+		return
+	var dps: float = FT_DPS[t - 1]
+	var w := world_of(st)
+	var pos: Vector2 = st.global_position
+	var inside := enemies(st, st.radius)
+	# 2 Rime aura: the cold bites everything in the aura
+	if pace(st, "bite", 0.5, delta):
+		for e in inside:
+			e.spell_damage(dps * 0.5, "ice", true)
+	if pace(st, "bitefx", 1.0 / 3.0, delta) and !inside.is_empty():
+		var e = inside[int(Time.get_ticks_msec() / 333) % inside.size()]
+		if is_instance_valid(e):
+			WeaponFx.spawn(w, "burst", e.global_position, SNOW, {"radius": 5.0, "life": 0.2})
+	# 3 Ice spear: hurled at the nearest enemy in the aura, pierces two more
+	if t >= 3 and ready(st, "spear", FT_SPEAR_T, delta):
+		var target = nearest(st, st.radius)
+		if target != null:
+			reset(st, "spear")
+			var dir: Vector2 = target.global_position - pos
+			WeaponProjectile.shoot(w, pos + Vector2(0, -12), dir, 220.0, dps * 2.0, ICE, 0.7, 2, 40.0)
+			WeaponFx.spawn(w, "line", pos + Vector2(0, -12), SNOW, {"dir": dir.normalized(), "length": 14.0, "width": 2.0, "life": 0.15})
+			st.fx_pulse = 0.0
+			Sfx.play("whoosh")
+	# 4 Frostbitten: whoever stands in the aura takes 25% more from everything, and a moment after
+	if t >= 4:
+		var until := Time.get_ticks_msec() / 1000.0 + 2.5
+		for e in inside:
+			e.set_meta("chilled_until", until)
+	# 5 Blizzard heart: every 15 s a blizzard is cast on the densest group in the aura
+	if t >= 5 and ready(st, "blizzard", FT_BLIZZ_T, delta) and !inside.is_empty():
+		reset(st, "blizzard")
+		var dense = densest(st, st.radius)
+		var at: Vector2 = dense.global_position if dense != null else pos
+		cast(st, "blizzard", at, 0.8)
+		WeaponFx.spawn(w, "ripple", pos, ICE, {"radius": 30.0, "rings": 2, "life": 0.5})
+		Sfx.play("cast")
+	if t >= 6:
+		# 6 Winter's reign: whatever dies in the aura shatters in a frost nova
+		for dp in deaths(st, st.radius):
+			WeaponFx.spawn(w, "ripple", dp, ICE, {"radius": FT_NOVA_R, "rings": 2, "life": 0.4})
+			WeaponFx.spawn(w, "shards", dp, SNOW, {"radius": FT_NOVA_R, "count": 8, "life": 0.35})
+			for e in enemies_at(st, dp, FT_NOVA_R):
+				e.spell_damage(dps * 3.0, "ice", true)
+				if !_dead(e) and !_boss(e) and e.has_method("apply_slow"):
+					e.apply_slow(0.0, 0.5)
+		# ... and every 20 s absolute zero freezes everything in the aura
+		if pace(st, "zero", FT_ZERO_T, delta):
+			WeaponFx.spawn(w, "flash", pos, ICE, {"radius": st.radius, "life": 0.5})
+			WeaponFx.spawn(w, "ripple", pos, SNOW, {"radius": st.radius, "rings": 3, "life": 0.7})
+			WeaponFx.spawn(w, "shards", pos, SNOW, {"radius": st.radius, "count": 16, "life": 0.5})
+			Sfx.play("ultimate")
+			for e in enemies(st, st.radius):
+				if !_boss(e) and e.has_method("apply_slow"):
+					e.apply_slow(0.0, 1.5)
+				WeaponUtil.expose(e, 2.5)
+		st.charge = fill(st, "zero", FT_ZERO_T)

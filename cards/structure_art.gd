@@ -31,6 +31,9 @@ static func draw(st, col: Color) -> bool:
 		"iron_wall":
 			draw_iron_wall(st, col)
 			return true
+		"frost_totem":
+			draw_frost_totem(st, col)
+			return true
 		_:
 			return false
 
@@ -619,3 +622,119 @@ static func draw_iron_wall(st, col: Color) -> void:
 		if glow > 0.0:
 			st.draw_circle(o + Vector2(0, 6.0), 9.0 + 3.0 * glow, Color(1.0, 0.95, 0.7, 0.25 * glow))
 	hp_bar(st, bot + 3.0, r, t >= 6)
+
+# ---------------------------------------------------------------- Frost Totem
+const DEEP := Color(0.25, 0.45, 0.8)
+const SNOW := Color(0.95, 0.98, 1.0)
+const AURORA := Color(0.5, 1.0, 0.8)
+const VIOLET := Color(0.6, 0.5, 1.0)
+
+## An ice crystal: a tall six-sided prism with a white highlight.
+static func ice_prism(st, p: Vector2, h: float, w: float, col: Color) -> void:
+	st.draw_colored_polygon(PackedVector2Array([p + Vector2(-w, 0), p + Vector2(-w, -h * 0.7), p + Vector2(0, -h), p + Vector2(w, -h * 0.7), p + Vector2(w, 0)]), col)
+	st.draw_polyline(PackedVector2Array([p + Vector2(-w, 0), p + Vector2(-w, -h * 0.7), p + Vector2(0, -h), p + Vector2(w, -h * 0.7), p + Vector2(w, 0)]), Color(0.2, 0.3, 0.5, 0.9), 1.0)
+	st.draw_line(p + Vector2(-w * 0.3, -1), p + Vector2(-w * 0.3, -h * 0.7), Color(1, 1, 1, 0.8), 1.0)
+
+static func draw_frost_totem(st, col: Color) -> void:
+	var r: float = st.radius
+	var t: int = st.tier
+	var age: float = st._age
+	var pulse := 0.5 + 0.5 * sin(age * 3.0)
+	if t >= 6:                                                    # an aurora curtain behind
+		for k in 2:
+			var pts := PackedVector2Array()
+			for i in 13:
+				var x := -r * 0.8 + i * r * 1.6 / 12.0
+				pts.append(Vector2(x, -22.0 - k * 6.0 + 4.0 * sin(age * 0.8 + i * 0.7 + k * 2.0)))
+			st.draw_polyline(pts, Color(AURORA if k == 0 else VIOLET, 0.3), 5.0)
+	elif t >= 5:                                                  # thin aurora arcs above
+		for k in 2:
+			st.draw_arc(Vector2(0, -6), 22.0 + k * 6.0, PI * 1.15, PI * 1.85, 16, Color(AURORA if k == 0 else VIOLET, 0.3), 2.0)
+	st.draw_circle(Vector2.ZERO, r, Color(col, 0.07 + 0.05 * pulse))
+	st.draw_arc(Vector2.ZERO, r, 0, TAU, 40, Color(col, 0.35), 1.0)
+	if t >= 4:                                                    # a second ring with glowing runes
+		st.draw_arc(Vector2.ZERO, r * 0.75, 0, TAU, 32, Color(col, 0.25), 1.0)
+		for i in 6:
+			var a := age * 0.3 + i * TAU / 6.0
+			st.draw_circle(Vector2.from_angle(a) * r * 0.75, 1.3, Color(0.8, 0.95, 1.0, 0.5 + 0.4 * sin(age * 3.0 + i)))
+		var shown := 0
+		for e in st.get_tree().get_nodes_in_group("enemy"):         # a pale ring on whoever is chilled
+			if shown < 20 and is_instance_valid(e) and e.global_position.distance_to(st.global_position) <= r:
+				st.draw_arc(e.global_position - st.global_position, 7.0, 0, TAU, 12, Color(0.8, 0.95, 1.0, 0.6), 1.0)
+				shown += 1
+	if t >= 2:                                                    # falling snow
+		for i in 8:
+			var p := fposmod(age * 0.25 + SpellArt.jit(i, 7.0), 1.0)
+			var a2 := SpellArt.jit(i, 8.0) * TAU
+			var rr := r * 0.85 * sqrt(SpellArt.jit(i, 9.0))
+			st.draw_circle(Vector2(cos(a2) * rr, sin(a2) * rr * 0.6 - 14.0 + p * 18.0), 0.9, Color(1, 1, 1, 0.8 * (1.0 - p)))
+	if t >= 5:                                                    # a small storm: spiral arms and swirling snow
+		for k in 3:
+			var a3 := age * 0.9 + k * TAU / 3.0
+			st.draw_arc(Vector2.ZERO, r * 0.42, a3, a3 + 1.4, 10, Color(SNOW, 0.4), 1.5)
+			st.draw_arc(Vector2.ZERO, r * 0.28, a3 + 0.8, a3 + 2.0, 8, Color(SNOW, 0.3), 1.0)
+		for i in 14:
+			var a4 := age * (0.8 + 0.4 * SpellArt.jit(i, 2.0)) + i * 0.9
+			var rr2 := r * (0.15 + 0.3 * SpellArt.jit(i, 3.0))
+			st.draw_circle(Vector2.from_angle(a4) * rr2 * Vector2(1.0, 0.7), 0.9, Color(1, 1, 1, 0.7))
+		st.draw_arc(Vector2.ZERO, r + 4.0, 0, TAU, 40, Color(0.5, 0.9, 1.0, 0.5 + 0.2 * sin(age * 3.0)), 1.5)
+	if t >= 6:                                                    # piled ice blocks at the base
+		for i in 3:
+			var bx := -6.0 + i * 6.0
+			st.draw_rect(Rect2(bx - 3.0, 4.0 + (1.0 if i == 1 else 0.0), 6, 5), Color.BLACK)
+			st.draw_rect(Rect2(bx - 2.2, 4.8 + (1.0 if i == 1 else 0.0), 4.4, 3.6), Color(0.7, 0.9, 1.0))
+	if t >= 2:                                                    # six ice crystals round the base
+		for i in 6:
+			var ca := SpellArt.jit(i, 11.0) * TAU
+			var cp := Vector2(cos(ca) * 9.0, 5.0 + sin(ca) * 3.5)
+			ice_prism(st, cp, 6.0 + 3.0 * SpellArt.jit(i, 12.0), 1.8, Color(0.7, 0.9, 1.0))
+	if t >= 3:                                                    # three ice spears stand behind the head
+		for i in 3:
+			var ang := -PI / 2.0 + (i - 1) * 0.5
+			var grow := 1.0 if i != 1 else clampf(st.fx_pulse, 0.0, 1.0)
+			if grow < 0.05:
+				continue
+			var d := Vector2.from_angle(ang)
+			var base := Vector2(0, -12) + d * 4.0
+			var tip := base + d * 16.0 * grow
+			var n2 := d.orthogonal() * 1.8
+			st.draw_colored_polygon(PackedVector2Array([base, base + d * 5.0 * grow + n2, tip, base + d * 5.0 * grow - n2]), Color(0.75, 0.93, 1.0))
+			st.draw_line(base, tip, Color(1, 1, 1, 0.8), 1.0)
+	# the pole
+	st.draw_rect(Rect2(-3, -9, 6, 16), Color.BLACK)
+	st.draw_rect(Rect2(-2, -8, 4, 14), col.darkened(0.2))
+	if t >= 2:
+		for i in 4:
+			st.draw_line(Vector2(-2, -6 + i * 3.0), Vector2(-0.5, -5 + i * 3.0), Color(1, 1, 1, 0.8), 1.0)
+	# the head: round, then a faceted gem, then glowing deep blue
+	var hy := -11.0
+	if t == 1:
+		st.draw_circle(Vector2(0, hy), 4.0, col)
+	else:
+		var gem := PackedVector2Array()
+		for i in 6:
+			gem.append(Vector2(0, hy) + Vector2.from_angle(i * TAU / 6.0 + PI / 6.0) * 5.0)
+		st.draw_colored_polygon(gem, DEEP.lerp(col, 0.4) if t >= 5 else col)
+		gem.append(gem[0])
+		st.draw_polyline(gem, Color.BLACK, 1.0)
+		st.draw_line(Vector2(-2, hy - 1), Vector2(0, hy - 3), Color(1, 1, 1, 0.8), 1.0)
+		st.draw_line(Vector2(0, hy - 3), Vector2(2, hy - 1), Color(1, 1, 1, 0.5), 1.0)
+		if t >= 4:
+			SpellArt.snowflake(st, Vector2(0, hy), 3.5, 0.0, 6, 1, Color(0.2, 0.35, 0.6, 0.9), 1.0)
+		if t >= 5:
+			st.draw_circle(Vector2(0, hy), 6.5 + pulse, Color(0.5, 0.8, 1.0, 0.25))
+			st.draw_circle(Vector2(0, hy), 1.5, Color.WHITE)
+		st.draw_arc(Vector2(0, hy - 1.0), 5.6, PI * 1.15, PI * 1.85, 8, SNOW, 2.0)        # a snowcap
+	if t >= 4:                                                    # frozen breath
+		for i in 3:
+			var p2 := fposmod(age * 0.5 + i / 3.0, 1.0)
+			st.draw_circle(Vector2(sin(p2 * 6.0 + i) * 2.0, hy - 6.0 - p2 * 14.0), 1.5 + p2 * 3.0, Color(1, 1, 1, 0.5 * (1.0 - p2)))
+	if t >= 6:                                                    # a crown of icicles and a turning snowflake halo
+		for i in 7:
+			var a5 := -PI + (i + 0.5) * PI / 7.0
+			var d2 := Vector2.from_angle(a5)
+			var b := Vector2(0, hy) + d2 * 4.5
+			st.draw_colored_polygon(PackedVector2Array([b + d2.orthogonal() * 1.4, b + d2 * 8.0, b - d2.orthogonal() * 1.4]), Color(0.8, 0.95, 1.0))
+		SpellArt.snowflake(st, Vector2(0, hy - 6.0), 12.0, age * 0.5, 6, 2, Color(0.85, 0.97, 1.0, 0.8), 1.0)
+	if st.charge > 0.9 and t >= 6:                                # absolute zero is about to fall
+		st.draw_arc(Vector2.ZERO, r * (1.0 - (st.charge - 0.9) * 2.0), 0, TAU, 36, Color(1, 1, 1, 0.6), 1.5)

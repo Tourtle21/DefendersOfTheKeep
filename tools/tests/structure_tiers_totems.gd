@@ -2,7 +2,7 @@ extends "res://tools/tests/structure_test_base.gd"
 ## Mender Totem and Frost Totem tiers 2 to 6 (docs/card_tiers/mender.md, frost_totem.md).
 ## Run: Godot --headless --path . --script res://tools/tests/structure_tiers_totems.gd [-- only=mender]
 func sections() -> Array:
-	return ["mender"]
+	return ["mender", "frost_totem"]
 func bar():
 	return player().get_parent().get_node("Hud/Control2/ColorRect/Health")
 func away() -> void:
@@ -105,3 +105,82 @@ func mender() -> void:
 	await wait(1.5)
 	ok("the totem expires once its healing budget is spent", !is_instance_valid(stb) or stb.is_queued_for_deletion())
 	away()
+
+# ================================================================== Frost Totem
+func frost_totem() -> void:
+	print("-- frost_totem")
+	var c := Vector2(0, 300)
+	var tl = load("res://cards/structure_tiers.gd")
+	# Rime aura (tier 2)
+	var rm := {}
+	for t in [1, 2]:
+		var st = build("frost_totem", t, c)
+		var e = dummy(c + Vector2(20, 0))
+		await wait(2.2)
+		rm[t] = dealt(e)
+		await clear()
+	ok("tier 2 frost bites everything in the aura (about 1 hp a second), tier 1 does not (%s)" % str(rm), rm[2] > 1.0 and rm[2] < 4.0 and rm[1] == 0.0)
+	# Ice spears (tier 3)
+	var sp := {}
+	for t in [2, 3]:
+		var st = build("frost_totem", t, c)
+		var e = dummy(c + Vector2(40, 0))
+		var seen := 0
+		for i in 62:
+			await wait(0.05)
+			seen = maxi(seen, count_nodes("projectile.gd"))
+		await wait(0.3)
+		sp[t] = [seen, dealt(e)]
+		await clear()
+	ok("tier 3 hurls an ice spear within 2.6 s (3.6 damage at least), tier 2 does not (%s)" % str(sp), sp[3][0] >= 1 and sp[3][1] >= tl.FT_DPS[2] * 2.0 and sp[2][0] == 0)
+	# Frostbitten (tier 4)
+	var fb := {}
+	for t in [3, 4]:
+		var st = build("frost_totem", t, c)
+		var e = dummy(c + Vector2(20, 0))
+		await wait(0.3)
+		var inside: float = game.mark_mult(e)
+		e.global_position = c + Vector2(400, 0)
+		await wait(2.0)
+		var after: float = game.mark_mult(e)
+		await wait(1.0)
+		fb[t] = [inside, after, game.mark_mult(e)]
+		await clear()
+	ok("tier 4 chills: +25%% damage inside and for 2.5 s after, tier 3 not (%s)" % str(fb), absf(fb[4][0] - 1.25) < 0.01 and absf(fb[4][1] - 1.25) < 0.01 and fb[4][2] == 1.0 and fb[3][0] == 1.0)
+	# Blizzard heart (tier 5)
+	var st5 = build("frost_totem", 5, c)
+	var e5 = dummy(c + Vector2(20, 0))
+	var bz = null
+	var tt := 0.0
+	while tt < 15.6 and bz == null:
+		await wait(0.1)
+		tt += 0.1
+		for n in world.get_children():
+			if n.get_script() != null and str(n.get_script().resource_path).ends_with("spell.gd") and n.data.get("id", "") == "blizzard":
+				bz = n
+	ok("tier 5 casts a Blizzard copy on the crowd after 15 s (found %s, copy %s, tier %s, at %.1f s)" % [str(bz != null), str(bz.data.get("copy") if bz != null else null), str(bz.data.get("tier") if bz != null else null), tt], bz != null and bz.data.get("copy", false) == true and int(bz.data.tier) == 5)
+	await clear()
+	# Winter's reign (tier 6): a death shatters into a nova; absolute zero freezes the aura every 20 s
+	var st6 = build("frost_totem", 6, c)
+	var a6 = dummy(c + Vector2(20, 0))
+	a6.max_health = 1.0
+	a6.health = 1.0
+	var b6 = dummy(c + Vector2(35, 0))
+	var far6 = dummy(c + Vector2(-30, 0))
+	var froze := false
+	var seen6 := {}
+	var proj := 0
+	var frozen_all := false
+	tt = 0.0
+	while tt < 20.4:
+		await wait(0.05)
+		tt += 0.05
+		if tt < 2.0 and b6.slow_mult == 0.0:
+			froze = true
+		proj = maxi(proj, count_nodes("projectile.gd"))
+		for n in world.get_children():
+			if n.get_script() != null and str(n.get_script().resource_path).ends_with("fx.gd") and n.kind == "flash":
+				seen6["flash"] = true
+		if tt > 20.1 and tt < 20.25 and b6.slow_mult == 0.0 and far6.slow_mult == 0.0 and exposed(b6) and exposed(far6):
+			frozen_all = true
+	ok("tier 6: a death shatters in a nova that freezes its neighbour (%s), absolute zero freezes and exposes the aura (flash %s, all %s), spears kept (%d)" % [str(froze), str(seen6.has("flash")), str(frozen_all), proj], froze and seen6.has("flash") and frozen_all and proj >= 1 and dealt(b6) > 0.0)
