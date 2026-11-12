@@ -38,3 +38,4 @@ DONE dragoonpike
 DONE earthshaker
 CLAIM crystalwand
 DONE staff
+DONE emberflail

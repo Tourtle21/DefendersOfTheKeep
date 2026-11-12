@@ -39,8 +39,9 @@ func attack() -> void:
 func ability() -> void:
 	var c := cursor_target(90.0)
 	ground_strike(c, 32.0, 0.45, 5.5, 240.0, Color(1.0, 0.4, 0.1), 0.4)
-	for i in 6:                                                    # sparks of lava ring the eruption
-		ground_strike(c + Vector2.from_angle(i * TAU / 6.0) * 52.0, 16.0, 0.6 + i * 0.05, 3.0, 120.0, Color(1.0, 0.5, 0.15), 0.2)
+	var sparks := 8 if weapon_id == "emberflail" and tier >= 2 else 6      # (tier 2+: eight, items/weapons/tiers/emberflail.gd)
+	for i in sparks:                                               # sparks of lava ring the eruption
+		ground_strike(c + Vector2.from_angle(i * TAU / float(sparks)) * 52.0, 16.0, 0.6 + i * 0.05, 3.0, 120.0, Color(1.0, 0.5, 0.15), 0.2)
 	await get_tree().create_timer(0.47).timeout
 	if is_inside_tree():
 		_fire(c, 30.0, 4.0)
@@ -49,7 +50,7 @@ func dash_attack() -> void:
 	var o: Vector2 = player.global_position
 	player.dash(aim, 60.0, 0.15)
 	for i in 4:
-		_fire(o + aim * (12.0 + i * 15.0), 12.0, 4.0)
+		_fire(o + aim * (12.0 + i * 15.0), 14.0 if weapon_id == "emberflail" and tier >= 4 else 12.0, 4.0)
 
 func ultimate() -> void:
 	var o: Vector2 = player.global_position

@@ -943,7 +943,106 @@ func t_staff() -> void:
 	ok("staff: the light grows with tier (%.0f at tier 6)" % w.light_radius, w.light_radius == 115.0)
 	await draw_smoke("staff")
 
+func t_emberflail() -> void:
+	var w
+	var sp := {}
+	for t in [1, 2]:
+		w = await equip("emberflail", t, false)
+		var d = dummy(P + Vector2.from_angle(0.35) * 45.0 + Vector2(10, 0))
+		w.use_item()
+		await wait(0.1)
+		var n := count_script("projectile.gd")
+		await wait(0.8)
+		sp[t] = [n, lost(d)]
+	ok("emberflail Spitfire: tier 2 swing flings %d sparks (tier 1: %d)" % [sp[2][0], sp[1][0]], sp[2][0] == 2 and sp[1][0] == 0)
+	var ob := {}
+	for t in [2, 3]:
+		w = await equip("emberflail", t, false)
+		var d = dummy(P + Vector2(28, 40))        # off the swing, on the orbit ring (28 px out is the ring; sit at 28 px from the player)
+		d.global_position = player.global_position + Vector2(0, 28)
+		for i in 3:
+			w._attack_cd = 0.0
+			w.use_item()
+			await wait(0.3)
+		var h0 := lost(d)
+		var steps := await hit_steps(d, 2.2)
+		ob[t] = steps.size()
+	ok("emberflail Burning Orbit: tier 3 the third swing starts an orbit that hits a dummy on the ring %d times (tier 2: %d)" % [ob[3], ob[2]], ob[3] >= 3 and ob[2] == 0)
+	var lw := {}
+	for t in [3, 4]:
+		w = await equip("emberflail", t, false)
+		var c: Vector2 = P + (player.aim_point() - P).limit_length(90.0)
+		w.use_ability()
+		await wait(1.6)
+		lw[t] = [hazards(0.6), hazards(-1.0)]
+	ok("emberflail Lava Whip: tier 4 eruption leaves %d slow patches (tier 3: %d) and the old pool (%d)" % [lw[4][0], lw[3][0], lw[4][1] - lw[4][0]], lw[4][0] >= 3 and lw[3][0] == 0 and lw[4][1] - lw[4][0] == 1)
+	var dh := {}
+	for t in [3, 4]:
+		w = await equip("emberflail", t, false)
+		var d = dummy(P + Vector2(30, 0))
+		var l0 := hazards(-1.0)
+		w.use_dash()
+		await wait(0.4)
+		var seen := {}
+		fx_kinds(seen)
+		var radii := []
+		for n in world.get_children():
+			if n.get_script() != null and str(n.get_script().resource_path).ends_with("hazard.gd"):
+				radii.append(n.radius)
+		await wait(1.5)
+		dh[t] = [radii, lost(d), seen]
+	ok("emberflail Lava Whip dash: tier 4 four patches of r14 %s, the dummy burns (%.1f vs %.1f), pillars %s" % [dh[4][0], dh[4][1], dh[3][1], dh[4][2].has("pillar")], dh[4][0].size() == 4 and dh[4][0][0] == 14.0 and dh[4][1] > dh[3][1] + 0.5 and dh[4][2].has("pillar"))
+	var cd := {}
+	for t in [4, 5, 6]:
+		w = await equip("emberflail", t, false)
+		var d = dummy(P + Vector2(60, 0))
+		w.use_ultimate()
+		var hz85 := 0.0
+		var ids := {}
+		var seen := {}
+		var pillar140 := false
+		var light := 0.0
+		var steps := 0
+		var last := 0.0
+		for i in 220:
+			await wait(0.05)
+			var l := lost(d)
+			if i > 40 and l > last + 0.01:
+				steps += 1
+			last = l
+			fx_kinds(seen)
+			for n in world.get_children():
+				if n.get_script() == null:
+					continue
+				var sp2: String = str(n.get_script().resource_path)
+				if sp2.ends_with("hazard.gd"):
+					hz85 = maxf(hz85, n.radius)
+				if sp2.ends_with("fx.gd") and n.kind == "fall":
+					ids[n.get_instance_id()] = 1
+				if sp2.ends_with("fx.gd") and n.kind == "pillar" and n.height >= 140.0:
+					pillar140 = true
+			for l2 in lights():
+				light = maxf(light, l2.light_radius)
+		cd[t] = {"hz": hz85, "falls": ids.size(), "p140": pillar140, "lost": lost(d), "light": light}
+	ok("emberflail Caldera: tier 5 slow patch r%.0f and light %.0f; tier 4 none (%.0f)" % [cd[5].hz, cd[5].light, cd[4].hz], cd[5].hz == 85.0 and cd[5].light >= 140.0 and cd[4].hz < 85.0)
+	ok("emberflail Volcano: tier 6 pillar 140 %s, %d lava bombs, more damage (%.1f vs %.1f); tier 5 no pillar (%s)" % [cd[6].p140, cd[6].falls, cd[6].lost, cd[5].lost, cd[5].p140], cd[6].p140 and cd[6].falls >= 10 and !cd[5].p140 and cd[6].lost > cd[5].lost + 5.0)
+	w = await equip("emberflail", 6, false)
+	var seen6 := {}
+	var d6 = dummy(P + Vector2(30, 0))
+	for i in 6:
+		w._attack_cd = 0.0
+		w.use_item()
+		seen6 = {}
+		for k in 8:
+			await wait(0.05)
+			fx_kinds(seen6)
+		await wait(0.3)
+	ok("emberflail Volcano finisher: the sixth swing slams (shock %s)" % seen6.has("shock"), seen6.has("shock"))
+	await draw_smoke("emberflail")
+
 func run() -> void:
+	if only == "" or only == "emberflail":
+		await t_emberflail()
 	if only == "" or only == "staff":
 		await t_staff()
 	if only == "" or only == "frostglaive":
