@@ -27,12 +27,16 @@ func _init() -> void:
 
 func attack() -> void:
 	var o: Vector2 = player.global_position
-	thrust(14.0, 0.2)
-	fx("line", o, Color(1.0, 0.9, 0.5), {"dir": aim, "length": 52.0, "width": 3.0, "life": 0.15})
-	for e in WeaponUtil.enemies_in_line(get_tree(), o, aim, 52.0, 10.0):
-		if (e.global_position - o).dot(aim) >= 34.0:
+	var long: bool = _st.get("long", false)                 # weapon tiers: Long Lance (every 3rd Impale) and the tier 6 finisher
+	var full: bool = _st.get("full", false)
+	var length := 70.0 if long else 52.0
+	var tip_from := 48.0 if long else 34.0
+	thrust(20.0 if long else 14.0, 0.2)
+	fx("line", o, Color(1.0, 0.9, 0.5), {"dir": aim, "length": length, "width": 3.0, "life": 0.15})
+	for e in WeaponUtil.enemies_in_line(get_tree(), o, aim, length, 10.0):
+		if (e.global_position - o).dot(aim) >= tip_from or full:
 			player.shake(2.0, 0.12)
-			fx("ring", o + aim * 46.0, Color(1.0, 0.85, 0.3), {"radius": 14.0, "life": 0.2})
+			fx("ring", o + aim * (length - 6.0), Color(1.0, 0.85, 0.3), {"radius": 14.0, "life": 0.2})
 			WeaponUtil.hit(e, Game.basic_hit(weapon_id), o, 240.0)
 		else:
 			WeaponUtil.hit(e, Game.basic_hit(weapon_id) * 0.5, o, 140.0)
@@ -70,6 +74,7 @@ func release_ability() -> void:
 	_charging = false
 	player.speed_mult = 1.0
 	var ratio := _charge / MAX_CHARGE
+	_st["ratio"] = ratio                         # (weapon tiers)
 	_ability_cd = ability_cooldown
 	var dist := 60.0 + 90.0 * ratio
 	var travel := 0.2 + 0.1 * ratio
@@ -85,6 +90,7 @@ func release_ability() -> void:
 	for e in WeaponUtil.enemies_in_circle(get_tree(), end, 26.0 + 20.0 * ratio):
 		WeaponUtil.hit(e, 3.0, end, 300.0, 0.8)
 	_charge = 0.0
+	WeaponTiers.run(self, "release")             # (weapon tiers: the ram has ended)
 
 func dash_attack() -> void:
 	var d: Vector2 = aim * 70.0          # the way you are moving (aim is set by use_dash)

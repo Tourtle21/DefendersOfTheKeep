@@ -374,6 +374,98 @@ func t_knightblade() -> void:
 	ok("knightblade Judgment Day finisher: the 9th strike raises a pillar at tier 6 %s, not at tier 5 %s" % [fin[6], fin[5]], fin[6] and !fin[5])
 	await draw_smoke("knightblade")
 
+func t_lance() -> void:
+	var w
+	# Shock Cone: the ram ends in a cone that hits what is 40 px beyond the end point (outside the ring)
+	w = await equip("lance", 2, false)
+	var d = dummy(P + Vector2(100, 0))
+	w.use_ability()
+	await wait(0.05)
+	w.release_ability()
+	var r = await watch(0.7)
+	ok("lance Shock Cone: tier 2 ram cone hits a dummy 40 px beyond the end (%.1f), cone %s, shock %s" % [lost(d), r.kinds.has("cone"), r.kinds.has("shock")], lost(d) > 1.5 and r.kinds.has("cone") and r.kinds.has("shock"))
+	# Long Lance: the 3rd Impale reaches 66 px
+	var lens := {}
+	for t in [2, 3]:
+		w = await equip("lance", t, false)
+		var dd = dummy(P + Vector2(66, 0))
+		var per := []
+		for i in 3:
+			var h0 := lost(dd)
+			click(w)
+			await wait(0.3)
+			per.append(snappedf(lost(dd) - h0, 0.1))
+			await wait(0.3)
+		lens[t] = per
+	ok("lance Long Lance: tier 3 reaches 66 px only on the 3rd %s; tier 2 never %s" % [lens[3], lens[2]], lens[3][0] < 0.1 and lens[3][1] < 0.1 and lens[3][2] > 1.0 and lens[2][2] < 0.1)
+	# Spikefall: three spikes round the landing
+	var sp := {}
+	for t in [3, 4]:
+		w = await equip("lance", t, false)
+		var land := P + Vector2(70, 0)
+		var ds := []
+		for k in 3:
+			ds.append(dummy(land + Vector2.from_angle(float(k) * TAU / 3.0) * 15.0))
+		w.use_dash()
+		var rr = await watch(0.9)
+		var tot := 0.0
+		for e in ds:
+			tot += lost(e)
+		sp[t] = [snappedf(tot, 0.1), rr.kinds.get("crack", 0)]
+	ok("lance Spikefall: tier 4 spikes add damage and cracks %s over tier 3 %s" % [sp[4], sp[3]], sp[4][0] > sp[3][0] + 3.0 and sp[4][1] >= 3 and sp[3][1] == 0)
+	# Reverb: two rings after the crash hit a dummy 60 px beyond it
+	var rev := {}
+	for t in [4, 5]:
+		w = await equip("lance", t, false)
+		var crash: Vector2 = w.cursor_target(130.0)
+		var dd = dummy(crash + Vector2(60, 0))
+		w.use_ultimate()
+		var steps := []
+		for k in 3:
+			await wait(0.5 if k < 2 else 0.45)
+			steps.append(snappedf(lost(dd), 0.1))
+		rev[t] = steps
+	ok("lance Reverb: tier 5 hurts a dummy 60 px past the crash in steps %s; tier 4 not %s" % [rev[5], rev[4]], rev[5][0] < 0.1 and rev[5][1] > 0.5 and rev[5][2] > rev[5][1] + 0.5 and rev[4][2] < 0.1)
+	# Dive Bomb: comet, flash, pillar, shock, six lances, a long stun
+	var db := {}
+	for t in [5, 6]:
+		w = await equip("lance", t, false)
+		var dd = dummy(P + Vector2(120, 0))
+		w.use_ultimate()
+		var seen := {}
+		var ids := {}
+		for i in 14:
+			await wait(0.05)
+			fx_kinds(seen)
+			for n in world.get_children():
+				if n.get_script() != null and str(n.get_script().resource_path).ends_with("items/weapons/projectile.gd") and n.style == "lance":
+					ids[n.get_instance_id()] = true
+		db[t] = [seen.has("fall"), seen.has("flash"), seen.has("pillar"), ids.size(), snappedf(dd.slow_time, 0.1)]
+	ok("lance Dive Bomb: tier 6 %s (fall, flash, pillar, lances, stun) vs tier 5 %s" % [db[6], db[5]], db[6][0] and db[6][1] and db[6][2] and db[6][3] >= 6 and db[6][4] >= 1.7 and !db[5][0] and db[5][3] == 0)
+	# Finisher: the 6th Impale adds a cone
+	var fin := {}
+	for t in [5, 6]:
+		w = await equip("lance", t, false)
+		var dd = dummy(P + Vector2(30, 0))
+		var saw := false
+		for i in 6:
+			click(w)
+			await wait(0.08)
+			if i == 5 and has_fx("cone"):
+				saw = true
+			await wait(0.3)
+		fin[t] = saw
+	ok("lance Finisher: the 6th Impale adds a cone at tier 6 %s, not tier 5 %s" % [fin[6], fin[5]], fin[6] and !fin[5])
+	# the charge still scales the ram at tier 6
+	w = await equip("lance", 6, false)
+	w.use_ability()
+	await wait(1.1)
+	var x0: float = player.global_position.x
+	w.release_ability()
+	await wait(0.6)
+	ok("lance: a full charge at tier 6 rams %.0f px (>= 120)" % (player.global_position.x - x0), player.global_position.x - x0 >= 120.0)
+	await draw_smoke("lance")
+
 func run() -> void:
 	if want("chainfangs"):
 		await t_chainfangs()
@@ -383,3 +475,5 @@ func run() -> void:
 		await t_bulwark()
 	if want("knightblade"):
 		await t_knightblade()
+	if want("lance"):
+		await t_lance()

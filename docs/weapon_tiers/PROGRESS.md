@@ -21,3 +21,4 @@ CLAIM quakepick
 CLAIM rimelance
 CLAIM sultanguard
 DONE scimitar
+DONE lance
