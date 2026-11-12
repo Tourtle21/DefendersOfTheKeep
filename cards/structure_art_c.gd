@@ -13,6 +13,9 @@ static func draw(st, col: Color) -> bool:
 		"crystal_pylon":
 			draw_crystal_pylon(st, col)
 			return true
+		"storm_spire":
+			draw_storm_spire(st, col)
+			return true
 	return false
 
 # ---------------------------------------------------------------- shared shapes
@@ -135,3 +138,97 @@ static func draw_crystal_pylon(st, col: Color) -> void:
 	if t >= 4:
 		st.draw_circle(tip, 1.0 + 3.0 * st.charge, Color(1, 1, 1, 0.6 + 0.4 * st.charge))
 	shot_line(st, tip, PY_AMETHYST.lerp(PY_WHITE, 0.4))
+
+## A short zig-zag of `n` segments from `a` to `b`, kinked by `kink` px (deterministic from `seed`).
+static func zig(st, a: Vector2, b: Vector2, n: int, kink: float, seed: float, col: Color, width := 1.0) -> void:
+	var pts := PackedVector2Array([a])
+	var side := (b - a).orthogonal().normalized()
+	for i in range(1, n):
+		pts.append(a.lerp(b, float(i) / n) + side * (SpellArt.jit(i, seed) - 0.5) * 2.0 * kink)
+	pts.append(b)
+	st.draw_polyline(pts, col, width)
+
+## A dashed circle.
+static func dashed(st, c: Vector2, r: float, col: Color, dashes: int, phase := 0.0) -> void:
+	for i in dashes:
+		var a0 := phase + i * TAU / dashes
+		st.draw_arc(c, r, a0, a0 + TAU / dashes * 0.5, 4, col, 1.0)
+
+# ================================================================ Storm Spire
+const SP_IRON := Color(0.45, 0.5, 0.6)
+const SP_STORM := Color(0.35, 0.45, 0.75)
+const SP_BOLT := Color(0.95, 0.97, 1.0)
+const SP_SPARK := Color(1.0, 0.95, 0.6)
+const SP_COPPER := Color(0.85, 0.55, 0.3)
+
+static func draw_storm_spire(st, col: Color) -> void:
+	var t: int = st.tier
+	var age: float = st._age
+	var flash: float = clampf(1.0 - st.fx_pulse / 0.3, 0.0, 1.0)
+	# 6: a faint dashed range ring
+	if t >= 6:
+		dashed(st, Vector2.ZERO, float(st.data.range), Color(SP_BOLT, 0.18), 40, age * 0.1)
+	# 5: cables to four rods in the ground that crackle
+	if t >= 5:
+		for i in 4:
+			var d := Vector2(1.0 if i % 2 == 0 else -1.0, 0.55 if i < 2 else -0.45) * 1.0
+			var p: Vector2 = d * st.radius * 1.5
+			st.draw_line(Vector2(0, 2), p, SP_IRON.darkened(0.3), 1.0)
+			st.draw_line(p, p + Vector2(0, -5), Color.BLACK, 2.0)
+			st.draw_line(p, p + Vector2(0, -5), SP_IRON, 1.0)
+			st.draw_circle(p + Vector2(0, -6), 1.6, SP_COPPER)
+			if SpellArt.jit(int(age * 6.0) + i, 3.0) > 0.8 or flash > 0.0:
+				zig(st, p + Vector2(0, -7), p + Vector2(d.x * 3.0, -13), 3, 2.0, age + i, Color(SP_BOLT, 0.9))
+	# the body: a stone box and an iron spire
+	StructureArt.box(st, Rect2(-7, -3, 14, 10), col.darkened(0.35))
+	if t >= 4:
+		for i in 4:
+			st.draw_circle(Vector2(-5.5 + i * 3.7, 5.0), 1.1, Color(0.9, 0.9, 1.0))
+	StructureArt.poly(st, PackedVector2Array([Vector2(-3.5, -3), Vector2(0, -20), Vector2(3.5, -3)]), SP_IRON)
+	st.draw_line(Vector2(0.4, -4), Vector2(0.4, -18), SP_IRON.lightened(0.5), 1.0)
+	if t >= 3:
+		st.draw_arc(Vector2(0, -9), 5.0, PI * 1.1, PI * 1.9, 8, SP_COPPER, 1.5)
+		st.draw_arc(Vector2(0, -13), 3.5, PI * 1.1, PI * 1.9, 8, SP_COPPER, 1.5)
+		StructureArt.poly(st, PackedVector2Array([Vector2(3, -6), Vector2(8, -8), Vector2(3, -11)]), SP_COPPER)
+	# static crawling up the spire
+	for i in 3:
+		if SpellArt.jit(int(age * 2.0) + i, 1.0) > 0.35:
+			var u := fposmod(age * 0.9 + SpellArt.jit(i), 1.0)
+			var side := -1.0 if i % 2 == 0 else 1.0
+			var a := Vector2(side * 3.0 * (1.0 - u), -3.0 - u * 15.0)
+			zig(st, a, a + Vector2(side * 4.0, -3.0), 3, 1.5, age * 7.0 + i, Color(SP_SPARK, 0.9))
+	# the ball: it pulses faster the more enemies carry a charge
+	var charge: float = st.charge
+	var pulse := 0.5 + 0.5 * sin(age * (4.0 + 12.0 * charge))
+	var ball := Vector2(0, -21)
+	var hot := t >= 6
+	st.draw_circle(ball, 4.5 + 2.0 * pulse * (0.3 + charge) + (3.0 if flash > 0.0 else 0.0), Color(SP_BOLT, 0.25))
+	st.draw_circle(ball, 3.0 + (1.0 if t >= 4 else 0.0) + (1.0 if hot else 0.0), Color(0.75, 0.88, 1.0).lerp(Color.WHITE, 0.35 * pulse + (0.5 if hot else 0.0)))
+	# 6: electric arcs flicker round a white-hot orb
+	if hot:
+		for i in 6:
+			if SpellArt.jit(int(age * 12.0) + i * 3, 5.0) > 0.4:
+				var a := i * TAU / 6.0 + age
+				zig(st, ball + Vector2.from_angle(a) * 4.0, ball + Vector2.from_angle(a) * 10.0, 3, 2.0, age * 9.0 + i, Color(SP_BOLT, 0.95))
+	# the charged enemies wear a spark above them
+	for p in st.vis.get("charged", []):
+		var q: Vector2 = p - st.global_position + Vector2(0, -12)
+		glint(st, q, 3.0 + sin(age * 14.0), Color(SP_SPARK, 0.95))
+	# 4: a storm cloud over the spire (6: it becomes a swirling ring); 5: it flickers white at each skybolt
+	if t >= 4:
+		var cc := Color(0.2, 0.24, 0.4, 0.35).lerp(Color(1, 1, 1, 0.5), flash)
+		if t >= 6:
+			for i in 8:
+				var a := age * 0.8 + i * TAU / 8.0
+				st.draw_circle(Vector2(0, -30) + Vector2(cos(a) * 22.0, sin(a) * 7.0), 5.0, Color(cc, 0.3))
+		else:
+			var big := 1.25 if t >= 5 else 1.0
+			for i in 3:
+				st.draw_circle(Vector2(sin(age * 0.5 + i * 2.1) * 6.0 + (i - 1) * 6.0, -42.0 + (i % 2) * 3.0), (8.0 + i * 2.0) * big, cc)
+	# 6: rain
+	if t >= 6:
+		for i in 14:
+			var u := fposmod(age * 1.6 + SpellArt.jit(i), 1.0)
+			var x := (SpellArt.jit(i, 2.0) - 0.5) * 70.0
+			var y := -30.0 + u * 44.0
+			st.draw_line(Vector2(x, y), Vector2(x - 1.0, y + 4.0), Color(0.7, 0.85, 1.0, 0.6 * (1.0 - u * 0.5)), 1.0)

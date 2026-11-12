@@ -96,6 +96,8 @@ func _initialize() -> void:
 	p.global_position = Vector2(0, 600)
 	if only == "" or only == "crystal_pylon":
 		await pylon()
+	if only == "" or only == "storm_spire":
+		await spire()
 	quit()
 
 # ---------------------------------------------------------------- Crystal Pylon
@@ -177,3 +179,74 @@ func pylon() -> void:
 	ok("pylon t6 keeps the lance (width 8 %s, %d shots) and the shard burst (flash 22 %s)" % [saw("line", -1.0, 8.0), s6._shots, saw("flash", 22.0)], saw("line", -1.0, 8.0) and saw("flash", 22.0))
 	await clear_world()
 	await draws(id, "pylon")
+
+# ---------------------------------------------------------------- Storm Spire
+func spire() -> void:
+	var id := "storm_spire"
+	# 1. static chain: the second dummy 35 px from the nearest one is hurt and slowed by every bolt
+	var got := {}
+	for t in [1, 2]:
+		await clear_world()
+		var st = tower(id, t, Vector2(0, 200))
+		var a = dummy(Vector2(0, 160))
+		var b = dummy(Vector2(0, 125))
+		await wait(1.5)
+		got[t] = lost(b)
+		st.queue_free()
+	ok("spire t2 chain: dummy 35 px behind the target lost %.1f (tier 1: %.1f)" % [got[2], got[1]], got[2] > 1.0 and got[1] < 0.5)
+	# 2. conductor: the second hit on the same target discharges it onto its neighbour
+	await clear_world()
+	seen.clear()
+	var s3 = tower(id, 3, Vector2(0, 200))
+	var a3 = dummy(Vector2(0, 160))
+	var n3 = dummy(Vector2(20, 150))
+	await watch(1.2)
+	ok("spire t3 conductor: discharge ring r30 seen %s, neighbour at 20 px lost %.1f (a shot is %.1f)" % [saw("ring", 30.0), lost(n3), s3.data.damage], saw("ring", 30.0) and lost(n3) >= float(s3.data.damage) * 1.5)
+	# 3. thunderclap: everything within 70 px is stunned
+	await clear_world()
+	seen.clear()
+	var s4 = tower(id, 4, Vector2(0, 200))
+	var close := [dummy(Vector2(40, 200)), dummy(Vector2(-50, 190))]
+	var far = dummy(Vector2(0, 100))
+	var stunned := 0
+	var t := 0.0
+	while t < 7.0:
+		scan()
+		stunned = maxi(stunned, int(close[0].slow_mult <= 0.0 and close[0].slow_time > 0.0) + int(close[1].slow_mult <= 0.0 and close[1].slow_time > 0.0))
+		await wait(0.05)
+		t += 0.05
+	ok("spire t4 thunderclap: flash 70 seen %s, both close dummies stunned at once %d, first took %.1f" % [saw("flash", 70.0), stunned, lost(close[0])], saw("flash", 70.0) and stunned == 2)
+	# 4. skybolt on the toughest dummy
+	await clear_world()
+	seen.clear()
+	var s5 = tower(id, 5, Vector2(0, 200))
+	var weak = dummy(Vector2(0, 150), 5000.0)
+	var tough = dummy(Vector2(50, 150), 99999.0)
+	await watch(3.6)
+	var sky := false
+	for k in seen:
+		if k[0] == "bolt" and absf(k[3] - 120.0) < 1.5:
+			sky = true
+	ok("spire t5 skybolt: a 120 px bolt seen %s, the toughest dummy lost %.1f" % [sky, lost(tough)], sky and lost(tough) >= float(s5.data.damage) * 4.0)
+	# 5. tempest: a gale slows everything in range, and the bolt chains through a row of five
+	await clear_world()
+	var s6 = tower(id, 6, Vector2(0, 200))
+	var row := []
+	for i in 5:
+		row.append(dummy(Vector2(-60 + i * 30, 150)))
+	await wait(1.0)
+	var hits := 0
+	for e in row:
+		if lost(e) > 0.0:
+			hits += 1
+	ok("spire t6 tempest: gale slows %.2f, %d of 5 in the row were hit" % [row[0].slow_mult, hits], row[0].slow_mult <= 0.71 and hits >= 4)
+	await clear_world()
+	var s6b = tower(id, 6, Vector2(0, 200))
+	seen.clear()
+	var c1 = dummy(Vector2(0, 160))
+	var c2 = dummy(Vector2(0, 120))
+	var c3 = dummy(Vector2(15, 150))
+	await watch(7.0)
+	ok("spire t6 keeps clap (flash 70 %s), conductor (ring 30 %s)" % [saw("flash", 70.0), saw("ring", 30.0)], saw("flash", 70.0) and saw("ring", 30.0))
+	await clear_world()
+	await draws(id, "spire")

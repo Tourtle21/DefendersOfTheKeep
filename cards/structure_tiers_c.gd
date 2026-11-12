@@ -243,7 +243,7 @@ const SPIRE_CLAP := 3.0
 const SPIRE_SKY_T := 3.0
 const SPIRE_SKY := 4.0
 const SPIRE_GALE := 0.7
-const SPIRE_CLOUD := Vector2(0, -30)
+const SPIRE_CLOUD := Vector2(0, -40)
 
 ## A jagged bolt between two points of the world.
 static func zap(w: Node, from: Vector2, to: Vector2, col: Color, width := 3.0) -> void:
