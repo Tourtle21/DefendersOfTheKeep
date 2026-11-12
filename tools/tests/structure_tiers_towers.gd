@@ -128,6 +128,10 @@ func _initialize() -> void:
 		await sunspire()
 	if only == "" or only == "phoenix_shrine":
 		await phoenix()
+	if only == "" or only == "healing_lantern":
+		await lantern()
+	if only == "" or only == "beacon_turret":
+		await beacon()
 	quit()
 
 # ---------------------------------------------------------------- Crystal Pylon
@@ -792,3 +796,168 @@ func phoenix() -> void:
 	health_bar().size.x = 228.0
 	await clear_world()
 	await draws(id, "phoenix")
+
+# ---------------------------------------------------------------- Healing Lantern
+func lantern() -> void:
+	var id := "healing_lantern"
+	var p = world.get_node("Player")
+	var pos := Vector2(0, 200)
+	var far := Vector2(500, 200)
+	p.global_position = far
+	# 1. wisp: the hurt player heals about half again as fast once the wisp has arrived
+	var rate := {}
+	for t in [1, 2]:
+		await clear_world()
+		var st = tower(id, t, pos)
+		p.global_position = pos + Vector2(30, 0)
+		health_bar().size.x = 40.0
+		await wait(1.0)
+		var h0: float = health_bar().size.x
+		await wait(0.8)
+		rate[t] = (health_bar().size.x - h0) / 0.8 / float(st.data.heal_per_sec)
+		if t == 2:
+			rate["wisp"] = st.vis.get("wisp", Vector2.ZERO)
+	ok("lantern t2 wisp: healing %.2f x the field rate (tier 1: %.2f), wisp at %s" % [rate[2], rate[1], str(rate["wisp"])], rate[2] > rate[1] + 0.35 and rate[1] < 1.2)
+	p.global_position = far
+	# 2. revealing light
+	await clear_world()
+	var s3 = tower(id, 3, pos)
+	var d3 = dummy(pos + Vector2(30, 0))
+	await wait(0.6)
+	var lit: bool = d3.has_meta("lit_until") and float(d3.get_meta("lit_until")) > Time.get_ticks_msec() / 1000.0
+	ok("lantern t3 revealing light: dummy lit %s, slow %.2f" % [lit, d3.slow_mult], lit and d3.slow_mult <= 0.86)
+	# 3. guiding light
+	await clear_world()
+	var s4 = tower(id, 4, pos)
+	p.global_position = pos + Vector2(20, 0)
+	health_bar().size.x = 100.0
+	await wait(0.1)
+	var shield1: float = p.shield_time
+	p.shield_time = 0.0
+	health_bar().size.x = 100.0
+	await wait(0.1)
+	var shield2: float = p.shield_time
+	ok("lantern t4 guiding light: shield %.2f when hurt below half, %.2f the second time within 15 s" % [shield1, shield2], shield1 > 1.0 and shield2 < 0.1)
+	p.shield_time = 0.0
+	p.global_position = far
+	health_bar().size.x = 228.0
+	# 4. spirit lanterns
+	await clear_world()
+	seen.clear()
+	var s5 = tower(id, 5, pos)
+	var d5 = dummy(pos + Vector2(30, 0))
+	await watch(1.5)
+	ok("lantern t5 spirits: a warm beam seen %s, the dummy lost %.1f (one zap is %.1f)" % [saw("line", -1.0, 2.0), lost(d5), 0.6 * float(s5.data.heal_per_sec)], saw("line", -1.0, 2.0) and lost(d5) >= 0.55 * float(s5.data.heal_per_sec))
+	# 5. dawn
+	await clear_world()
+	seen.clear()
+	var s6 = tower(id, 6, pos)
+	var hps6: float = s6.data.heal_per_sec
+	var big: float = s6.radius * 1.5
+	var d6 = dummy(pos + Vector2(s6.radius * 1.2, 0))           # outside the field, inside 1.5 x
+	p.global_position = pos + Vector2(s6.radius * 1.2, 20)
+	health_bar().size.x = 60.0
+	s6._timers["dawn"] = 19.95
+	await watch(0.2)
+	var lit6: bool = d6.has_meta("lit_until") and float(d6.get_meta("lit_until")) > Time.get_ticks_msec() / 1000.0 + 5.0
+	ok("lantern t6 dawn: flash %.0f seen %s, health %.0f (25%% of 228 = 57 more than 60), the dummy lost %.1f (3 x %.1f), lit for long %s, light %.0f" % [big, saw("flash", big), health_bar().size.x, lost(d6), hps6, lit6, s6.light_radius], saw("flash", big) and health_bar().size.x >= 110.0 and lost(d6) >= hps6 * 2.7 and lit6 and s6.light_radius > float(game.scaled(id, 6).light) * 1.2)
+	p.global_position = Vector2(0, 600)
+	health_bar().size.x = 228.0
+	# 6. the budget still spends it
+	await clear_world()
+	var s3b = tower(id, 3, pos)
+	s3b._heal_budget = 5.0
+	p.global_position = pos
+	health_bar().size.x = 50.0
+	await wait(1.2)
+	ok("lantern budget: spent and gone %s" % [!is_instance_valid(s3b) or s3b.is_queued_for_deletion()], !is_instance_valid(s3b) or s3b.is_queued_for_deletion())
+	p.global_position = Vector2(0, 600)
+	health_bar().size.x = 228.0
+	await clear_world()
+	await draws(id, "lantern")
+
+# ---------------------------------------------------------------- Beacon Turret
+func beacon() -> void:
+	var id := "beacon_turret"
+	var tc = load("res://cards/structure_tiers_c.gd")
+	var pos := Vector2(0, 200)
+	# 1. signal fire: the target burns on and is lit (the turret is frozen after its first shot)
+	var res := {}
+	for t in [1, 2]:
+		await clear_world()
+		var st = tower(id, t, pos)
+		var e = dummy(Vector2(0, 160))
+		var guard := 0.0
+		while st._shots == 0 and guard < 3.0:
+			await wait(0.02)
+			guard += 0.02
+		st.set_physics_process(false)
+		var h0: float = e.health
+		await wait(1.6)
+		res[t] = [h0 - e.health, e.has_meta("lit_until") and float(e.get_meta("lit_until")) > Time.get_ticks_msec() / 1000.0]
+	ok("beacon t2 signal fire: burning %.1f after the shot (tier 1: %.1f), lit %s" % [res[2][0], res[1][0], res[2][1]], res[2][0] > res[1][0] + 1.0 and res[2][1])
+	# 2. sweeping beam: a dummy that is neither target nor twin is hit as the beam passes
+	await clear_world()
+	var s3 = tower(id, 3, pos)
+	dummy(Vector2(0, 220))
+	dummy(Vector2(-30, 200))
+	var swept = dummy(Vector2(0, 150))                    # straight up: bearing -PI/2
+	s3._age = (-PI / 2.0 - 0.35 + TAU) / 1.3
+	await wait(0.1)
+	var before := lost(swept)
+	await wait(0.5)
+	ok("beacon t3 sweep: the dummy off the shot lines lost %.1f before the beam came, %.1f after (a pass is %.1f)" % [before, lost(swept), 0.8 * float(s3.data.damage)], lost(swept) - before >= 0.7 * float(s3.data.damage))
+	# 3. flare shell on the sixth shot
+	await clear_world()
+	var s4 = tower(id, 4, pos)
+	dummy(Vector2(0, 160))
+	var guard3 := 0.0
+	while s4._shots < 6 and guard3 < 6.0:
+		await wait(0.02)
+		guard3 += 0.02
+	await wait(0.3)
+	var flare_ok := false
+	for n in world.get_children():
+		if script_is(n, "spell.gd") and str(n.data.get("id", "")) == "flare" and n.data.get("copy", false) == true:
+			flare_ok = true
+	ok("beacon t4 flare shell: a flare copy exists after %d shots %s" % [s4._shots, flare_ok], flare_ok)
+	# 4. alarm horn: three enemies, one blast
+	await clear_world()
+	var s5 = tower(id, 5, pos)
+	var crowd := [dummy(Vector2(0, 150)), dummy(Vector2(30, 160)), dummy(Vector2(-30, 160))]
+	var rng: float = s5.data.range
+	s5._timers["horn"] = 11.9
+	var ids := {}
+	var slowed := false
+	var tt := 0.0
+	while tt < 2.0:
+		for n in world.get_children():
+			if script_is(n, "fx.gd") and str(n.kind) == "ripple" and absf(float(n.radius) - rng) < 0.5:
+				ids[n.get_instance_id()] = true
+		await wait(0.05)
+		tt += 0.05
+		var all_slow := true
+		for e in crowd:
+			all_slow = all_slow and e.slow_mult <= 0.71
+		slowed = slowed or all_slow
+	ok("beacon t5 horn: %d blast(s) in 2 s, all three slowed %s (%.2f %.2f %.2f)" % [ids.size(), slowed, crowd[0].slow_mult, crowd[1].slow_mult, crowd[2].slow_mult], ids.size() == 1 and slowed)
+	# 5. searchlight on the toughest, with everything before it
+	await clear_world()
+	seen.clear()
+	var s6 = tower(id, 6, pos)
+	var boss = dummy(Vector2(0, 140), 99999.0)
+	var weak = dummy(Vector2(50, 160), 40000.0)
+	s6._timers["search"] = 14.95
+	var marked := false
+	var slow_seen := 1.0
+	var t6 := 0.0
+	while t6 < 4.6:
+		scan()
+		marked = marked or boss.has_meta("marked_until")
+		slow_seen = minf(slow_seen, boss.slow_mult)
+		await wait(0.05)
+		t6 += 0.05
+	var dd: float = s6.data.damage
+	ok("beacon t6 searchlight: the toughest lost %.1f in 4.6 s (3 x %.1f x 4 s = %.1f), marked %s, held slow %.2f, thick beam seen %s" % [lost(boss), dd, 12.0 * dd, marked, slow_seen, saw("line", -1.0, 14.0)], lost(boss) >= 8.0 * dd and marked and slow_seen <= 0.51 and saw("line", -1.0, 14.0))
+	await clear_world()
+	await draws(id, "beacon")

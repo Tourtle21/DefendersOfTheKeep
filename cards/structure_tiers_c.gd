@@ -5,7 +5,7 @@ extends RefCounted
 ## WeaponFx.spawn / Sfx.play, and what a client must draw is a public var of Structure (`charge`, `aim`, `vis`, ...).
 ## Host-only state of a card lives in `st._tdata` and `st._timers`.
 
-const OWN := ["crystal_pylon", "storm_spire", "magma_wall", "venom_tower", "prism_tower", "healing_grove", "sunspire", "phoenix_shrine"]
+const OWN := ["crystal_pylon", "storm_spire", "magma_wall", "venom_tower", "prism_tower", "healing_grove", "sunspire", "phoenix_shrine", "healing_lantern", "beacon_turret"]
 
 static func world_of(st) -> Node:
 	return st.get_parent()
@@ -66,6 +66,10 @@ static func tick(st, delta: float) -> void:
 			tick_sunspire(st, delta)
 		"phoenix_shrine":
 			tick_phoenix_shrine(st, delta)
+		"healing_lantern":
+			tick_healing_lantern(st, delta)
+		"beacon_turret":
+			tick_beacon_turret(st, delta)
 
 static func on_gnaw(st, e) -> void:
 	match id_of(st):
@@ -98,6 +102,8 @@ static func on_shot(st, target) -> void:
 			on_shot_prism_tower(st, target)
 		"sunspire":
 			on_shot_sunspire(st, target)
+		"beacon_turret":
+			on_shot_beacon_turret(st, target)
 
 static func budget_mult(st) -> float:
 	match id_of(st):
@@ -111,6 +117,8 @@ static func on_setup(st) -> void:
 			setup_crystal_pylon(st)
 		"magma_wall":
 			setup_magma_wall(st)
+		"healing_lantern":
+			setup_healing_lantern(st)
 
 static func on_promote(st, new_tier: int) -> void:
 	match id_of(st):
@@ -119,6 +127,8 @@ static func on_promote(st, new_tier: int) -> void:
 		"magma_wall":
 			setup_magma_wall(st)
 			st._thr.clear()
+		"healing_lantern":
+			setup_healing_lantern(st)
 
 static func on_expire(st) -> void:
 	match id_of(st):
@@ -1103,3 +1113,252 @@ static func on_expire_phoenix_shrine(st) -> void:
 	WeaponFx.spawn(w, "ripple", pos, PHX_GOLD, {"radius": 140.0, "rings": 4, "life": 0.9})
 	WeaponFx.spawn(w, "star", pos, PHX_GOLD, {"radius": 90.0, "count": 12, "spin": 2.0, "life": 0.9})
 	Sfx.play("ultimate")
+
+# ================================================================ Healing Lantern
+const LANT_GOLD := Color(1.0, 0.85, 0.5)
+const LANT_WHITE := Color(1.0, 0.97, 0.85)
+const LANT_GREEN := Color(0.6, 1.0, 0.7)
+const LANT_WISP := 0.5
+const LANT_WISP_SPEED := 90.0
+const LANT_REVEAL_SLOW := 0.85
+const LANT_SHIELD_AT := 0.5
+const LANT_SHIELD_CD := 15.0
+const LANT_SHIELD_T := 1.5
+const LANT_ZAP_T := 1.2
+const LANT_ZAP := 0.6
+const LANT_DAWN_T := 20.0
+const LANT_DAWN_HEAL := 0.25
+const LANT_DAWN_R := 1.5
+
+## Dawn lantern (tier 6): the light is a third wider.
+static func setup_healing_lantern(st) -> void:
+	if st.tier >= 6 and float(st.data.get("light", 0.0)) > 0.0:
+		ensure_light(st, float(st.data.light) * 1.3)
+
+## Where lantern spirit `i` floats (a function of the building's clock, so a LAN client draws it in the same place).
+static func spirit_pos(st, i: int) -> Vector2:
+	return st.global_position + Vector2.from_angle(st._age * 1.2 + i * TAU / 3.0) * st.radius * 0.6
+
+static func tick_healing_lantern(st, delta: float) -> void:
+	var t: int = st.tier
+	if t < 2:
+		return
+	var w := world_of(st)
+	var hps: float = float(st.data.heal_per_sec)
+	var pos: Vector2 = st.global_position
+	var r: float = st.radius
+	var ps: Array = []
+	for p in st.get_tree().get_nodes_in_group("player"):
+		if is_instance_valid(p) and !p.downed and p.global_position.distance_to(pos) <= r:
+			ps.append(p)
+	# the most hurt player in the field
+	var hurt = null
+	var lowest := 0.99
+	for p in ps:
+		var f: float = StructureTiers.hp_frac(p)
+		if f < lowest:
+			lowest = f
+			hurt = p
+	# 2 Healing wisp: it follows the most hurt player and heals them extra while it is on them (not counted against the budget)
+	var wisp: Vector2 = state(st, "wisp", pos + Vector2(10, -16))
+	var goal: Vector2 = pos + Vector2.from_angle(st._age * 1.5) * 12.0 + Vector2(0, -14)
+	if hurt != null:
+		goal = hurt.global_position + Vector2(0, -8)
+	wisp = wisp.move_toward(goal, LANT_WISP_SPEED * delta)
+	st._tdata["wisp"] = wisp
+	if hurt != null and wisp.distance_to(hurt.global_position) <= 12.0:
+		hurt.heal(hps * LANT_WISP * delta)
+		if StructureTiers.pace(st, "wisp_fx", 0.5, delta):
+			WeaponFx.spawn(w, "motes", hurt.global_position, LANT_GREEN, {"radius": 6.0, "count": 3, "rise": 10.0, "life": 0.5})
+	st.vis["wisp"] = (wisp - pos).snapped(Vector2(0.5, 0.5))
+	st.vis["wisp_to"] = hurt != null
+	# 3 Revealing light: whoever is in the field is lit and slowed a little
+	if t >= 3 and StructureTiers.pace(st, "reveal", 0.25, delta):
+		var lit := []
+		for e in StructureTiers.enemies(st, r):
+			Game.light_up(e, 2.0)
+			StructureTiers.keep_slow(e, LANT_REVEAL_SLOW, 0.3)
+			if lit.size() < 8:
+				lit.append(e.global_position - pos)
+		st.vis["lit"] = lit
+		if StructureTiers.pace(st, "reveal_fx", 2.0, 0.25):
+			WeaponFx.spawn(w, "ring", pos, Color(LANT_GOLD, 0.6), {"radius": r, "life": 0.5})
+			StructureTiers.sfx(st, "cast", 2.0, 0.8)
+	# 4 Guiding light: a player who falls below half health is shielded for a moment (once per player per 15 s)
+	if t >= 4:
+		var cds: Dictionary = state(st, "shield", {})
+		for id in cds.keys():
+			cds[id] -= delta
+			if cds[id] <= 0.0:
+				cds.erase(id)
+		var ribbon: float = float(st._timers.get("ribbon", 0.0)) - delta
+		st._timers["ribbon"] = maxf(0.0, ribbon)
+		if ribbon <= 0.0 and st.vis.has("ribbon"):
+			st.vis.erase("ribbon")
+		for p in ps:
+			var id2: int = p.get_instance_id()
+			if StructureTiers.hp_frac(p) < LANT_SHIELD_AT and !cds.has(id2):
+				cds[id2] = LANT_SHIELD_CD
+				p.shield_time = maxf(p.shield_time, LANT_SHIELD_T)
+				WeaponFx.spawn(w, "star", p.global_position, LANT_WHITE, {"radius": 16.0, "count": 6, "spin": 1.5, "life": 0.5})
+				st.vis["ribbon"] = (p.global_position - pos).snapped(Vector2(1, 1))
+				st._timers["ribbon"] = LANT_SHIELD_T
+				StructureTiers.sfx(st, "unlock", 0.4)
+	# 5 Spirit lanterns: three spirits zap the nearest enemy in the field in turn, and each zap that hits mends the most hurt player a little
+	if t >= 5:
+		for i in 3:
+			var key := "sp%d" % i
+			if !st._timers.has(key):
+				st._timers[key] = -0.4 * i
+			st._timers[key] += delta
+			if st._timers[key] >= LANT_ZAP_T:
+				var sp := spirit_pos(st, i)
+				var best = null
+				var bd := INF
+				for e in StructureTiers.enemies(st, r):
+					var d: float = e.global_position.distance_to(sp)
+					if d < bd:
+						bd = d
+						best = e
+				if best != null:
+					st._timers[key] = 0.0
+					var to: Vector2 = best.global_position
+					WeaponFx.spawn(w, "line", sp, LANT_GOLD, {"dir": (to - sp).normalized(), "length": (to - sp).length(), "width": 2.0, "life": 0.2})
+					WeaponFx.spawn(w, "burst", to, LANT_GOLD, {"radius": 8.0, "life": 0.2})
+					best.spell_damage(hps * LANT_ZAP, "fire")
+					if hurt != null:
+						hurt.heal(1.0)
+					StructureTiers.sfx(st, "hit", 0.3)
+				else:
+					st._timers[key] = LANT_ZAP_T
+	# 6 Dawn: every twenty seconds the lantern flares and heals, burns and shoves
+	if t >= 6:
+		if StructureTiers.pace(st, "dawn", LANT_DAWN_T, delta):
+			var big: float = r * LANT_DAWN_R
+			for p in st.get_tree().get_nodes_in_group("player"):
+				if is_instance_valid(p) and !p.downed and p.global_position.distance_to(pos) <= big:
+					p.heal(LANT_DAWN_HEAL * 228.0 * Game.hp_scale())
+			StructureTiers.pulse(st, big, hps * 3.0, 160.0, 0.0, LANT_GOLD, "fire")
+			for e in StructureTiers.enemies(st, big):
+				Game.light_up(e, 8.0)
+			WeaponFx.spawn(w, "flash", pos, LANT_WHITE, {"radius": big, "life": 0.5})
+			WeaponFx.spawn(w, "ripple", pos, LANT_GOLD, {"radius": big, "rings": 3, "life": 0.9})
+			WeaponFx.spawn(w, "star", pos, LANT_GOLD, {"radius": r, "count": 10, "spin": 2.0, "life": 0.9})
+			StructureTiers.sfx(st, "ultimate", 0.5)
+		st.charge = snappedf(StructureTiers.fill(st, "dawn", LANT_DAWN_T), 0.02)
+
+# ================================================================ Beacon Turret
+const BEACON_FLAME := Color(1.0, 0.7, 0.25)
+const BEACON_BRASS := Color(0.9, 0.75, 0.35)
+const BEACON_WHITE := Color(1.0, 0.97, 0.85)
+const BEACON_SIGNAL := 0.25
+const BEACON_SWEEP := 0.8
+const BEACON_SWEEP_SPEED := 1.3
+const BEACON_SWEEP_HALF := 0.11
+const BEACON_FLARE_EVERY := 6
+const BEACON_HORN_T := 12.0
+const BEACON_HORN_N := 3
+const BEACON_SEARCH_T := 15.0
+const BEACON_SEARCH_LEN := 4.0
+const BEACON_SEARCH := 3.0
+
+## The angle of the sweeping beam (the counter-beam of tier 6 is half a turn on).
+static func beam_angle(st) -> float:
+	return st._age * BEACON_SWEEP_SPEED
+
+static func on_shot_beacon_turret(st, target) -> void:
+	var t: int = st.tier
+	if t < 2 or !is_instance_valid(target):
+		return
+	var w := world_of(st)
+	var dmg: float = float(st.data.damage)
+	var from := muzzle(st)
+	var at: Vector2 = target.global_position
+	# 2 Signal fire: the target burns on and is lit
+	WeaponFx.spawn(w, "line", from, BEACON_FLAME, {"dir": (at - from).normalized(), "length": (at - from).length(), "width": 2.5, "life": 0.15})
+	WeaponFx.spawn(w, "burst", at, BEACON_FLAME, {"radius": 8.0, "life": 0.2})
+	StructureTiers.sfx(st, "hit", 0.2)
+	WeaponUtil.bleed(st.get_tree(), target, 3, dmg * BEACON_SIGNAL)
+	Game.light_up(target, 3.0)
+	# 4 Flare shell: every sixth shot sends up a flare on the target spot
+	if t >= 4:
+		st.charge = float(st._shots % BEACON_FLARE_EVERY) / BEACON_FLARE_EVERY
+		if st._shots % BEACON_FLARE_EVERY == 0:
+			StructureTiers.cast(st, "flare", at, 0.8, -2)
+			StructureTiers.sfx(st, "cast", 0.3)
+
+static func tick_beacon_turret(st, delta: float) -> void:
+	var t: int = st.tier
+	if t < 2:
+		return
+	var w := world_of(st)
+	var dmg: float = float(st.data.damage)
+	var pos: Vector2 = st.global_position
+	var rng: float = float(st.data.range)
+	# 3 Sweeping beam: whatever the beam crosses is hit, once per half second each
+	if t >= 3:
+		var cd: Dictionary = state(st, "beam_cd", {})
+		for id in cd.keys():
+			cd[id] -= delta
+			if cd[id] <= 0.0:
+				cd.erase(id)
+		var angles := [beam_angle(st)]
+		if t >= 6:
+			angles.append(beam_angle(st) + PI)
+		for e in StructureTiers.enemies(st, st.light_radius):
+			var id2: int = e.get_instance_id()
+			if cd.has(id2):
+				continue
+			var bearing: float = (e.global_position - pos).angle()
+			for a in angles:
+				if absf(angle_difference(bearing, a)) <= BEACON_SWEEP_HALF:
+					cd[id2] = 0.5
+					e.spell_damage(dmg * BEACON_SWEEP, "fire", true)
+					if is_instance_valid(e):
+						WeaponFx.spawn(w, "burst", e.global_position, BEACON_WHITE, {"radius": 7.0, "life": 0.2})
+					break
+	# 5 Alarm horn: three or more enemies in range and it blows
+	if t >= 5:
+		var near := StructureTiers.enemies(st, rng)
+		if StructureTiers.pace(st, "alert", 0.2, delta):
+			st.vis["alert"] = !near.is_empty()
+		if StructureTiers.ready(st, "horn", BEACON_HORN_T, delta) and near.size() >= BEACON_HORN_N:
+			StructureTiers.reset(st, "horn")
+			for e in near:
+				StructureTiers.keep_slow(e, 0.7, 3.0)
+				Game.light_up(e, 6.0)
+			WeaponFx.spawn(w, "ripple", pos, BEACON_BRASS, {"radius": rng, "rings": 2, "life": 0.7})
+			StructureTiers.sfx(st, "boss_roar", 0.5, 1.6)
+			st.fx_pulse = 0.0
+	# 6 Searchlight: a beam locks on the toughest visible enemy for four seconds
+	if t >= 6:
+		var lock = st._tdata.get("lock", null)
+		if lock != null and (!alive(lock[0]) or lock[1] <= 0.0):
+			st._tdata.erase("lock")
+			lock = null
+			st.vis["lock_on"] = false
+		if lock != null:
+			lock[1] -= delta
+			var e = lock[0]
+			var to: Vector2 = e.global_position
+			st.vis["lock"] = (to - pos).snapped(Vector2(1, 1))
+			StructureTiers.keep_slow(e, 0.5, 0.3)
+			e.set_meta("marked_until", Time.get_ticks_msec() / 1000.0 + 0.5)
+			if StructureTiers.pace(st, "search_fx", 0.1, delta):
+				var from2 := muzzle(st)
+				WeaponFx.spawn(w, "line", from2, Color(1.0, 0.97, 0.8, 0.9), {"dir": (to - from2).normalized(), "length": (to - from2).length(), "width": 14.0, "life": 0.12})
+			if StructureTiers.pace(st, "search_hit", 0.5, delta):
+				e.spell_damage(dmg * BEACON_SEARCH * 0.5, "fire")
+		elif StructureTiers.ready(st, "search", BEACON_SEARCH_T, delta):
+			var best = null
+			var hp := -1.0
+			for e in StructureTiers.enemies(st, rng):
+				if Game.defence_sees(e, pos) and float(e.max_health) > hp:
+					hp = float(e.max_health)
+					best = e
+			if best != null:
+				StructureTiers.reset(st, "search")
+				st._tdata["lock"] = [best, BEACON_SEARCH_LEN]
+				st.vis["lock_on"] = true
+				WeaponFx.spawn(w, "flash", best.global_position, BEACON_WHITE, {"radius": 18.0, "life": 0.3})
+				StructureTiers.sfx(st, "ultimate", 0.5)

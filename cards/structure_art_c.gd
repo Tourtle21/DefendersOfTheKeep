@@ -34,6 +34,12 @@ static func draw(st, col: Color) -> bool:
 		"phoenix_shrine":
 			draw_phoenix_shrine(st, col)
 			return true
+		"healing_lantern":
+			draw_healing_lantern(st, col)
+			return true
+		"beacon_turret":
+			draw_beacon_turret(st, col)
+			return true
 	return false
 
 # ---------------------------------------------------------------- shared shapes
@@ -879,3 +885,221 @@ static func draw_phoenix_shrine(st, col: Color) -> void:
 		bird(st, bpos + Vector2(0, -10), bdir, 4.0, age * 9.0, 0.7)
 		for i in 3:
 			st.draw_circle(bpos + Vector2(0, -10) - bdir * (8.0 + i * 5.0) + Vector2(0, sin(age * 6.0 + i) * 2.0), 1.0, Color(PX_GOLD, 0.6 - 0.15 * i))
+
+# ================================================================ Healing Lantern
+const LN_GOLD := Color(1.0, 0.85, 0.5)
+const LN_WHITE := Color(1.0, 0.97, 0.85)
+const LN_GREEN := Color(0.6, 1.0, 0.7)
+const LN_IRON := Color(0.3, 0.3, 0.34)
+const LN_GLASS := Color(0.9, 0.95, 1.0)
+
+## A hanging glass lantern of `w` x `h` with a warm flame inside; its top centre is `top`.
+static func lantern(st, top: Vector2, w: float, h: float, age: float, flame: float, seed: float) -> void:
+	st.draw_rect(Rect2(top.x - w * 0.5, top.y, w, h), Color.BLACK)
+	st.draw_rect(Rect2(top.x - w * 0.5 + 1.0, top.y + 1.0, w - 2.0, h - 2.0), Color(LN_GLASS, 0.4))
+	SpellArt.flame(st, top + Vector2(0, h - 1.5), w * 0.5, h * 0.7 * flame, Color(1.0, 0.7, 0.25, 0.95), sin(age * 5.0 + seed) * 0.8)
+	SpellArt.flame(st, top + Vector2(0, h - 1.5), w * 0.25, h * 0.4 * flame, LN_WHITE, 0.0)
+	st.draw_rect(Rect2(top.x - w * 0.5 - 1.0, top.y - 2.0, w + 2.0, 2.5), LN_IRON)
+	st.draw_rect(Rect2(top.x - w * 0.5 - 1.0, top.y + h - 0.5, w + 2.0, 2.5), LN_IRON)
+
+static func orb(st, p: Vector2, r: float, tail_dir: Vector2, age: float, col: Color) -> void:
+	for i in 4:
+		st.draw_circle(p + tail_dir * (r * (1.5 + i * 1.2)) + Vector2(0, sin(age * 6.0 + i) * 1.2), r * (0.6 - 0.12 * i), Color(col, 0.7 - 0.15 * i))
+	st.draw_circle(p, r + 1.0, Color(col, 0.3))
+	st.draw_circle(p, r, col)
+	st.draw_circle(p, r * 0.5, Color.WHITE)
+
+static func draw_healing_lantern(st, col: Color) -> void:
+	var t: int = st.tier
+	var age: float = st._age
+	var r: float = st.radius
+	var pulse := 0.5 + 0.5 * sin(age * 3.0)
+	var flame := 1.0 + (0.25 if t >= 3 else 0.0) + (0.5 if t >= 6 else 0.0)
+	st.draw_circle(Vector2.ZERO, r, Color(col, 0.06 + 0.04 * pulse))
+	st.draw_arc(Vector2.ZERO, r, 0, TAU, 48, Color(col, 0.35), 1.0)
+	# 6: a dawn-coloured glow over the field
+	if t >= 6:
+		st.draw_circle(Vector2.ZERO, r, Color(1.0, 0.75, 0.7, 0.07 + 0.03 * pulse))
+		st.draw_circle(Vector2.ZERO, r * 0.55, Color(LN_GOLD, 0.07))
+	# 3: a lit ring on the floor and six soft windows of light
+	if t >= 3:
+		st.draw_arc(Vector2.ZERO, r * 0.8, 0, TAU, 36, Color(LN_GOLD, 0.25), 1.0)
+		for i in 6:
+			var a := i * TAU / 6.0 + 0.3
+			var wp := Vector2.from_angle(a) * r * 0.55
+			st.draw_set_transform(wp, 0.0, Vector2(1.0, 0.5))
+			st.draw_circle(Vector2.ZERO, 5.0, Color(LN_GOLD, 0.12 + 0.1 * SpellArt.jit(int(age * 3.0) + i, 1.0)))
+			st.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+		for q in st.vis.get("lit", []):
+			st.draw_arc(q, 4.5, 0, TAU, 10, Color(LN_WHITE, 0.6), 1.0)
+	# 5: a ring of six tiny lamps on a chain
+	if t >= 5:
+		for i in 6:
+			var a := i * TAU / 6.0 + age * 0.3
+			var lp := Vector2(cos(a) * 11.0, -17.0 + sin(a) * 3.0)
+			st.draw_circle(lp, 1.5, Color(LN_GOLD, 0.95))
+		st.draw_arc(Vector2(0, -17), 11.0, 0, TAU, 20, Color(0.7, 0.55, 0.25, 0.7), 1.0)
+	# the post: iron pole with a curled hook arm (brass and taller at tier 5, gold and ornate at tier 6)
+	var post_col := LN_IRON
+	var top_y := -18.0
+	if t >= 5:
+		post_col = Color(0.55, 0.42, 0.2)
+		top_y = -24.0
+	if t >= 6:
+		post_col = Color(0.8, 0.65, 0.25)
+	st.draw_rect(Rect2(-2, top_y, 4, 6.0 - top_y), Color.BLACK)
+	st.draw_rect(Rect2(-1, top_y + 1.0, 2, 4.0 - top_y), post_col)
+	st.draw_rect(Rect2(-5, 3, 10, 4), Color.BLACK)
+	st.draw_rect(Rect2(-4, 4, 8, 2), post_col)
+	if t >= 5:
+		st.draw_arc(Vector2(-4, -8), 3.0, PI * 0.5, PI * 1.5, 8, post_col, 1.2)
+		st.draw_arc(Vector2(4, -8), 3.0, -PI * 0.5, PI * 0.5, 8, post_col, 1.2)
+	# the lantern hangs from the hook arm
+	var hook := Vector2(0, top_y)
+	st.draw_arc(hook + Vector2(4, 0), 4.0, PI, TAU * 0.95, 8, post_col, 1.5)
+	var lt := hook + Vector2(8, 3.0)
+	if t >= 6:
+		# a great ornate lantern: gold frame, an openwork dome, a sun-flower flame inside, columns of light at the sides
+		lt = Vector2(0, top_y - 12.0)
+		st.draw_colored_polygon(PackedVector2Array([Vector2(-5, lt.y - 5), Vector2(-3, lt.y + 6), Vector2(3, lt.y + 6), Vector2(5, lt.y - 5)]), Color(LN_GLASS, 0.3))
+		for k in [-8.0, 8.0]:
+			st.draw_colored_polygon(PackedVector2Array([Vector2(k - 2, lt.y + 5), Vector2(k + 2, lt.y + 5), Vector2(k + 3, lt.y - 40), Vector2(k - 3, lt.y - 40)]), Color(LN_GOLD, 0.1))
+		st.draw_arc(Vector2(0, lt.y - 5), 6.0, PI, TAU, 10, post_col, 1.5)
+		st.draw_line(Vector2(0, lt.y - 11), Vector2(0, lt.y - 5), post_col, 1.0)
+		for i in 10:
+			var a := age * 0.5 + i * TAU / 10.0
+			st.draw_line(Vector2(0, lt.y), Vector2.from_angle(a) * 6.0 + Vector2(0, lt.y), Color(LN_WHITE if i % 2 == 0 else LN_GOLD, 0.9), 1.5)
+		st.draw_circle(Vector2(0, lt.y), 3.0, Color.WHITE)
+		st.draw_arc(Vector2(0, lt.y), 11.0, 0, TAU, 24, Color(LN_GOLD, 0.5), 1.0)
+		for i in 12:
+			var a2 := i * TAU / 12.0 + age * 0.2
+			st.draw_line(Vector2(0, lt.y) + Vector2.from_angle(a2) * 12.0, Vector2(0, lt.y) + Vector2.from_angle(a2) * 16.0, Color(LN_GOLD, 0.6), 1.0)
+		st.draw_line(Vector2(0, lt.y + 6), Vector2(0, top_y), post_col, 1.5)
+	else:
+		if t >= 3:
+			st.draw_circle(lt + Vector2(0, 5), 14.0, Color(LN_GOLD, 0.2))
+		lantern(st, lt, 8.0, 10.0, age, flame, 0.0)
+	# 4: a smaller lantern on a chain below, and a halo ring turning round the first
+	if t >= 4 and t < 6:
+		st.draw_line(lt + Vector2(0, 10), lt + Vector2(0, 14), Color(0.6, 0.6, 0.65), 1.0)
+		lantern(st, lt + Vector2(0, 14), 5.0, 6.0, age, 0.8, 1.0)
+		for k in 6:
+			var a := age * 0.6 + k * TAU / 6.0
+			st.draw_arc(lt + Vector2(0, 5), 12.0, a, a + 0.5, 4, Color(LN_GOLD, 0.7), 1.5)
+	var rib: Variant = st.vis.get("ribbon", null)
+	if rib != null:
+		var tip: Vector2 = rib
+		var mid: Vector2 = (lt + tip) * 0.5 + Vector2(0, -10.0 + sin(age * 6.0) * 4.0)
+		st.draw_polyline(PackedVector2Array([lt + Vector2(0, 5), mid, tip + Vector2(0, -6)]), Color(LN_WHITE, 0.7), 1.5)
+	# 5: three lantern spirits circle
+	if t >= 5:
+		for i in 3:
+			var sp: Vector2 = TC.spirit_pos(st, i) - st.global_position
+			orb(st, sp, 3.0, Vector2.from_angle(age * 1.2 + i * TAU / 3.0 - PI * 0.5), age, LN_GOLD)
+	# 2: the wisp, and the thread to whom it tends
+	var wisp: Vector2 = st.vis.get("wisp", Vector2(10, -16))
+	orb(st, wisp, 2.6, Vector2(-1, 0.4).normalized(), age, LN_WHITE)
+	if bool(st.vis.get("wisp_to", false)):
+		st.draw_circle(wisp + Vector2(0, 5), 1.0, Color(LN_GREEN, 0.7))
+
+# ================================================================ Beacon Turret
+const BC_FLAME := Color(1.0, 0.7, 0.25)
+const BC_BRASS := Color(0.9, 0.75, 0.35)
+const BC_WHITE := Color(1.0, 0.97, 0.85)
+const BC_STONE := Color(0.7, 0.68, 0.65)
+const BC_RED := Color(0.85, 0.25, 0.2)
+
+## A wedge of light from `c` toward `ang`, `half` wide each side, `len` long.
+static func wedge(st, c: Vector2, ang: float, half: float, len: float, col: Color) -> void:
+	st.draw_colored_polygon(PackedVector2Array([c, c + Vector2.from_angle(ang - half) * len, c + Vector2.from_angle(ang + half) * len]), col)
+	st.draw_line(c, c + Vector2.from_angle(ang) * len, Color(BC_WHITE, col.a + 0.3), 1.0)
+
+static func draw_beacon_turret(st, col: Color) -> void:
+	var t: int = st.tier
+	var age: float = st._age
+	var beam_a: float = TC.beam_angle(st)
+	var lamp := Vector2(0, -16.0 if t < 6 else -34.0)
+	var flame := 1.0 + (0.4 if t >= 5 else 0.0) + (0.6 if t >= 6 else 0.0)
+	var alert: bool = bool(st.vis.get("alert", false))
+	# 3: the sweeping beam turns under the flame (6: long and bright with a halo, and a counter-beam)
+	if t >= 3:
+		var len: float = st.light_radius
+		var a := 0.45 if t >= 6 else 0.35
+		wedge(st, lamp, beam_a, 0.11, len, Color(BC_WHITE.lerp(BC_FLAME, 0.3), a))
+		if t >= 6:
+			wedge(st, lamp, beam_a + PI, 0.11, len, Color(BC_WHITE.lerp(BC_FLAME, 0.3), a))
+			st.draw_circle(lamp, 12.0 + sin(age * 4.0), Color(BC_WHITE, 0.2))
+	# 5: the horn sounds: arcs radiate from it
+	var horn := Vector2(11, -8)
+	var blow: float = st.fx_pulse
+	# the housing
+	if t >= 6:
+		# a tapered stone tower with red and white bands, a gold-roofed lantern room and a gallery
+		for i in 4:
+			var y0 := 7.0 - i * 6.5
+			var wb0 := 8.0 - i * 1.0
+			var wb1 := 8.0 - (i + 1) * 1.0
+			StructureArt.poly(st, PackedVector2Array([Vector2(-wb0, y0), Vector2(-wb1, y0 - 6.5), Vector2(wb1, y0 - 6.5), Vector2(wb0, y0)]), BC_RED if i % 2 == 0 else BC_WHITE)
+		st.draw_rect(Rect2(-8, -20, 16, 2), Color.BLACK)
+		st.draw_rect(Rect2(-7, -21, 14, 1), BC_BRASS)
+		for i in 5:
+			st.draw_line(Vector2(-7 + i * 3.5, -21), Vector2(-7 + i * 3.5, -24), BC_BRASS, 1.0)
+		StructureArt.box(st, Rect2(-4.5, -33, 9, 9), Color(0.9, 0.95, 1.0, 0.5))
+		StructureArt.poly(st, PackedVector2Array([Vector2(-6, -33), Vector2(0, -39), Vector2(6, -33)]), Color(0.85, 0.7, 0.2))
+	else:
+		StructureArt.box(st, Rect2(-7, -3, 14, 10), col.darkened(0.3))
+		if t >= 4:
+			StructureArt.box(st, Rect2(-5, -8, 10, 6), col.darkened(0.15))
+			# a flare rack: three tubes with red caps; a gauge of the shots until the next flare
+			for k in 3:
+				st.draw_rect(Rect2(-12 + k * 3, -6, 2.5, 8), Color.BLACK)
+				st.draw_rect(Rect2(-11.5 + k * 3, -5, 1.5, 6), Color(0.4, 0.4, 0.45))
+				st.draw_rect(Rect2(-12 + k * 3, -7, 2.5, 2), BC_RED)
+			st.draw_rect(Rect2(-12, 4, 9, 2), Color(0, 0, 0, 0.7))
+			st.draw_rect(Rect2(-12, 4, 9.0 * st.charge, 2), BC_FLAME)
+		# a brass band
+		st.draw_rect(Rect2(-7, 2, 14, 2), BC_BRASS)
+		if t >= 3:
+			# the lighthouse lens: a glass drum with three glints
+			var dy := -9.0 if t >= 4 else -8.0
+			st.draw_rect(Rect2(-5, dy - 8.0, 10, 9), Color.BLACK)
+			st.draw_rect(Rect2(-4, dy - 7.0, 8, 7), Color(0.85, 0.92, 1.0, 0.45))
+			for k in 3:
+				st.draw_line(Vector2(-2.5 + k * 2.5, dy - 6.0), Vector2(-2.5 + k * 2.5, dy - 1.0), Color(1, 1, 1, 0.8), 1.0)
+	# 2: an iron cage round the signal flame, sparks rising (hidden by the room at tier 6, where the flame is huge)
+	var base_y := (-17.0 if t >= 6 else (-18.0 if t >= 3 else -3.0))
+	var fh := 10.0 * flame
+	if t >= 6:
+		base_y = -24.0
+	SpellArt.flame(st, Vector2(0, base_y), 7.0 * flame, fh + 1.5 * sin(age * 7.0), Color(BC_FLAME, 0.95), sin(age * 5.0) * 1.0)
+	SpellArt.flame(st, Vector2(0, base_y), 3.5 * flame, fh * 0.6, Color(BC_WHITE, 1.0), 0.0)
+	if t < 6:
+		for k in 3:
+			st.draw_line(Vector2(-4.0 + k * 4.0, base_y + 1.0), Vector2(-4.0 + k * 4.0, base_y - 11.0 * flame), Color(0.2, 0.2, 0.22), 1.5)
+		st.draw_line(Vector2(-5, base_y - 11.0 * flame), Vector2(5, base_y - 11.0 * flame), BC_BRASS, 1.5)
+	for i in 4:
+		var u := fposmod(age * 0.8 + SpellArt.jit(i), 1.0)
+		st.draw_circle(Vector2((SpellArt.jit(i, 2.0) - 0.5) * 8.0, base_y - 8.0 - u * 18.0), 0.9, Color(BC_FLAME, 1.0 - u))
+	# 5: the big brass horn with a red banner, a blinking red warning light
+	if t >= 5:
+		var hx := 11.0 if t < 6 else 10.0
+		var hy := -6.0 if t < 6 else -12.0
+		StructureArt.poly(st, PackedVector2Array([Vector2(hx - 3, hy - 1.5), Vector2(hx + 9, hy - 6.0), Vector2(hx + 9, hy + 6.0), Vector2(hx - 3, hy + 1.5)]), BC_BRASS)
+		st.draw_line(Vector2(hx + 1, hy + 5), Vector2(hx + 1, hy + 12), Color(0.4, 0.3, 0.2), 1.5)
+		StructureArt.poly(st, PackedVector2Array([Vector2(hx - 1, hy + 4), Vector2(hx + 4, hy + 4), Vector2(hx + 4, hy + 11), Vector2(hx + 1.5, hy + 9), Vector2(hx - 1, hy + 11)]), BC_RED)
+		if blow < 0.6:
+			for k in 3:
+				st.draw_arc(Vector2(hx + 9, hy), 4.0 + k * 4.0 + blow * 14.0, -0.6, 0.6, 6, Color(BC_BRASS, 0.8 * (1.0 - blow / 0.6)), 1.5)
+		if alert and sin(age * 10.0) > 0.0:
+			st.draw_circle(Vector2(-9, -22 if t < 6 else -34), 3.0, Color(BC_RED, 0.95))
+			st.draw_circle(Vector2(-9, -22 if t < 6 else -34), 6.0, Color(BC_RED, 0.25))
+	# 6: the searchlight locked on one enemy: a thick white beam with a lens flare
+	if t >= 6 and bool(st.vis.get("lock_on", false)):
+		var to: Vector2 = st.vis.get("lock", Vector2.ZERO)
+		st.draw_line(lamp, to, Color(BC_WHITE, 0.35), 8.0)
+		st.draw_line(lamp, to, Color(BC_WHITE, 0.8), 3.0)
+		glint(st, lamp, 8.0 + 2.0 * sin(age * 12.0), Color(BC_WHITE, 0.9))
+		st.draw_circle(to, 6.0, Color(BC_WHITE, 0.4))
+	if st.shot_t > 0.0:
+		var to2: Vector2 = st.shot_to - st.global_position
+		st.draw_line(lamp, to2, Color(BC_FLAME.lightened(0.4), 0.95), 2.0)
