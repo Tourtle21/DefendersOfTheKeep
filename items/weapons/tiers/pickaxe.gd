@@ -61,6 +61,9 @@ static func strike_r(w) -> float:
 	return 24.0 * w.area() * (1.0 + 0.25 * maxi(0, w.tier - 2))
 
 ## Tier 2 Shatter: Seismic Strike throws debris in a wider ring (the core is hit by the strike itself, 0.5 s after the click).
+static func pre_ability(w) -> void:
+	w._st.strike_c = w.cursor_target(80.0)             # the same centre the strike uses
+
 static func ability(w) -> void:
 	if w.tier < 2:
 		return

@@ -71,10 +71,18 @@ func _ready() -> void:
 	_util_lit = WeaponUtil.lit
 	if light_radius > 0.0:
 		GlowLight.attach(self, light_radius, Color(1.0, 0.85, 0.55), 0.8)
+	player = get_parent().get_parent()
+	_attach_visual()
+	_follow()
+	_st = {}
+	WeaponTiers.run(self, "equip")
+	WeaponAura.attach(self)
+
+## The weapon's picture: its icon, placed `reach` out from the player. (The Sword and Pickaxe, which are scenes with their own animation, replace this.)
+func _attach_visual() -> void:
 	top_level = true
 	z_as_relative = false
 	z_index = 5
-	player = get_parent().get_parent()
 	sprite = Sprite2D.new()
 	sprite.texture = WeaponArt.icon(weapon_id, tier, icon_path)
 	sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
@@ -82,10 +90,10 @@ func _ready() -> void:
 	sprite.position = Vector2(reach, 0)
 	sprite.scale = Vector2(icon_scale, icon_scale)
 	add_child(sprite)
-	_follow()
-	_st = {}
-	WeaponTiers.run(self, "equip")
-	WeaponAura.attach(self)
+
+## Point the weapon along `aim` (a dash goes where you move, not at the mouse). The scene weapons keep their animation's rotation.
+func _orient() -> void:
+	rotation = aim.angle()
 
 func _follow() -> void:
 	global_position = player.global_position + Vector2(0, -3)
@@ -148,11 +156,12 @@ func ultimate_unlocked() -> bool:
 	return tier >= 3
 
 var _lock_note_ms := 0
+var lock_hint := "Awaken or fuse this weapon at the Forge."
 
 func _locked_note(what: String, need: int) -> void:
 	if Time.get_ticks_msec() - _lock_note_ms > 1500:
 		_lock_note_ms = Time.get_ticks_msec()
-		Game.announce.emit("%s needs tier %d. Awaken or fuse this weapon at the Forge." % [what, need])
+		Game.announce.emit("%s needs tier %d. %s" % [what, need, lock_hint])
 
 func use_ability() -> void:
 	_claim()
@@ -220,7 +229,7 @@ func use_dash() -> void:
 	_verb_ms["dash"] = Time.get_ticks_msec()
 	Sfx.play("whoosh", 0.05, 1.5)
 	aim = player.dash_dir(aim)         # a dash goes the way you are moving, not toward the mouse
-	rotation = aim.angle()
+	_orient()
 	WeaponTiers.run(self, "pre_dash")
 	dash_attack()
 	WeaponTiers.run(self, "dash")
