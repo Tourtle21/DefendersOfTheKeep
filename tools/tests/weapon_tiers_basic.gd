@@ -543,7 +543,84 @@ func t_scimitar() -> void:
 	ok("scimitar Finisher: the sixth slash at tier 6 throws a wave (%d projectiles alive)" % maxp, maxp >= 1)
 	await draw_smoke("scimitar")
 
+func t_whip() -> void:
+	var w
+	w = await equip("whip", 2, false)
+	var target = dummy(P + Vector2(60, 0))
+	var pack1 = dummy(P + Vector2(60, 30))
+	var pack2 = dummy(P + Vector2(60, -30))
+	w.use_ability()
+	await wait(0.15)
+	var a := lost(target)
+	var all_exposed: bool = is_exposed(target) and is_exposed(pack1) and is_exposed(pack2)
+	await wait(1.4)
+	ok("whip Barbed Hook: tier 2 the whole pack is exposed %s and the target keeps bleeding (%.1f more)" % [all_exposed, lost(target) - a], all_exposed and lost(target) - a > 0.5)
+	var dc := {}
+	for t in [2, 3]:
+		w = await equip("whip", t, false)
+		var d = dummy(P + Vector2(56, 0))
+		var per := []
+		var seen := {}
+		for i in 3:
+			w._attack_cd = 0.0
+			var h0 := lost(d)
+			w.use_item()
+			for k in 8:
+				await wait(0.05)
+				fx_kinds(seen)
+			per.append(lost(d) - h0)
+			await wait(0.3)
+		dc[t] = [per, seen]
+	ok("whip Double Crack: tier 3 only the second arc of the third swing reaches 56 px (%s), slash fx %s; tier 2 %s" % [dc[3][0], dc[3][1].has("slash"), dc[2][0]], dc[3][0][0] == 0.0 and dc[3][0][1] == 0.0 and dc[3][0][2] > 0.0 and dc[3][1].has("slash") and dc[2][0] == [0.0, 0.0, 0.0])
+	var eh := {}
+	for t in [3, 4]:
+		w = await equip("whip", t, false)
+		var d = dummy(P + Vector2(30, 0))
+		w.use_ability()
+		await wait(0.2)
+		var h0 := lost(d)
+		await wait(0.5)
+		eh[t] = lost(d) - h0
+	ok("whip Echo Hook: tier 4 a second snap hits the pulled dummy (%.1f vs %.1f)" % [eh[4], eh[3]], eh[4] > eh[3] + 2.0)
+	var gp := {}
+	for t in [3, 4]:
+		w = await equip("whip", t, false)
+		var d = dummy(P + Vector2(90, 0))
+		w.use_dash()
+		await wait(0.5)
+		gp[t] = d.global_position.x - player.global_position.x
+	ok("whip Grapple Swing: tier 4 the dash ends %.0f px from the dummy at 90 (tier 3: %.0f)" % [gp[4], gp[3]], gp[4] <= 20.0 and gp[3] > 20.0)
+	var im := {}
+	for t in [4, 5, 6]:
+		w = await equip("whip", t, false)
+		var ds := [dummy(P + Vector2(30, 0)), dummy(P + Vector2(-30, 5))]
+		w.use_ultimate()
+		var seen := {}
+		var stunned := false
+		for i in 60:
+			await wait(0.05)
+			fx_kinds(seen)
+			if ds[0].slow_mult == 0.0 or ds[1].slow_mult == 0.0:
+				stunned = true
+		im[t] = {"lost": lost(ds[0]) + lost(ds[1]), "seen": seen, "stun": stunned}
+	ok("whip Implosion: tier 5 vortex fx %s and more damage than tier 4 (%.1f vs %.1f; the dummies stand still, so the pull itself is not measured)" % [im[5].seen.has("vortex"), im[5].lost, im[4].lost], im[5].seen.has("vortex") and !im[4].seen.has("vortex") and im[5].lost > im[4].lost + 2.0)
+	ok("whip Thunder Crack: tier 6 bolts %s, stun %s, more damage (%.1f vs %.1f); tier 5 no bolts %s" % [im[6].seen.has("bolt"), im[6].stun, im[6].lost, im[5].lost, im[5].seen.has("bolt")], im[6].seen.has("bolt") and im[6].stun and !im[5].seen.has("bolt") and im[6].lost > im[5].lost + 4.0)
+	w = await equip("whip", 6, false)
+	var d6 = dummy(P + Vector2(64, 0))
+	var fin := false
+	for i in 6:
+		w._attack_cd = 0.0
+		var h0 := lost(d6)
+		w.use_item()
+		await wait(0.4)
+		if i == 5:
+			fin = lost(d6) - h0 > 0.0                # 64 px is beyond the normal reach of 46: only the finisher (r 70) gets there
+	ok("whip Finisher: the sixth crack at tier 6 reaches 64 px %s" % fin, fin)
+	await draw_smoke("whip")
+
 func run() -> void:
+	if only == "" or only == "whip":
+		await t_whip()
 	if only == "" or only == "scimitar":
 		await t_scimitar()
 	if only == "" or only == "daggers":

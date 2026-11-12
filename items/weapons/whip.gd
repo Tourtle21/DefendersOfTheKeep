@@ -23,24 +23,42 @@ func _init() -> void:
 
 func attack() -> void:
 	swing(0.45, 0.15)
+	var finisher: bool = _st.get("finisher", false)          # tier 6: every sixth crack reaches further and hits harder (tiers/whip.gd)
+	_crack(70.0 if finisher else 46.0, CRACK_START, 1.5 if finisher else 1.0, Vector2(0.3, 1.0) if finisher else Vector2(0.5, 0.8))
+
+## One crack of the whip: `reach` long, the tip zone starting at `zone`. The tiers add a second crack and a finisher through it.
+func _crack(reach_len: float, zone: float, mult := 1.0, slow := Vector2(0.5, 0.8)) -> void:
 	var o: Vector2 = player.global_position
-	fx("arc", o, Color(0.8, 0.5, 0.3), {"radius": 46.0, "dir": aim, "half_angle": 0.35, "life": 0.15})
-	for e in WeaponUtil.enemies_in_arc(get_tree(), o, aim, 46.0, 20.0):
+	fx("arc", o, Color(0.8, 0.5, 0.3), {"radius": reach_len, "dir": aim, "half_angle": 0.35, "life": 0.15})
+	for e in WeaponUtil.enemies_in_arc(get_tree(), o, aim, reach_len, 20.0):
 		var d: float = e.global_position.distance_to(o)
 		var dmg := Game.basic_hit(weapon_id)
-		if d >= CRACK_START:
-			dmg *= 2.5
-			e.apply_slow(0.5, 0.8)
+		if d >= zone:
+			dmg *= 2.5 * mult
+			e.apply_slow(slow.x, slow.y)
 			fx("ring", e.global_position, Color(1.0, 0.85, 0.3), {"radius": 10.0, "life": 0.2})
+			if tier >= 2:
+				fx("burst", e.global_position, Color(1.0, 0.97, 0.9), {"radius": 10.0, "life": 0.2})
 		if WeaponUtil.is_exposed(e):
 			dmg *= 2.0
 			WeaponUtil.clear_exposed(e)
 		WeaponUtil.hit(e, dmg, o, 90.0)
 
 func dash_attack() -> void:
-	# Whip Swing: swing yourself toward the cursor, lashing what you pass
-	fx("line", player.global_position, Color(0.9, 0.7, 0.4), {"dir": aim, "length": 60.0, "width": 3.0, "life": 0.2})
-	player.dash(aim, 60.0, 0.14)
+	# Whip Swing: swing yourself toward the cursor, lashing what you pass (tier 4+: grapple to an enemy in the line)
+	var o: Vector2 = player.global_position
+	var dist := 60.0
+	_st["grapple"] = null
+	if tier >= 4:
+		var best = null
+		for e in WeaponUtil.enemies_in_line(get_tree(), o, aim, 90.0, 12.0):
+			if best == null or e.global_position.distance_to(o) < best.global_position.distance_to(o):
+				best = e
+		if best != null:
+			dist = maxf(8.0, best.global_position.distance_to(o) - 14.0)
+			_st["grapple"] = best.global_position
+	fx("line", o, Color(0.9, 0.7, 0.4), {"dir": aim, "length": dist, "width": 3.0, "life": 0.2})
+	player.dash(aim, dist, 0.14)
 	start_dash_hits(1.5, 14.0, 100.0, 0.18)
 
 func ability() -> void:
@@ -54,6 +72,7 @@ func ability() -> void:
 		_ability_cd = 0.4      # missed: no real cooldown
 		return
 	fx("line", o, Color(0.9, 0.7, 0.4), {"dir": aim, "length": best.global_position.distance_to(o), "width": 3.0, "life": 0.2})
+	_st["hook"] = {"t": best, "end": o + aim * 16.0}          # (for the tiers: the bleed and the echo)
 	WeaponUtil.hit(best, 1.0, o)
 	if is_instance_valid(best) and !best.is_queued_for_deletion():
 		best.push((o - best.global_position).normalized() * 330.0, 0.3)
@@ -63,6 +82,8 @@ func ability() -> void:
 			if e != best and is_instance_valid(e):
 				e.push((o - e.global_position).normalized() * 220.0, 0.25)
 				e.apply_slow(0.2, 0.8)
+				if tier >= 2:
+					WeaponUtil.expose(e, 1.5)              # Barbed Hook: the whole pulled pack is exposed
 
 func ultimate() -> void:
 	# Tempest Lash: three big whip rings around you

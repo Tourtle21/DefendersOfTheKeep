@@ -22,3 +22,4 @@ CLAIM rimelance
 CLAIM sultanguard
 DONE scimitar
 DONE lance
+DONE whip
