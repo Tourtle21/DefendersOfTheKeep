@@ -156,7 +156,86 @@ func barricade() -> void:
 	var seen := await fx_seen(4.6)
 	ok("tier 6 still has stakes, ballista and shove (%s)" % str(seen), seen.get("pillar", 0) >= 1 and seen.get("line", 0) >= 1 and seen.get("shards", 0) >= 1)
 
+# ================================================================== Iron Bulwark
+## hp lost by a wall with a dummy gnawing it for `secs`
+func chewed(id: String, tier: int, secs: float, aura_at = null) -> float:
+	var c := Vector2(0, 300)
+	var st = build(id, tier, c, false)
+	var other = null
+	if aura_at != null:
+		other = build("iron_wall", 4, c - aura_at, true)
+	var e = dummy(c + Vector2(20, 0))
+	var hp0: float = st.hp
+	await wait(secs)
+	var lost: float = hp0 - st.hp
+	await clear()
+	return lost
 func iron_wall() -> void:
-	pass
+	print("-- iron_wall")
+	var c := Vector2(0, 300)
+	var tl = load("res://cards/structure_tiers.gd")
+	# Plating (tier 2): enemies chew less
+	var l1: float = await chewed("iron_wall", 1, 6.0)
+	var l2: float = await chewed("iron_wall", 2, 6.0)
+	ok("tier 2 plating: a gnawer costs 75%% of the hp (tier 1 lost %.1f, tier 2 lost %.1f)" % [l1, l2], l1 > 3.0 and absf(l2 / l1 - 0.75) < 0.1)
+	# Ram slam (tier 3)
+	var rs := {}
+	for t in [2, 3]:
+		var st = build("iron_wall", t, c)
+		var e = dummy(c + Vector2(22, 0))
+		var mx := 0.0
+		var mn := 1.0
+		for i in 110:
+			await wait(0.05)
+			mx = maxf(mx, e.knock_vel.length())
+			mn = minf(mn, e.slow_mult)
+		rs[t] = [snappedf(mx, 1.0), mn]
+		await clear()
+	ok("tier 3 slams a gnawer away and stuns it, tier 2 never (%s)" % str(rs), rs[3][0] > 100.0 and rs[3][1] == 0.0 and rs[2][0] == 0.0)
+	# Bulwark aura (tier 4): a neighbour takes 20% less
+	var plain_loss: float = await chewed("barricade", 1, 6.0)
+	var aura_loss: float = await chewed("barricade", 1, 6.0, Vector2(-40, 0))
+	ok("tier 4 aura: a barricade 40 px away loses 20%% less (alone %.1f, near a bulwark %.1f)" % [plain_loss, aura_loss], plain_loss > 3.0 and absf(aura_loss / plain_loss - 0.8) < 0.1)
+	# Deflect (tier 5)
+	var df := {}
+	for t in [4, 5]:
+		var st = build("iron_wall", t, c)
+		load("res://enemies/spitter/enemy_projectile.gd").fire(world, c + Vector2(45, 0), Vector2(-1, 0), 95.0, 30.0)
+		var turned := false
+		var gone := false
+		for i in 40:
+			await wait(0.05)
+			for n in world.get_children():
+				if n.get_script() != null and str(n.get_script().resource_path).ends_with("projectile.gd") and n.vel.x > 0.0 and n.damage < 10.0 and n.get_script().resource_path.ends_with("/items/weapons/projectile.gd"):
+					turned = true
+		for n in get_nodes_of("enemy_shot"):
+			gone = false
+		df[t] = turned
+		await clear()
+	ok("tier 5 throws enemy shots back, tier 4 does not (%s)" % str(df), df[5] and !df[4])
+	# Anvil bell (tier 6)
+	var st6 = build("iron_wall", 6, c)
+	var near = dummy(c + Vector2(80, 0))
+	var ref = dummy(c + Vector2(500, 0))
+	var thorns: float = st6.data.thorns
+	ref.spell_damage(thorns * 6.0, "", true)
+	var mn6 := 1.0
+	var seen6 := {}
+	var t6 := 0.0
+	while t6 < 12.4:
+		await wait(0.05)
+		t6 += 0.05
+		mn6 = minf(mn6, near.slow_mult)
+		for n in world.get_children():
+			if n.get_script() != null and str(n.get_script().resource_path).ends_with("fx.gd") and n.kind == "flash":
+				seen6["flash"] = true
+	ok("tier 6 bell tolls after 12 s: flash, hurts (%.1f, a plain hit of that size does %.1f), stuns (%.1f)" % [dealt(near), dealt(ref), mn6], seen6.has("flash") and dealt(near) >= dealt(ref) * 0.95 and mn6 == 0.0)
+	await clear()
+	# Cumulative: tier 6 keeps plating and slam
+	var l6: float = await chewed("iron_wall", 6, 3.0)
+	var lone = build("iron_wall", 6, c + Vector2(300, 0))
+	ok("tier 6 keeps its plating (guard_mult %.2f)" % tl.guard_mult(lone), absf(tl.guard_mult(lone) - 0.75) < 0.01)
 func thorn_hedge() -> void:
 	pass
+func get_nodes_of(g: String) -> Array:
+	return world.get_tree().get_nodes_in_group(g)

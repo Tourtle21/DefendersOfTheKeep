@@ -214,6 +214,8 @@ static func tick(st, delta: float) -> void:
 			tick_sentry(st, delta)
 		"mender":
 			tick_mender(st, delta)
+		"iron_wall":
+			tick_iron_wall(st, delta)
 		_:
 			pass
 
@@ -222,6 +224,8 @@ static func on_gnaw(st, e) -> void:
 	match id_of(st):
 		"crystal_pylon", "storm_spire", "magma_wall", "venom_tower", "prism_tower", "healing_grove", "sunspire", "phoenix_shrine":
 			C.on_gnaw(st, e)
+		"iron_wall":
+			on_gnaw_iron_wall(st, e)
 		_:
 			pass
 
@@ -230,9 +234,13 @@ static func guard_mult(st) -> float:
 	if st._invuln > 0.0:
 		return 0.0
 	var m := 1.0
-	match id_of(st):
-		_:
-			pass
+	if id_of(st) == "iron_wall" and st.tier >= 2:                  # Iron Bulwark 2: plating
+		m *= IRON_PLATE
+	var aura := 0                                                  # Iron Bulwark 4: any structure near a tier 4+ bulwark takes less (two count at most)
+	for o in st.get_tree().get_nodes_in_group("structure"):
+		if aura < 2 and o != st and is_instance_valid(o) and !o.is_queued_for_deletion() and o.tier >= 4 and String(o.data.get("id", "")) == "iron_wall" and o.global_position.distance_to(st.global_position) <= IRON_AURA_R:
+			aura += 1
+	m *= pow(IRON_AURA, aura)
 	return m
 
 ## Sentry family: a multiplier on the wait between shots.
@@ -743,3 +751,52 @@ static func tick_mender(st, delta: float) -> void:
 				WeaponFx.spawn(w, "star", pp, WALL_GOLD, {"radius": 36.0, "count": 8, "spin": 1.5, "life": 0.6})
 				Sfx.play("ultimate")
 				st.fx_pulse = 0.0
+
+# ---------------------------------------------------------------- Iron Bulwark
+const IRON_PLATE := 0.75
+const IRON_AURA_R := 60.0
+const IRON_AURA := 0.8
+const IRON_SLAM_T := 5.0
+const IRON_BELL_T := 12.0
+const IRON_BELL_R := 90.0
+const IRON_WHITE := Color(0.9, 0.93, 1.0)
+
+static func on_gnaw_iron_wall(st, e) -> void:
+	var now := Time.get_ticks_msec() / 1000.0
+	if st.tier >= 2 and now - float(st._timers.get("sparkt", -9.0)) >= 0.4 and is_instance_valid(e):       # (a white spark on the side that was chewed)
+		st._timers["sparkt"] = now
+		var d: Vector2 = (e.global_position - st.global_position).normalized()
+		WeaponFx.spawn(world_of(st), "burst", st.global_position + d * st.radius, IRON_WHITE, {"radius": 6.0, "life": 0.2})
+
+static func tick_iron_wall(st, delta: float) -> void:
+	var t: int = st.tier
+	if t < 3:
+		return
+	var thorns: float = float(st.data.get("thorns", 0.0))
+	var w := world_of(st)
+	var pos: Vector2 = st.global_position
+	# 3 Ram slam: the wall slams out at whoever is gnawing it
+	if ready(st, "slam", IRON_SLAM_T, delta) and !enemies(st, st.radius + 16.0).is_empty():
+		reset(st, "slam")
+		pulse(st, st.radius + 16.0, thorns * 2.0, 200.0, 0.8, IRON_WHITE)
+		WeaponFx.spawn(w, "shards", pos, IRON_WHITE, {"radius": 26.0, "count": 8, "life": 0.3})
+		Sfx.play("thump")
+	# 5 Deflect: enemy shots that reach the wall are thrown back
+	if t >= 5:
+		for sh in st.get_tree().get_nodes_in_group("enemy_shot"):
+			if is_instance_valid(sh) and !sh.is_queued_for_deletion() and sh.global_position.distance_to(pos) <= st.radius + 6.0:
+				var back: Vector2 = -sh.vel.normalized()
+				WeaponProjectile.shoot(w, sh.global_position, back, 180.0, maxf(1.0, float(sh.damage) / 10.0), sh.tint, 1.0, 0, 40.0)
+				WeaponFx.spawn(w, "line", sh.global_position, Color.WHITE, {"dir": back, "length": 28.0, "width": 2.0, "life": 0.15})
+				WeaponFx.spawn(w, "burst", sh.global_position, IRON_WHITE, {"radius": 8.0, "life": 0.2})
+				sh.queue_free()
+				sfx(st, "hit", 0.2)
+	# 6 Anvil bell: every 12 s the bell tolls
+	if t >= 6:
+		if pace(st, "bell", IRON_BELL_T, delta):
+			pulse(st, IRON_BELL_R, thorns * 6.0, 320.0, 1.0, WALL_GOLD)
+			WeaponFx.spawn(w, "flash", pos, Color(1.0, 0.95, 0.7), {"radius": IRON_BELL_R, "life": 0.4})
+			WeaponFx.spawn(w, "ripple", pos, WALL_GOLD, {"radius": IRON_BELL_R, "rings": 3, "life": 0.6})
+			WeaponFx.spawn(w, "shards", pos, WALL_GOLD, {"radius": IRON_BELL_R, "count": 14, "life": 0.5})
+			Sfx.play("gong")
+		st.charge = fill(st, "bell", IRON_BELL_T)

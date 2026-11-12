@@ -28,6 +28,9 @@ static func draw(st, col: Color) -> bool:
 		"mender":
 			draw_mender(st, col)
 			return true
+		"iron_wall":
+			draw_iron_wall(st, col)
+			return true
 		_:
 			return false
 
@@ -525,3 +528,94 @@ static func dashed_ring_at(st, c: Vector2, r: float, col: Color, n: int, spin :=
 	for i in n:
 		var a := spin + i * TAU / float(n)
 		st.draw_arc(c, r, a, a + TAU / float(n) * 0.55, 4, col, 1.5)
+
+# ---------------------------------------------------------------- Iron Bulwark
+const BRASS_DARK := Color(0.9, 0.75, 0.35)
+const HAZARD := Color(0.95, 0.8, 0.15)
+
+static func draw_iron_wall(st, col: Color) -> void:
+	var r: float = st.radius
+	var t: int = st.tier
+	var age: float = st._age
+	var top := -r * 0.8
+	var bot := r * 0.8
+	var h := bot - top
+	var thorns: float = float(st.data.get("thorns", 0.0))
+	var dark := Color(0.35, 0.38, 0.45)
+	if t >= 4:                                                    # the aura: a faint ring, links to the buildings it covers
+		dashed_ring(st, StructureTiers.IRON_AURA_R, Color(0.9, 0.75, 0.35, 0.1), 30, age * 0.1)
+		for o in st.get_tree().get_nodes_in_group("structure"):
+			if o != st and is_instance_valid(o) and o.global_position.distance_to(st.global_position) <= StructureTiers.IRON_AURA_R:
+				var d: Vector2 = o.global_position - st.global_position
+				for i in int(d.length() / 6.0):
+					st.draw_circle(d.normalized() * (4.0 + i * 6.0), 0.6, Color(0.9, 0.75, 0.35, 0.3))
+				st.draw_arc(d, o.radius + 3.0, 0, TAU, 20, Color(0.9, 0.75, 0.35, 0.5), 1.0)
+	if t >= 3:                                                    # pistons on each side
+		var out := 3.0 if st.fx_pulse < 0.2 else 0.0
+		for sx in [-1.0, 1.0]:
+			box(st, Rect2(sx * (r + 1.0 + out) - 2.0, -5.0, 4, 10), dark)
+			st.draw_rect(Rect2(sx * (r + 1.0 + out) - 1.0, -4.0, 2, 8), col.lightened(0.2))
+	box(st, Rect2(-r, top, r * 2.0, h), col)
+	if t == 1:
+		for i in 3:
+			var y := top + h * (0.25 + 0.25 * i)
+			st.draw_line(Vector2(-r + 2, y), Vector2(r - 2, y), col.darkened(0.4), 1.5)
+	if t >= 2:                                                    # a grid of riveted plates
+		st.draw_line(Vector2(0, top + 1), Vector2(0, bot - 1), dark, 1.0)
+		for k in [1.0 / 3.0, 2.0 / 3.0]:
+			st.draw_line(Vector2(-r + 1, top + h * k), Vector2(r - 1, top + h * k), dark, 1.0)
+		for cx in [-r + 2.5, -2.5, 2.5, r - 2.5]:
+			for ry in [0.0, 1.0, 2.0]:
+				st.draw_circle(Vector2(cx, top + 2.5 + ry * h / 3.0), 0.8, Color(0.9, 0.92, 0.98))
+				st.draw_circle(Vector2(cx, top + h * (ry + 1.0) / 3.0 - 2.5), 0.8, Color(0.9, 0.92, 0.98))
+		st.draw_line(Vector2(-r + 1, top + 1), Vector2(r - 1, top + 1), Color(1, 1, 1, 0.5), 1.0)
+	if t >= 3:                                                    # hazard chevrons along the bottom and a blunt ram plate
+		for i in 9:
+			var x0 := -r + 1.0 + i * (r * 2.0 - 2.0) / 9.0
+			var wd := (r * 2.0 - 2.0) / 9.0
+			st.draw_colored_polygon(PackedVector2Array([Vector2(x0, bot - 1), Vector2(x0 + wd * 0.6, bot - 1), Vector2(x0 + wd, bot - 4), Vector2(x0 + wd * 0.4, bot - 4)]), HAZARD if i % 2 == 0 else Color.BLACK)
+		box(st, Rect2(-5, bot - 7, 10, 3), dark.lightened(0.15))
+	if t >= 4:                                                    # an embossed shield with a brass boss
+		kite(st, Vector2(0, top + h * 0.4), 10.0, 12.0, col.darkened(0.15), dark)
+		st.draw_circle(Vector2(0, top + h * 0.4), 2.2, Color.BLACK)
+		st.draw_circle(Vector2(0, top + h * 0.4), 1.7, BRASS_DARK)
+	if t >= 5:                                                    # polished plates: a gleam sweeps across
+		var u := fposmod(age / 2.0, 1.0)
+		var gx := lerpf(-r - 6.0, r + 6.0, u)
+		var q := PackedVector2Array([Vector2(gx - 3, top), Vector2(gx + 2, top), Vector2(gx - 2, bot), Vector2(gx - 7, bot)])
+		var clipped := Geometry2D.intersect_polygons(q, PackedVector2Array([Vector2(-r, top), Vector2(r, top), Vector2(r, bot), Vector2(-r, bot)]))
+		for poly_pts in clipped:
+			st.draw_colored_polygon(poly_pts, Color(1, 1, 1, 0.5))
+		for sx in [-1.0, 1.0]:                                    # chamfered corners
+			st.draw_colored_polygon(PackedVector2Array([Vector2(sx * r, top), Vector2(sx * (r - 3), top), Vector2(sx * r, top + 3)]), Color(1, 1, 1, 0.35))
+	# thorns: spikes, then curved blades
+	if thorns > 0.0 and t >= 2:
+		for i in 5:
+			var x3 := -r + 3.0 + i * (r * 2.0 - 6.0) / 4.0
+			if t >= 5:
+				st.draw_colored_polygon(PackedVector2Array([Vector2(x3 - 2, top), Vector2(x3 - 1, top - 4), Vector2(x3 + 2, top - 7), Vector2(x3 + 1, top - 3), Vector2(x3 + 2, top)]), Color(0.85, 0.9, 0.97))
+			else:
+				st.draw_colored_polygon(PackedVector2Array([Vector2(x3 - 2, top), Vector2(x3, top - 5), Vector2(x3 + 2, top)]), Color(0.75, 0.9, 0.4))
+	if t >= 6:                                                    # gold trim, runes, and the bell
+		st.draw_rect(Rect2(-r, top, r * 2.0, h), Color(1.0, 0.85, 0.4, 0.9), false, 1.0)
+		for cx in [-r + 2.5, r - 2.5]:
+			st.draw_circle(Vector2(cx, top + 2.5), 1.0, Color(1.0, 0.85, 0.4))
+		for i in 3:
+			SpellArt.diamond(st, Vector2((i - 1) * 7.0, top + h * 0.78), 1.8, Color(0.7, 0.9, 1.0, 0.4 + 0.5 * sin(age * 3.0 + i)))
+		var glow: float = clampf((st.charge - 0.9) * 10.0, 0.0, 1.0)
+		var rot := sin(age * 2.0) * 0.1
+		var o := Vector2(0, top - 15.0)
+		var pts := PackedVector2Array()
+		for p in [Vector2(-1.5, 0), Vector2(1.5, 0), Vector2(3, 1.5), Vector2(4, 4), Vector2(5, 8), Vector2(7, 12), Vector2(-7, 12), Vector2(-5, 8), Vector2(-4, 4), Vector2(-3, 1.5)]:
+			pts.append(o + p.rotated(rot))
+		var bell_col := BRASS_DARK.lerp(Color.WHITE, glow)
+		st.draw_colored_polygon(pts, bell_col)
+		var closed := pts.duplicate()
+		closed.append(pts[0])
+		st.draw_polyline(closed, Color.BLACK, 1.0)
+		st.draw_line(o + Vector2(-5.5, 9.0).rotated(rot), o + Vector2(5.5, 9.0).rotated(rot), Color(0.6, 0.45, 0.15), 1.5)
+		st.draw_circle(o + Vector2(0, 13.5 + 1.0 * sin(age * 4.0)).rotated(rot), 1.6, Color.BLACK)
+		st.draw_line(o + Vector2(0, 0), o + Vector2(0, 12.5).rotated(rot), Color(0.3, 0.3, 0.3, 0.5), 1.0)
+		if glow > 0.0:
+			st.draw_circle(o + Vector2(0, 6.0), 9.0 + 3.0 * glow, Color(1.0, 0.95, 0.7, 0.25 * glow))
+	hp_bar(st, bot + 3.0, r, t >= 6)
