@@ -35,3 +35,8 @@ CLAIM healing_lantern
 CLAIM beacon_turret
 DONE healing_lantern
 DONE beacon_turret
+CLAIM spiked_sentry
+CLAIM bonfire_wall
+DONE thorn_hedge
+DONE bonfire_wall
+DONE spiked_sentry
