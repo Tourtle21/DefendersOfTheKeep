@@ -155,6 +155,138 @@ func t_warpbow() -> void:
 	await wait(0.3)
 	ok("warpbow: the Stormcaller Bow still warps (%.0f px)" % player.global_position.distance_to(from2), player.global_position.distance_to(from2) > 60.0)
 
+func distinct_proj(ids: Dictionary) -> void:        # remember every projectile seen (call each tick)
+	for n in world.get_children():
+		if n.get_script() != null and str(n.get_script().resource_path).ends_with("projectile.gd") and n.owner_id != 0:
+			ids[n.get_instance_id()] = true
+
+func t_juggernaut() -> void:
+	var w
+	# Siege Plate (entry, tier 3): plates in the aura, a block pushes (ring and star), the bash hurts and extends the brace, every third swing slams
+	w = await equip("juggernaut", 3)
+	var d0 = dummy(P + Vector2(20, 0))
+	w.use_ability()
+	await wait(0.1)
+	var seen := {}
+	w._on_absorb(P + Vector2(40, 0))
+	for i in 6:
+		await wait(0.05)
+		fx_kinds(seen)
+	var st0: float = float(w._stored)
+	ok("juggernaut Siege Plate: a block stores a plate (%d), the aura shows it (%s) and pushes with ring and star %s" % [w._stored, aura_data_state(), seen.has("star")], w._stored == 1 and aura_data_state() == 1.0 and seen.has("star") and seen.has("ring"))
+	var t0: float = w._brace_t
+	var h0 := lost(d0)
+	w.use_item()
+	await wait(0.4)
+	ok("juggernaut Siege Plate: the bash while braced hurts (%.1f) and extends the brace (%.2f s -> %.2f s)" % [lost(d0) - h0, t0, w._brace_t], lost(d0) - h0 >= 1.0 and w._brace_t < t0 + 0.4 - 0.3)
+	w.release_ability()
+	await wait(0.2)
+	var sl := {}
+	for t in [3]:
+		w = await equip("juggernaut", t)
+		dummy(P + Vector2(24, 0))
+		var kinds := []
+		for i in 3:
+			var sn := {}
+			w.use_item()
+			for k in 9:
+				await wait(0.05)
+				fx_kinds(sn)
+			kinds.append(sn.has("shock"))
+			await wait(0.6)
+		sl[t] = kinds
+	ok("juggernaut Siege Plate: swing shards on every swing and the slam (shock) on the third only %s" % [sl[3]], sl[3] == [false, false, true])
+	# Reactive Armour (tier 4): a block fires a shard back; eight plates make a cone; the charge carries and adds plates
+	var ra := {}
+	for t in [3, 4]:
+		w = await equip("juggernaut", t)
+		w.use_ability()
+		await wait(0.1)
+		w._on_absorb(P + Vector2(40, 0))
+		var pk := 0
+		for i in 8:
+			await wait(0.05)
+			pk = maxi(pk, own_proj())
+		var dd = dummy(P + Vector2(90, 0))
+		w._stored = 8
+		var l0 := lost(dd)
+		w.release_ability()
+		await wait(0.5)
+		ra[t] = {"proj": pk, "cone": lost(dd) - l0}
+	ok("juggernaut Reactive Armour: tier 4 block fires a shard (%d vs %d) and 8 plates release a cone to 90 px (%.1f vs %.1f)" % [ra[4].proj, ra[3].proj, ra[4].cone, ra[3].cone], ra[4].proj >= 1 and ra[3].proj == 0 and ra[4].cone > ra[3].cone + 1.0)
+	var ca := {}
+	for t in [3, 4]:
+		w = await equip("juggernaut", t)
+		await face(Vector2(1, 0))
+		var cd = dummy(P + Vector2(24, 0), HP, true)
+		var x0: float = cd.global_position.x
+		w.use_dash()
+		await wait(0.9)
+		ca[t] = {"dx": cd.global_position.x - x0, "plates": int(w._stored), "lost": lost(cd)}
+	ok("juggernaut Reactive Charge: tier 4 carries the dummy (%.0f px vs %.0f), adds %d plates (tier 3: %d) and slams harder (%.1f vs %.1f)" % [ca[4].dx, ca[3].dx, ca[4].plates, ca[3].plates, ca[4].lost, ca[3].lost], ca[4].dx > ca[3].dx + 20.0 and ca[4].plates >= 1 and ca[3].plates == 0 and ca[4].lost > ca[3].lost)
+	# Siege Engine (tier 5): growing pulses with shard rings; the fortress swallows enemy shots
+	var se := {}
+	for t in [4, 5]:
+		w = await equip("juggernaut", t)
+		var far = dummy(P + Vector2(90, 0))
+		var shot := Node2D.new()
+		shot.add_to_group("enemy_shot")
+		world.add_child(shot)
+		shot.global_position = P + Vector2(30, 0)
+		w.use_ultimate()
+		var ids := {}
+		for i in 130:
+			await wait(0.05)
+			distinct_proj(ids)
+		se[t] = {"far": lost(far), "proj": ids.size(), "shot": is_instance_valid(shot) and !shot.is_queued_for_deletion()}
+		if is_instance_valid(shot):
+			shot.queue_free()
+	ok("juggernaut Siege Engine: tier 5 fires %d shards (tier 4: %d), the late pulses reach 90 px (%.1f vs %.1f), the enemy shot is swallowed (%s vs %s)" % [se[5].proj, se[4].proj, se[5].far, se[4].far, !se[5].shot, !se[4].shot], se[5].proj >= 24 and se[4].proj == 0 and se[5].far > 0.0 and se[4].far == 0.0 and !se[5].shot and se[4].shot)
+	# Colossus (tier 6): bigger weapon, shocks at every footstep, the titanic slam at the end
+	w = await equip("juggernaut", 6)
+	var cdm = dummy(P + Vector2(70, 0))
+	w._stored = 6
+	w.use_ultimate()
+	await wait(6.5)
+	Input.action_press(player.controls.left)
+	var steps := 0
+	var big: float = w.scale.x
+	var sn2 := {}
+	var shocks := 0
+	for i in 60:
+		if i == 30:
+			Input.action_release(player.controls.left)
+			Input.action_press(player.controls.right)        # and back, so the dummy is under the final slam
+		await wait(0.05)
+		var s3 := {}
+		fx_kinds(s3)
+		shocks += int(s3.get("shock", 0) > 0)
+	Input.action_release(player.controls.right)
+	ok("juggernaut Colossus: weapon scale %.2f, shock fx present in %d of 60 frames while walking" % [big, shocks], big > 1.2 and shocks >= 4)
+	await wait(3.6)
+	var before := lost(cdm)
+	var had_stun: bool = cdm.has_meta("stun_cd_until")
+	var flash := false
+	var stunned := false
+	for i in 44:
+		await wait(0.05)
+		var s4 := {}
+		fx_kinds(s4)
+		flash = flash or s4.has("flash")
+		if is_instance_valid(cdm) and cdm.has_meta("stun_cd_until"):
+			stunned = !had_stun
+	var final_hit := lost(cdm) - before
+	ok("juggernaut Colossus: the final slam lands (flash %s, %.1f taken, stunned %s, scale back to %.2f)" % [flash, final_hit, stunned, w.scale.x], flash and final_hit >= 21.0 and stunned and w.scale.x < 1.05)
+	await draw_smoke("juggernaut")
+
+func aura_data_state() -> float:
+	for n in world.get_children():
+		if n.get_script() != null and str(n.get_script().resource_path).ends_with("weapon_aura.gd"):
+			return n.state
+	return -1.0
+
 func run() -> void:
 	if only == "" or only == "warpbow":
 		await t_warpbow()
+	if only == "" or only == "juggernaut":
+		await t_juggernaut()

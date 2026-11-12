@@ -109,7 +109,7 @@ static func use_ability(w) -> void:
 			if p.distance_to(cur) < best.distance_to(cur):
 				best = p
 		st.storm_warp_cd = now + 1.0
-		await _warp_to(w, best)
+		_warp_to(w, best)
 		var dir: Vector2 = (cur - w.player.global_position).normalized() if cur.distance_to(w.player.global_position) > 2.0 else w.aim
 		for i in 5:
 			_shoot(w, w.player.global_position + dir.rotated((i - 2) * 0.17) * 8.0, dir.rotated((i - 2) * 0.17), 330.0, H(w) * WB_FINAL_MULT, 2, 0.8)
@@ -129,10 +129,10 @@ static func use_ability(w) -> void:
 		var dest = on_gate if w.tier >= 4 and on_gate != null and aiming else _newest(w, K_ANCHOR)
 		if dest == null:
 			dest = _newest(w, K_ANCHOR)
-		await _warp_gate(w, dest)
+		_warp_gate(w, dest)
 		return
 	if back != null and w.tier >= 2:                   # Rift Gate: the gate left behind takes you back
-		await _warp_gate(w, back)
+		_warp_gate(w, back)
 		return
 	if w._ability_cd > 0.0:
 		return
@@ -166,7 +166,7 @@ static func _warp_gate(w, g) -> void:
 		st.pending = false
 		st.placed = 0
 		w._ability_cd = w.ability_cooldown
-	await _warp_to(w, to, kind != K_BACK)
+	_warp_to(w, to, kind != K_BACK)
 
 ## The warp itself: rings at both ends, a strike on arrival (and from tier 3 at the departure), and a way back for 2 s.
 static func _warp_to(w, dest: Vector2, leave_back := true) -> void:
