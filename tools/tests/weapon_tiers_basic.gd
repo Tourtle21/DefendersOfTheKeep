@@ -737,7 +737,98 @@ func t_shield() -> void:
 func get_nodes_in_group_safe(g: String) -> Array:
 	return get_nodes_in_group(g)
 
+func hazards(factor := -1.0) -> int:
+	var c := 0
+	for n in world.get_children():
+		if n.get_script() != null and str(n.get_script().resource_path).ends_with("hazard.gd") and (factor < 0.0 or absf(n.factor - factor) < 0.01):
+			c += 1
+	return c
+
+func t_frostglaive() -> void:
+	var w
+	w = await equip("frostglaive", 2, false)
+	w.use_ability()
+	await wait(0.9)
+	var rime := hazards(0.6)
+	ok("frostglaive Rime: tier 2 line leaves %d slow patches (factor 0.6) after 0.9 s" % rime, rime == 3)
+	var ic := {}
+	for t in [2, 3]:
+		w = await equip("frostglaive", t, false)
+		var d = dummy(P + Vector2(70, 0))
+		var per := []
+		var seen := {}
+		var shards := 0
+		for i in 3:
+			w._attack_cd = 0.0
+			var h0 := lost(d)
+			w.use_item()
+			for k in 10:
+				await wait(0.05)
+				fx_kinds(seen)
+				shards = maxi(shards, count_script("projectile.gd"))
+			per.append(lost(d) - h0)
+			await wait(0.5)
+		ic[t] = [per, shards]
+	ok("frostglaive Ice Comb: tier 3 the third cleave throws shards that reach 70 px (%s, %d projectiles); tier 2 %s" % [ic[3][0], ic[3][1], ic[2][0]], ic[3][0][0] == 0.0 and ic[3][0][1] == 0.0 and ic[3][0][2] > 0.0 and ic[3][1] >= 3 and ic[2][0] == [0.0, 0.0, 0.0])
+	var ff := {}
+	for t in [3, 4]:
+		w = await equip("frostglaive", t, false)
+		var d = dummy(P + Vector2.from_angle(0.45) * 40.0)
+		w.use_ability()
+		await wait(1.3)
+		ff[t] = lost(d)
+	ok("frostglaive Frozen Fan: tier 4 spikes either side hit a dummy 0.45 rad off (%.1f vs %.1f)" % [ff[4], ff[3]], ff[4] > ff[3] + 1.0)
+	var rk := {}
+	for t in [3, 4]:
+		w = await equip("frostglaive", t, false)
+		var d = dummy(P + Vector2(50, 0))
+		w.use_dash()
+		await wait(0.5)
+		rk[t] = [hazards(0.4), d.slow_mult]
+	ok("frostglaive Ice Rink: tier 4 dash leaves %d frozen patches (tier 3: %d) and chills the dummy" % [rk[4][0], rk[3][0]], rk[4][0] == 3 and rk[3][0] == 0)
+	var wo := {}
+	for t in [4, 5, 6]:
+		w = await equip("frostglaive", t, false)
+		var d = dummy(P + Vector2(100, 0))
+		w.use_ultimate()
+		var ticks := 0
+		var last := 0.0
+		var slow_all := true
+		var seen := {}
+		var biggest := 0.0
+		var step_at := 0.0
+		await wait(0.6)
+		last = lost(d)
+		for i in 100:
+			await wait(0.05)
+			fx_kinds(seen)
+			var l := lost(d)
+			if l > last + 0.01:
+				ticks += 1
+				if l - last > biggest:
+					biggest = l - last
+					step_at = 0.6 + (i + 1) * 0.05
+				last = l
+		wo[t] = {"ticks": ticks, "big": biggest, "at": step_at, "seen": seen}
+	ok("frostglaive Whiteout: tier 5 the dummy at 100 px takes %d blizzard ticks (tier 4: %d), vortex %s" % [wo[5].ticks, wo[4].ticks, wo[5].seen.has("vortex")], wo[5].ticks >= 3 and wo[4].ticks == 0 and wo[5].seen.has("vortex"))
+	ok("frostglaive Absolute Zero: tier 6 shatters in one big step (%.1f at %.1f s vs tier 5 %.1f)" % [wo[6].big, wo[6].at, wo[5].big], wo[6].seen.has("flash") and wo[6].big >= 8.0 and wo[6].big > wo[5].big * 3.0)
+	w = await equip("frostglaive", 6, false)
+	var d6 = dummy(P + Vector2(40, 0))
+	var stunned := false
+	for i in 6:
+		w._attack_cd = 0.0
+		w.use_item()
+		for k in 8:
+			await wait(0.05)
+			if i == 5 and d6.slow_mult == 0.0:
+				stunned = true
+		await wait(0.3)
+	ok("frostglaive Finisher: the sixth cleave at tier 6 stuns a dummy at 40 px %s" % stunned, stunned)
+	await draw_smoke("frostglaive")
+
 func run() -> void:
+	if only == "" or only == "frostglaive":
+		await t_frostglaive()
 	if only == "" or only == "shield":
 		await t_shield()
 	if only == "" or only == "whip":

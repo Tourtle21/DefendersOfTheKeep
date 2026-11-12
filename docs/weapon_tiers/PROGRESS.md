@@ -28,3 +28,4 @@ DONE juggernaut
 CLAIM earthshaker
 DONE rimelance
 DONE shield
+DONE frostglaive
