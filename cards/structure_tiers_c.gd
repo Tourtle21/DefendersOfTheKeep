@@ -495,8 +495,9 @@ static func tick_magma_wall(st, delta: float) -> void:
 		var target = StructureTiers.nearest(st, MAGMA_SPIT_R)
 		if target != null:
 			StructureTiers.reset(st, "spit")
-			var to: Vector2 = target.global_position - pos
-			WeaponProjectile.shoot(w, pos + Vector2(0, 8), to, 200.0, thorns * MAGMA_SPIT, MAGMA_LAVA, to.length() / 200.0 + 0.3, 0, 40.0, {"bleed_ticks": 3, "bleed_dmg": thorns * 0.2})
+			var spout: Vector2 = pos + Vector2(0, 8)
+			var to: Vector2 = target.global_position - spout            # aimed from the spout, so the glob really reaches the enemy
+			WeaponProjectile.shoot(w, spout, to, 200.0, thorns * MAGMA_SPIT, MAGMA_LAVA, to.length() / 200.0 + 0.3, 0, 40.0, {"bleed_ticks": 3, "bleed_dmg": thorns * 0.2})
 			var at: Vector2 = target.global_position
 			later(st, to.length() / 200.0, func(): WeaponFx.spawn(w, "burst", at, MAGMA_LAVA, {"radius": 10.0, "life": 0.2}))
 			StructureTiers.sfx(st, "hit", 0.4)

@@ -72,8 +72,8 @@ func clear_world() -> void:
 	for n in world.get_children():
 		if n.is_in_group("structure") or n.is_in_group("enemy") or script_is(n, "projectile.gd") or script_is(n, "hazard.gd") or script_is(n, "spell.gd"):
 			n.queue_free()
-	for n in root.get_tree().get_nodes_in_group("enemy"):
-		n.queue_free()
+	for n in root.get_tree().get_nodes_in_group("enemy") + root.get_tree().get_nodes_in_group("critter"):
+		n.queue_free()                                # (wandering critters count as targets too)
 	await wait(0.2)
 
 func lost(e) -> float:
@@ -109,34 +109,37 @@ func _initialize() -> void:
 	root.add_child(world)
 	await wait(1.2)
 	world.get_node("SpawnTimer").start(9999.0)
+	world.set_process(false)                       # the day-night clock stands still: it is day, so towers see everything
+	game.night_level = 0.0
 	var p = world.get_node("Player")
 	p.clear_item()
 	p.global_position = Vector2(0, 600)
-	if only == "" or only == "crystal_pylon":
+	await clear_world()
+	if only == "" or only.contains("crystal_pylon"):
 		await pylon()
-	if only == "" or only == "storm_spire":
+	if only == "" or only.contains("storm_spire"):
 		await spire()
-	if only == "" or only == "magma_wall":
+	if only == "" or only.contains("magma_wall"):
 		await magma()
-	if only == "" or only == "venom_tower":
+	if only == "" or only.contains("venom_tower"):
 		await venom()
-	if only == "" or only == "prism_tower":
+	if only == "" or only.contains("prism_tower"):
 		await prism()
-	if only == "" or only == "healing_grove":
+	if only == "" or only.contains("healing_grove"):
 		await grove()
-	if only == "" or only == "sunspire":
+	if only == "" or only.contains("sunspire"):
 		await sunspire()
-	if only == "" or only == "phoenix_shrine":
+	if only == "" or only.contains("phoenix_shrine"):
 		await phoenix()
-	if only == "" or only == "healing_lantern":
+	if only == "" or only.contains("healing_lantern"):
 		await lantern()
-	if only == "" or only == "beacon_turret":
+	if only == "" or only.contains("beacon_turret"):
 		await beacon()
-	if only == "" or only == "bonfire_wall":
+	if only == "" or only.contains("bonfire_wall"):
 		await bonfire()
-	if only == "" or only == "spiked_sentry":
+	if only == "" or only.contains("spiked_sentry"):
 		await spiked_sentry()
-	if only == "" or only == "spiked_wall":
+	if only == "" or only.contains("spiked_wall"):
 		await spiked_wall()
 	quit()
 
