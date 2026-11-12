@@ -50,7 +50,7 @@ func _physics_process(delta: float) -> void:
 		if !is_instance_valid(e) or e.is_in_group("boss") or e.global_position.distance_to(global_position) > radius:
 			continue
 		if kind == "slow":
-			e.apply_slow(factor, 0.25)
+			SpellTiers.keep_slow(e, factor, 0.25)             # (a freeze or stun already on it is not undone)
 		elif kind == "burn" and burn_now:
 			e.spell_damage(1.5, "fire" if kind == "burn" else "", true)
 	queue_redraw()

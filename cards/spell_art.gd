@@ -13,7 +13,7 @@ static func jit(i: int, salt := 0.0) -> float:
 
 ## Cards that have their own body art here: the plain fill and rings are drawn softer under it.
 static func has_body(id: String) -> bool:
-	return id in ["fireball", "frost_ring", "flare", "rejuvenation", "gold_magnet", "aegis", "charm", "sandstorm"]
+	return id in ["fireball", "frost_ring", "flare", "rejuvenation", "gold_magnet", "aegis", "charm", "sandstorm", "blizzard"]
 
 static func draw_flight(s, t: float, col: Color) -> void:
 	match String(s.data.get("id", "")):
@@ -42,6 +42,8 @@ static func draw(s, since: float, col: Color) -> void:
 			draw_charm(s, since, col)
 		"sandstorm":
 			draw_sandstorm(s, since, col)
+		"blizzard":
+			draw_blizzard(s, since, col)
 
 ## A flame as one polygon: a wide base, a belly, and a tip that leans with `sway`.
 static func flame(s, base: Vector2, w: float, h: float, col: Color, sway := 0.0) -> void:
@@ -628,3 +630,66 @@ static func draw_sandstorm(s, since: float, _col: Color) -> void:
 	for i in 14:                                                    # grains orbit the zone
 		var a3 := since * lerpf(1.0, 2.0, jit(i, 1.0)) + jit(i) * TAU
 		s.draw_circle(Vector2.from_angle(a3) * r * lerpf(0.3, 0.95, jit(i, 2.0)), 1.5 if tier < 3 or i % 3 != 0 else 2.0, Color(DUST if i % 3 != 0 else SAND_BRIGHT, 0.9 * fade))
+
+# ---------------------------------------------------------------- Blizzard
+
+const SNOW := Color(0.9, 0.97, 1.0)
+const BLIZ_ICE := Color(0.6, 0.85, 1.0)
+const STORM := Color(0.35, 0.5, 0.75)
+
+static func draw_blizzard(s, since: float, _col: Color) -> void:
+	var tier := int(s.data.get("tier", 1))
+	if tier < 2:
+		return
+	var r: float = s.radius
+	var life: float = s.effect_time
+	var fade := clampf((life - since) / 1.0, 0.0, 1.0) * clampf(since / 0.2, 0.0, 1.0)
+	s.draw_arc(Vector2.ZERO, r * 0.94, 0, TAU, 40, Color(STORM, 0.6 * fade), 1.0)       # a second, icy rim
+	if tier >= 3:                                                   # the sky darkens
+		s.draw_circle(Vector2.ZERO, r * 0.85, Color(STORM, 0.1 * fade))
+	if tier >= 4:                                                   # storm clouds, and a flicker when lightning falls
+		var n_clouds := 8 if tier >= 5 else 4
+		for i in n_clouds:
+			var cp := Vector2(sin(since * 0.3 + i * 1.7) * r * 0.6, -r * 0.45 + cos(since * 0.2 + i) * r * 0.15)
+			s.draw_circle(cp, 14.0 + 6.0 * jit(i), Color(STORM, 0.18 * fade))
+		if fposmod(since, 1.5) < 0.1:
+			s.draw_circle(Vector2.ZERO, r, Color(1, 1, 1, 0.15 * fade))
+	# tier 2: falling snow (more and wilder at tier 6)
+	var flakes := 60 if tier >= 6 else 28
+	var speed := 70.0 if tier >= 6 else 40.0
+	for i in flakes:
+		var y := fposmod(since * speed + jit(i) * r * 2.0, r * 2.0) - r
+		var x := (jit(i, 1.0) - 0.5) * r * 1.9 + sin(since + i) * 4.0
+		if Vector2(x, y).length() < r:
+			var p := Vector2(x, y)
+			s.draw_line(p, p + Vector2(-2.0, -4.0), Color(SNOW, 0.8 * fade), 1.5)
+	if tier >= 3:                                                   # hail falls faster and bounces
+		for i in 6:
+			var u := fposmod(since * 1.5 + jit(i, 5.0), 1.0)
+			var hp := Vector2((jit(i, 6.0) - 0.5) * r * 1.4, lerpf(-r * 0.7, r * 0.3, u) * 1.0)
+			if Vector2(hp.x, 0).length() < r:
+				s.draw_circle(hp, 2.0, Color(1, 1, 1, 0.9 * fade))
+				s.draw_circle(hp + Vector2(-0.5, -0.5), 0.8, Color(0.7, 0.85, 1.0, fade))
+				if u > 0.9:
+					s.draw_arc(hp, 5.0, 0, TAU, 8, Color(SNOW, 0.6 * fade), 1.0)
+	if tier >= 5 and s.drift != Vector2.ZERO:                       # chevrons show the drift; a cone of flakes trails behind
+		for i in 3:
+			var cp2: Vector2 = s.drift * (r * 0.3 + i * 10.0)
+			var o: Vector2 = s.drift.orthogonal()
+			s.draw_polyline(PackedVector2Array([cp2 - s.drift * 4.0 + o * 4.0, cp2 + s.drift * 3.0, cp2 - s.drift * 4.0 - o * 4.0]), Color(SNOW, 0.8 * fade), 2.0)
+		for i in 10:
+			var u2 := fposmod(since * 0.5 + i / 10.0, 1.0)
+			s.draw_circle(-s.drift * (r * 0.9 + u2 * 30.0) + s.drift.orthogonal() * (jit(i, 3.0) - 0.5) * 24.0 * u2, 1.5, Color(SNOW, 0.7 * (1.0 - u2) * fade))
+		s.draw_arc(Vector2.ZERO, r, since * 0.4, since * 0.4 + 1.6, 16, Color(0.4, 1.0, 1.0, 0.6 * fade), 2.0)
+		s.draw_arc(Vector2.ZERO, r, since * 0.4 + 1.6, since * 0.4 + 2.6, 16, Color(0.6, 0.4, 1.0, 0.6 * fade), 2.0)
+	if tier >= 6:                                                   # a turning eye, aurora, a pillar of light, and a crust of ice at the end
+		for i in 10:
+			var a := since * 2.0 + i * TAU / 10.0
+			var p2 := Vector2.from_angle(a) * r * 0.25
+			var d := Vector2.from_angle(a + PI / 2.0)
+			s.draw_polyline(PackedVector2Array([p2 - d * 3.0 - Vector2.from_angle(a) * 2.0, p2 + Vector2.from_angle(a) * 2.0, p2 + d * 3.0 - Vector2.from_angle(a) * 2.0]), Color(SNOW, 0.8 * fade), 1.5)
+		s.draw_rect(Rect2(-4, -r * 0.6, 8, r * 0.6), Color(BLIZ_ICE, 0.15 * fade))
+		var left: float = life - since
+		if left < 1.0 and left > 0.0:
+			var t := 1.0 - left
+			s.draw_arc(Vector2.ZERO, r * (1.0 - 0.25 * t), 0, TAU, 40, Color(BLIZ_ICE, 0.25), r * 0.5 * t)

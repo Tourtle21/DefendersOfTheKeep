@@ -87,6 +87,8 @@ static func tick(s, delta: float) -> void:
 			tick_charm(s, tier_of(s), delta)
 		"sandstorm":
 			tick_sandstorm(s, tier_of(s), delta)
+		"blizzard":
+			tick_blizzard(s, tier_of(s), delta)
 
 # ---------------------------------------------------------------- Fireball
 
@@ -779,3 +781,116 @@ static func tick_sandstorm(s, tier: int, delta: float) -> void:
 			if e.has_method("apply_slow"):
 				e.apply_slow(0.0, 1.2)
 			e.spell_damage(dps * 5.0, "earth", true)
+
+# ---------------------------------------------------------------- Blizzard
+
+const BLIZ_STACK_T := 0.6
+const BLIZ_FREEZE := 1.0
+const BLIZ_HAIL_T := 0.4
+const BLIZ_BOLT_T := 1.5
+const BLIZ_DRIFT := 18.0
+const BLIZ_LEASH := 120.0
+const SNOW := Color(0.9, 0.97, 1.0)
+const BLIZ_ICE := Color(0.6, 0.85, 1.0)
+const BOLT := Color(0.85, 0.9, 1.0)
+
+## Where the biggest bunch of enemies within `reach` of `from` stands (`from` itself when there are none).
+static func densest(tree: SceneTree, from: Vector2, reach: float) -> Vector2:
+	var best := from
+	var most := 0
+	var near: Array = WeaponUtil.enemies_in_circle(tree, from, reach)
+	for a in near:
+		var n := 0
+		for b in near:
+			if a.global_position.distance_to(b.global_position) <= 40.0:
+				n += 1
+		if n > most:
+			most = n
+			best = a.global_position
+	return best
+
+static func tick_blizzard(s, tier: int, delta: float) -> void:
+	if tier < 2:
+		return
+	var since: float = s.age - s.flight
+	var r: float = s.radius
+	var dps: float = s.data.dps
+	var w: Node = s.get_parent()
+	var tree: SceneTree = s.get_tree()
+	if first_tick(s):
+		s._home = s.position
+	var inside: Array = s._in_radius("enemy")
+	var here := {}
+	for e in inside:                                                  # deep chill: frost builds up, then it freezes solid
+		var id: int = e.get_instance_id()
+		here[id] = true
+		if float(s._cool.get(id, 0.0)) > 0.0:
+			s._cool[id] = float(s._cool[id]) - delta
+			continue
+		s._mem[id] = float(s._mem.get(id, 0.0)) + delta / BLIZ_STACK_T
+		if s._mem[id] >= 5.0:
+			s._mem[id] = 0.0
+			s._cool[id] = 4.0
+			WeaponFx.spawn(w, "shards", e.global_position, BLIZ_ICE, {"radius": 20.0, "count": 8, "life": 0.35})
+			WeaponFx.spawn(w, "ring", e.global_position, BLIZ_ICE, {"radius": 14.0, "life": 0.3})
+			Sfx.play("big_hit")
+			if e.has_method("apply_slow"):
+				e.apply_slow(0.0, BLIZ_FREEZE)
+			WeaponUtil.expose(e, 1.5)
+	for id in s._mem.keys():
+		if !here.has(id):
+			s._mem[id] = float(s._mem[id]) - delta
+			if s._mem[id] <= 0.0:
+				s._mem.erase(id)
+	if tier >= 3 and pace(s, "hail", BLIZ_HAIL_T, delta) and !inside.is_empty():     # hailstones
+		var e2 = inside[randi() % inside.size()]
+		if is_instance_valid(e2):
+			WeaponUtil.ground_strike(tree, w, e2.global_position, 8.0, 0.25, dps * 0.8, 30.0, SNOW, 0.0, [], "ice")
+	if tier >= 4 and pace(s, "bolt", BLIZ_BOLT_T, delta) and !inside.is_empty():     # thunder snow: lightning on the coldest enemy
+		var top := -1.0
+		var picks := []
+		for e in inside:
+			var st := float(s._mem.get(e.get_instance_id(), 0.0))
+			if st > top + 0.001:
+				top = st
+				picks = [e]
+			elif absf(st - top) <= 0.001:
+				picks.append(e)
+		var v = picks[randi() % picks.size()]
+		if is_instance_valid(v):
+			var at: Vector2 = v.global_position
+			WeaponFx.spawn(w, "bolt", at + Vector2(0, -60), BOLT, {"dir": Vector2.DOWN, "length": 60.0, "width": 3.0, "life": 0.25})
+			WeaponFx.spawn(w, "burst", at, Color.WHITE, {"radius": 12.0, "life": 0.25})
+			WeaponFx.spawn(w, "flash", at, Color.WHITE, {"radius": 18.0, "life": 0.2})
+			Sfx.play("big_hit")
+			v.spell_damage(dps * 3.0, "ice")
+			if is_instance_valid(v) and v.has_method("apply_slow"):
+				v.apply_slow(0.0, 0.4)
+			var nearest = null
+			for o in WeaponUtil.enemies_in_circle(tree, at, 40.0):
+				if o != v and is_instance_valid(o) and (nearest == null or o.global_position.distance_to(at) < nearest.global_position.distance_to(at)):
+					nearest = o
+			if nearest != null:
+				nearest.spell_damage(dps * 3.0 * 0.4, "ice")
+	if tier >= 5:                                                      # roaming front: it drifts toward the thickest crowd, on a leash
+		var goal := densest(tree, s.global_position, 150.0)
+		var dir: Vector2 = goal - s.global_position
+		s.drift = dir.normalized() if dir.length() > 4.0 else Vector2.ZERO
+		s.position += s.drift * BLIZ_DRIFT * delta
+		var off: Vector2 = s.position - s._home
+		if off.length() > BLIZ_LEASH:
+			s.position = s._home + off.normalized() * BLIZ_LEASH
+		if pace(s, "wake", 1.0, delta):
+			WeaponFx.spawn(w, "ring", s.position, SNOW, {"radius": r * 0.6, "life": 0.4})
+	if tier >= 6 and !s._finale_done and !is_copy(s) and since >= s.effect_time - 0.05:
+		s._finale_done = true                                           # ice age: a freeze wave, and the ground stays frozen
+		WeaponFx.spawn(w, "flash", s.position, BOLT, {"radius": r * 1.4, "life": 0.4})
+		WeaponFx.spawn(w, "ripple", s.position, BLIZ_ICE, {"radius": r * 1.6, "rings": 3, "life": 0.7})
+		WeaponFx.spawn(w, "shards", s.position, SNOW, {"radius": r * 1.4, "count": 20, "life": 0.5})
+		WeaponFx.spawn(w, "pillar", s.position, BLIZ_ICE, {"height": 80.0, "width": 30.0, "life": 0.5})
+		Sfx.play("ultimate")
+		for e in WeaponUtil.enemies_in_circle(tree, s.global_position, r * 1.4):
+			if e.has_method("apply_slow"):
+				e.apply_slow(0.0, 1.5)
+			e.spell_damage(dps * 4.0, "ice", true)
+		WeaponUtil.patch(w, s.position, "slow", 1.2 * r, BLIZ_ICE, 7.0, 0.35)

@@ -68,7 +68,7 @@ func _initialize() -> void:
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("only="):
 			only = a.substr(5)
-	for id in ["fireball", "frost_ring", "flare", "rejuvenation", "gold_magnet", "aegis", "charm", "sandstorm"]:
+	for id in ["fireball", "frost_ring", "flare", "rejuvenation", "gold_magnet", "aegis", "charm", "sandstorm", "blizzard"]:
 		if only == "" or only == id:
 			await call(id)
 			await clear()
@@ -687,3 +687,67 @@ func sandstorm() -> void:
 		co[cp] = [seen.has("flash"), snappedf(e.knock_vel.length(), 1.0), snappedf(dealt(e), 0.1)]
 		await clear()
 	ok("tier 6 collapses at the end (flash, pull, damage), a copy does not (%s)" % str(co), co[false][0] and co[false][1] > 200.0 and !co[true][0] and co[true][1] < 100.0)
+
+# ================================================================== Blizzard
+func blizzard() -> void:
+	print("-- blizzard")
+	var c := Vector2(0, 300)
+	# Deep chill (tier 2): frost builds up and freezes solid
+	var ch := {}
+	for t in [1, 2]:
+		var e = dummy(c + Vector2(10, 0))
+		spell("blizzard", t, c, true, {"duration": 20.0})
+		var frozen := false
+		var el := 0.0
+		while el < 4.0:
+			await wait(0.1)
+			el += 0.1
+			frozen = frozen or (e.slow_mult == 0.0 and e.slow_time > 0.0)
+		ch[t] = frozen
+		await clear()
+	ok("tier 2 freezes an enemy after a few seconds, tier 1 never does (%s)" % str(ch), ch[2] and !ch[1])
+	# Hail (tier 3)
+	var hl := {}
+	for t in [2, 3]:
+		var e = dummy(c + Vector2(10, 0))
+		spell("blizzard", t, c, true, {"duration": 20.0})
+		var seen := await fx_seen(3.0, 0.25)
+		hl[t] = [seen.get("ring", 0), snappedf(dealt(e), 0.1)]
+		await clear()
+	ok("tier 3 hail: strikes every 0.4 s and more damage (%s)" % str(hl), hl[3][0] >= 5 and hl[2][0] == 0 and hl[3][1] > hl[2][1] + 3.0)
+	# Thunder snow (tier 4): bolts, and the arc
+	var th := {}
+	for t in [3, 4]:
+		var a = dummy(c + Vector2(0, 0))
+		var b = dummy(c + Vector2(30, 0))
+		spell("blizzard", t, c, true, {"duration": 20.0})
+		var seen := await fx_seen(3.2)
+		th[t] = [seen.has("bolt"), snappedf(dealt(a) + dealt(b), 0.1)]
+		await clear()
+	ok("tier 4 lightning strikes (bolt fx, more damage), tier 3 none (%s)" % str(th), th[4][0] and !th[3][0] and th[4][1] > th[3][1] * 1.5)
+	# Roaming front (tier 5)
+	var rm := {}
+	for t in [4, 5]:
+		var s0 = spell("blizzard", t, c, true, {"duration": 20.0})
+		var es := []
+		for i in 3:
+			es.append(dummy(c + Vector2(80, 0) + Vector2(i * 6.0, 0)))
+		await wait(2.5)
+		rm[t] = snappedf(s0.position.x - c.x, 1.0)
+		var home_ok: bool = s0.position.distance_to(c) <= 120.5
+		rm[str(t) + "ok"] = home_ok
+		await clear()
+	ok("tier 5 drifts toward the crowd on a leash, tier 4 stays put (%s)" % str(rm), rm[5] >= 15.0 and rm["5ok"] and absf(rm[4]) < 1.0)
+	# Ice age (tier 6)
+	var ia := {}
+	for cp in [false, true]:
+		var s0 = spell("blizzard", 6, c, true, {"duration": 1.5, "copy": cp})
+		var e = dummy(c + Vector2(s0.radius * 1.3, 0))
+		await wait(1.9)
+		var slow_patch := get_nodes_in_group("hazard").filter(func(h): return h.kind == "slow" and h.lifetime > 5.0).size()
+		ia[cp] = [snappedf(e.slow_mult, 0.01), slow_patch]
+		for h in get_nodes_in_group("hazard"):
+			if h.lifetime > 0.0:
+				h.queue_free()
+		await clear()
+	ok("tier 6 ends in an ice age (stun and a lasting slow patch), a copy does not (%s)" % str(ia), ia[false][0] <= 0.35 and ia[false][1] >= 1 and ia[true][1] == 0)
