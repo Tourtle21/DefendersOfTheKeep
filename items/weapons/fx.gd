@@ -178,7 +178,7 @@ func _draw() -> void:
 				match shape:
 					"blade":
 						var d3 := Vector2.from_angle(a2 + PI / 2.0)
-						draw_colored_polygon(PackedVector2Array([q + d3 * 4.0, q + Vector2.from_angle(a2) * 1.6, q - d3 * 4.0]), c3)
+						draw_colored_polygon(PackedVector2Array([q + d3 * 5.5, q + Vector2.from_angle(a2) * 2.4, q - d3 * 5.5]), c3)
 					"star":
 						draw_polyline(PackedVector2Array([q + Vector2(-2.5, 0), q + Vector2(2.5, 0)]), c3, 1.0)
 						draw_polyline(PackedVector2Array([q + Vector2(0, -2.5), q + Vector2(0, 2.5)]), c3, 1.0)
