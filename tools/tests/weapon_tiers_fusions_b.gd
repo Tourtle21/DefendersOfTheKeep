@@ -316,6 +316,99 @@ func t_dragoonpike() -> void:
 	ok("dragoonpike Roar: the 6th thrust roars at tier 6 %s, not at tier 5 %s" % [roar[6], roar[5]], roar[6] and !roar[5])
 	await draw_smoke("dragoonpike")
 
+func burn_hazards() -> int:
+	var c := 0
+	for n in world.get_children():
+		if n.get_script() != null and str(n.get_script().resource_path).ends_with("world/hazard.gd") and n.kind == "burn":
+			c += 1
+	return c
+
+func t_magmamaul() -> void:
+	var w
+	# Heat: swings build it, it decays after 3 s without a gain
+	w = await equip("magmamaul", 2, false)
+	for i in 3:
+		click(w)
+		await wait(0.3)
+	var h1: float = w._st.heat
+	var aura_state: float = w._aura.state if w._aura != null else -1.0
+	await wait(5.0)
+	ok("magmamaul Heat gauge, tier 2 three swings give %.0f heat (aura state %.0f), after 5 idle seconds %.0f" % [h1, aura_state, w._st.heat], h1 >= 30.0 and aura_state >= 30.0 and w._st.heat < h1 - 8.0)
+	# Heat Surge: the 3rd swing is a lava slap that reaches a dummy 44 px from the swing centre
+	var hs := {}
+	for t in [2, 3]:
+		w = await equip("magmamaul", t, false)
+		var dd = dummy(P + Vector2(62, 0))
+		var per := []
+		var seen := {}
+		for i in 3:
+			var h0 := lost(dd)
+			click(w)
+			for k in 8:
+				await wait(0.05)
+				fx_kinds(seen)
+			per.append(snappedf(lost(dd) - h0, 0.1))
+			await wait(0.6)
+		hs[t] = [per, seen.has("shock")]
+	ok("magmamaul Heat Surge: tier 3 slap reaches 38 px from the centre only on the 3rd %s with a shock; tier 2 %s" % [hs[3], hs[2]], hs[3][0][0] < 0.1 and hs[3][0][2] > 1.0 and hs[3][1] and hs[2][0][2] < 0.1 and !hs[2][1])
+	# Molten: at 100 heat the swing is a full slam in r 44, the Magma Slam doubles, the state ends after 6 s
+	w = await equip("magmamaul", 4, false)
+	w._st.heat = 95.0
+	click(w)
+	await wait(0.1)
+	var molten: bool = w._st.molten_until > Time.get_ticks_msec() / 1000.0
+	await wait(0.9)
+	var wide = dummy(P + Vector2(24 + 42, 0))
+	click(w)
+	await wait(0.6)
+	var molten_hit := lost(wide)
+	w._ability_cd = 0.0
+	var seen := {}
+	var c: Vector2 = w.cursor_target(100.0)
+	var dd2 = dummy(c + w.aim.orthogonal() * 40.0)
+	var dd3 = dummy(c - w.aim.orthogonal() * 40.0)
+	w.use_ability()
+	for i in 34:
+		await wait(0.05)
+		fx_kinds(seen)
+	var second := lost(dd2) + lost(dd3)
+	await wait(4.0)
+	ok("magmamaul Molten: tier 4 goes molten at 100 heat %s, the swing hits r 44 (%.1f at 42 px from the centre), the slam strikes again at the side (%.1f), the state ends after 6 s %s" % [molten, molten_hit, second, !(w._st.molten_until > Time.get_ticks_msec() / 1000.0)], molten and molten_hit > 3.0 and second > 5.0 and !(w._st.molten_until > Time.get_ticks_msec() / 1000.0))
+	# Meltdown: a geyser at every strike of the ring, and you end molten
+	w = await equip("magmamaul", 5, false)
+	var dm = dummy(P + Vector2(85, 0))
+	w.use_ultimate()
+	var seen2 := {}
+	for i in 70:
+		await wait(0.05)
+		fx_kinds(seen2)
+	ok("magmamaul Meltdown: tier 5 ring leaves geysers (%d pillar samples >= 12) and you end molten %s" % [seen2.get("pillar", 0), is_instance_valid(w) and w._st.molten_until > Time.get_ticks_msec() / 1000.0], seen2.get("pillar", 0) >= 12 and w._st.molten_until > Time.get_ticks_msec() / 1000.0)
+	# Eruption Titan: eight seconds of bombs, then the eruption; no new burn patches beyond the old ring
+	var burn := {}
+	var tit := {}
+	for t in [3, 6]:
+		w = await equip("magmamaul", t, false)
+		var cen = dummy(P + Vector2(30, 0))
+		var rr = dummy(P + Vector2(60, 40))
+		var peak := 0
+		w.use_ultimate()
+		var seen3 := {}
+		var falls := 0
+		var late := false
+		for i in 240:
+			await wait(0.05)
+			var before: int = seen3.get("flash", 0)
+			fx_kinds(seen3)
+			peak = maxi(peak, burn_hazards())
+			if has_fx("fall", 5.0):
+				falls += 1
+			if i > 190 and seen3.get("flash", 0) > before and has_fx("flash", 90.0):
+				late = true
+		burn[t] = peak
+		tit[t] = [falls, late, snappedf(lost(cen), 0.1)]
+	ok("magmamaul Eruption Titan: tier 6 bombs and a late eruption %s vs tier 3 %s; burn patches at once %d <= %d" % [tit[6], tit[3], burn[6], burn[3]], tit[6][0] >= 6 and tit[6][1] and tit[6][2] > tit[3][2] + 18.0 and burn[6] <= burn[3])
+	await draw_smoke("magmamaul")
+
 func run() -> void:
 	if want("rimelance"):
 		await t_rimelance()
@@ -323,3 +416,5 @@ func run() -> void:
 		await t_sultanguard()
 	if want("dragoonpike"):
 		await t_dragoonpike()
+	if want("magmamaul"):
+		await t_magmamaul()

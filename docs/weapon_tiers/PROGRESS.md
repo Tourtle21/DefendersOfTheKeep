@@ -39,3 +39,4 @@ DONE earthshaker
 CLAIM crystalwand
 DONE staff
 DONE emberflail
+DONE magmamaul
