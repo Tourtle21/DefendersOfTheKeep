@@ -23,6 +23,8 @@ func _init() -> void:
 func _charge(e, n := 1) -> void:
 	if is_instance_valid(e) and !e.is_queued_for_deletion():
 		e.set_meta("charge", min(5, e.get_meta("charge", 0) + n))
+		if tier >= 3 and int(e.get_meta("charge")) >= 5:
+			WeaponTiers.run(self, "overload", [e])          # weapon tiers: a full enemy is overloaded and arcs to its neighbours
 
 func attack() -> void:
 	var o: Vector2 = player.global_position
@@ -35,9 +37,11 @@ func attack() -> void:
 		fx("line", o, Color(0.7, 0.8, 1.0), {"dir": aim, "length": 60.0, "width": 2.0, "life": 0.1})
 		return
 	var chain := [first]
-	for step in 2:
+	var jumps := 3 if tier >= 3 else 2                       # weapon tiers: Overcharge jumps three times, further
+	var jump_r := 55.0 if tier >= 3 else 45.0
+	for step in jumps:
 		var best = null
-		for e in WeaponUtil.enemies_in_circle(get_tree(), chain[-1].global_position, 45.0):
+		for e in WeaponUtil.enemies_in_circle(get_tree(), chain[-1].global_position, jump_r):
 			if !(e in chain) and (best == null or e.global_position.distance_to(chain[-1].global_position) < best.global_position.distance_to(chain[-1].global_position)):
 				best = e
 		if best == null:
@@ -47,7 +51,11 @@ func attack() -> void:
 	for i in chain.size():
 		var e = chain[i]
 		var p: Vector2 = e.global_position
-		fx("line", prev, Color(0.7, 0.85, 1.0), {"dir": (p - prev).normalized(), "length": prev.distance_to(p), "width": 3.0, "life": 0.15})
+		if tier >= 2:                                        # weapon tiers: Static makes every link a jagged bolt with a burst on its victim
+			fx("bolt", prev, Color(0.7, 0.85, 1.0), {"dir": (p - prev).normalized(), "length": prev.distance_to(p), "width": 1.5, "life": 0.18})
+			fx("burst", p, Color(0.85, 0.92, 1.0), {"radius": 8.0, "life": 0.2})
+		else:
+			fx("line", prev, Color(0.7, 0.85, 1.0), {"dir": (p - prev).normalized(), "length": prev.distance_to(p), "width": 3.0, "life": 0.15})
 		prev = p
 		WeaponUtil.hit(e, Game.basic_hit(weapon_id) * pow(0.6, i), o, 40.0)
 		_charge(e)
@@ -60,8 +68,14 @@ func ability() -> void:
 			var n: int = e.get_meta("charge")
 			e.remove_meta("charge")
 			any = true
-			fx("ring", e.global_position, Color(0.8, 0.9, 1.0), {"radius": 14.0 + 4.0 * n, "life": 0.3})
+			var at: Vector2 = e.global_position
+			if tier >= 2:                                    # weapon tiers: Static sends a bolt to each charged enemy and a flash lands on it
+				fx("bolt", o, Color(0.8, 0.9, 1.0), {"dir": (at - o).normalized(), "length": o.distance_to(at), "width": 1.8, "life": 0.25})
+				fx("flash", at, Color(0.8, 0.9, 1.0), {"radius": 12.0 + 3.0 * n, "life": 0.3})
+			else:
+				fx("ring", at, Color(0.8, 0.9, 1.0), {"radius": 14.0 + 4.0 * n, "life": 0.3})
 			WeaponUtil.hit(e, 1.5 * n, o, 100.0, 0.8 if n >= 2 else 0.0)
+			WeaponTiers.run(self, "detonate", [e, n, at])
 	if any:
 		player.shake(3.0, 0.2)
 	else:

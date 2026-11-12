@@ -500,6 +500,133 @@ func t_spellblade() -> void:
 	ok("spellblade Sword Saint: tier 6 avatar, big slash, final crash %s; tier 5 %s" % [ss[6], ss[5]], ss[6][0] == 1 and ss[6][1] and ss[6][2] and ss[6][3] and ss[6][4] > 10.0 and ss[5][0] == 0 and !ss[5][1] and !ss[5][2])
 	await draw_smoke("spellblade")
 
+func t_tempest() -> void:
+	var w
+	# Static: every link is a jagged bolt
+	w = await equip("tempest", 2, false)
+	var a = dummy(P + Vector2(40, 0))
+	var b = dummy(P + Vector2(70, 0))
+	click(w)
+	var r = await watch(0.4)
+	ok("tempest Static: tier 2 chain draws bolts %s and bursts %s; both dummies charged (%d, %d)" % [r.kinds.has("bolt"), r.kinds.has("burst"), a.get_meta("charge", 0), b.get_meta("charge", 0)], r.kinds.has("bolt") and r.kinds.has("burst") and a.get_meta("charge", 0) == 1 and b.get_meta("charge", 0) == 1)
+	# charge motes for clients
+	await wait(0.6)
+	var seen_m := {}
+	for i in 12:
+		await wait(0.05)
+		fx_kinds(seen_m)
+	ok("tempest: charged enemies show motes (%s)" % [seen_m.keys()], seen_m.has("motes"))
+	# Overcharge: the 5th charge overloads: two neighbours take damage, the charge drops to 2
+	var oc := {}
+	for t in [2, 3]:
+		w = await equip("tempest", t, false)
+		var c0 = dummy(P + Vector2(50, 0))
+		var n1 = dummy(P + Vector2(100, 0))
+		var n2 = dummy(P + Vector2(50, 50))
+		c0.set_meta("charge", 4)
+		w._charge(c0, 1)
+		await wait(0.4)
+		oc[t] = [c0.get_meta("charge", 0), snappedf(lost(n1) + lost(n2), 0.1)]
+	ok("tempest Overcharge: tier 3 overloads (charge %s, neighbours lose %s); tier 2 stays at 5 %s" % [oc[3][0], oc[3][1], oc[2]], oc[3][0] == 2 and oc[3][1] > 1.0 and oc[2][0] == 5 and oc[2][1] < 0.1)
+	# Overcharge splash: Thunderclap also hits the neighbours of every detonation
+	var sp := {}
+	for t in [2, 3]:
+		w = await equip("tempest", t, false)
+		var c0 = dummy(P + Vector2(50, 0))
+		var nb = dummy(P + Vector2(75, 0))
+		c0.set_meta("charge", 3)
+		w.use_ability()
+		await wait(0.4)
+		sp[t] = snappedf(lost(nb), 0.1)
+	ok("tempest Overcharge splash: tier 3 clap hurts the neighbour at 25 px (%.1f), tier 2 not (%.1f)" % [sp[3], sp[2]], sp[3] > 1.0 and sp[2] < 0.1)
+	# Ball Lightning: the 4th attack launches a ball that zaps
+	var bl := {}
+	for t in [3, 4]:
+		w = await equip("tempest", t, false)
+		var dd = dummy(P + Vector2(50, 12))
+		var seen := {}
+		var most := 0
+		for i in 4:
+			click(w)
+			for k in 4:
+				await wait(0.05)
+				for nd in world.get_children():
+					if nd.get_script() != null and str(nd.get_script().resource_path).ends_with("items/weapons/projectile.gd") and nd.style == "orb" and nd.size >= 1.5:
+						most += 1
+			await wait(0.4)
+		await wait(1.0)
+		bl[t] = [most > 0, snappedf(lost(dd), 0.1)]
+	ok("tempest Ball Lightning: tier 4 launches an orb on the 4th attack %s; tier 3 %s" % [bl[4], bl[3]], bl[4][0] and !bl[3][0] and bl[4][1] > bl[3][1] + 1.0)
+	# Ball Lightning Dash: the dash drops a ball behind you that zaps
+	var bd := {}
+	for t in [3, 4]:
+		w = await equip("tempest", t, false)
+		var dd = dummy(P + Vector2(12, 12))
+		w.use_dash()
+		await wait(2.4)
+		bd[t] = snappedf(lost(dd), 0.1)
+	ok("tempest Ball Lightning Dash: tier 4 ball zaps a dummy at the start (%.1f vs tier 3 %.1f)" % [bd[4], bd[3]], bd[4] > bd[3] + 1.0)
+	# Thunderhead: strikes on charged dummies for 6 s
+	var th := {}
+	for t in [4, 5]:
+		w = await equip("tempest", t, false)
+		var dd = dummy(P + Vector2(60, 0))
+		w.use_ultimate()
+		await wait(1.0)
+		var h1 := lost(dd)
+		var kinds := {}
+		for i in 100:
+			await wait(0.05)
+			fx_kinds(kinds)
+		th[t] = [snappedf(lost(dd) - h1, 0.1), kinds.get("bolt", 0)]
+	ok("tempest Thunderhead: tier 5 strikes the charged dummy %s; tier 4 %s" % [th[5], th[4]], th[5][0] > th[4][0] + 6.0 and th[5][1] >= 6)
+	# Stormlord: cooldown capped at 1.0 s for 8 s, mega-clap at ~14.5 s
+	var sl := {}
+	for t in [5, 6]:
+		w = await equip("tempest", t, false)
+		var dd = dummy(P + Vector2(60, 0))
+		var far = dummy(P + Vector2(150, 0))
+		far.set_meta("charge", 5)
+		w.use_ultimate()
+		await wait(7.0)
+		w._ability_cd = 6.0
+		await wait(0.1)
+		var capped: bool = w._ability_cd <= 1.0
+		await wait(6.7)
+		far.set_meta("charge", 5)
+		await wait(0.6)
+		var h1 := lost(far)
+		var flash := false
+		var seen := {}
+		for i in 30:
+			await wait(0.05)
+			fx_kinds(seen)
+			if has_fx("flash", 90.0):
+				flash = true
+		sl[t] = [capped, flash, snappedf(lost(far) - h1, 0.1)]
+	ok("tempest Stormlord: tier 6 cooldown capped %s, mega-clap flash %s, detonation %s; tier 5 %s" % [sl[6][0], sl[6][1], sl[6][2], sl[5]], sl[6][0] and sl[6][1] and !sl[5][0] and !sl[5][1])
+	# Finisher: the 6th attack forks to five targets
+	var fin := {}
+	for t in [5, 6]:
+		w = await equip("tempest", t, false)
+		var ds := []
+		for k in 6:
+			ds.append(dummy(P + Vector2(45 + 10 * k, -25 + 10 * k)))
+		var forks := 0
+		for i in 6:
+			click(w)
+			await wait(0.1)
+			if i == 5:
+				var kinds := {}
+				await wait(0.0)
+				for nd in world.get_children():
+					if nd.get_script() != null and str(nd.get_script().resource_path).ends_with("items/weapons/fx.gd") and nd.kind == "bolt":
+						forks += 1
+			await wait(0.4)
+		fin[t] = forks
+	ok("tempest Finisher: the 6th attack forks (%d bolts alive) at tier 6, %d at tier 5" % [fin[6], fin[5]], fin[6] >= fin[5] + 3)
+	await draw_smoke("tempest")
+
 func run() -> void:
 	if want("rimelance"):
 		await t_rimelance()
@@ -511,3 +638,5 @@ func run() -> void:
 		await t_magmamaul()
 	if want("spellblade"):
 		await t_spellblade()
+	if want("tempest"):
+		await t_tempest()

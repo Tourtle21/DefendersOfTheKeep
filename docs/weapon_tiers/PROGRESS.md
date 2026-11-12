@@ -43,3 +43,4 @@ DONE magmamaul
 DONE crystalwand
 CLAIM prismstaff
 DONE spellblade
+DONE tempest
