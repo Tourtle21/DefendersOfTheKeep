@@ -44,6 +44,7 @@ var charge := 0.0           # 0..1, an ability about to fire (the building glows
 var aim := Vector2.ZERO     # direction of the last shot (turret barrels)
 var lit := false            # a flame is burning
 var fx_pulse := 1.0         # seconds since the last ability pulse, capped at 1 (the drawing flashes while it is small)
+var vis := {}               # card-specific things a client must draw (plain numbers, vectors, arrays of them): stacks, fruit, a phoenix dive...
 
 func setup(card: Dictionary, pos: Vector2) -> void:
 	data = card
