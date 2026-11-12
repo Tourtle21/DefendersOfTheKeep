@@ -5,6 +5,12 @@ class_name SpellTiers
 ## (a puppet spell never reaches it); visuals go through WeaponFx.spawn and Sfx.play, which are mirrored to clients.
 ## Designs: docs/card_tiers/<card id>.md
 
+## A slow that does not undo a stronger, longer one already on the enemy (a freeze from a tier's ability survives the ring's steady chill).
+static func keep_slow(e, mult: float, secs: float) -> void:
+	if e.get("slow_time") != null and e.slow_time > secs + 0.05 and e.slow_mult < mult:
+		return
+	e.apply_slow(mult, secs)
+
 # ---- Fireball
 const FIREBALL_PUSH := 150.0            # tier 2: the blast shoves enemies away from the centre
 const FIREBALL_CORE := 0.4              # tier 3: this much of the radius, from the centre, takes double damage
@@ -33,12 +39,16 @@ static func on_land(s) -> void:
 	match String(s.data.get("id", "")):
 		"fireball":
 			land_fireball(s, tier_of(s))
+		"frost_ring":
+			land_frost_ring(s, tier_of(s))
 
 ## Runs every physics frame once landed.
 static func tick(s, delta: float) -> void:
 	match String(s.data.get("id", "")):
 		"fireball":
 			tick_fireball(s, tier_of(s), delta)
+		"frost_ring":
+			tick_frost_ring(s, tier_of(s), delta)
 
 # ---------------------------------------------------------------- Fireball
 
@@ -128,3 +138,103 @@ static func _finale_fireball(s, dmg: float) -> void:
 		if is_instance_valid(e) and e.has_method("push"):
 			e.push((away.normalized() if away.length() > 0.5 else Vector2.RIGHT) * FIREBALL_FINALE_KNOCK, 0.25)
 	WeaponUtil.rain(tree, s.get_parent(), s.position, s.radius * 1.3, FIREBALL_METEORS, 1.0, dmg * 0.4, 16.0, HOT)
+
+# ---------------------------------------------------------------- Frost Ring
+
+const FROST_BITE := [0.0, 0.0, 1.5, 2.5, 4.0, 6.0]       # ice damage per second inside the ring, by tier - 1
+const ICE := Color(0.55, 0.85, 1.0)
+const FROST := Color(0.9, 0.97, 1.0)
+
+## Tier 2: whatever is inside when the ring lands is frozen solid for a moment, and the landing is a burst of ice.
+static func land_frost_ring(s, tier: int) -> void:
+	if tier < 2:
+		return
+	var w: Node = s.get_parent()
+	WeaponFx.spawn(w, "ring", s.position, FROST, {"radius": s.radius, "life": 0.3})
+	WeaponFx.spawn(w, "shards", s.position, FROST, {"radius": s.radius, "count": 8, "life": 0.4})
+	Sfx.play("whoosh")
+	for e in s._in_radius("enemy"):
+		if e.has_method("apply_slow"):
+			e.apply_slow(0.0, 0.6)
+
+static func tick_frost_ring(s, tier: int, delta: float) -> void:
+	if tier < 3:
+		return
+	var bite: float = FROST_BITE[tier - 1]
+	var w: Node = s.get_parent()
+	var inside: Array = s._in_radius("enemy")
+	s._bite_t += delta
+	if s._bite_t >= 0.5:                                 # frostbite: ice damage over time to everything inside
+		s._bite_t = 0.0
+		for e in inside:
+			e.spell_damage(bite * 0.5, "ice", true)
+			if inside.size() < 6 and is_instance_valid(e):
+				WeaponFx.spawn(w, "burst", e.global_position, FROST, {"radius": 6.0, "life": 0.15})
+	s._snow_t += delta
+	if s._snow_t >= 1.0:                                 # a handful of snow
+		s._snow_t = 0.0
+		WeaponFx.spawn(w, "motes", s.position, Color.WHITE, {"radius": s.radius * 0.8, "count": 6, "rise": 22.0, "life": 0.9})
+	if tier >= 4:                                        # icicle fall: up to three drop on different enemies every second
+		s._ice_t += delta
+		if s._ice_t >= 1.0:
+			s._ice_t = 0.0
+			var pool := inside.duplicate()
+			pool.shuffle()
+			for i in mini(3, pool.size()):
+				if is_instance_valid(pool[i]):
+					WeaponUtil.ground_strike(s.get_tree(), w, pool[i].global_position, 12.0, 0.3, bite * 1.5, 40.0, ICE, 0.25, [], "ice")
+	if tier >= 5:
+		_shatter(s, bite, inside)
+	if tier >= 6 and !s._finale_done and !is_copy(s) and s.age - s.flight >= s.effect_time - 0.05:
+		s._finale_done = true
+		_finale_frost_ring(s, bite, inside)
+
+## Tier 5: an enemy that dies inside the ring bursts into a frost nova that hurts and freezes its neighbours.
+static func _shatter(s, bite: float, inside: Array) -> void:
+	s._nova_clock += get_dt(s)
+	if s._nova_clock >= 1.0:
+		s._nova_clock = 0.0
+		s._novas = 0
+	var here := {}
+	for e in inside:
+		here[e.get_instance_id()] = true
+		s._seen[e.get_instance_id()] = e.global_position
+	for id in s._seen.keys():
+		var o = instance_from_id(id)
+		if o != null and !_dead(o):
+			if !here.has(id):
+				s._seen.erase(id)                         # left the ring alive
+			continue
+		var at: Vector2 = s._seen[id]
+		s._seen.erase(id)
+		if s._novas >= 4:
+			continue
+		s._novas += 1
+		var w: Node = s.get_parent()
+		WeaponFx.spawn(w, "ripple", at, FROST, {"radius": 40.0, "rings": 2, "life": 0.4})
+		WeaponFx.spawn(w, "shards", at, FROST, {"radius": 36.0, "count": 8, "life": 0.35})
+		Sfx.play("big_hit")
+		for e in WeaponUtil.enemies_in_circle(s.get_tree(), at, 36.0):
+			e.spell_damage(bite * 3.0, "ice", true)
+			if _dead(e):
+				s._seen.erase(e.get_instance_id())        # (a nova's kills do not make novas)
+			elif e.has_method("apply_slow"):
+				e.apply_slow(0.0, 0.5)
+
+static func get_dt(s) -> float:
+	return s.get_physics_process_delta_time()
+
+## Tier 6: the ring ends in absolute zero.
+static func _finale_frost_ring(s, bite: float, inside: Array) -> void:
+	var w: Node = s.get_parent()
+	WeaponFx.spawn(w, "flash", s.position, FROST, {"radius": s.radius, "life": 0.4})
+	WeaponFx.spawn(w, "ripple", s.position, ICE, {"radius": s.radius * 1.25, "rings": 3, "life": 0.7})
+	WeaponFx.spawn(w, "shards", s.position, FROST, {"radius": s.radius * 1.2, "count": 18, "life": 0.5})
+	Sfx.play("ultimate")
+	for e in inside:
+		if !is_instance_valid(e):
+			continue
+		if e.has_method("apply_slow"):
+			e.apply_slow(0.0, 1.5)
+		WeaponUtil.expose(e, 2.5)
+		e.spell_damage(bite * 4.0, "ice", true)

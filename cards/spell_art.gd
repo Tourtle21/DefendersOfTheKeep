@@ -13,22 +13,41 @@ static func jit(i: int, salt := 0.0) -> float:
 
 ## Cards that have their own body art here: the plain fill and rings are drawn softer under it.
 static func has_body(id: String) -> bool:
-	return id in ["fireball"]
+	return id in ["fireball", "frost_ring"]
 
 static func draw_flight(s, t: float, col: Color) -> void:
 	match String(s.data.get("id", "")):
 		"fireball":
 			flight_fireball(s, t, col)
+		"frost_ring":
+			flight_frost_ring(s, t, col)
 
 static func draw(s, since: float, col: Color) -> void:
 	match String(s.data.get("id", "")):
 		"fireball":
 			draw_fireball(s, since, col)
+		"frost_ring":
+			draw_frost_ring(s, since, col)
 
 ## A flame as one polygon: a wide base, a belly, and a tip that leans with `sway`.
 static func flame(s, base: Vector2, w: float, h: float, col: Color, sway := 0.0) -> void:
 	var tip := base + Vector2(sway, -h)
 	s.draw_colored_polygon(PackedVector2Array([base + Vector2(-w * 0.5, 0), base + Vector2(-w * 0.35 + sway * 0.3, -h * 0.5), tip, base + Vector2(w * 0.35 + sway * 0.3, -h * 0.5), base + Vector2(w * 0.5, 0)]), col)
+
+## A snowflake: `spokes` arms, each with `pairs` V-shaped branches along it.
+static func snowflake(s, c: Vector2, r: float, rot: float, spokes: int, pairs: int, col: Color, width := 1.0) -> void:
+	for i in spokes:
+		var d := Vector2.from_angle(rot + i * TAU / float(spokes))
+		s.draw_line(c, c + d * r, col, width)
+		for k in pairs:
+			var f := lerpf(0.35, 0.75, k / float(pairs - 1)) if pairs > 1 else 0.5
+			var m := c + d * r * f
+			var len := r * 0.22 * (1.0 - 0.3 * f)
+			s.draw_line(m, m + Vector2.from_angle(rot + i * TAU / float(spokes) + 0.7) * len, col, width)
+			s.draw_line(m, m + Vector2.from_angle(rot + i * TAU / float(spokes) - 0.7) * len, col, width)
+
+static func diamond(s, p: Vector2, size: float, col: Color) -> void:
+	s.draw_colored_polygon(PackedVector2Array([p + Vector2(0, -size), p + Vector2(size * 0.6, 0), p + Vector2(0, size), p + Vector2(-size * 0.6, 0)]), col)
 
 # ---------------------------------------------------------------- Fireball
 
@@ -106,3 +125,74 @@ static func draw_fireball(s, since: float, col: Color) -> void:
 		for i in 12:
 			var d := Vector2.from_angle(i * TAU / 12.0 + since * 0.8)
 			s.draw_line(d * r * 0.5, d * r * 1.3, Color(HOT, 0.5 * end_fade), 2.0)
+
+# ---------------------------------------------------------------- Frost Ring
+
+const ICE := Color(0.55, 0.85, 1.0)
+const FROST := Color(0.9, 0.97, 1.0)
+const DEEP := Color(0.25, 0.5, 0.85)
+
+static func flight_frost_ring(s, t: float, _col: Color) -> void:
+	var tier := int(s.data.get("tier", 1))
+	if tier < 3:
+		return
+	var from_local: Vector2 = s.origin - s.position
+	var p := from_local.lerp(Vector2.ZERO, t)
+	var back := from_local.normalized() if from_local.length() > 1.0 else Vector2.UP
+	for i in 6:
+		s.draw_circle(p + back * (4.0 + i * 3.0) + back.orthogonal() * (jit(i, s.age) - 0.5) * 3.0, maxf(0.6, 2.0 - i * 0.25), Color(FROST, 0.8 - i * 0.1))
+	snowflake(s, p, 5.0, s.age * 3.0, 6, 1, FROST, 1.0)
+
+static func draw_frost_ring(s, since: float, col: Color) -> void:
+	var tier := int(s.data.get("tier", 1))
+	if tier < 2:
+		return
+	var r: float = s.radius
+	var life: float = s.effect_time
+	var fade := clampf((life - since) / 1.0, 0.0, 1.0)
+	var in_fade := clampf(since / 0.3, 0.0, 1.0) * fade
+	# tier 2: a snowflake lies in the ring and crystals sit on the rim
+	snowflake(s, Vector2.ZERO, r * 0.8, since * 0.15, 6, 3 if tier >= 5 else 2, Color(FROST, 0.5 * in_fade), 1.0)
+	for i in 8:
+		diamond(s, Vector2.from_angle(i * TAU / 8.0) * r, 4.0, Color(FROST, 0.8 * in_fade))
+	# tier 3: the rim is a fence of crystals, and the floor cracks
+	if tier >= 3:
+		for i in 24:
+			var a := i * TAU / 24.0
+			var n := Vector2.from_angle(a)
+			var o := n.orthogonal()
+			var b := n * r
+			s.draw_colored_polygon(PackedVector2Array([b + o * 2.5, b - n * 6.0, b - o * 2.5]), Color(ICE if i % 2 == 0 else FROST, 0.7 * in_fade))
+		for i in 5:
+			var a2 := jit(i, 5.0) * TAU
+			var d := Vector2.from_angle(a2)
+			s.draw_line(d * r * 0.25, d * r * 0.75, Color(FROST, 0.35 * in_fade), 1.0)
+	# tier 4: a sheet of ice, a crystal spire at the centre, icicles circling it
+	if tier >= 4:
+		s.draw_circle(Vector2.ZERO, r * 0.6, Color(FROST, 0.18 * in_fade))
+		for k in 3:
+			var h := 16.0 if k == 0 else 10.0
+			var x := 0.0 if k == 0 else (-5.0 if k == 1 else 5.0)
+			s.draw_colored_polygon(PackedVector2Array([Vector2(x - 3, 3), Vector2(x - 2, -h * 0.6), Vector2(x, -h), Vector2(x + 2, -h * 0.6), Vector2(x + 3, 3)]), Color(ICE.lerp(Color.WHITE, 0.3 * k), 0.9 * in_fade))
+		for i in 4:
+			var a3 := since * 0.6 + i * TAU / 4.0
+			var q := Vector2.from_angle(a3) * r * 0.45
+			s.draw_colored_polygon(PackedVector2Array([q + Vector2(-2, -4), q + Vector2(2, -4), q + Vector2(0, 3)]), Color(FROST, 0.9 * in_fade))
+	# tier 5: a halo of crystals round the ring, and snow falling inside
+	if tier >= 5:
+		for i in 12:
+			diamond(s, Vector2.from_angle(since * 0.5 + i * TAU / 12.0) * r * 1.08, 5.0, Color(ICE, 0.8 * in_fade))
+		for i in 16:
+			var u := fposmod(since * 0.25 + jit(i), 1.0)
+			var q2 := Vector2(jit(i, 1.0) - 0.5, jit(i, 2.0) - 0.5) * r * 1.6 + Vector2(0, -9.0 + 18.0 * u)
+			if q2.length() < r:
+				s.draw_circle(q2, 1.3, Color(Color.WHITE, 0.8 * in_fade * sin(u * PI)))
+	# tier 6: a giant faint snowflake, aurora arcs, and a white circle that closes in during the last second
+	if tier >= 6:
+		snowflake(s, Vector2.ZERO, r * 0.95, -since * 0.1, 8, 3, Color(FROST, 0.25 * in_fade), 1.5)
+		s.draw_arc(Vector2.ZERO, r * 0.55, since * 0.7, since * 0.7 + 1.22, 14, Color(0.4, 1.0, 1.0, 0.6 * in_fade), 2.0)
+		s.draw_arc(Vector2.ZERO, r * 0.75, -since * 0.5 + 2.0, -since * 0.5 + 3.22, 14, Color(1, 1, 1, 0.6 * in_fade), 2.0)
+		s.draw_arc(Vector2.ZERO, r * 0.95, since * 0.3 + 4.0, since * 0.3 + 5.22, 14, Color(0.5, 0.4, 1.0, 0.6 * in_fade), 2.0)
+		var left: float = life - since
+		if left < 1.0 and left > 0.0:
+			s.draw_arc(Vector2.ZERO, lerpf(0.2, 1.0, left) * r, 0, TAU, 40, Color(1, 1, 1, 0.9), 2.0)

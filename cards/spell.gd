@@ -16,6 +16,13 @@ var _tick := 0.0
 var light_radius := 0.0     # > 0 once a bright spell (flare, fire zone) has landed: it is a light source (group "light")
 var _glow: GlowLight
 var _pulses := 0            # (host only) pulses a tier 5 fireball has sent
+var _bite_t := 0.0          # (host only) clocks and memory of the tier abilities (frost ring, ...)
+var _snow_t := 0.0
+var _ice_t := 0.0
+var _nova_clock := 0.0
+var _novas := 0
+var _seen := {}
+var _finale_done := false
 
 func setup(card: Dictionary, target: Vector2, from: Vector2) -> void:
 	data = card
@@ -171,7 +178,7 @@ func _physics_process(delta: float) -> void:
 	match data.kind:
 		"frost_ring":
 			for e in _in_radius("enemy"):
-				e.apply_slow(data.slow, 0.3)
+				SpellTiers.keep_slow(e, data.slow, 0.3)
 		"zone":
 			for e in _in_radius("enemy"):
 				e.apply_slow(data.slow, 0.3)

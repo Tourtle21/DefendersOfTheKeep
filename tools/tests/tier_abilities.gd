@@ -64,7 +64,14 @@ func _initialize() -> void:
 	var p = world.get_node("Player")
 	p.clear_item()
 	p.global_position = Vector2(0, 700)
-	await fireball()
+	var only := ""                                       # `-- only=frost_ring` runs one card's section
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("only="):
+			only = a.substr(5)
+	for id in ["fireball", "frost_ring"]:
+		if only == "" or only == id:
+			await call(id)
+			await clear()
 	quit()
 
 # ================================================================== Fireball
@@ -148,3 +155,65 @@ func fireball() -> void:
 		await wait(1.0)
 		await clear()
 	ok("every tier draws in flight and landed without errors", true)
+
+# ================================================================== Frost Ring
+func frost_ring() -> void:
+	print("-- frost_ring")
+	var c := Vector2(0, 300)
+	var bite := [0.0, 0.0, 1.5, 2.5, 4.0, 6.0]
+	# Flash freeze (tier 2)
+	var fz := {}
+	for t in [1, 2]:
+		var e = dummy(c + Vector2(10, 0))
+		spell("frost_ring", t, c)
+		await wait(0.3)
+		fz[t] = [e.slow_mult, e.slow_time]
+		await clear()
+	ok("tier 2 freezes what is inside when it lands, tier 1 only slows (%s)" % str(fz), fz[2][0] == 0.0 and fz[2][1] > 0.4 and fz[1][0] > 0.0 and fz[1][0] < 1.0)
+	# Frostbite (tier 3+): ice damage over time
+	var fb := {}
+	for t in [2, 3, 4, 6]:
+		var e = dummy(c + Vector2(10, 0))
+		var s = spell("frost_ring", t, c, true, {"duration": 20.0})
+		await wait(0.3)
+		var h0: float = e.health
+		await wait(2.0)
+		fb[t] = snappedf((h0 - e.health) / 2.0, 0.1)
+		await clear()
+	ok("frostbite: nothing at tier 2, about 1.5 / s at tier 3, more at 4 and 6 (%s per second; icicles add from tier 4)" % str(fb), fb[2] == 0.0 and absf(fb[3] - 1.5) < 0.6 and fb[4] > fb[3] and fb[6] > fb[4])
+	# Icicle fall (tier 4): telegraphed strikes on distinct enemies
+	var ic := {}
+	for t in [3, 4]:
+		var es := []
+		for i in 5:
+			es.append(dummy(c + Vector2.from_angle(i * TAU / 5.0) * 25.0))
+		spell("frost_ring", t, c, true, {"duration": 20.0})
+		var seen := await fx_seen(3.0, 0.3)
+		var total := 0.0
+		for e in es:
+			total += dealt(e)
+		ic[t] = [seen.get("ring", 0), snappedf(total, 0.1)]
+		await clear()
+	ok("tier 4 drops icicles (ring telegraphs and extra damage), tier 3 does not (%s)" % str(ic), ic[4][0] >= ic[3][0] + 3 and ic[4][1] > ic[3][1] * 1.5)
+	# Shatter (tier 5): a death freezes its neighbour
+	var sh := {}
+	for t in [4, 5]:
+		var a = dummy(c + Vector2(0, 5), 1.0)
+		var b = dummy(c + Vector2(20, 5))
+		spell("frost_ring", t, c, true, {"duration": 20.0, "slow": 0.35})
+		await wait(0.2)
+		b.slow_mult = 1.0
+		b.slow_time = 0.0                                  # (clear the landing freeze so only a nova can freeze it)
+		await wait(1.2)
+		sh[t] = [snappedf(b.slow_mult, 0.01), is_instance_valid(a)]
+		await clear()
+	ok("tier 5: a death inside bursts into a frost nova that freezes its neighbour, tier 4 does not (%s)" % str(sh), sh[5][0] == 0.0 and sh[4][0] > 0.0)
+	# Absolute zero (tier 6): the finale at the end
+	var fin := {}
+	for cp in [false, true]:
+		var e = dummy(c + Vector2(10, 0))
+		spell("frost_ring", 6, c, true, {"duration": 1.5, "copy": cp})
+		var seen := await fx_seen(2.2)
+		fin[cp] = [seen.has("ripple"), game.get_node_or_null("/root") != null and load("res://items/weapons/weapon_util.gd").is_exposed(e)]
+		await clear()
+	ok("tier 6 ends in absolute zero (ripple, exposed), a copy does not (%s)" % str(fin), fin[false][0] and fin[false][1] and !fin[true][0])
