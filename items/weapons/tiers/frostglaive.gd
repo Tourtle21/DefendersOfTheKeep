@@ -121,7 +121,7 @@ static func _whiteout(w, my: int, o: Vector2) -> void:
 			next_vortex += 1.0
 			w.fx("vortex", o, ICE, {"radius": WHITEOUT_R, "count": 3, "spin": -3.0, "life": 1.0})
 			w.fx("motes", o, FROST, {"radius": WHITEOUT_R * 0.8, "count": 14, "rise": -10.0, "life": 0.8})
-		var tick_damage: bool = fposmod(t, 1.0) < 0.001
+		var tick_damage: bool = fposmod(t + 0.01, 1.0) < 0.1
 		for e in WeaponUtil.enemies_in_circle(w.get_tree(), o, WHITEOUT_R):
 			if e.has_method("apply_slow"):
 				e.apply_slow(0.5, 0.6)
