@@ -388,6 +388,7 @@ const TOXIC_BONUS := 1.2          # an enemy in a tier 2+ Poison Cloud takes thi
 const FRACTURE_BONUS := 1.25      # an enemy fractured by a tier 4+ Frostfire takes this much more from everything
 const MARKED_BONUS := 1.4         # an enemy marked by a tier 6 Sentry takes this much more from everything
 const BRITTLE_BONUS := 1.5        # an enemy held in a tier 4+ Stasis Field takes this much more from everything
+const HEXED_BONUS := 1.2          # an enemy hexed by a Witch Staff takes this much more from everything (docs/weapon_tiers/witchstaff.md)
 
 ## The damage multiplier of the temporary marks on an enemy (one source for Poison Cloud's toxin and Stasis's brittleness).
 func mark_mult(e: Node) -> float:
@@ -401,6 +402,8 @@ func mark_mult(e: Node) -> float:
 		m *= FRACTURE_BONUS
 	if e.has_meta("marked_until") and e.get_meta("marked_until") > now:
 		m *= MARKED_BONUS
+	if e.has_meta("hexed_until") and e.get_meta("hexed_until") > now:
+		m *= HEXED_BONUS
 	return m
 const SHROUD := 0.6                  # damage multiplier on a shrouded enemy
 const NIGHT_SIGHT := 50.0            # how far defences see an unlit enemy in the dark

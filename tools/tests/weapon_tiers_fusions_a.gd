@@ -182,6 +182,7 @@ func t_rapier() -> void:
 
 func t_bulwark() -> void:
 	var w
+	await wait(1.5)                       # (a hit taken at the end of the previous test would still be in its grace time)
 	# Counterweight: a blow absorbed while braced shoves the attacker and pops a star
 	w = await equip("bulwark", 2, false)
 	var d = dummy(P + Vector2(14, 0))

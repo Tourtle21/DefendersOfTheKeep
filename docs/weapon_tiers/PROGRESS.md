@@ -54,3 +54,9 @@ DONE voidreaver
 CLAIM mindbender
 CLAIM witchstaff
 CLAIM soulreaper
+DONE mindbender
+CLAIM worldbreaker
+CLAIM stormbow
+DONE witchstaff
+DONE soulreaper
+CLAIM starfall

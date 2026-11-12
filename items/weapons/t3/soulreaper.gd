@@ -15,7 +15,8 @@ func _init() -> void:
 
 func attack() -> void:
 	super()
-	WeaponProjectile.shoot(game_world(), player.global_position + aim * 14.0, aim, 250.0, Game.basic_hit(weapon_id) / 3.0, Color(0.7, 0.5, 1.0), 0.5, 2, 80.0)
+	var extra := {"style": "crescent", "size": 1.0, "trail": 3}          # weapon tiers: the wave is a crescent with a trail
+	WeaponProjectile.shoot(game_world(), player.global_position + aim * 14.0, aim, 250.0, Game.basic_hit(weapon_id) / 3.0, Color(0.7, 0.5, 1.0), 0.5, 2, 80.0, extra)
 
 func ability() -> void:
 	super()

@@ -16,7 +16,10 @@ func _init() -> void:
 
 func attack() -> void:
 	thrust(5.0, 0.2)
-	WeaponProjectile.shoot(game_world(), player.global_position + aim * 10.0, aim, 240.0, Game.basic_hit(weapon_id), Color(0.55, 0.9, 0.35), 1.0, 1, 40.0, {"bleed_ticks": 5, "bleed_dmg": 0.9})
+	var extra := {"bleed_ticks": 5, "bleed_dmg": 0.9}
+	extra.merge({"style": "glob", "size": 1.2, "trail": 4})          # weapon tiers: drip bolts, witch-bolts (every 4th, tier 4+) via _st
+	extra.merge(_st.get("extra", {}), true)
+	WeaponProjectile.shoot(game_world(), player.global_position + aim * 10.0, aim, 240.0, Game.basic_hit(weapon_id), Color(0.55, 0.9, 0.35), 1.0, int(_st.get("pierce", 1)), 40.0, extra)
 
 func ability() -> void:
 	var c := cursor_target(120.0)
@@ -26,8 +29,9 @@ func ability() -> void:
 		WeaponUtil.expose(e, 6.0)
 		WeaponUtil.hit(e, 3.0, c, 0.0)
 		WeaponUtil.bleed(get_tree(), e, 9, 1.0)
-	for i in 4:                                                    # four rotting pustules burst around the hex
-		ground_strike(c + Vector2.from_angle(i * TAU / 4.0 + 0.4) * 52.0, 20.0, 0.5 + i * 0.1, 3.0, 100.0, Color(0.55, 0.9, 0.3), 0.3)
+	var pustules := 6 if tier >= 3 else 4                          # weapon tiers: Pox makes a ring of six
+	for i in pustules:                                             # rotting pustules burst around the hex
+		ground_strike(c + Vector2.from_angle(i * TAU / float(pustules) + 0.4) * 52.0, 20.0, 0.5 + i * 0.1, 3.0, 100.0, Color(0.55, 0.9, 0.3), 0.3)
 
 func dash_attack() -> void:
 	var from: Vector2 = player.global_position
