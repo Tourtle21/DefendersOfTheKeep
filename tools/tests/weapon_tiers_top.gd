@@ -516,6 +516,135 @@ func t_crystalwand() -> void:
 	await wait(0.1)
 	ok("crystalwand: the Prismatic Staff still fires its own five-shard fan (%d)" % young_proj(), young_proj() == 5)
 
+func beam_widths(seen: Dictionary) -> void:
+	for n in world.get_children():
+		if n.get_script() != null and str(n.get_script().resource_path).ends_with("items/weapons/fx.gd") and n.kind == "beam":
+			var k := "w%d" % int(n.width)
+			seen[k] = int(seen.get(k, 0)) + 1
+
+func t_prismstaff() -> void:
+	var w
+	var mod = load("res://items/weapons/tiers/prismstaff.gd")
+	var wand = load("res://items/weapons/tiers/crystalwand.gd")
+	# Spectrum (tier 2): a rainbow fan of five hues, six hued beams, the statuses
+	w = await equip("prismstaff", 2, false)
+	w.use_item()
+	await wait(0.1)
+	var cols := {}
+	for n in world.get_children():
+		if n.get_script() != null and str(n.get_script().resource_path).ends_with("projectile.gd"):
+			cols[str(n.color)] = true
+	ok("prismstaff Spectrum: the fan has %d projectiles of %d different colours" % [young_proj(), cols.size()], young_proj() == 5 and cols.size() == 5)
+	var st1 = dummy(P + Vector2(30, 40))
+	var st2 = dummy(P + Vector2(30, -40))
+	mod.hue_status(w, st1, 0)
+	mod.hue_status(w, st2, 4)
+	var h0 := lost(st1)
+	await wait(2.0)
+	ok("prismstaff Spectrum: red bleeds (%.1f lost over 2 s), blue chills (slow %.2f)" % [lost(st1) - h0, st2.slow_mult], lost(st1) - h0 > 0.5 and st2.slow_mult < 1.0)
+	var bk := {}
+	w = await equip("prismstaff", 2, false)
+	var bd = dummy(P + Vector2(70, 0))
+	w.use_ability()
+	for i in 12:
+		await wait(0.05)
+		beam_widths(bk)
+	await wait(1.0)
+	ok("prismstaff Spectrum Beam: six beams of width 6 (seen %s) and the dummy on the axis is hit (%.1f)" % [bk.get("w6", 0), lost(bd)], bk.get("w6", 0) >= 6 and lost(bd) > 0.0)
+	# Refraction (tier 3): a beam through a marked enemy bends to its neighbour; the focus flashes
+	var rf := {}
+	for t in [2, 3]:
+		w = await equip("prismstaff", t, false)
+		var m1 = dummy(P + Vector2(60, 0))
+		var m2 = dummy(P + Vector2(60, 60))
+		wand.set_crystals(m1, 1)
+		await wait(0.2)
+		w.use_ability()
+		var seen := {}
+		for i in 20:
+			await wait(0.05)
+			fx_kinds(seen)
+		await wait(0.6)
+		rf[t] = {"nb": lost(m2), "flash": seen.get("star", 0)}
+	ok("prismstaff Refraction: the neighbour of a marked enemy takes more at tier 3 (%.1f vs %.1f), the focus star shows (%s vs %s)" % [rf[3].nb, rf[2].nb, rf[3].flash, rf[2].flash], rf[3].nb > rf[2].nb + 0.5 and rf[3].flash > 0 and rf[2].flash == 0)
+	# Lens Array (tier 4): two lenses repeat the fan; the dash leaves a prism that splits a shot
+	var ln := {}
+	for t in [3, 4]:
+		w = await equip("prismstaff", t, false)
+		await wait(0.3)
+		var lens: int = int(aura_data().get("lens", 0))
+		w._attack_cd = 0.0
+		w.use_item()
+		await wait(0.1)
+		ln[t] = {"lens": lens, "n": young_proj()}
+	ok("prismstaff Lens Array: tier 4 shows %d lenses and fires %d shards per attack (tier 3: %d, %d)" % [ln[4].lens, ln[4].n, ln[3].lens, ln[3].n], ln[4].lens == 2 and ln[4].n >= 15 and ln[3].lens == 0 and ln[3].n == 5)
+	w = await equip("prismstaff", 4, false)
+	await face(Vector2(1, 0))
+	w.use_dash()
+	await wait(0.5)
+	await face(Vector2(-1, 0))
+	w._attack_cd = 0.0
+	w.use_item()
+	await wait(0.4)
+	var split := 0
+	for n in world.get_children():
+		if n.get_script() != null and str(n.get_script().resource_path).ends_with("projectile.gd") and n.gated and n.owner_id != 0 and n.global_position.distance_to(w._st.prism) < 120.0:
+			split += 1
+	ok("prismstaff Refract Prism: the prism left by the dash splits a passing shot (%d gated shards)" % split, split >= 2)
+	# Rainbow Barrage (tier 5): six wide beams at about 4 s
+	var rb := {}
+	for t in [4, 5]:
+		w = await equip("prismstaff", t, false)
+		await face(Vector2(1, 0))
+		dummy(P + Vector2(70, 0))
+		w.use_ultimate()
+		var bw := {}
+		for i in 130:
+			await wait(0.05)
+			if i * 0.05 > 3.4:
+				beam_widths(bw)
+		rb[t] = bw.get("w10", 0)
+	ok("prismstaff Rainbow Barrage: tier 5 draws the wide rainbow beams in %d frames, tier 4 in %d" % [rb[5], rb[4]], rb[5] >= 6 and rb[4] == 0)
+	# White Light (tier 6)
+	w = await equip("prismstaff", 6, false)
+	await face(Vector2(1, 0))
+	var wd = dummy(P + Vector2(30, 0))
+	var wf = dummy(P + Vector2(100, 40))
+	world.get_node("Hud").get_node("Control2").get_node("ColorRect").get_node("Health").size.x = 100.0
+	var hp_start := health_px()
+	w.use_ultimate()
+	await wait(5.6)
+	ok("prismstaff White Light: the aura knows the transformation (%s), %d lenses" % [aura_data().get("wl", false), int(aura_data().get("lens", 0))], aura_data().get("wl", false) and int(aura_data().get("lens", 0)) == 4)
+	var bw6 := {}
+	w._attack_cd = 0.0
+	w.use_item()
+	for i in 6:
+		await wait(0.05)
+		beam_widths(bw6)
+	ok("prismstaff White Light: an attack throws the six-hue fan (%d beams of width 4)" % bw6.get("w4", 0), bw6.get("w4", 0) >= 6)
+	var sweeps := 0
+	var seen6 := {}
+	var peak := 0
+	var l_prev := lost(wd)
+	var big := 0.0
+	var b_before := 0.0
+	for i in 240:
+		await wait(0.05)
+		fx_kinds(seen6)
+		peak = maxi(peak, count_script("items/weapons/fx.gd"))
+		var l := lost(wd)
+		if i * 0.05 > 5.0:
+			big = maxf(big, l - l_prev)
+		l_prev = l
+		if i == 120:
+			wand.set_crystals(wd, 3)
+	var healed: float = health_px() - hp_start
+	var power: float = game.weapon_power("prismstaff", 4)
+	var hh: float = game.basic_hit("prismstaff")
+	ok("prismstaff White Light: the final column lands (flash %s, pillar %s, biggest jump %.1f = %.1f H), healing %.1f px <= 23, peak fx %d <= 120" % [seen6.has("flash"), seen6.has("pillar"), big, big / (hh * power), healed, peak], seen6.has("flash") and seen6.has("pillar") and big >= 3.0 * hh * power * 0.9 and healed <= 23.5 and healed > 0.0 and peak <= 120)
+	await clear()
+	await draw_smoke("prismstaff")
+
 func aura_data_state() -> float:
 	for n in world.get_children():
 		if n.get_script() != null and str(n.get_script().resource_path).ends_with("weapon_aura.gd"):
@@ -531,3 +660,5 @@ func run() -> void:
 		await t_earthshaker()
 	if only == "" or only == "crystalwand":
 		await t_crystalwand()
+	if only == "" or only == "prismstaff":
+		await t_prismstaff()
