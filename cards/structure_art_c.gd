@@ -31,6 +31,9 @@ static func draw(st, col: Color) -> bool:
 		"sunspire":
 			draw_sunspire(st, col)
 			return true
+		"phoenix_shrine":
+			draw_phoenix_shrine(st, col)
+			return true
 	return false
 
 # ---------------------------------------------------------------- shared shapes
@@ -752,3 +755,127 @@ static func draw_sunspire(st, col: Color) -> void:
 			st.draw_arc(mp, 3.6, ang - PI * 0.6, ang + PI * 0.6, 8, Color(0.85, 0.87, 0.92), 1.5)
 			st.draw_circle(mp - aim * 1.5, 1.0, SU_GOLD)
 	shot_line(st, c, SU_GOLD, 3.0)
+
+# ================================================================ Phoenix Shrine
+const PX_FLAME := Color(1.0, 0.55, 0.2)
+const PX_GOLD := Color(1.0, 0.82, 0.35)
+const PX_RED := Color(0.9, 0.25, 0.15)
+const PX_WHITE := Color(1.0, 0.96, 0.8)
+const PX_ASH := Color(0.35, 0.3, 0.3)
+
+## A layered flame: red outside, flame, then gold, then white-hot inside.
+static func flame3(st, base: Vector2, w: float, h: float, age: float, seed: float, edge := PX_RED) -> void:
+	var sway := sin(age * 6.0 + seed) * w * 0.25
+	SpellArt.flame(st, base, w, h, Color(edge, 0.9), sway)
+	SpellArt.flame(st, base, w * 0.72, h * 0.8, Color(PX_FLAME, 0.95), sway * 0.9)
+	SpellArt.flame(st, base, w * 0.4, h * 0.55, Color(PX_GOLD, 1.0), sway * 0.7)
+	if h > 12.0:
+		SpellArt.flame(st, base, w * 0.2, h * 0.3, Color(PX_WHITE, 1.0), sway * 0.5)
+
+## A bird of fire seen from the side, flying toward `dir`, wings beating with `flap`.
+static func bird(st, c: Vector2, dir: Vector2, size: float, flap: float, alpha: float) -> void:
+	var back := -dir
+	var side := dir.orthogonal()
+	var wing := sin(flap) * 0.5 + 0.5
+	# long tail: three flame dots
+	for i in 3:
+		st.draw_circle(c + back * (size * (1.2 + i * 0.9)), size * (0.45 - 0.1 * i), Color(PX_FLAME, alpha * (0.8 - 0.2 * i)))
+	# two wings
+	for k in [-1.0, 1.0]:
+		var tip: Vector2 = c + side * k * size * (1.5 + 0.9 * wing) + back * size * 0.2 + Vector2(0, -size * 0.9 * wing)
+		st.draw_colored_polygon(PackedVector2Array([c + side * k * size * 0.3, tip, c + back * size * 0.9 + side * k * size * 0.6]), Color(PX_FLAME.lerp(PX_GOLD, 0.4), alpha))
+	# body and head
+	st.draw_circle(c, size * 0.9, Color(PX_RED.lerp(PX_FLAME, 0.5), alpha))
+	st.draw_circle(c + dir * size * 0.9, size * 0.5, Color(PX_GOLD, alpha))
+
+static func draw_phoenix_shrine(st, col: Color) -> void:
+	var t: int = st.tier
+	var age: float = st._age
+	var r: float = st.radius
+	var pulse := 0.5 + 0.5 * sin(age * 3.0)
+	var last_breath: float = clampf((float(st.charge) - 0.9) / 0.1, 0.0, 1.0)      # the last tenth of its healing: it burns brighter
+	var glow := 1.0 + 0.5 * last_breath
+	# the field, as the plain healer draws it
+	st.draw_circle(Vector2.ZERO, r, Color(col, 0.06 + 0.04 * pulse))
+	st.draw_arc(Vector2.ZERO, r, 0, TAU, 56, Color(col, 0.35), 1.0)
+	# 6: the edge is a ring of fire; 2: a wreath of small flames, alternating
+	if t >= 6:
+		st.draw_arc(Vector2.ZERO, r, 0, TAU, 56, Color(PX_FLAME, 0.5), 2.0)
+		for i in 18:
+			var a := i * TAU / 18.0
+			flame3(st, Vector2.from_angle(a) * r, 3.0, 6.0 + 2.0 * sin(age * 5.0 + i), age, i * 1.7)
+	else:
+		for i in 8:
+			if i % 2 == t % 2 or t >= 3:
+				var a := i * TAU / 8.0 + 0.2
+				flame3(st, Vector2.from_angle(a) * r * 0.97, 3.0, 6.0 + 1.5 * sin(age * 6.0 + i), age, i * 2.3)
+	# 3: a gold ash ring on the ground, fine ash drifting down
+	if t >= 3:
+		st.draw_arc(Vector2.ZERO, r * 0.5, 0, TAU, 40, Color(PX_GOLD, 0.35 + 0.15 * pulse), 2.0)
+		for i in 12:
+			var u := fposmod(age * 0.3 + SpellArt.jit(i), 1.0)
+			st.draw_circle(Vector2((SpellArt.jit(i, 3.0) - 0.5) * r * 1.6, -40.0 + u * 55.0), 0.9, Color(PX_ASH.lightened(0.3), 0.6 * (1.0 - u * 0.5)))
+	# 6: heat haze above the ground
+	if t >= 6:
+		for k in 2:
+			var pts := PackedVector2Array()
+			for i in 10:
+				pts.append(Vector2(-r * 0.5 + i * r * 0.11, -4.0 - k * 7.0 + sin(age * 3.0 + i * 0.8 + k) * 1.6))
+			st.draw_polyline(pts, Color(1.0, 0.85, 0.6, 0.18), 1.0)
+	# 5: big wings of flame spread behind the shrine
+	if t >= 5:
+		var flap := 0.5 + 0.5 * sin(age * 1.5)
+		for k in [-1.0, 1.0]:
+			for f in 4:
+				var u := float(f) / 3.0
+				var tip := Vector2(k * (20.0 + 14.0 * (1.0 - u * 0.3) + 4.0 * flap), -10.0 - 22.0 * (1.0 - u) - 2.0 * flap)
+				var base := Vector2(k * 3.0, -6.0 - f * 1.5)
+				var width := 4.5
+				var n := (tip - base).orthogonal().normalized() * width
+				st.draw_colored_polygon(PackedVector2Array([base - n * 0.3, tip, base + n * 1.2]), Color(PX_RED.lerp(PX_GOLD, u), 0.55 * glow))
+	# the stone bowl pillar
+	StructureArt.poly(st, PackedVector2Array([Vector2(-7, 7), Vector2(-4.5, -5), Vector2(4.5, -5), Vector2(7, 7)]), Color(0.55, 0.5, 0.48))
+	StructureArt.poly(st, PackedVector2Array([Vector2(-7, -5), Vector2(-5, -9), Vector2(5, -9), Vector2(7, -5)]), Color(0.65, 0.6, 0.56))
+	st.draw_rect(Rect2(-4, 0, 8, 2), PX_GOLD)
+	# the flame: three layers, twice as tall from tier 5
+	var fh := (32.0 if t >= 5 else 16.0) * glow
+	flame3(st, Vector2(0, -8), 12.0 if t >= 5 else 9.0, fh + 2.0 * sin(age * 7.0), age, 0.0)
+	if t >= 5:
+		st.draw_arc(Vector2(0, -9), 9.0, 0, TAU, 20, Color(PX_GOLD, 0.8), 1.5)          # a gold ring floats round the bowl
+	# 3: ember arcs rise in pairs; 2: embers float
+	for i in 6:
+		var u := fposmod(age * 0.6 + SpellArt.jit(i), 1.0)
+		var x := (SpellArt.jit(i, 5.0) - 0.5) * 18.0 + sin(age * 3.0 + i) * 3.0
+		st.draw_circle(Vector2(x, -12.0 - u * (30.0 if t >= 5 else 20.0)), 1.0, Color(PX_GOLD if i % 2 == 0 else PX_FLAME, 1.0 - u))
+	# 6: the full phoenix perches on the shrine
+	if t >= 6:
+		var top := Vector2(0, -24.0 - 2.0 * sin(age * 2.0))
+		for i in 5:
+			st.draw_line(Vector2(0, top.y + 4.0), Vector2((i - 2.0) * 4.0, top.y + 15.0 + 2.0 * sin(age * 4.0 + i)), Color(PX_FLAME.lerp(PX_GOLD, i / 5.0), 0.9), 2.2)
+		for k in [-1.0, 1.0]:
+			var wing := PackedVector2Array([top + Vector2(k * 2.0, 3.0), top + Vector2(k * 13.0, -4.0 + 2.0 * sin(age * 2.5)), top + Vector2(k * 10.0, 7.0), top + Vector2(k * 3.0, 8.0)])
+			st.draw_colored_polygon(wing, Color(PX_FLAME, 0.95))
+			st.draw_line(wing[1], wing[2], PX_GOLD, 1.0)
+		st.draw_circle(top + Vector2(0, 3.0), 4.5, Color.BLACK)
+		st.draw_circle(top + Vector2(0, 3.0), 3.7, PX_RED.lerp(PX_FLAME, 0.4))
+		st.draw_circle(top + Vector2(0, -2.0), 2.4, PX_GOLD)
+		st.draw_line(top + Vector2(0, -3.5), top + Vector2(-2.0, -7.0), PX_FLAME, 1.2)
+		st.draw_line(top + Vector2(0, -3.5), top + Vector2(2.0, -7.0), PX_GOLD, 1.2)
+		st.draw_circle(top + Vector2(0.8, -2.2), 0.5, Color.BLACK)
+		st.draw_arc(top + Vector2(0, 1.0), 14.0, 0, TAU, 24, Color(PX_GOLD, 0.7 + 0.2 * pulse), 1.5)
+	# 4: the phoenix spirit circles the shrine (it dives on a hurt player: dive_to / dive_t); at tier 6 it appears only to dive
+	var dive_t: float = float(st.vis.get("dive_t", 9.0))
+	var diving := t >= 4 and dive_t < 0.5
+	if t >= 4 and (t < 6 or diving):
+		var orbit := Vector2.from_angle(age * 1.2) * r * 0.5
+		orbit.y *= 0.5
+		var bpos := orbit
+		var bdir := Vector2.from_angle(age * 1.2 + PI * 0.5)
+		if diving:
+			var to: Vector2 = st.vis.get("dive_to", Vector2.ZERO)
+			bpos = orbit.lerp(to, clampf(dive_t / 0.3, 0.0, 1.0))
+			bdir = (to - orbit).normalized()
+			st.draw_line(Vector2(0, -10), bpos, Color(PX_GOLD, 0.5 * (1.0 - dive_t / 0.5)), 3.0)
+		bird(st, bpos + Vector2(0, -10), bdir, 4.0, age * 9.0, 0.7)
+		for i in 3:
+			st.draw_circle(bpos + Vector2(0, -10) - bdir * (8.0 + i * 5.0) + Vector2(0, sin(age * 6.0 + i) * 2.0), 1.0, Color(PX_GOLD, 0.6 - 0.15 * i))

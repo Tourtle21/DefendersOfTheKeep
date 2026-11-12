@@ -126,6 +126,8 @@ func _initialize() -> void:
 		await grove()
 	if only == "" or only == "sunspire":
 		await sunspire()
+	if only == "" or only == "phoenix_shrine":
+		await phoenix()
 	quit()
 
 # ---------------------------------------------------------------- Crystal Pylon
@@ -691,3 +693,102 @@ func sunspire() -> void:
 	ok("sunspire t6 keeps the lance (width 10 %s) and the pulse (ring 80 %s)" % [saw("line", -1.0, 10.0), saw("ring", 80.0)], saw("line", -1.0, 10.0) and saw("ring", 80.0))
 	await clear_world()
 	await draws(id, "sunspire")
+
+# ---------------------------------------------------------------- Phoenix Shrine
+func phoenix() -> void:
+	var id := "phoenix_shrine"
+	var p = world.get_node("Player")
+	var pos := Vector2(0, 200)
+	var far := Vector2(500, 200)
+	p.global_position = far
+	# 1. purifying flame: whatever stands in the field is scorched
+	var loss := {}
+	for t in [1, 2]:
+		await clear_world()
+		var st = tower(id, t, pos)
+		var e = dummy(pos + Vector2(60, 0))
+		await wait(2.6)
+		loss[t] = lost(e)
+	ok("phoenix t2 scorch: the dummy in the field lost %.1f (tier 1: %.1f)" % [loss[2], loss[1]], loss[2] > loss[1] + 1.0)
+	# 2. ashes: an enemy that dies in the field heals the hurt players in it by 6%
+	var jump := {}
+	for t in [2, 3]:
+		await clear_world()
+		var st2 = tower(id, t, pos)
+		var e2 = dummy(pos + Vector2(60, 0), 1.0)
+		p.global_position = pos + Vector2(20, 0)
+		health_bar().size.x = 30.0
+		var best := 0.0
+		var last: float = health_bar().size.x
+		var tt := 0.0
+		while tt < 1.0:
+			await wait(0.02)
+			tt += 0.02
+			var h: float = health_bar().size.x
+			best = maxf(best, h - last)
+			last = h
+		jump[t] = best
+	ok("phoenix t3 ashes: biggest jump %.1f at tier 3 (6%% is %.1f), %.1f at tier 2" % [jump[3], 0.06 * 228.0, jump[2]], jump[3] >= 10.0 and jump[2] < 8.0)
+	p.global_position = far
+	# 3. phoenix dive: heals the most hurt player a fifth and bursts around them
+	await clear_world()
+	seen.clear()
+	var s4 = tower(id, 4, pos)
+	var hps4: float = s4.data.heal_per_sec
+	p.global_position = pos + Vector2(40, 60)
+	var near = dummy(pos + Vector2(60, 60))
+	var away = dummy(pos + Vector2(-60, 60))
+	s4._timers["dive"] = 4.5
+	var gain := 0.0
+	var t3 := 0.0
+	while t3 < 1.2:
+		scan()
+		health_bar().size.x = 60.0
+		await wait(0.02)
+		t3 += 0.02
+		gain = maxf(gain, health_bar().size.x - 60.0)
+	ok("phoenix t4 dive: biggest gain in a step %.1f (20%% is %.1f), line streak seen %s, the dummy next to the player lost %.1f more than the one away (burst %.1f)" % [gain, 0.2 * 228.0, saw("line", -1.0, 4.0), lost(near) - lost(away), hps4 * 0.5], gain >= 40.0 and saw("line", -1.0, 4.0) and lost(near) - lost(away) >= hps4 * 0.4)
+	# 4. second life: saved once, not again within 45 s
+	await clear_world()
+	seen.clear()
+	var s5 = tower(id, 5, pos)
+	p.global_position = pos + Vector2(10, 0)
+	health_bar().size.x = 15.0
+	await watch(0.15)
+	var saved_hp: float = health_bar().size.x
+	var shield: float = p.shield_time
+	health_bar().size.x = 15.0
+	await wait(0.04)
+	var again: float = health_bar().size.x
+	ok("phoenix t5 second life: health %.0f after the first save (70%% is %.0f), shield %.1f, a second time within 45 s only %.0f, pillar seen %s" % [saved_hp, 0.7 * 228.0, shield, again, saw("pillar")], saved_hp >= 0.7 * 228.0 - 1.0 and shield >= 2.0 and again < 100.0 and saw("pillar"))
+	p.shield_time = 0.0
+	p.global_position = far
+	# 5. phoenix song when the shrine is spent
+	await clear_world()
+	seen.clear()
+	var s6 = tower(id, 6, pos)
+	var hps6: float = s6.data.heal_per_sec
+	p.global_position = pos + Vector2(0, 50)
+	health_bar().size.x = 50.0
+	var d6 = dummy(pos + Vector2(100, 0))
+	await wait(0.1)
+	var before6 := lost(d6)
+	s6._expire()
+	await watch(0.15)
+	ok("phoenix t6 song: health %.0f, shield %.1f, flash 95 seen %s, the dummy took %.1f more (6 x %.1f = %.1f)" % [health_bar().size.x, p.shield_time, saw("flash", 95.0), lost(d6) - before6, hps6, hps6 * 6.0], health_bar().size.x >= 227.0 and p.shield_time >= 3.5 and saw("flash", 95.0) and lost(d6) - before6 >= hps6 * 5.0)
+	p.shield_time = 0.0
+	p.global_position = far
+	# 6. the budget still spends the shrine (and the glow of its last breath is published)
+	await clear_world()
+	var s5b = tower(id, 5, pos)
+	s5b._heal_budget = 30.0
+	p.global_position = pos
+	health_bar().size.x = 40.0
+	await wait(0.3)
+	var charge_seen: float = s5b.charge if is_instance_valid(s5b) else 1.0
+	await wait(1.0)
+	ok("phoenix budget: the shrine is spent and gone %s (its charge reached %.2f)" % [!is_instance_valid(s5b) or s5b.is_queued_for_deletion(), charge_seen], !is_instance_valid(s5b) or s5b.is_queued_for_deletion())
+	p.global_position = Vector2(0, 600)
+	health_bar().size.x = 228.0
+	await clear_world()
+	await draws(id, "phoenix")

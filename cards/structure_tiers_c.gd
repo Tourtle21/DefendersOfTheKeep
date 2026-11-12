@@ -64,6 +64,8 @@ static func tick(st, delta: float) -> void:
 			tick_healing_grove(st, delta)
 		"sunspire":
 			tick_sunspire(st, delta)
+		"phoenix_shrine":
+			tick_phoenix_shrine(st, delta)
 
 static func on_gnaw(st, e) -> void:
 	match id_of(st):
@@ -120,6 +122,8 @@ static func on_promote(st, new_tier: int) -> void:
 
 static func on_expire(st) -> void:
 	match id_of(st):
+		"phoenix_shrine":
+			on_expire_phoenix_shrine(st)
 		"magma_wall":
 			on_expire_magma_wall(st)
 
@@ -973,3 +977,129 @@ static func tick_sunspire(st, delta: float) -> void:
 				st.fx_pulse = 0.0
 		st.vis["noon"] = float(st._timers["noon_on"]) > 0.0
 		st.charge = snappedf(StructureTiers.fill(st, "noon", SUN_NOON_T), 0.02)
+
+# ================================================================ Phoenix Shrine
+const PHX_FLAME := Color(1.0, 0.55, 0.2)
+const PHX_GOLD := Color(1.0, 0.82, 0.35)
+const PHX_WHITE := Color(1.0, 0.96, 0.8)
+const PHX_SCORCH := 0.12
+const PHX_ASH := 0.06
+const PHX_DIVE_T := 5.0
+const PHX_DIVE := 0.2
+const PHX_DIVE_R := 30.0
+const PHX_LIFE_AT := 0.10
+const PHX_LIFE_TO := 0.7
+const PHX_LIFE_CD := 45.0
+const PHX_SONG := 6.0
+
+## A burst of fire centred on `at` (the pulse helper centres on the building): damage, shove, stun.
+static func nova(st, at: Vector2, r: float, dmg: float, push_speed: float, stun: float, col: Color, elem := "fire") -> void:
+	var w := world_of(st)
+	WeaponFx.spawn(w, "ring", at, col, {"radius": r, "life": 0.3})
+	WeaponFx.spawn(w, "shards", at, col, {"radius": r, "count": 8, "life": 0.35})
+	for e in StructureTiers.enemies_at(st, at, r):
+		var dir: Vector2 = (e.global_position - at).normalized()
+		if dir == Vector2.ZERO:
+			dir = Vector2.RIGHT
+		e.spell_damage(dmg, elem, true)
+		if !alive(e):
+			continue
+		if push_speed > 0.0 and e.has_method("push"):
+			e.push(dir * push_speed, 0.15)
+		if stun > 0.0 and !StructureTiers._boss(e) and e.has_method("apply_slow"):
+			e.apply_slow(0.0, stun)
+
+static func tick_phoenix_shrine(st, delta: float) -> void:
+	var t: int = st.tier
+	if t < 2:
+		return
+	var w := world_of(st)
+	var hps: float = float(st.data.heal_per_sec)
+	var pos: Vector2 = st.global_position
+	var r: float = st.radius
+	var ps: Array = []
+	for p in st.get_tree().get_nodes_in_group("player"):
+		if is_instance_valid(p) and !p.downed and p.global_position.distance_to(pos) <= r:
+			ps.append(p)
+	# the budget left, for the last-breath glow of the phoenix
+	if st._heal_budget > 0.0:
+		st.charge = snappedf(clampf(st._healed / st._heal_budget, 0.0, 1.0), 0.02)
+	# 2 Purifying flame: what stands in the field is scorched
+	if StructureTiers.pace(st, "scorch", 0.5, delta):
+		var n := 0
+		for e in StructureTiers.enemies(st, r):
+			e.spell_damage(hps * PHX_SCORCH * 0.5, "fire", true)
+			if n < 2 and is_instance_valid(e):
+				WeaponFx.spawn(w, "burst", e.global_position, PHX_FLAME, {"radius": 6.0, "life": 0.2})
+				n += 1
+	# 3 Ashes to ashes: every enemy that dies in the field heals the hurt players in it
+	if t >= 3:
+		for at in StructureTiers.deaths(st, r):
+			for p in ps:
+				if p.needs_health():
+					p.heal(PHX_ASH * 228.0 * Game.hp_scale())
+					WeaponFx.spawn(w, "motes", p.global_position, PHX_GOLD, {"radius": 8.0, "count": 8, "rise": 24.0, "life": 0.7})
+			if !ps.is_empty():
+				StructureTiers.sfx(st, "unlock", 0.4)
+	# 4 Phoenix dive: the phoenix drops on the most hurt player
+	if t >= 4:
+		var dt: float = float(st.vis.get("dive_t", 9.0))
+		if dt < 1.0:
+			st.vis["dive_t"] = snappedf(minf(dt + delta, 1.0), 0.05)
+		if StructureTiers.ready(st, "dive", PHX_DIVE_T, delta):
+			var hurt = null
+			var lowest := 0.95
+			for p in ps:
+				var f: float = StructureTiers.hp_frac(p)
+				if f < lowest:
+					lowest = f
+					hurt = p
+			if hurt != null:
+				StructureTiers.reset(st, "dive")
+				var at: Vector2 = hurt.global_position
+				hurt.heal(PHX_DIVE * 228.0 * Game.hp_scale())
+				nova(st, at, PHX_DIVE_R, hps * 0.5, 0.0, 0.0, PHX_FLAME)
+				WeaponFx.spawn(w, "line", pos + Vector2(0, -10), PHX_GOLD, {"dir": (at - pos).normalized(), "length": at.distance_to(pos), "width": 4.0, "life": 0.25})
+				WeaponFx.spawn(w, "pillar", at, PHX_FLAME, {"height": 40.0, "width": 16.0, "life": 0.4})
+				st.vis["dive_to"] = at - pos
+				st.vis["dive_t"] = 0.0
+				StructureTiers.sfx(st, "cast", 0.4)
+	# 5 Second life: a player about to fall in the field is saved (once per player in 45 s)
+	if t >= 5:
+		var saved: Dictionary = state(st, "saved", {})
+		for id in saved.keys():
+			saved[id] -= delta
+			if saved[id] <= 0.0:
+				saved.erase(id)
+		for p in ps:
+			var id2: int = p.get_instance_id()
+			var f2: float = StructureTiers.hp_frac(p)
+			if f2 < PHX_LIFE_AT and !saved.has(id2):
+				saved[id2] = PHX_LIFE_CD
+				p.heal((PHX_LIFE_TO - f2) * 228.0 * Game.hp_scale())
+				p.shield_time = maxf(p.shield_time, 2.5)
+				var at2: Vector2 = p.global_position
+				nova(st, at2, 60.0, hps * 2.0, 260.0, 0.5, PHX_FLAME)
+				WeaponFx.spawn(w, "pillar", at2, PHX_GOLD, {"height": 100.0, "width": 40.0, "life": 0.6})
+				WeaponFx.spawn(w, "flash", at2, PHX_GOLD, {"radius": 40.0, "life": 0.3})
+				WeaponFx.spawn(w, "ripple", at2, PHX_GOLD, {"radius": 60.0, "rings": 3, "life": 0.6})
+				WeaponFx.spawn(w, "star", at2, PHX_GOLD, {"radius": 50.0, "count": 8, "spin": 2.0, "life": 0.6})
+				StructureTiers.sfx(st, "ultimate", 0.5)
+
+## 6 Phoenix song (FINALE): when its healing is spent the shrine sings once instead of just vanishing.
+static func on_expire_phoenix_shrine(st) -> void:
+	if st.tier < 6 or bool(st.data.get("copy", false)):
+		return
+	var w := world_of(st)
+	var pos: Vector2 = st.global_position
+	var r: float = st.radius * 1.5
+	for p in st.get_tree().get_nodes_in_group("player"):
+		if is_instance_valid(p) and !p.downed and p.global_position.distance_to(pos) <= r:
+			p.heal(228.0 * Game.hp_scale())
+			p.shield_time = maxf(p.shield_time, 4.0)
+	StructureTiers.pulse(st, r, float(st.data.heal_per_sec) * PHX_SONG, 300.0, 1.0, PHX_GOLD, "fire")
+	WeaponFx.spawn(w, "flash", pos, PHX_WHITE, {"radius": 95.0, "life": 0.5})
+	WeaponFx.spawn(w, "pillar", pos, PHX_GOLD, {"height": 160.0, "width": 70.0, "life": 0.8})
+	WeaponFx.spawn(w, "ripple", pos, PHX_GOLD, {"radius": 140.0, "rings": 4, "life": 0.9})
+	WeaponFx.spawn(w, "star", pos, PHX_GOLD, {"radius": 90.0, "count": 12, "spin": 2.0, "life": 0.9})
+	Sfx.play("ultimate")
