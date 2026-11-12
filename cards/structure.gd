@@ -61,6 +61,7 @@ func setup(card: Dictionary, pos: Vector2) -> void:
 	_heal_budget = float(card.get("heal_per_sec", 0.0)) * float(card.get("duration", 0.0))
 	uses = card.get("uses", 0)
 	light_radius = float(card.get("light", 0.0))
+	StructureTiers.on_setup(self)
 
 const MERGE_RANGE := 26.0
 
@@ -325,7 +326,7 @@ func _physics_process(delta: float) -> void:
 			for p in get_tree().get_nodes_in_group("player"):
 				if is_instance_valid(p) and p.global_position.distance_to(global_position) <= radius and p.needs_health():
 					p.heal(data.heal_per_sec * delta * StructureTiers.heal_mult(self, p))             # only a hurt player in range uses up its healing
-					_healed += data.heal_per_sec * delta
+					_healed += data.heal_per_sec * delta * StructureTiers.budget_mult(self)
 			if _heal_budget > 0.0 and _healed >= _heal_budget:
 				_expire()                                    # it has healed all it had
 				return

@@ -466,8 +466,7 @@ func apply_traits(amount: float, element: String, aoe := false) -> float:
 		a *= resist[element]
 	if slow_mult < 1.0 and slowed_bonus != 1.0:
 		a *= slowed_bonus
-	if has_meta("toxic_until") and get_meta("toxic_until") > Time.get_ticks_msec() / 1000.0:
-		a *= Game.TOXIC_BONUS
+	a *= Game.mark_mult(self)                 # toxin, brittleness (Poison Cloud, Stasis Field)
 	if shield > 0.0 and element != "pierce":
 		var absorbed := minf(shield, a)
 		shield -= absorbed

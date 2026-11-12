@@ -4,11 +4,15 @@ class_name StructureArt
 ## per-kind drawing runs (a card gets its art one at a time). All motion comes from the structure's own clock (`_age`, which also
 ## ticks on a LAN client) and from SpellArt.jit, so every machine draws the same picture. Designs: docs/card_tiers/<card id>.md
 
+## The towers, walls and healers of cards/structure_art_c.gd (Crystal Pylon ... Phoenix Shrine) are drawn there.
+const AC = preload("res://cards/structure_art_c.gd")
 const GOLD := Color(1.0, 0.85, 0.4)
 
 ## True when the card has its own drawing (and has drawn it).
 static func draw(st, col: Color) -> bool:
 	match String(st.data.get("id", "")):
+		"crystal_pylon", "storm_spire", "magma_wall", "venom_tower", "prism_tower", "healing_grove", "sunspire", "phoenix_shrine":
+			return AC.draw(st, col)
 		_:
 			return false
 

@@ -68,7 +68,7 @@ func _initialize() -> void:
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("only="):
 			only = a.substr(5)
-	for id in ["fireball", "frost_ring", "flare", "rejuvenation", "gold_magnet", "aegis", "charm", "sandstorm", "blizzard", "lava_pool", "poison_cloud", "crystal_spikes", "meteor_shower"]:
+	for id in ["fireball", "frost_ring", "flare", "rejuvenation", "gold_magnet", "aegis", "charm", "sandstorm", "blizzard", "lava_pool", "poison_cloud", "crystal_spikes", "meteor_shower", "stasis"]:
 		if only == "" or only == id:
 			await call(id)
 			await clear()
@@ -1064,3 +1064,73 @@ func meteor_shower() -> void:
 		ex[cp] = [seen.has("pillar"), snappedf(dealt(e), 0.1), snappedf(s0.data.damage, 0.1)]
 		await clear()
 	ok("tier 6 ends with one gigantic meteor at the centre (pillar fx, 6x damage), a copy does not (%s)" % str(ex), ex[false][0] and ex[false][1] > ex[false][2] * 6.0 and !ex[true][0])
+
+# ================================================================== Stasis Field
+func stasis() -> void:
+	print("-- stasis")
+	var c := Vector2(0, 300)
+	# Suspension (tier 2): enemy shots hang in the air, and fly on when it ends
+	var su := {}
+	for t in [1, 2]:
+		var s0 = spell("stasis", t, c, true, {"duration": 2.0})
+		await wait(0.5)
+		var shot = load("res://enemies/spitter/enemy_projectile.gd").new()
+		shot.position = c + Vector2(20, 0)
+		shot.vel = Vector2(-60, 0)
+		shot.life = 10.0
+		world.add_child(shot)
+		await wait(0.3)
+		var x1: float = shot.position.x
+		await wait(0.5)
+		var held: bool = absf(shot.position.x - x1) < 1.0 and shot.vel == Vector2.ZERO
+		await wait(2.0)
+		su[t] = [held, shot.vel.x < 0.0 if is_instance_valid(shot) else true]
+		if is_instance_valid(shot):
+			shot.queue_free()
+		await clear()
+	ok("tier 2 holds enemy shots still and lets them go at the end, tier 1 lets them fly (%s)" % str(su), su[2][0] and su[2][1] and !su[1][0])
+	# Entropy (tier 3)
+	var en := {}
+	for t in [2, 3]:
+		var e = dummy(c + Vector2(10, 0), 100.0)
+		e.max_health = 100.0
+		spell("stasis", t, c, true, {"duration": 20.0})
+		await wait(1.2)
+		en[t] = snappedf(100.0 - e.health, 0.1)
+		await clear()
+	ok("tier 3 entropy eats about 1%% every half second, tier 2 nothing (%s)" % str(en), en[3] >= 1.0 and en[3] <= 3.5 and en[2] == 0.0)
+	# Brittle (tier 4)
+	var bt := {}
+	for t in [3, 4]:
+		var e = dummy(c + Vector2(10, 0), 100000.0)
+		e.max_health = 100000.0
+		spell("stasis", t, c, true, {"duration": 20.0})
+		await wait(0.6)
+		var h0: float = e.health
+		e.spell_damage(10.0)
+		bt[t] = snappedf(h0 - e.health, 0.1)
+		await clear()
+	ok("tier 4 brittle: 10 damage counts 15, tier 3 exactly 10 (%s)" % str(bt), absf(bt[4] - 15.0) < 0.6 and absf(bt[3] - 10.0) < 0.6)
+	# Rewind (tier 5)
+	var rw := {}
+	for t in [4, 5]:
+		var keep: Vector2 = game.crystal_position()
+		var e = dummy(c + Vector2(30, 0))
+		e.set_physics_process(true)
+		e.speed = 0.0
+		var x0: float = (e.global_position - keep).length()
+		spell("stasis", t, c, true, {"duration": 20.0})
+		await wait(1.9)
+		rw[t] = snappedf((e.global_position - keep).length() - x0, 1.0)
+		await clear()
+	ok("tier 5 rewinds enemies away from the keep, tier 4 leaves them (%s)" % str(rw), rw[5] >= 50.0 and absf(rw[4]) < 5.0)
+	# Time break (tier 6)
+	var tb := {}
+	for cp in [false, true]:
+		var s0 = spell("stasis", 6, c, true, {"duration": 1.5, "copy": cp})
+		var e = dummy(c + Vector2(10, 0), 1000.0)
+		e.max_health = 1000.0
+		var seen := await fx_seen(1.9)
+		tb[cp] = [seen.has("flash"), snappedf(1000.0 - e.health, 0.1)]
+		await clear()
+	ok("tier 6 ends with a blow worth 15%% of max health, a copy does not (%s)" % str(tb), tb[false][0] and tb[false][1] > 150.0 and !tb[true][0] and tb[true][1] < 150.0)

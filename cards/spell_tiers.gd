@@ -78,6 +78,15 @@ static func on_land(s) -> void:
 		"frost_ring":
 			land_frost_ring(s, tier_of(s))
 
+## Runs when the spell leaves the world (ended or freed): give back what it was holding.
+static func on_end(s) -> void:
+	if String(s.data.get("id", "")) == "stasis":
+		for sh in s.get_tree().get_nodes_in_group("enemy_shot"):
+			if is_instance_valid(sh) and sh.has_meta("held_by") and sh.get_meta("held_by") == s.get_instance_id():
+				sh.vel = sh.get_meta("held_vel")
+				sh.remove_meta("held_by")
+				sh.remove_meta("held_vel")
+
 ## Runs every physics frame once landed.
 static func tick(s, delta: float) -> void:
 	match String(s.data.get("id", "")):
@@ -107,6 +116,8 @@ static func tick(s, delta: float) -> void:
 			tick_crystal_spikes(s, tier_of(s), delta)
 		"meteor_shower":
 			tick_meteor_shower(s, tier_of(s), delta)
+		"stasis":
+			tick_stasis(s, tier_of(s), delta)
 
 # ---------------------------------------------------------------- Fireball
 
@@ -1305,3 +1316,63 @@ static func _meteor_hit(s, tier: int, spot: Vector2, i: int, boulder: bool, dmg:
 		var base := SpellArt.jit(i, 7.0) * TAU
 		for k in n:
 			WeaponProjectile.shoot(w, spot, Vector2.from_angle(base + k * TAU / float(n)), 170.0, dmg * METEOR_SPLINTER, METEOR_FIRE, 0.4, 0, 60.0)
+
+# ---------------------------------------------------------------- Stasis Field
+
+const STASIS_ENTROPY := 0.01
+const STASIS_REWIND_T := 1.5
+const STASIS_REWIND_PUSH := 600.0
+const STASIS_BREAK := 0.15
+const STASIS_BREAK_BOSS := 0.02
+const TIME := Color(0.75, 0.9, 1.0)
+
+static func tick_stasis(s, tier: int, delta: float) -> void:
+	if tier < 2:
+		return
+	var since: float = s.age - s.flight
+	var c: Vector2 = s.global_position
+	var r: float = s.radius
+	var w: Node = s.get_parent()
+	var tree: SceneTree = s.get_tree()
+	var inside: Array = s._in_radius("enemy") if since < s.effect_time else []
+	for sh in tree.get_nodes_in_group("enemy_shot"):                  # suspension: enemy shots hang in the air
+		if is_instance_valid(sh) and !sh.has_meta("held_by") and sh.global_position.distance_to(c) <= r and since < s.effect_time:
+			sh.set_meta("held_by", s.get_instance_id())
+			sh.set_meta("held_vel", sh.vel)
+			sh.vel = Vector2.ZERO
+			WeaponFx.spawn(w, "ring", sh.global_position, TIME, {"radius": 10.0, "life": 0.3})
+			Sfx.play("whoosh")
+	if tier >= 3 and pace(s, "entropy", 0.5, delta):                  # entropy: time eats the frozen
+		var boss_cut := 0.3
+		for e in inside:
+			var cut: float = maxf(0.5, float(e.max_health) * STASIS_ENTROPY * (boss_cut if e.is_in_group("boss") else 1.0))
+			e.spell_damage(cut, "pierce", true)
+		if pace(s, "sand", 1.0, 0.5):
+			for k in mini(6, inside.size()):
+				if is_instance_valid(inside[k]):
+					WeaponFx.spawn(w, "motes", inside[k].global_position, TIME, {"radius": 8.0, "count": 4, "rise": 16.0, "life": 0.6})
+	if tier >= 4:                                                      # brittle: the frozen take more from everything
+		var now := Time.get_ticks_msec() / 1000.0
+		for e in inside:
+			e.set_meta("brittle_until", now + 0.5)
+		if pace(s, "crack", 2.0, delta):
+			WeaponFx.spawn(w, "ripple", s.position, TIME, {"radius": r, "rings": 2, "life": 0.6})
+	if tier >= 5 and pace(s, "rewind", STASIS_REWIND_T, delta):       # rewind: time runs backwards, they are thrown back the way they came
+		WeaponFx.spawn(w, "ripple", s.position, TIME, {"radius": r, "rings": 2, "life": 0.6})
+		Sfx.play("thump")
+		var keep: Vector2 = Game.crystal_position()
+		for e in inside:
+			if is_instance_valid(e) and e.has_method("push"):
+				e.push((e.global_position - keep).normalized() * STASIS_REWIND_PUSH, 0.15)
+	if tier >= 6 and !s._finale_done and !is_copy(s) and since >= s.effect_time - 0.05:   # time break: the held time catches up in one blow
+		s._finale_done = true
+		WeaponFx.spawn(w, "flash", s.position, Color.WHITE, {"radius": r, "life": 0.4})
+		WeaponFx.spawn(w, "ripple", s.position, TIME, {"radius": r * 1.3, "rings": 3, "life": 0.7})
+		WeaponFx.spawn(w, "shards", s.position, TIME, {"radius": r, "count": 24, "life": 0.5})
+		Sfx.play("ultimate")
+		for e in WeaponUtil.enemies_in_circle(tree, c, r):
+			var boss: bool = e.is_in_group("boss")
+			var away: Vector2 = e.global_position - c
+			e.spell_damage(maxf(8.0, float(e.max_health) * (STASIS_BREAK_BOSS if boss else STASIS_BREAK)), "pierce", true)
+			if is_instance_valid(e) and e.has_method("push"):
+				e.push((away.normalized() if away.length() > 0.5 else Vector2.RIGHT) * 600.0, 0.25)

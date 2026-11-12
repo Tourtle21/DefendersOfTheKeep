@@ -13,7 +13,7 @@ static func jit(i: int, salt := 0.0) -> float:
 
 ## Cards that have their own body art here: the plain fill and rings are drawn softer under it.
 static func has_body(id: String) -> bool:
-	return id in ["fireball", "frost_ring", "flare", "rejuvenation", "gold_magnet", "aegis", "charm", "sandstorm", "blizzard", "lava_pool", "poison_cloud", "crystal_spikes", "meteor_shower"]
+	return id in ["fireball", "frost_ring", "flare", "rejuvenation", "gold_magnet", "aegis", "charm", "sandstorm", "blizzard", "lava_pool", "poison_cloud", "crystal_spikes", "meteor_shower", "stasis"]
 
 static func draw_flight(s, t: float, col: Color) -> void:
 	match String(s.data.get("id", "")):
@@ -52,6 +52,8 @@ static func draw(s, since: float, col: Color) -> void:
 			draw_crystal_spikes(s, since, col)
 		"meteor_shower":
 			draw_meteor_shower(s, since, col)
+		"stasis":
+			draw_stasis(s, since, col)
 
 ## A flame as one polygon: a wide base, a belly, and a tip that leans with `sway`.
 static func flame(s, base: Vector2, w: float, h: float, col: Color, sway := 0.0) -> void:
@@ -987,3 +989,109 @@ static func draw_meteor_shower(s, since: float, _col: Color) -> void:
 			s.draw_arc(Vector2.ZERO, rr, 0, TAU, 32, Color(1.0, 0.3, 0.2, 0.8 * fade), 2.0)
 		s.draw_line(Vector2(-r * 0.9, 0), Vector2(r * 0.9, 0), Color(1.0, 0.3, 0.2, 0.4 * fade), 1.0)
 		s.draw_line(Vector2(0, -r * 0.9), Vector2(0, r * 0.9), Color(1.0, 0.3, 0.2, 0.4 * fade), 1.0)
+
+# ---------------------------------------------------------------- Stasis Field
+
+const TIME := Color(0.75, 0.9, 1.0)
+const BRASS := Color(1.0, 0.85, 0.45)
+const VIOLET := Color(0.4, 0.3, 0.7)
+const STAR := Color(0.95, 0.97, 1.0)
+
+## A gear: a ring of teeth.
+static func cog(s, c: Vector2, r: float, rot: float, col: Color) -> void:
+	var pts := PackedVector2Array()
+	for i in 20:
+		var a := rot + i * TAU / 20.0
+		pts.append(c + Vector2.from_angle(a) * (r if (i / 1) % 2 == 0 else r * 0.75))
+	pts.append(pts[0])
+	s.draw_polyline(pts, col, 1.5)
+	s.draw_arc(c, r * 0.35, 0, TAU, 10, col, 1.0)
+
+static func draw_stasis(s, since: float, _col: Color) -> void:
+	var tier := int(s.data.get("tier", 1))
+	if tier < 2:
+		return
+	var r: float = s.radius
+	var life: float = s.effect_time
+	var fade := clampf((life - since) / 1.0, 0.0, 1.0) * clampf(since / 0.3, 0.0, 1.0)
+	var left: float = life - since
+	var rew := fposmod(since, SpellTiers.STASIS_REWIND_T)
+	var fast := tier >= 5 and rew < 0.4
+	var hand_spin := -since * 0.5 - (rew * 12.0 if fast else 0.0) - (floorf(since / SpellTiers.STASIS_REWIND_T) * 4.8 if tier >= 5 else 0.0)
+	if tier >= 6:                                                   # an astrolabe: nested rings, planets, a violet starfield, a golden sun
+		for k in 3:
+			var rr: float = r * [0.35, 0.6, 0.95][k]
+			s.draw_arc(Vector2.ZERO, rr, 0, TAU, 40, Color(BRASS, 0.6 * fade), 1.5)
+			for i in 24:
+				var a := i * TAU / 24.0 + (k * 0.2)
+				s.draw_line(Vector2.from_angle(a) * rr, Vector2.from_angle(a) * (rr - (6.0 if i % 6 == 0 else 3.0)), Color(BRASS, 0.7 * fade), 1.0)
+		for i in 3:
+			s.draw_circle(Vector2.from_angle(since * (0.3 + 0.2 * i) + i * 2.0) * r * (0.35 + 0.25 * i), 3.0, Color(STAR, fade))
+		for i in 22:
+			var tw := 0.5 + 0.5 * sin(since * 3.0 + i * 1.3)
+			s.draw_circle(Vector2.from_angle(jit(i, 2.0) * TAU) * r * 0.9 * sqrt(jit(i, 3.0)), 1.3, Color(VIOLET.lightened(0.4), 0.8 * tw * fade))
+		s.draw_circle(Vector2.ZERO, 6.0, Color(1.0, 0.9, 0.4, fade))
+		s.draw_circle(Vector2.ZERO, 10.0, Color(1.0, 0.9, 0.4, 0.3 * fade))
+		if left < 1.0 and left > 0.0:                               # the disc cracks at the end
+			var g := 1.0 - left
+			for i in 10:
+				var d := Vector2.from_angle(i * TAU / 10.0 + jit(i, 5.0) * 0.3)
+				s.draw_line(Vector2.ZERO, d * r * g, Color(1, 1, 1, 0.9), 1.5)
+	if tier >= 5:                                                   # zodiac rings: glyph squares one way, moons the other
+		for i in 12:
+			var a2 := -since * 0.2 + i * TAU / 12.0
+			var p := Vector2.from_angle(a2) * r * 0.92
+			s.draw_rect(Rect2(p.x - 2.5, p.y - 2.5, 5.0, 5.0), Color(BRASS, 0.8 * fade))
+		for i in 8:
+			var a3 := since * 0.25 + i * TAU / 8.0
+			var p2 := Vector2.from_angle(a3) * r * 0.75
+			s.draw_arc(p2, 3.0, a3 + 0.5, a3 + 0.5 + PI * 1.4, 8, Color(STAR, 0.8 * fade), 1.5)
+		for e in s.get_tree().get_nodes_in_group("enemy"):          # blue afterimages trail behind the frozen, back toward where they came from
+			if is_instance_valid(e) and e.global_position.distance_to(s.global_position) <= r and !(e.is_in_group("boss") and false):
+				var away: Vector2 = (e.global_position - Game.crystal_position()).normalized()
+				for k in 3:
+					s.draw_circle(e.global_position - s.global_position + away * (8.0 * (k + 1)), 6.0 - k, Color(0.5, 0.7, 1.0, 0.25 * fade))
+	if tier >= 4:                                                   # a crystal hourglass, and a hex frame with cracks on each frozen enemy
+		var flip: float = fposmod(since, 5.0) / 5.0
+		var top := Vector2(0, -14)
+		var bot := Vector2(0, 14)
+		s.draw_colored_polygon(PackedVector2Array([top + Vector2(-9, 0), top + Vector2(9, 0), Vector2(0, 0)]), Color(TIME, 0.4 * fade))
+		s.draw_colored_polygon(PackedVector2Array([bot + Vector2(-9, 0), bot + Vector2(9, 0), Vector2(0, 0)]), Color(TIME, 0.4 * fade))
+		s.draw_line(top + Vector2(-11, 0), top + Vector2(11, 0), Color(BRASS, fade), 2.0)
+		s.draw_line(bot + Vector2(-11, 0), bot + Vector2(11, 0), Color(BRASS, fade), 2.0)
+		for i in 6:
+			var u := fposmod(since * 1.2 + i / 6.0, 1.0)
+			s.draw_circle(Vector2(0, lerpf(-12.0, 12.0, u)) * (1.0 if int(since / 5.0) % 2 == 0 else -1.0), 1.0, Color(BRASS, 0.9 * fade))
+		var n := 0
+		for e in s.get_tree().get_nodes_in_group("enemy"):
+			if n >= 24:
+				break
+			if is_instance_valid(e) and e.global_position.distance_to(s.global_position) <= r:
+				n += 1
+				var ep: Vector2 = e.global_position - s.global_position
+				var hex := PackedVector2Array()
+				for k in 7:
+					hex.append(ep + Vector2.from_angle(k * TAU / 6.0) * 8.0)
+				s.draw_polyline(hex, Color(TIME, 0.8 * fade), 1.0)
+				for k in 6:
+					var dd := Vector2.from_angle(k * TAU / 6.0 + 0.3)
+					s.draw_line(ep, ep + dd * 9.0, Color(1, 1, 1, 0.3 * fade), 1.0)
+	if tier >= 3:                                                   # two cogs turn against each other, the floor cracks, sand rises
+		cog(s, Vector2(r * 0.55, 0) * 0.707 + Vector2(0, r * 0.1), 12.0, since * 0.5, Color(BRASS, 0.8 * fade))
+		cog(s, Vector2(-r * 0.55, 0) * 0.707 + Vector2(0, -r * 0.1), 16.0, -since * 0.5, Color(BRASS, 0.8 * fade))
+		for i in 6:
+			var d2 := Vector2.from_angle(i * TAU / 6.0 + 0.4)
+			s.draw_line(d2 * r * 0.2, d2 * r * 0.85, Color(STAR, 0.3 * fade), 1.0)
+		for i in 10:
+			var u2 := fposmod(since * 0.3 + jit(i), 1.0)
+			s.draw_circle(Vector2.from_angle(jit(i, 2.0) * TAU) * r * 0.8 * jit(i, 3.0) + Vector2(0, -u2 * 20.0), 1.2, Color(BRASS, 0.8 * (1.0 - u2) * fade))
+	# tier 2: a clock face with hands that run backwards, and a ring round every shot held in the air
+	for i in 12:
+		var a4 := i * TAU / 12.0 - PI / 2.0
+		var len := 10.0 if i % 3 == 0 else 5.0
+		s.draw_line(Vector2.from_angle(a4) * r, Vector2.from_angle(a4) * (r - len), Color(BRASS, 0.9 * fade), 2.0 if i % 3 == 0 else 1.0)
+	s.draw_line(Vector2.ZERO, Vector2.from_angle(hand_spin - PI / 2.0) * r * 0.7, Color(BRASS, 0.9 * fade), 2.0)
+	s.draw_line(Vector2.ZERO, Vector2.from_angle(hand_spin * 0.08 - PI / 2.0) * r * 0.45, Color(BRASS, 0.9 * fade), 3.0)
+	for sh in s.get_tree().get_nodes_in_group("enemy_shot"):
+		if is_instance_valid(sh) and sh.global_position.distance_to(s.global_position) <= r and sh.has_meta("held_by"):
+			s.draw_arc(sh.global_position - s.global_position, 8.0, 0, TAU, 12, Color(STAR, 0.8 * fade), 1.0)

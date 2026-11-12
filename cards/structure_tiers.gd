@@ -7,6 +7,9 @@ class_name StructureTiers
 
 # ---------------------------------------------------------------- shared helpers
 
+## The towers, walls and healers of cards/structure_tiers_c.gd (Crystal Pylon ... Phoenix Shrine) live in their own file.
+const C = preload("res://cards/structure_tiers_c.gd")
+
 static func _dead(e) -> bool:
 	return !is_instance_valid(e) or e.get("dead") == true or float(e.get("health") if e.get("health") != null else 1.0) <= 0.0
 
@@ -193,12 +196,16 @@ static func hp_frac(p) -> float:
 ## Every physics frame, after the kind's own work.
 static func tick(st, delta: float) -> void:
 	match id_of(st):
+		"crystal_pylon", "storm_spire", "magma_wall", "venom_tower", "prism_tower", "healing_grove", "sunspire", "phoenix_shrine":
+			C.tick(st, delta)
 		_:
 			pass
 
 ## A gnawer chews a barricade-kind wall (called once per gnawing enemy, every 0.5 s).
 static func on_gnaw(st, e) -> void:
 	match id_of(st):
+		"crystal_pylon", "storm_spire", "magma_wall", "venom_tower", "prism_tower", "healing_grove", "sunspire", "phoenix_shrine":
+			C.on_gnaw(st, e)
 		_:
 			pass
 
@@ -215,18 +222,24 @@ static func guard_mult(st) -> float:
 ## Sentry family: a multiplier on the wait between shots.
 static func interval_mult(st) -> float:
 	match id_of(st):
+		"crystal_pylon", "storm_spire", "magma_wall", "venom_tower", "prism_tower", "healing_grove", "sunspire", "phoenix_shrine":
+			return C.interval_mult(st)
 		_:
 			return 1.0
 
 ## Sentry family: a multiplier on the damage of the direct hit.
 static func shot_mult(st, target) -> float:
 	match id_of(st):
+		"crystal_pylon", "storm_spire", "magma_wall", "venom_tower", "prism_tower", "healing_grove", "sunspire", "phoenix_shrine":
+			return C.shot_mult(st, target)
 		_:
 			return 1.0
 
 ## Sentry family: after the normal damage, slow, poison, twin and blast code of one shot (`shot_to`/`shot_t`/`aim` are set).
 static func on_shot(st, target) -> void:
 	match id_of(st):
+		"crystal_pylon", "storm_spire", "magma_wall", "venom_tower", "prism_tower", "healing_grove", "sunspire", "phoenix_shrine":
+			C.on_shot(st, target)
 		_:
 			pass
 
@@ -248,14 +261,34 @@ static func heal_mult(st, p) -> float:
 		_:
 			return 1.0
 
+## Mender: a multiplier on how much of its healing budget a heal uses up (the World Tree is generous).
+static func budget_mult(st) -> float:
+	match id_of(st):
+		"crystal_pylon", "storm_spire", "magma_wall", "venom_tower", "prism_tower", "healing_grove", "sunspire", "phoenix_shrine":
+			return C.budget_mult(st)
+		_:
+			return 1.0
+
+## A freshly set up building (data is the tier's fresh card): the place for stats the plain card cannot express (a brighter light).
+static func on_setup(st) -> void:
+	match id_of(st):
+		"crystal_pylon", "storm_spire", "magma_wall", "venom_tower", "prism_tower", "healing_grove", "sunspire", "phoenix_shrine":
+			C.on_setup(st)
+		_:
+			pass
+
 ## The building has just gone up a tier (its stats are already the new tier's).
 static func on_promote(st, new_tier: int) -> void:
 	match id_of(st):
+		"crystal_pylon", "storm_spire", "magma_wall", "venom_tower", "prism_tower", "healing_grove", "sunspire", "phoenix_shrine":
+			C.on_promote(st, new_tier)
 		_:
 			pass
 
 ## The building is going away (destroyed, spent, or removed). `hp <= 0` means enemies destroyed it.
 static func on_expire(st) -> void:
 	match id_of(st):
+		"crystal_pylon", "storm_spire", "magma_wall", "venom_tower", "prism_tower", "healing_grove", "sunspire", "phoenix_shrine":
+			C.on_expire(st)
 		_:
 			pass

@@ -62,6 +62,10 @@ func setup(card: Dictionary, target: Vector2, from: Vector2) -> void:
 	effect_time = 0.4 if card.kind == "fireball" else card.get("duration", 0.3)
 	effect_time = SpellTiers.effect_time(self, effect_time)
 
+func _exit_tree() -> void:
+	if is_inside_tree() and !Rep.is_puppet(self):
+		SpellTiers.on_end(self)
+
 func _ready() -> void:
 	add_to_group("net")
 	z_index = 10
