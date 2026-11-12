@@ -200,6 +200,8 @@ static func tick(st, delta: float) -> void:
 			C.tick(st, delta)
 		"barricade":
 			tick_barricade(st, delta)
+		"spike_trap":
+			tick_spike_trap(st, delta)
 		_:
 			pass
 
@@ -248,12 +250,16 @@ static func on_shot(st, target) -> void:
 ## Spike trap: after the enemies on the plate were hit (`hit` is that array).
 static func on_trigger(st, hit: Array) -> void:
 	match id_of(st):
+		"spike_trap":
+			on_trigger_spike_trap(st, hit)
 		_:
 			pass
 
 ## Spike trap: its last use was spent (the trap is freed right after).
 static func on_last_use(st) -> void:
 	match id_of(st):
+		"spike_trap":
+			on_last_use_spike_trap(st)
 		_:
 			pass
 
@@ -380,3 +386,66 @@ static func tick_barricade(st, delta: float) -> void:
 static func on_promote_barricade(st, _new_tier: int) -> void:
 	st._wind_used = false
 	st._thr.clear()
+
+# ---------------------------------------------------------------- Spike Trap
+const SPIKE_SNARE := 0.45
+const SPIKE_SPRING_EVERY := 3
+const SPIKE_SPRING_MULT := 4.0
+const SPIKE_CALTROP_R := 1.35
+const SPIKE_CHAIN_R := 1.6
+const SPIKE_GASP_MULT := 12.0
+const IRON := Color(0.75, 0.75, 0.8)
+
+static func on_trigger_spike_trap(st, hit: Array) -> void:
+	var t: int = st.tier
+	if t < 2:
+		return
+	var w := world_of(st)
+	var dmg: float = st.data.damage
+	var shown := 0
+	for e in hit:                                                  # 2 Snare: a real slow on whoever steps on it
+		if !is_instance_valid(e) or _dead(e):
+			continue
+		keep_slow(e, SPIKE_SNARE, 1.0)
+		if shown < 6:
+			WeaponFx.spawn(w, "burst", e.global_position, IRON, {"radius": 10.0, "life": 0.2})
+			shown += 1
+	if t >= 3 and st._triggers % SPIKE_SPRING_EVERY == 0:          # 3 Spring: every third trigger the spikes shoot up
+		pulse(st, st.radius * 1.4, dmg * SPIKE_SPRING_MULT, 200.0, 0.6, IRON, "pierce")
+		WeaponFx.spawn(w, "ripple", st.global_position, IRON, {"radius": st.radius * 1.4, "rings": 2, "life": 0.45})
+		Sfx.play("big_hit")
+	if t >= 5:                                                     # 5 Barbed chain: whoever is near the plate is dragged on to it
+		for e in enemies(st, st.radius * SPIKE_CHAIN_R):
+			if e in hit or _dead(e):
+				continue
+			var d: Vector2 = st.global_position - e.global_position
+			if d.length() < 1.0:
+				continue
+			if e.has_method("push"):
+				e.push(d.normalized() * 260.0, 0.18)
+			WeaponFx.spawn(w, "line", st.global_position, IRON, {"dir": -d.normalized(), "length": d.length(), "width": 2.0, "life": 0.2})
+			WeaponFx.spawn(w, "burst", e.global_position, IRON, {"radius": 8.0, "life": 0.2})
+			WeaponUtil.bleed(st.get_tree(), e, 3, dmg * 0.4)
+		sfx(st, "whoosh", 0.3)
+
+static func tick_spike_trap(st, delta: float) -> void:
+	if st.tier >= 4 and st.uses > 0:                               # 4 Caltrop field: slow ground lies round the trap while it has uses
+		if !st._timers.has("caltrop"):
+			st._timers["caltrop"] = 3.4
+		if pace(st, "caltrop", 3.5, delta):
+			slow_patch(st, st.radius * SPIKE_CALTROP_R, 4.0, 0.6)
+			WeaponFx.spawn(world_of(st), "motes", st.global_position, IRON, {"radius": st.radius * 1.3, "count": 4, "rise": 8.0, "life": 0.6})
+
+static func on_last_use_spike_trap(st) -> void:
+	if st.tier < 6:
+		return
+	var w := world_of(st)
+	var r: float = st.radius * 2.2
+	var pos: Vector2 = st.global_position
+	WeaponFx.spawn(w, "flash", pos, Color(0.9, 0.92, 1.0), {"radius": r, "life": 0.4})
+	WeaponFx.spawn(w, "ripple", pos, IRON, {"radius": r, "rings": 3, "life": 0.55})
+	WeaponFx.spawn(w, "shards", pos, IRON, {"radius": r, "count": 16, "life": 0.45})
+	WeaponFx.spawn(w, "pillar", pos, Color(1.0, 0.85, 0.4), {"height": 40.0, "width": 20.0, "life": 0.45})
+	Sfx.play("ultimate")
+	pulse(st, r, st.data.damage * SPIKE_GASP_MULT, 260.0, 1.0, Color(1.0, 0.85, 0.4), "pierce")
+	slow_patch(st, r, 6.0, 0.4)

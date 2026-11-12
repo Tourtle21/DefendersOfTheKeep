@@ -16,6 +16,9 @@ static func draw(st, col: Color) -> bool:
 		"barricade":
 			draw_barricade(st, col)
 			return true
+		"spike_trap":
+			draw_spike_trap(st, col)
+			return true
 		_:
 			return false
 
@@ -145,3 +148,74 @@ static func draw_barricade(st, col: Color) -> void:
 		st.draw_circle(Vector2.ZERO, r * 1.2, Color(1.0, 0.85, 0.4, 0.25))
 		st.draw_arc(Vector2.ZERO, r * 1.2, 0, TAU, 32, Color(1.0, 0.9, 0.5, 0.8), 1.5)
 	hp_bar(st, bot + 3.0 + (3.0 if t in [3, 4] else 0.0), r, t >= 4)
+
+# ---------------------------------------------------------------- Spike Trap
+const DARK_IRON := Color(0.35, 0.37, 0.42)
+const RUST := Color(0.55, 0.3, 0.2)
+
+static func draw_spike_trap(st, col: Color) -> void:
+	var r: float = st.radius
+	var t: int = st.tier
+	var age: float = st._age
+	var hit: bool = st.flash > 0.0
+	var spike_h := 5.0 if t == 1 else (6.0 if t == 2 else 9.0)
+	if t >= 4:                                                      # caltrops lie scattered in a wider ring
+		st.draw_circle(Vector2.ZERO, r * 1.35, Color(col, 0.1))
+		for i in 10:
+			var c := Vector2.from_angle(SpellArt.jit(i, 1.0) * TAU) * r * (1.0 + 0.35 * SpellArt.jit(i, 2.0))
+			var a := SpellArt.jit(i, 3.0) * TAU
+			st.draw_line(c + Vector2.from_angle(a) * 3.0, c - Vector2.from_angle(a) * 3.0, DARK_IRON, 1.5)
+			st.draw_line(c + Vector2.from_angle(a + 1.9) * 3.0, c - Vector2.from_angle(a + 1.9) * 3.0, DARK_IRON, 1.5)
+			if i % 3 == 0:
+				st.draw_circle(c + Vector2(0.5, -0.5), 0.8, Color(1, 1, 1, 0.5 + 0.4 * sin(age * 3.0 + i)))
+	st.draw_circle(Vector2.ZERO, r, Color(col, 0.18))
+	st.draw_arc(Vector2.ZERO, r, 0, TAU, 28, Color(col, 0.6), 1.0)
+	if t >= 2:                                                      # a zig-zag wire loop, a rivet at each peak
+		var pts := PackedVector2Array()
+		for i in 25:
+			var rr := r * 0.85 + (2.4 if i % 2 == 0 else -2.4)
+			pts.append(Vector2.from_angle(i * TAU / 24.0) * rr)
+		st.draw_polyline(pts, Color.WHITE if hit else DARK_IRON, 1.5)
+		for i in 6:
+			rivet(st, Vector2.from_angle(i * TAU / 6.0) * (r * 0.85 + 2.4), col.lightened(0.2), 0.8)
+	if t >= 5:                                                      # a barbed chain round it
+		for i in 20:
+			var a2 := i * TAU / 20.0
+			var lp := Vector2.from_angle(a2) * r * 1.1
+			st.draw_circle(lp, 1.2, DARK_IRON)
+			if i % 4 == 0:
+				var d := Vector2.from_angle(a2)
+				st.draw_line(lp, lp + d * 3.0 + d.orthogonal() * 1.5, col, 1.0)
+				st.draw_line(lp, lp + d * 3.0 - d.orthogonal() * 1.5, col, 1.0)
+		st.draw_arc(Vector2(0, -r * 1.1 - 3.0), 2.5, PI * 0.2, PI * 1.9, 8, col.lightened(0.2), 1.5)     # the hook at the north point
+	# the spikes
+	var ring := 0.8 if t >= 6 else 0.55
+	for i in 7:
+		var c2 := Vector2.from_angle(i * TAU / 7.0) * r * ring
+		var tip := Color(1.0, 0.85, 0.4) if t >= 6 else col
+		if t >= 3:
+			st.draw_polyline(PackedVector2Array([c2 + Vector2(-2, 3), c2 + Vector2(2, 2.2), c2 + Vector2(-2, 1.4), c2 + Vector2(2, 0.6)]), DARK_IRON, 1.0)    # the spring
+		st.draw_colored_polygon(PackedVector2Array([c2 + Vector2(-2.5, 0), c2 + Vector2(0, -spike_h), c2 + Vector2(2.5, 0)]), col if t < 6 else col.darkened(0.1))
+		st.draw_colored_polygon(PackedVector2Array([c2 + Vector2(-0.8, -spike_h * 0.6), c2 + Vector2(0, -spike_h), c2 + Vector2(0.8, -spike_h * 0.6)]), tip.lightened(0.2))
+		if t >= 3:
+			st.draw_line(c2 + Vector2(-0.6, -1.0), c2 + Vector2(-0.2, -spike_h * 0.7), Color(1, 1, 1, 0.6), 1.0)
+		if t >= 5:
+			st.draw_line(c2 + Vector2(0, -spike_h * 0.7), c2 + Vector2(2.2, -spike_h * 0.5), col, 1.0)
+	if t >= 6:                                                      # four tall inner spikes, a rune ring, the plate a hexagon sigil
+		for i in 4:
+			var c3 := Vector2.from_angle(i * TAU / 4.0 + 0.4) * r * 0.32
+			st.draw_colored_polygon(PackedVector2Array([c3 + Vector2(-3, 0), c3 + Vector2(0, -14), c3 + Vector2(3, 0)]), col)
+			st.draw_colored_polygon(PackedVector2Array([c3 + Vector2(-1, -11), c3 + Vector2(0, -14), c3 + Vector2(1, -11)]), GOLD)
+		for i in 8:
+			var rp := Vector2.from_angle(i * TAU / 8.0 + age * 0.3) * r * 0.7
+			SpellArt.diamond(st, rp, 1.6, Color(1.0, 0.85, 0.4, 0.4 + 0.5 * sin(age * 3.0 + i)))
+		var hx := PackedVector2Array()
+		for i in 7:
+			hx.append(Vector2.from_angle(i * TAU / 6.0) * 6.0)
+		st.draw_polyline(hx, GOLD, 1.5)
+		for i in mini(st.uses, 12):                                 # one pip per use left
+			st.draw_circle(Vector2.from_angle(-PI / 2.0 + i * TAU / 12.0) * (r + 3.0), 1.3, GOLD)
+	elif t >= 3:                                                    # the pressure plate sinks when it is stepped on
+		var pr := 4.2 if hit else 5.0
+		st.draw_circle(Vector2.ZERO, pr + 0.7, col.lightened(0.3))
+		st.draw_circle(Vector2.ZERO, pr, DARK_IRON)
