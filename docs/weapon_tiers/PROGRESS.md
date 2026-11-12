@@ -62,3 +62,4 @@ DONE soulreaper
 CLAIM starfall
 DONE worldbreaker
 DONE starfall
+DONE stormbow

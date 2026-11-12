@@ -1,0 +1,42 @@
+# Crystal Wand (`crystalwand`, Ancient, pierce, light weapon (70), H = 6.0)
+
+## Today
+- Attack Shard fan (cd 0.5): three piercing shards (`WeaponProjectile`, speed 300, `H / 3` each, life 0.8, pierce 1, knock 60) in a +-0.12 rad fan, `thrust(5)`. Crystal Ring (tier 2+, cd 6): two rings of `ground_strike`s round you: 6 at 40 px (r 20, delays 0.3 to 0.5, 3.6, stun 0.3) and 10 at 74 px (r 20, delays 0.65 to 0.92).
+- Refract (dash, cd 4): blink toward the cursor (max 60 px), a `ground_strike` r 22 at both the start and the arrival (2.5, 0.2 s and 0.25 s). Geode Storm (tier 3+): `rain` at the cursor (range 110) r 105, 22 strikes over 2.4 s (4.4 each, r 24, stun 0.5).
+- Looks: violet shards and rings. Caverns realm weapon (the deepest of the base weapons). Prismatic Staff extends it.
+
+Palette: amethyst `Color(0.80,0.60,1.0)`, light `Color(0.90,0.75,1.0)`, white `Color(0.97,0.93,1.0)`, deep `Color(0.35,0.20,0.60)`; rainbow caustics `Color.from_hsv(h, 0.4, 1.0)`. Names: 2 Prism Shards, 3 Resonance, 4 Crystal Familiar, 5 Geode Garden, 6 Crystal Ascension.
+
+THE ANCIENT SYSTEM: **Crystal Lattice**. A shard that hits an enemy embeds a crystal: `e.set_meta("wt_crystal", {n, until})` (max 4 crystals, 6 s). Crystals are drawn as small violet diamonds on the enemy (a `WeaponFx star` with count 4 and radius 5, one per crystal, spawned every 0.5 s on up to 8 enemies by `tick`). **Resonance**: at 4 crystals the enemy shatters: `burst`, 1.2 H (7.2) in r 30 (quiet aoe) and each neighbour within 40 px gains 2 crystals (a chain through a pack). Several verbs add crystals: the ring strikes 1, the rain 1, the dash 1.
+
+## Tier table
+
+| Tier | ART | ATTACK (Shard fan) | ABILITY (Crystal Ring) | DASH (Refract) | ULTIMATE (Geode Storm) | Twist (est.) |
+|---|---|---|---|---|---|---|
+| 2 Prism Shards | The wand gem is a faceted prism throwing a rainbow glint (aura `motes` in 3 hues); shards are style `shard` size 1.0 with a 3-dot trail; aura twinkle. Light +5. | **Prism Shards**: the fan has 5 shards (same total damage `H / 5` each), each embeds a crystal; a shard that pierces a first enemy then ENDS in a `burst` r 8. | **Prism Ring**: each ring strike embeds a crystal and throws `shards` count 5; a `ripple` r 74 rings 2 between the two rings; the second ring grows to 12 strikes. | - | locked | chain |
+| 3 Resonance | Tip glow; crystals on enemies visible. Light +10. | **Resonance**: the 4-crystal shatter exists (above); a perfect rhythm (3 fans within 1.2 s) turns the 3rd fan into a 7-shard cone (0.15 rad). | **Resonance Ring**: the inner ring pulls enemies inward (`push` 120 toward you) for 0.3 s before the outer ring lands, so they are caught by the second ring; | = | unlocked; `sigil` r 105 (amethyst, 12 points) 0.3 s. Strikes embed crystals. | chain |
+| 4 Crystal Familiar | 3 orbit crystals, a gem pixel (white). Light +15. | **Familiar**: a prism familiar (an orbiting crystal at r 18, aura `kind "familiars"`, `state` = count: 1 at tier 4, 2 at tier 5, 3 at tier 6) fires a mirror shard whenever you attack (0.5 H, style `shard`, `homing` 1.0, speed 280, embeds a crystal). | **Familiar Ring**: each familiar drops a small ring of 3 strikes around itself (r 16 at 24 px offsets, 0.4 H = 2.4). | **Refract**: the blink leaves a crystal mirror at the start (a `Hazard`-free `orbit` fx shape `star` count 1, 2.5 s): your shots passing within 24 px are echoed (copy 50%, one per shot); `streak` (width 5). | = | lifesteal |
+| 5 Geode Garden | 5 orbit crystals, rainbow ghost trail; light +20. | = | = | = | **Stage 2 Geode Garden**: the rain leaves GEODES: 8 `crack` + `pillar` crystals (height 40, width 12, `amethyst`, drawn by `pillar` fx repeated every 0.6 s for 6 s) at the strike points; every 0.8 s each geode pulses a `ripple` r 34 hitting enemies for 0.3 H (1.8, quiet, embeds a crystal); geodes are `slow` patches r 16 (factor 0.7, 6 s, max 8). | thunder |
+| 6 Crystal Ascension | Halo ring (rainbow crystal ring), 12 motes, tip star; the wand gem blazes with a rainbow halo. Light +30. | **Finisher** every 6th fan: a prism beam: `beam` (width 6, rainbow hues) 120 long through everything, 0.8 H each, embedding 2 crystals. | = | = | **FINALE + TRANSFORMATION Crystal Ascension (12 s)**: you rise as a crystal being: a crystal armour (aura `kind "armour"`: 8 shards on your body) and: (a) 3 familiars fire constantly (1 shard per 0.3 s each, 0.3 H, homing), (b) every shard is a prism that splits in 3 on hit (`split 3`), (c) every 2.0 s a Resonance wave (`ripple` r 140 rings 3 + `star` count 8): every enemy within 140 px gains 2 crystals, (d) every 3.0 s a prism beam sweeps a 90-degree arc around you (6 `beam`s at 15-degree steps over 0.6 s, 1.0 H = 6.0 each quiet), (e) at the end a final Shatterstorm: every crystal on every enemy within 160 px shatters at once (1.2 H each: 7.2 per shatter, chain), with `flash` r 80, `shards` count 36 r 160 (rainbow hues), `pillar` height 160. Shake 8, `Sfx ultimate`. | lifesteal |
+
+Caps (H = 6.0): attack +0.5 H avg (familiar shards 0.5 H per attack; shatters 1.2 H on every 4th hit of a target: average +0.3 H); ability: ring strikes embed crystals (indirect), pull and geode 0.3 H pulses: +1.0 H; dash echo 50%: +0.4 H; ultimate: geode garden capped at 10 pulses on one target (3.0 H); in the transformation each familiar fires one shard per 0.6 s (0.3 H each, so 1.5 H/s for three familiars on one target) and beams 6 x 1.0 H every 3 s (only 2 beams touch a target: 2.0 per 3 s) + shatters: total over 12 s about 4 x 1.5 + 4 x 2 + 3 shatters x 7.2 = ~36 H: Ancient k = 52 H.
+
+## What makes this feel like Ancient
+It is a lattice system with persistent minions (familiars), a garden of geodes and a 12-second crystalline transformation that mixes shards, beams and chain shatters on a screen-wide scale. Compared with Mythic Bog Staff (Rot stacks and a swamp form) the Crystal Wand adds a second layer of independent actors (familiars firing on their own) and its payoff chain reaches across the whole screen.
+
+## Rules for the implementer
+- `items/weapons/tiers/crystalwand.gd`; `crystalwand.gd` edits: `attack()` shard count by tier (5 from tier 2, 7 on perfect rhythm at 3; damage per shard `H / count`), `ability()` ring size and pull, `dash_attack()` mirror, `ultimate()` unchanged: stage 2 at press + 2.4 s + 0.3 s, transformation at 3.2 s, finale at 15.2 s.
+- Crystal marks: `crystal_add(w, e, n)` in the module; `on_hit` adds 1 for every projectile hit (the projectile has `owner_id`; `WeaponProjectile` calls `WeaponUtil.hit` where `owner` is the weapon, so `on_hit(w, e, dmg)` is called for shards: count only hits made while `WeaponUtil.owner == w`); strikes added via `ground_strike(..., on_hit)` use the `on_hit` callable.
+- Prismatic Staff `extends crystalwand.gd` and has its own module, which may call these functions with its own constants.
+- Familiars are aura public vars (`n_fam`, `phase`) with a host timer in `_st` and homing `WeaponProjectile`s (cap 12 alive from familiars).
+- Constants: `CW_SHARDS := 5`, `CW_SHARDS_RHYTHM := 7`, `CW_CRYSTAL_MAX := 4`, `CW_CRYSTAL_SECS := 6.0`, `CW_SHATTER_MULT := 1.2`, `CW_SHATTER_R := 30.0`, `CW_SHATTER_CHAIN := 2`, `CW_FAM_MAX := [0, 0, 0, 1, 2, 3]`, `CW_FAM_MULT := 0.5`, `CW_GEODES := 8`, `CW_GEODE_TICK := 0.8`, `CW_GEODE_MULT := 0.3`, `CW_ASCEND_SECS := 12.0`, `CW_BEAM_EVERY := 3.0`, `CW_BEAM_MULT := 1.0`, `CW_FINISHER_EVERY := 6`, `CW_LIGHT_BONUS := [0, 5, 10, 15, 20, 30]`.
+- Multiplayer: crystals on enemies are `WeaponFx star` marks; familiars and the armour come from aura vars. Players are never harmed.
+- Performance: Ascension peak ~40 fx/s: the 6 sweep beams and 8 shatter shards are single-shot; marks capped at 8 enemies per 0.5 s.
+
+## How to test (section `crystalwand`)
+1. Prism Shards: tier 2 fan: 5 projectiles; a dummy hit gets `wt_crystal.n >= 1`; tier 1 has 3 shards and no mark.
+2. Resonance: tier 3: set a dummy's crystals to 3 then land a shard: it shatters (health loss >= 7.2) and a neighbour at 35 px gains 2 crystals.
+3. Familiar: tier 4: aura `n_fam == 1`; each attack adds a homing projectile; the dash leaves a mirror that echoes a shot (projectile count +1).
+4. Geode Garden: tier 5 ultimate: >= 8 `pillar` kinds over 6 s and a hazard count >= 6; geodes pulse a dummy at 20 px every ~0.8 s.
+5. Crystal Ascension: tier 6: 12 s of familiar shots, a `beam` sweep every ~3 s, a final shatter at ~15 s (a dummy with 4 marks loses >= 7.2 at once); projectile count <= 40.
+6. Draw smoke; Prismatic Staff unaffected.

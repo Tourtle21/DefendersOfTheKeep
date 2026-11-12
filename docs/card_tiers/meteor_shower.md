@@ -1,0 +1,36 @@
+# Meteor Shower (`meteor_shower`, kind `meteor`, element fire, night, LEGENDARY)
+
+## Today
+- Lands at the target, lights the area (`LightSource.spawn` radius 1.4 r for `duration + 1` s) and calls `WeaponUtil.rain(...)`: `count` meteors (10 at tier 1, +2 per tier: 10,12,14,16,18,20) at random spots in `radius` 110, one every `duration / count` s (3.5 s), each a `ground_strike` (orange telegraph ring radius 26 for 0.45 s, then `damage` 14, knock 140, second ring).
+- The spell's own drawing is the shared pulsing disc; the meteors themselves are only rings.
+- Adds already (default pool): t2 `wide`, t3 `lingers`, t4 `twin` (a whole second shower), t5 `echo` (wider, weaker second shower), t6 `refund`.
+
+Palette: rock `Color(0.3,0.15,0.1)`, fire `Color(1.0,0.5,0.15)`, hot `Color(1.0,0.85,0.4)`, white `Color(1.0,0.97,0.85)`, smoke `Color(0.25,0.18,0.15)`.
+
+## Tier table
+
+| Tier | ART | ATTACK / EFFECT visuals | ABILITY | Already added |
+|---|---|---|---|---|
+| 2 Burning Rocks | A smouldering sky over the zone: 7 dark red soft circles (r 14..22, alpha 0.16) drift across it and 18 ember flecks glow and fall (`fposmod(since*0.6 + jit(i),1)`). Craters: each impact leaves a dark scorched ellipse (r 14, alpha 0.35 -> 0 over 2.5 s) with a glowing centre; positions are derived from `SpellTiers.meteor_spot(s, i)` (deterministic) so clients draw them too. | Every meteor is a visible falling rock: `fall` fx (radius 4, height 90, rise 40, life 0.45, fire colour) with the ring telegraph; impact `flash` radius 18 + `burst` radius 22. `Sfx.play("big_hit")` throttled. | **Burning rocks**: every enemy hit by a meteor catches fire: `bleed` 3 ticks of `damage * 0.2` (fire). | wide |
+| 3 Heavy Rocks | Larger rocks: every third meteor is a boulder (head radius 7, dark rock with a lava crack, long tail) and its crater is bigger (r 24). | The boulder: `fall` radius 7 height 130 life 0.55, impact `flash` radius 34, `ripple` radius 34 rings 2, `Sfx.play("thump")`. | **Heavy rocks**: every third meteor (indices 2, 5, 8...) is a boulder: strike radius 26 x 1.6, `damage x 2.0`, stun 0.6, knock 220. | lingers |
+| 4 Splinters | Rocks glow with glassy orange cracks (3 lines on each falling head, drawn by the `fall` fx via `radius >= 6`); the sky shows 6 shooting streaks, 1 every 0.5 s (long thin `line` fx across the zone, life 0.3, alpha 0.5). | On impact `shards` count 5 radius 26 orange. | **Splinters**: each meteor breaks into 3 fragments on impact: `WeaponProjectile.shoot(world, pos, Vector2.from_angle(base + i*TAU/3), 170.0, damage * 0.3, fire, 0.4, 0, 60.0)`. Boulders break into 5. | twin |
+| 5 Seeker Stars | Meteors have bright blue-white cores (hot, white) and a visible lock-on: a small crosshair (circle r 6 + 4 ticks) appears under the targeted enemy's position (draw as the same telegraph ring but with a cross inside, via `ring` plus 2 `line` fx for 0.45 s). The sky glows redder: disc fill alpha 0.12 in fire colour plus a ring of 12 heat flares around the zone edge. | `fall` radius 5 with hot core; target locking cross: two `line` fx (length 14, perpendicular) at the target. `Sfx.play("whoosh")` per lock. | **Seeker stars**: 70% of the meteors (random per index) pick a real enemy inside the area at the moment they are launched and land on it (position taken at launch, 0.45 s before impact: fast enemies can still dodge); the rest fall at random. | echo |
+| 6 Extinction | The zone is a firestorm: the sky layer doubles, a huge dark red vortex ring (arc dashes) turns slowly over the whole area, 40 embers; before the finale a massive crosshair of 3 rings (0.3, 0.55, 0.8 r) closes in on the centre for 1.2 s. The Big Meteor is a house-sized rock (head radius 18, 40-dot tail, white core, fire halo r 30). | **Finale** 0.8 s after the last meteor: `fall` radius 18 height 260 rise 120 life 1.2, then `flash` radius 1.2 r white, `ripple` radius 1.5 r rings 3, `pillar` height 120 width 50 fire, `shards` count 20 radius 1.2 r, `Sfx.play("ultimate")`; `LightSource` radius 2.4 r for 5 s. | **Extinction (FINALE)**: one gigantic meteor falls at the centre: `ground_strike(radius 0.7 r, delay 1.2, damage * 6.0, knock 260, fire, stun 1.0, [], "fire")`. Skipped when `data.copy` (twin and echo showers drop only normal meteors). | refund |
+
+## Rules for the implementer
+- `cards/spell.gd`: the `elif data.kind == "meteor":` branch calls `SpellTiers.meteor_rain(self, tier)` instead of `WeaponUtil.rain`, keeping `LightSource.spawn`. `meteor_rain` is a coroutine-like helper: for i in `count` it does `create_timer(i * duration / count)` (guard `is_instance_valid(s)`), picks the spot, spawns the `fall` and telegraph, then the strike.
+- `SpellTiers.meteor_spot(s, i) -> Vector2` : deterministic spot for meteor i = `position + Vector2.from_angle(jit(i, 1.0) * TAU) * sqrt(jit(i, 2.0)) * radius` (uniform in the disc). Seeker targets override it at launch time on the host only; the crater drawing on clients uses the final spot, so for seekers store it in a PUBLIC `spots: Array` (Vector2s) filled as meteors launch and read by `SpellArt.draw_meteor_shower` (the Array holds no objects).
+- `WeaponUtil.ground_strike` already telegraphs; boulders use radius 26*1.6, delay 0.55.
+- Big meteor: schedule at `duration + 0.8` once; draw the closing crosshair in `draw_meteor_shower` for `since` between `duration` and `duration + 2.0`. Effect time becomes `duration + 2.5` for tier 6 (`SpellTiers.effect_time`).
+- Burning rocks: after each strike delay (host timer) call `bleed` on `WeaponUtil.enemies_in_circle(tree, spot, 26)`; to avoid duplicating the hit logic, wrap it: `SpellTiers.meteor_hit(s, spot, radius, dmg, boulder)` does the damage itself (not through `ground_strike`) after showing the telegraph ring: `WeaponFx.spawn(world, "ring", spot, col, {"radius": r, "life": 0.45})`, `await timer`, then `WeaponUtil.hit` per enemy + bleed + splinters. This is simpler than patching `ground_strike`; `ground_strike` stays unchanged for other cards.
+- Constants: `METEOR_BOULDER_EVERY := 3`, `METEOR_BOULDER_MULT := 2.0`, `METEOR_SPLINTER := 0.3`, `METEOR_SEEK := 0.7`, `METEOR_BIG := 6.0`.
+- Night: LightSource radius is `1.4 r` today; tier 4 uses `1.8 r`, tier 6 `2.4 r`; keep durations.
+- Multiplayer: meteors, fragments and fx are all mirrored (WeaponFx, WeaponProjectile); `spots` is a public array of Vector2.
+
+## How to test (`tools/tests/tier_meteor_shower.gd`)
+1. Burning rocks: tier 2, dummy that stays in the area: total damage includes bleed ticks (> tier 1 for the same number of hits, compare `meteor_hit` call counts); fx scan sees `fall`.
+2. Heavy rocks: tier 3: over the full shower at least 3 strikes use radius ~41 (read `ring` fx radius values) and the stunned flag appears (`slow_mult == 0`) on a dummy hit by a boulder.
+3. Splinters: tier 4: after the first meteor, 3 `projectile.gd` nodes appear near its spot; tier 3 none.
+4. Seeker: tier 5: with 6 stationary dummies in a corner of the area, the number of dummies hit within the shower is clearly higher than at tier 4 (>= +50%).
+5. Extinction: tier 6, dummy at the centre: takes >= 6 x damage at ~`duration + 2.2` s; `copy = true` cast skips it. fx `pillar` and `flash` seen.
+6. Check the count: `count` is 10..20 for tiers 1..6 (existing `Game.scaled`), meteors launched == `count` (+1 at tier 6).
