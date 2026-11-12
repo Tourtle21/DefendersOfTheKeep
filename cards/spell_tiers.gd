@@ -16,7 +16,8 @@ const FIREBALL_PUSH := 150.0            # tier 2: the blast shoves enemies away 
 const FIREBALL_CORE := 0.4              # tier 3: this much of the radius, from the centre, takes double damage
 const FIREBALL_POP := 0.45              # tier 4: an enemy killed by the blast pops for this much of the damage
 const FIREBALL_POP_RANGE := 30.0
-const FIREBALL_PULSE := 0.15            # tier 5: three pulses of this much of the damage, 0.4 s apart
+const FIREBALL_PULSE := 0.4             # tier 5: three pulses, this many seconds apart
+const FIREBALL_PULSE_DMG := 0.15        # ... each this much of the damage
 const FIREBALL_FINALE_KNOCK := 220.0    # tier 6: the finale shockwave
 const FIREBALL_METEORS := 6
 const HOT := Color(1.0, 0.8, 0.3)
@@ -213,7 +214,7 @@ static func tick_fireball(s, tier: int, _delta: float) -> void:
 		var w: Node = s.get_parent()
 		var r: float = s.radius * 0.8
 		for e in WeaponUtil.enemies_in_circle(s.get_tree(), s.global_position, r):
-			e.spell_damage(s.data.damage * FIREBALL_PULSE, s.data.get("element", ""), true)
+			e.spell_damage(s.data.damage * FIREBALL_PULSE_DMG, s.data.get("element", ""), true)
 			if is_instance_valid(e) and e.has_method("apply_slow"):
 				e.apply_slow(0.3, 0.25)
 		WeaponFx.spawn(w, "pillar", s.position, HOT, {"height": 60.0, "width": s.radius * 0.5, "life": 0.4})
