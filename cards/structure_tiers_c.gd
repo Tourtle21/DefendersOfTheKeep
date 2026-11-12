@@ -56,6 +56,8 @@ static func tick(st, delta: float) -> void:
 			tick_storm_spire(st, delta)
 		"magma_wall":
 			tick_magma_wall(st, delta)
+		"venom_tower":
+			tick_venom_tower(st, delta)
 
 static func on_gnaw(st, e) -> void:
 	match id_of(st):
@@ -77,6 +79,8 @@ static func on_shot(st, target) -> void:
 			on_shot_crystal_pylon(st, target)
 		"storm_spire":
 			on_shot_storm_spire(st, target)
+		"venom_tower":
+			on_shot_venom_tower(st, target)
 
 static func budget_mult(st) -> float:
 	return 1.0
@@ -470,3 +474,126 @@ static func on_expire_magma_wall(st) -> void:
 	WeaponFx.spawn(w, "pillar", pos, MAGMA_LAVA, {"height": 100.0, "width": 40.0, "life": 0.6})
 	StructureTiers.cast(st, "lava_pool", pos, 1.0, -1)
 	Sfx.play("ultimate")
+
+# ================================================================ Venom Tower
+const VENOM := Color(0.55, 0.9, 0.25)
+const VENOM_SPORE := Color(0.8, 1.0, 0.5)
+const VENOM_STACKS := 5
+const VENOM_STACK_T := 6.0
+const VENOM_STACK_BONUS := 0.3
+const VENOM_ACID_T := 4.0
+const VENOM_ACID := 3.0
+const VENOM_ACID_R := 22.0
+const VENOM_SPREAD_R := 35.0
+const VENOM_SPREAD_T := 1.0
+const VENOM_PLAGUE_T := 15.0
+
+static func on_shot_venom_tower(st, target) -> void:
+	var t: int = st.tier
+	if t < 2 or !is_instance_valid(target):
+		return
+	var w := world_of(st)
+	var poison: float = float(st.data.get("poison", 0.0))
+	var stacks: Dictionary = state(st, "stacks", {})
+	var id: int = target.get_instance_id()
+	var rec: Array = stacks.get(id, [0, VENOM_STACK_T, target.global_position])
+	rec[0] = mini(int(rec[0]) + 1, VENOM_STACKS)
+	rec[1] = VENOM_STACK_T
+	rec[2] = target.global_position
+	stacks[id] = rec
+	# the poison bites harder the more stacks it has: an extra dot on top of the plain one
+	WeaponUtil.bleed(st.get_tree(), target, 4, poison * 0.25 * VENOM_STACK_BONUS * float(rec[0]))
+	WeaponFx.spawn(w, "burst", target.global_position, VENOM_SPORE, {"radius": 8.0, "life": 0.2})
+	StructureTiers.sfx(st, "hit", 0.2)
+
+## One enemy gets a stack and the poison dot (from the contagion).
+static func poison_one(st, e, n := 1) -> void:
+	var stacks: Dictionary = state(st, "stacks", {})
+	var id: int = e.get_instance_id()
+	var rec: Array = stacks.get(id, [0, VENOM_STACK_T, e.global_position])
+	rec[0] = maxi(int(rec[0]), n)
+	rec[1] = VENOM_STACK_T
+	stacks[id] = rec
+	WeaponUtil.bleed(st.get_tree(), e, 4, float(st.data.get("poison", 0.0)) * 0.25)
+
+static func tick_venom_tower(st, delta: float) -> void:
+	var t: int = st.tier
+	if t < 2:
+		return
+	var w := world_of(st)
+	var dmg: float = float(st.data.damage)
+	var stacks: Dictionary = state(st, "stacks", {})
+	# stacks wear off; a poisoned enemy that dies leaves a spore cloud (tier 3)
+	for id in stacks.keys():
+		var o = instance_from_id(id)
+		var rec: Array = stacks[id]
+		if o != null and alive(o):
+			rec[2] = o.global_position
+			rec[1] -= delta
+			if rec[1] <= 0.0:
+				stacks.erase(id)
+		else:
+			stacks.erase(id)
+			if t >= 3 and rec[2].distance_to(st.global_position) <= float(st.data.range) + 20.0 and float(st._timers.get("pod", 99.0)) >= 1.0:
+				st._timers["pod"] = 0.0
+				var at: Vector2 = rec[2]
+				StructureTiers.cast(st, "poison_cloud", at, 0.45, -2)
+				WeaponFx.spawn(w, "ripple", at, VENOM_SPORE, {"radius": 30.0, "rings": 2, "life": 0.5})
+				WeaponFx.spawn(w, "motes", at, VENOM_SPORE, {"radius": 14.0, "count": 10, "rise": 24.0, "life": 0.7})
+				StructureTiers.sfx(st, "thump", 0.5)
+	st._timers["pod"] = float(st._timers.get("pod", 99.0)) + delta
+	if StructureTiers.pace(st, "marks", 0.1, delta):
+		var marks := []
+		for id in stacks.keys():
+			if marks.size() >= 8:
+				break
+			marks.append([stacks[id][2], stacks[id][0]])
+		st.vis["stack_pos"] = marks
+	# 4 Acid spit: a glob on the densest group, a slow patch where it lands
+	if t >= 4 and StructureTiers.ready(st, "acid", VENOM_ACID_T, delta):
+		var target = StructureTiers.densest(st, float(st.data.range))
+		if target != null and Game.defence_sees(target, st.global_position):
+			StructureTiers.reset(st, "acid")
+			var at: Vector2 = target.global_position
+			WeaponFx.spawn(w, "fall", at, VENOM, {"radius": 4.0, "height": 50.0, "rise": 30.0, "life": 0.5})
+			WeaponUtil.ground_strike(st.get_tree(), w, at, VENOM_ACID_R, 0.5, dmg * VENOM_ACID, 40.0, VENOM, 0.0, [], "poison")
+			later(st, 0.5, func():
+				WeaponFx.spawn(w, "burst", at, VENOM, {"radius": 14.0, "life": 0.25})
+				WeaponUtil.patch(w, at, "slow", VENOM_ACID_R, Color(VENOM, 0.3), 5.0, 0.6))
+			StructureTiers.sfx(st, "cast", 0.5)
+	# 5 Contagion: an enemy with two stacks poisons one neighbour
+	if t >= 5 and StructureTiers.pace(st, "spread", VENOM_SPREAD_T, delta):
+		for id in stacks.keys():
+			var o = instance_from_id(id)
+			if o == null or !alive(o) or int(stacks[id][0]) < 2:
+				continue
+			var best = null
+			var bd := VENOM_SPREAD_R
+			for e in StructureTiers.enemies_at(st, o.global_position, VENOM_SPREAD_R):
+				if e == o or !alive(e):
+					continue
+				var rec2 = stacks.get(e.get_instance_id(), [0])
+				if int(rec2[0]) >= int(stacks[id][0]):
+					continue
+				var d: float = e.global_position.distance_to(o.global_position)
+				if d < bd:
+					bd = d
+					best = e
+			if best != null:
+				poison_one(st, best, 1)
+				zap(w, o.global_position, best.global_position, VENOM, 2.0)
+				WeaponFx.spawn(w, "burst", best.global_position, VENOM, {"radius": 8.0, "life": 0.2})
+				StructureTiers.sfx(st, "whoosh", 1.0)
+	# 6 Plague spire: a cloud on the densest group
+	if t >= 6 and StructureTiers.ready(st, "plague", VENOM_PLAGUE_T, delta):
+		var tg = StructureTiers.densest(st, float(st.data.range))
+		if tg != null and Game.defence_sees(tg, st.global_position):
+			StructureTiers.reset(st, "plague")
+			var at2: Vector2 = tg.global_position
+			WeaponFx.spawn(w, "flash", at2, VENOM_SPORE, {"radius": 40.0, "life": 0.35})
+			WeaponFx.spawn(w, "ripple", at2, VENOM, {"radius": 40.0, "rings": 3, "life": 0.6})
+			StructureTiers.cast(st, "poison_cloud", at2, 0.9, -1)
+			StructureTiers.sfx(st, "ultimate", 1.0, 0.8)
+			st.fx_pulse = 0.0
+	if t >= 6:
+		st.charge = StructureTiers.fill(st, "plague", VENOM_PLAGUE_T)

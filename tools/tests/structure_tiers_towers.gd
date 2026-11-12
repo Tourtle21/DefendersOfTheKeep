@@ -118,6 +118,8 @@ func _initialize() -> void:
 		await spire()
 	if only == "" or only == "magma_wall":
 		await magma()
+	if only == "" or only == "venom_tower":
+		await venom()
 	quit()
 
 # ---------------------------------------------------------------- Crystal Pylon
@@ -341,3 +343,65 @@ func magma() -> void:
 	ok("magma t6 core: the wall is gone %s and a lava pool lies where it stood (%d more)" % [!is_instance_valid(s6), spells_of("lava_pool") - before], !is_instance_valid(s6) and spells_of("lava_pool") > before)
 	await clear_world()
 	await draws(id, "magma")
+
+# ---------------------------------------------------------------- Venom Tower
+func venom() -> void:
+	var id := "venom_tower"
+	# 1. toxin stacks: the focused enemy melts, per shot much more than without
+	var per := {}
+	for t in [1, 2]:
+		await clear_world()
+		var st = tower(id, t, Vector2(0, 200))
+		var e = dummy(Vector2(0, 150))
+		await wait(5.0)
+		var shots: int = st._shots
+		var unit: float = float(st.data.damage) + float(st.data.poison)
+		st.queue_free()
+		await wait(2.6)
+		per[t] = lost(e) / maxf(1.0, float(shots)) / unit
+	ok("venom t2 stacks: damage per shot (in units of a plain shot) %.2f vs %.2f at tier 1" % [per[2], per[1]], per[2] > per[1] * 1.25)
+	# 2. spore pods: a poisoned enemy that dies leaves a cloud
+	var pods := {}
+	for t in [2, 3]:
+		await clear_world()
+		var st2 = tower(id, t, Vector2(0, 200))
+		var e2 = dummy(Vector2(0, 150), 3.0)
+		await wait(4.0)
+		pods[t] = spells_of("poison_cloud")
+	ok("venom t3 pods: clouds after a poisoned enemy fell: tier 3 %d, tier 2 %d" % [pods[3], pods[2]], pods[3] >= 1 and pods[2] == 0)
+	# 3. acid spit on the densest group
+	await clear_world()
+	seen.clear()
+	var s4 = tower(id, 4, Vector2(0, 200))
+	var cl := [dummy(Vector2(0, 150)), dummy(Vector2(18, 140)), dummy(Vector2(-16, 144))]
+	var patch := false
+	var t3 := 0.0
+	while t3 < 5.2:
+		scan()
+		patch = patch or count_nodes("hazard.gd") > 0
+		await wait(0.05)
+		t3 += 0.05
+	var hurt3 := true
+	for e in cl:
+		hurt3 = hurt3 and lost(e) > 0.0
+	ok("venom t4 acid: ring 22 seen %s, a slow patch lies there %s, all three hurt %s" % [saw("ring", 22.0), patch, hurt3], saw("ring", 22.0) and patch and hurt3)
+	# 4. contagion: B was never shot, yet it sickens next to A
+	var got := {}
+	for t in [4, 5]:
+		await clear_world()
+		var st5 = tower(id, t, Vector2(0, 200))
+		var a = dummy(Vector2(0, 160))
+		var c = dummy(Vector2(-45, 170))
+		var b = dummy(Vector2(0, 130))
+		await wait(2.7)
+		got[t] = lost(b)
+	ok("venom t5 contagion: the neighbour lost %.1f without being shot (tier 4: %.1f)" % [got[5], got[4]], got[5] > 0.5 and got[4] < 0.1)
+	# 5. plague spire (and the earlier tiers still working)
+	await clear_world()
+	seen.clear()
+	var s6 = tower(id, 6, Vector2(0, 200))
+	var grp := [dummy(Vector2(0, 150)), dummy(Vector2(18, 140)), dummy(Vector2(-16, 144)), dummy(Vector2(5, 128))]
+	await watch(15.6)
+	ok("venom t6 plague: flash 40 seen %s, a cloud exists (%d), acid ring still seen %s, stacks shown %d" % [saw("flash", 40.0), spells_of("poison_cloud"), saw("ring", 22.0), s6.vis.get("stack_pos", []).size()], saw("flash", 40.0) and spells_of("poison_cloud") >= 1 and saw("ring", 22.0) and s6.vis.get("stack_pos", []).size() >= 1)
+	await clear_world()
+	await draws(id, "venom")

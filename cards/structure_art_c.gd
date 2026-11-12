@@ -19,6 +19,9 @@ static func draw(st, col: Color) -> bool:
 		"magma_wall":
 			draw_magma_wall(st, col)
 			return true
+		"venom_tower":
+			draw_venom_tower(st, col)
+			return true
 	return false
 
 # ---------------------------------------------------------------- shared shapes
@@ -336,3 +339,102 @@ static func draw_magma_wall(st, col: Color) -> void:
 	if st.flash > 0.0:
 		st.draw_rect(Rect2(-r, top, r * 2.0, bot - top), Color(1, 1, 1, 0.4))
 	StructureArt.hp_bar(st, bot + 15.0 if t >= 3 else bot + 3.0, r, t >= 6)
+
+# ================================================================ Venom Tower
+const VN_VENOM := Color(0.55, 0.9, 0.25)
+const VN_DEEP := Color(0.2, 0.45, 0.15)
+const VN_SPORE := Color(0.8, 1.0, 0.5)
+const VN_ROT := Color(0.55, 0.3, 0.6)
+const VN_BONE := Color(0.9, 0.88, 0.75)
+
+static func draw_venom_tower(st, col: Color) -> void:
+	var t: int = st.tier
+	var age: float = st._age
+	var aim: Vector2 = st.aim if st.aim != Vector2.ZERO else Vector2.UP
+	# 6: a mist over the ground
+	if t >= 6:
+		st.draw_circle(Vector2(0, 2), 26.0, Color(VN_SPORE, 0.1))
+	# 4: acid drips on the ground round the base
+	if t >= 4:
+		for i in 4:
+			var a := i * TAU / 4.0 + 0.6
+			st.draw_circle(Vector2(cos(a) * 11.0, 5.0 + sin(a) * 4.0), 2.2 + (i % 2), Color(VN_VENOM, 0.3))
+	# 3: mushroom pods sprout round the base
+	if t >= 3:
+		for i in 3:
+			var x := -11.0 + i * 11.0
+			var y := 5.0 + (i % 2) * 2.0
+			st.draw_line(Vector2(x, y + 2), Vector2(x, y - 2), VN_BONE, 1.5)
+			st.draw_circle(Vector2(x, y - 3), 3.0, Color.BLACK)
+			st.draw_circle(Vector2(x, y - 3), 2.2, VN_ROT.lerp(VN_VENOM, 0.3 * i))
+			st.draw_circle(Vector2(x - 0.8, y - 3.5), 0.6, VN_BONE)
+	StructureArt.box(st, Rect2(-7, -3, 14, 10), col.darkened(0.45))
+	# the tank: bigger from tier 3, swollen and rotten at tier 6
+	var tank_r := 5.0 if t < 3 else (6.0 if t < 6 else 8.0)
+	var lean := 2.0 if t >= 6 else 0.0
+	var tc := Vector2(lean, -8.0 - tank_r * 0.5)
+	var sick := 0.5 + 0.5 * sin(age * 2.5)
+	var glow := VN_VENOM
+	if t >= 5:
+		glow = VN_VENOM.lerp(VN_ROT, 0.45 + 0.25 * sick)
+	if t >= 6:
+		glow = VN_ROT.lerp(VN_VENOM, 0.25 * sick)
+		tank_r += 0.8 * sick
+	st.draw_circle(tc, tank_r + 1.0, Color.BLACK)
+	st.draw_circle(tc, tank_r, VN_DEEP)
+	st.draw_circle(tc + Vector2(0, tank_r * 0.25), tank_r * 0.8, glow)
+	st.draw_circle(tc + Vector2(-tank_r * 0.35, -tank_r * 0.3), tank_r * 0.22, Color(1, 1, 1, 0.45))
+	if t >= 3:
+		st.draw_arc(tc, tank_r * 0.6, age * 2.0, age * 2.0 + 2.2, 8, Color(VN_ROT, 0.8), 1.0)
+	# bubbles in the tank
+	for i in 2:
+		var u := fposmod(age * 0.8 + i * 0.5, 1.0)
+		st.draw_circle(tc + Vector2((i - 0.5) * tank_r * 0.8, tank_r * 0.5 - u * tank_r), 0.9, Color(VN_SPORE, 0.8 * (1.0 - u)))
+	# the fang-shaped nozzle (two of them from tier 4) and the hose from the tank
+	var nz := tc + aim * (tank_r + 1.5)
+	var side := aim.orthogonal()
+	var offs := [-2.2, 2.2] if t >= 4 else [0.0]
+	for o in offs:
+		var b: Vector2 = nz + side * o
+		StructureArt.poly(st, PackedVector2Array([b + side * 1.8, b - side * 1.8, b + aim * 6.0]), VN_BONE)
+		st.draw_line(tc + side * o * 0.4, b, VN_DEEP.lightened(0.15), 1.5)
+	if t >= 4:
+		for k in 3:
+			var q: Vector2 = tc.lerp(nz, 0.3 + 0.2 * k)
+			st.draw_line(q + side * 2.2, q - side * 2.2, VN_DEEP.darkened(0.3), 1.0)
+		var u2 := fposmod(age * 1.5, 1.0)
+		st.draw_circle(nz + aim * (6.0 + u2 * 6.0), 1.0 + 0.5 * (1.0 - u2), Color(VN_VENOM, 1.0 - u2))
+	# 5: a ring of bone fangs round the top
+	if t >= 5:
+		for i in 7:
+			var a := PI + 0.35 + i * (PI - 0.7) / 6.0
+			var d := Vector2.from_angle(a)
+			st.draw_colored_polygon(PackedVector2Array([tc + d * (tank_r + 0.5) + d.orthogonal() * 1.3, tc + d * (tank_r + 0.5) - d.orthogonal() * 1.3, tc + d * (tank_r + 4.0)]), VN_BONE)
+	# 6: cracks leaking spores, hanging pods, a halo of twelve spores
+	if t >= 6:
+		st.draw_line(tc + Vector2(-2, -tank_r * 0.8), tc + Vector2(1, 0), Color.BLACK, 1.0)
+		st.draw_line(tc + Vector2(2, tank_r * 0.2), tc + Vector2(4, tank_r * 0.8), Color.BLACK, 1.0)
+		for i in 3:
+			var x := -5.0 + i * 5.0
+			st.draw_line(Vector2(x, 7), Vector2(x, 11 + (i % 2) * 2), VN_BONE, 1.0)
+			st.draw_circle(Vector2(x, 12.5 + (i % 2) * 2), 2.2, VN_ROT)
+		for i in 12:
+			var a := age * 0.7 + i * TAU / 12.0
+			st.draw_circle(Vector2(cos(a) * 22.0, sin(a) * 9.0 - 6.0), 1.2, Color(VN_SPORE, 0.7))
+	# spore dots float up (from tier 3)
+	if t >= 3:
+		for i in 4:
+			var u := fposmod(age * 0.5 + SpellArt.jit(i), 1.0)
+			st.draw_circle(Vector2(sin(age + i * 2.0) * 9.0, 0.0 - u * 26.0), 0.9, Color(VN_SPORE, 0.7 * (1.0 - u)))
+	shot_line(st, nz + aim * 6.0, VN_VENOM)
+	# the stacks: green pips over every poisoned enemy; 5: threads between the ones with two or more
+	var marks: Array = st.vis.get("stack_pos", [])
+	for m in marks:
+		var q: Vector2 = m[0] - st.global_position
+		for k in int(m[1]):
+			st.draw_circle(q + Vector2((k - (int(m[1]) - 1) * 0.5) * 3.5, -13.0), 1.4, VN_VENOM)
+		if t >= 5 and int(m[1]) >= 2:
+			for m2 in marks:
+				var q2: Vector2 = m2[0] - st.global_position
+				if q2 != q and q.distance_to(q2) <= 45.0:
+					st.draw_line(q, q2, Color(VN_VENOM, 0.3), 1.0)
