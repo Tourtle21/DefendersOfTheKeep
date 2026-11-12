@@ -22,9 +22,18 @@ func _init() -> void:
 
 func attack() -> void:
 	thrust(5.0, 0.2)
-	for i in 3:
-		var d := aim.rotated((i - 1) * 0.12)
-		WeaponProjectile.shoot(game_world(), player.global_position + d * 10.0, d, 300.0, Game.basic_hit(weapon_id) / 3.0, Color(0.8, 0.6, 1.0), 0.8, 1, 60.0)
+	var plan = WeaponTiers.run(self, "shard_plan")                # tier 2+: five shards (seven on a perfect rhythm), each embeds a crystal
+	var n := 3
+	var step := 0.12
+	var extra := {}
+	if plan != null:
+		n = int(plan.n)
+		step = float(plan.step)
+		extra = plan.extra
+	for i in n:
+		var d := aim.rotated((float(i) - float(n - 1) * 0.5) * step)
+		var col := Color(0.8, 0.6, 1.0) if plan == null else Color.from_hsv(fposmod(float(int(plan.hue) + i) * 0.137, 1.0), 0.45, 1.0)
+		WeaponProjectile.shoot(game_world(), player.global_position + d * 10.0, d, 300.0, Game.basic_hit(weapon_id) / float(n), col, 0.8, 1, 60.0, extra)
 
 func ability() -> void:
 	var o: Vector2 = player.global_position

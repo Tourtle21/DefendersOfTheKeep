@@ -393,6 +393,129 @@ func t_earthshaker() -> void:
 	ok("earthshaker: standing in a fault for 3 s costs no health (%.1f -> %.1f)" % [hp0, health_px()], is_equal_approx(hp0, health_px()))
 	await draw_smoke("earthshaker")
 
+func young_proj() -> int:                               # projectiles of the last 0.12 s (one fan)
+	var c := 0
+	for n in world.get_children():
+		if n.get_script() != null and str(n.get_script().resource_path).ends_with("projectile.gd") and n._age < 0.15:
+			c += 1
+	return c
+
+func t_crystalwand() -> void:
+	var w
+	var mod = load("res://items/weapons/tiers/crystalwand.gd")
+	# Prism Shards (tier 2): five shards that embed crystals; tier 1 has three and no mark
+	var fan := {}
+	for t in [1, 2]:
+		w = await equip("crystalwand", t, false)
+		var d1 = dummy(P + Vector2(40, 0))
+		w.use_item()
+		await wait(0.1)
+		var n1 := young_proj()
+		await wait(0.5)
+		fan[t] = {"n": n1, "mark": mod.crystals(d1)}
+	ok("crystalwand Prism Shards: tier 2 fan %d shards and %d crystal (tier 1: %d shards, %d)" % [fan[2].n, fan[2].mark, fan[1].n, fan[1].mark], fan[2].n == 5 and fan[2].mark >= 1 and fan[1].n == 3 and fan[1].mark == 0)
+	# Resonance (tier 3): the fourth crystal shatters and spreads two to a neighbour; a perfect rhythm makes a 7-shard cone
+	var rs := {}
+	for t in [2, 3]:
+		w = await equip("crystalwand", t, false)
+		var d2 = dummy(P + Vector2(40, 0))
+		var nb = dummy(P + Vector2(40, 35))
+		mod.set_crystals(d2, 3)
+		await wait(0.2)
+		w.use_item()
+		await wait(0.7)
+		rs[t] = {"lost": lost(d2), "nb": mod.crystals(nb), "nb_lost": lost(nb)}
+	ok("crystalwand Resonance: tier 3 shatters (%.1f vs %.1f taken) and the neighbour gets crystals (%d vs %d, %.1f taken)" % [rs[3].lost, rs[2].lost, rs[3].nb, rs[2].nb, rs[3].nb_lost], rs[3].lost > rs[2].lost + 6.0 and rs[3].nb >= 2 and rs[2].nb == 0)
+	w = await equip("crystalwand", 3, false)
+	var counts := []
+	for i in 3:
+		w._attack_cd = 0.0
+		w.use_item()
+		await wait(0.1)
+		counts.append(young_proj())
+		await wait(0.38)
+	ok("crystalwand Resonance: the third fan within 1.2 s is a cone of seven %s" % [counts], counts[2] == 7 and counts[0] == 5)
+	var pu := {}
+	for t in [2, 3]:
+		w = await equip("crystalwand", t, false)
+		var dp = dummy(P + Vector2(70, 0), HP, true)
+		var x0: float = dp.global_position.x
+		w.use_ability()
+		await wait(0.5)
+		pu[t] = x0 - dp.global_position.x
+	ok("crystalwand Resonance Ring: tier 3 pulls the dummy in (%.0f px vs %.0f)" % [pu[3], pu[2]], pu[3] > pu[2] + 5.0)
+	# Crystal Familiar (tier 4)
+	w = await equip("crystalwand", 4, false)
+	await wait(0.4)
+	var fam: int = int(aura_data().get("fam", 0))
+	w.use_item()
+	await wait(0.15)
+	var homing := 0
+	for n in world.get_children():
+		if n.get_script() != null and str(n.get_script().resource_path).ends_with("projectile.gd") and n.homing > 0.0:
+			homing += 1
+	ok("crystalwand Crystal Familiar: aura shows %d familiar and an attack adds %d homing mirror shard" % [fam, homing], fam == 1 and homing == 1)
+	w = await equip("crystalwand", 4, false)
+	await face(Vector2(1, 0))
+	w.use_dash()
+	await wait(0.5)
+	var mirror_ok: bool = aura_data().has("mirror")
+	await face(Vector2(-1, 0))
+	w.use_item()
+	await wait(0.5)
+	var echoed := 0
+	for n in world.get_children():
+		if n.get_script() != null and str(n.get_script().resource_path).ends_with("projectile.gd") and n.gated:
+			echoed += 1
+	ok("crystalwand Refract: the dash leaves a mirror (%s) that echoes a shot (%d)" % [mirror_ok, echoed], mirror_ok and echoed >= 1)
+	# Geode Garden (tier 5)
+	var gg := {}
+	for t in [4, 5]:
+		w = await equip("crystalwand", t, false)
+		await face(Vector2(1, 0))
+		w.use_ultimate()
+		var seen := {}
+		var haz := 0
+		var gdummy = null
+		for i in 130:
+			await wait(0.05)
+			fx_kinds(seen)
+			haz = maxi(haz, hazards())
+			if t == 5 and gdummy == null and w._st.geodes.size() > 0:
+				gdummy = dummy(w._st.geodes[0] + Vector2(4, 0))
+				gdummy.max_health = HP
+		gg[t] = {"pillar": int(seen.get("pillar", 0)), "haz": haz, "geo": w._st.geodes.size() if t == 5 else 0}
+	ok("crystalwand Geode Garden: tier 5 leaves %d geodes (%d patches) and pillars in %d frames; tier 4 none (%d patches, %d frames)" % [gg[5].geo, gg[5].haz, gg[5].pillar, gg[4].haz, gg[4].pillar], gg[5].geo == 8 and gg[5].haz >= 6 and gg[5].pillar >= 8 and gg[4].haz == 0)
+	# Crystal Ascension (tier 6)
+	w = await equip("crystalwand", 6, false)
+	await face(Vector2(1, 0))
+	var ad = dummy(P + Vector2(60, 0))
+	w.use_ultimate()
+	await wait(3.6)
+	var peak := 0
+	var seen6 := {}
+	var steps := []
+	var prev := lost(ad)
+	var biggest := 0.0
+	var fam6: int = int(aura_data().get("fam", 0))
+	for i in 270:
+		await wait(0.05)
+		peak = maxi(peak, own_proj())
+		fx_kinds(seen6)
+		if i == 200:
+			mod.set_crystals(ad, 3)                         # marks on the dummy as the final shatter is about to come
+		var l := lost(ad)
+		if i * 0.05 > 10.0:
+			biggest = maxf(biggest, l - prev)
+		prev = l
+	ok("crystalwand Crystal Ascension: %d familiars, beams %s, waves (ripple) %s, peak projectiles %d <= 40, biggest single jump near the end %.1f (final shatter >= 7.2)" % [fam6, seen6.has("beam"), seen6.has("ripple"), peak, biggest], fam6 == 3 and seen6.has("beam") and seen6.has("ripple") and peak <= 40 and biggest >= 7.2)
+	await draw_smoke("crystalwand")
+	w = await equip("prismstaff", 3, false)
+	dummy(P + Vector2(40, 0))
+	w.use_item()
+	await wait(0.1)
+	ok("crystalwand: the Prismatic Staff still fires its own five-shard fan (%d)" % young_proj(), young_proj() == 5)
+
 func aura_data_state() -> float:
 	for n in world.get_children():
 		if n.get_script() != null and str(n.get_script().resource_path).ends_with("weapon_aura.gd"):
@@ -406,3 +529,5 @@ func run() -> void:
 		await t_juggernaut()
 	if only == "" or only == "earthshaker":
 		await t_earthshaker()
+	if only == "" or only == "crystalwand":
+		await t_crystalwand()
