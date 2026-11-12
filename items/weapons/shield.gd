@@ -25,8 +25,9 @@ func attack() -> void:
 	thrust(9.0, 0.18)
 	var o: Vector2 = player.global_position
 	fx("arc", o, Color(0.5, 0.7, 1.0), {"radius": 22.0, "dir": aim, "half_angle": 1.0, "life": 0.15})
+	var mult: float = _st.get("mult", 1.0)          # Retaliation (tier 4): the next bashes after a parry hit harder (items/weapons/tiers/shield.gd)
 	for e in WeaponUtil.enemies_in_arc(get_tree(), o, aim, 22.0, 65.0):
-		WeaponUtil.hit(e, Game.basic_hit(weapon_id), o, 300.0, 0.5)
+		WeaponUtil.hit(e, Game.basic_hit(weapon_id) * mult, o, 300.0 * (1.0 + 0.3 * (mult - 1.0) / 0.5), 0.5)
 
 func dash_attack() -> void:
 	# Shield Charge: rush forward, shoving and briefly stunning whatever you hit
@@ -60,8 +61,30 @@ func _on_parry(_from: Vector2) -> void:
 	for e in WeaponUtil.enemies_in_circle(get_tree(), o, 56.0):
 		WeaponUtil.hit(e, 3.5, o, 320.0, 1.6)
 	_ability_cd = min(_ability_cd, ability_cooldown * 0.2)    # perfect parry: mostly refunded
+	WeaponTiers.run(self, "parry", [_from])
 
 func ultimate() -> void:
 	# Bastion: five seconds untouchable, with a shoving pulse every second
 	player.shield_time = max(player.shield_time, 5.0)
+	if tier >= 5:
+		_bastion()
+		return
 	pulse_around(2.5, 46.0, 270.0, 0.35, 5, 0.9, Color(0.5, 0.7, 1.0))
+
+## Tier 5+ Citadel: the pulses grow, each sends a ripple, the fifth is a Nova. (Shots near you are eaten meanwhile: tiers/shield.gd tick.)
+func _bastion() -> void:
+	_st["bastion_until"] = Time.get_ticks_msec() / 1000.0 + 5.0
+	var radii := [46.0, 54.0, 62.0, 70.0, 78.0]
+	for i in 5:
+		if !is_inside_tree():
+			return
+		var o: Vector2 = player.global_position
+		var nova: bool = i == 4
+		fx("ripple", o, Color(0.5, 0.7, 1.0), {"radius": radii[i], "rings": 2, "life": 0.4})
+		for e in WeaponUtil.enemies_in_circle(get_tree(), o, radii[i]):
+			if nova:
+				WeaponUtil.hit(e, Game.basic_hit(weapon_id) * 1.5, o, 380.0, 1.2, "", true)
+			else:
+				WeaponUtil.hit(e, 2.5, o, 270.0, 0.35, "", true)
+		player.shake(3.0 if nova else 1.5, 0.15)
+		await get_tree().create_timer(0.9).timeout

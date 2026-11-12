@@ -10,8 +10,19 @@ var tint := Color(0.5, 0.95, 0.3)
 var split_at := 0.0               # > 0: after this many seconds it bursts into split_n shots (Crystal Warden)
 var split_n := 3
 var slow := 0.0                   # > 0: a hit slows the player to this fraction of their speed for 1.5 seconds
+var friendly := false             # sent back by a Shield parry (WeaponTiers shield): it hurts enemies now, not players
 var _age := 0.0
 var _split_done := false
+
+## Send a shot back where it came from (the Shield's Reflection): friendly shots hurt enemies for a tenth of their player damage and ignore players.
+static func reflect(sh) -> void:
+	if !is_instance_valid(sh) or sh.friendly:
+		return
+	sh.friendly = true
+	sh.vel = -sh.vel * 1.3
+	sh.life = maxf(sh.life, 1.5)
+	sh.tint = Color(1.0, 0.9, 0.4)
+	sh.split_at = 0.0
 
 static func fire(world: Node, from: Vector2, dir: Vector2, speed := 95.0, dmg := 30.0, col := Color(0.5, 0.95, 0.3), rad := 7.0, lifetime := 3.0, split_time := 0.0, slow_to := 0.0) -> void:
 	var p := EnemyProjectile.new()
@@ -40,6 +51,16 @@ func _physics_process(delta: float) -> void:
 			var a := vel.angle() + (i - (split_n - 1) / 2.0) * 0.5
 			EnemyProjectile.fire(get_parent(), position, Vector2.from_angle(a), vel.length() * 1.1, damage * 0.8, tint, maxf(4.0, radius * 0.65), 1.6)
 		queue_free()
+		return
+	if friendly:
+		for e in WeaponUtil.enemies_in_circle(get_tree(), global_position, radius):
+			e.spell_damage(maxf(2.0, damage * 0.1), "", false)
+			WeaponFx.spawn(get_parent(), "burst", global_position, tint, {"radius": 8.0, "life": 0.2})
+			queue_free()
+			return
+		if life <= 0.0:
+			queue_free()
+		queue_redraw()
 		return
 	for pl in get_tree().get_nodes_in_group("player"):
 		if is_instance_valid(pl) and !pl.get("is_in_tower") and pl.global_position.distance_to(global_position) <= radius + 4.0:

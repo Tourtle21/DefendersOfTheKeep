@@ -618,7 +618,128 @@ func t_whip() -> void:
 	ok("whip Finisher: the sixth crack at tier 6 reaches 64 px %s" % fin, fin)
 	await draw_smoke("whip")
 
+func parry(w, from_x := 20.0) -> void:
+	w.use_ability()
+	await wait(0.1)
+	player.take_damage(player.global_position + Vector2(from_x, 0), 10.0)
+	await wait(0.05)
+
+func t_shield() -> void:
+	var w
+	# Reflection
+	var rf := {}
+	for t in [1, 2]:
+		w = await equip("shield", t, false)
+		var sh_class = load("res://enemies/spitter/enemy_projectile.gd")
+		sh_class.fire(world, player.global_position + Vector2(60, 0), Vector2(-1, 0), 20.0, 30.0)
+		await wait(0.1)
+		var shots := get_nodes_in_group("enemy_shot")
+		if t == 1:
+			# tier 1 has no parry: the shot just keeps coming
+			rf[t] = [shots.size(), shots[0].friendly if !shots.is_empty() else false]
+		else:
+			await parry(w)
+			shots = get_nodes_in_group("enemy_shot")
+			rf[t] = [shots.size(), shots[0].friendly if !shots.is_empty() else false, shots[0].vel.x if !shots.is_empty() else 0.0]
+	ok("shield Reflection: tier 2 parry sends the shot back (friendly %s, vel.x %s); tier 1 has no parry" % [rf[2][1], rf[2][2]], rf[2][1] and rf[2][2] > 0.0 and !rf[1][1])
+	for sh in get_nodes_in_group_safe("enemy_shot"):
+		sh.queue_free()
+	var sl := {}
+	for t in [2, 3]:
+		w = await equip("shield", t, false)
+		var d = dummy(P + Vector2(31, 0))
+		var per := []
+		var seen := {}
+		var stun := 0.0
+		for i in 3:
+			w._attack_cd = 0.0
+			var h0 := lost(d)
+			w.use_item()
+			for k in 24:
+				await wait(0.05)
+				fx_kinds(seen)
+				if d.slow_mult == 0.0:
+					stun += 0.05
+			per.append(lost(d) - h0)
+			await wait(0.2)
+		sl[t] = [per, seen, stun]
+	ok("shield Shield Slam: tier 3 only the third bash reaches 31 px (%s), stunned %.2f s, cone fx %s; tier 2 %s" % [sl[3][0], sl[3][2], sl[3][1].has("cone"), sl[2][0]], sl[3][0][0] == 0.0 and sl[3][0][1] == 0.0 and sl[3][0][2] > 0.0 and sl[3][2] >= 0.8 and sl[3][1].has("cone") and sl[2][0] == [0.0, 0.0, 0.0])
+	# Retaliation: the bash after a parry hits 1.5x
+	w = await equip("shield", 4, false)
+	var dr = dummy(P + Vector2(15, 0))
+	await parry(w)
+	await wait(0.5)
+	var h0 := lost(dr)
+	w._attack_cd = 0.0
+	w.use_item()
+	await wait(0.3)
+	var boosted := lost(dr) - h0
+	await wait(4.5)
+	w._st.retal = 0
+	h0 = lost(dr)
+	w._attack_cd = 0.0
+	w.use_item()
+	await wait(0.3)
+	var plain := lost(dr) - h0
+	ok("shield Retaliation: tier 4 the bash after a parry does x1.5 (%.2f vs %.2f once the 4 s are over)" % [boosted, plain], plain > 0.1 and absf(boosted / plain - 1.5) < 0.1 and is_exposed(dr) == false)
+	var rm := {}
+	for t in [3, 4]:
+		w = await equip("shield", t, false)
+		var d1 = dummy(P + Vector2(20, 0))
+		var d2 = dummy(P + Vector2(55 + 30, 0))
+		w.use_dash()
+		await wait(1.0)
+		rm[t] = lost(d2)
+	ok("shield Ram: tier 4 the end shock hits the dummy past the charge (%.1f vs %.1f)" % [rm[4], rm[3]], rm[4] > rm[3] + 3.0)
+	var ci := {}
+	for t in [4, 5, 6]:
+		w = await equip("shield", t, false)
+		var d = dummy(P + Vector2(60, 0))
+		w.use_ultimate()
+		var seen := {}
+		var freed := false
+		var sh_class = load("res://enemies/spitter/enemy_projectile.gd")
+		sh_class.fire(world, player.global_position + Vector2(60, 0), Vector2(-1, 0), 15.0, 30.0, Color(0.5, 0.95, 0.3), 7.0, 8.0)
+		var tstun := 0.0
+		var flash80 := false
+		var l_at_4 := 0.0
+		for i in 112:
+			await wait(0.05)
+			fx_kinds(seen)
+			if d.slow_mult == 0.0:
+				tstun += 0.05
+			if i == 50:
+				l_at_4 = float(get_nodes_in_group("enemy_shot").size())
+			for f in world.get_children():
+				if f.get_script() != null and str(f.get_script().resource_path).ends_with("fx.gd") and f.kind == "flash" and f.radius >= 80.0:
+					flash80 = true
+		ci[t] = {"lost": lost(d), "seen": seen, "stun": tstun, "shots": int(l_at_4), "flash": flash80}
+		for sh in get_nodes_in_group_safe("enemy_shot"):
+			sh.queue_free()
+	ok("shield Citadel: tier 5 ripples %s, eats the shot (alive at 2.5 s: %d vs tier 4: %d), hits the dummy at 60 px with its wider pulses (%.1f vs %.1f)" % [ci[5].seen.has("ripple"), ci[5].shots, ci[4].shots, ci[5].lost, ci[4].lost], ci[5].seen.has("ripple") and ci[5].shots == 0 and ci[4].shots == 1 and ci[5].lost > ci[4].lost + 3.0)
+	ok("shield Aegis Eternal: tier 6 finale flash r80 %s and more damage (%.1f vs %.1f); tier 5 none %s" % [ci[6].flash, ci[6].lost, ci[5].lost, ci[5].flash], ci[6].flash and !ci[5].flash and ci[6].lost > ci[5].lost + 3.0)
+	w = await equip("shield", 6, false)
+	var d6 = dummy(P + Vector2(20, 0))
+	var streak := false
+	for i in 6:
+		w._attack_cd = 0.0
+		w.use_item()
+		var seen := {}
+		for k in 8:
+			await wait(0.05)
+			fx_kinds(seen)
+		if i == 5:
+			streak = seen.has("streak")
+		await wait(0.3)
+	ok("shield Finisher: the sixth bash at tier 6 follows with a streak %s" % streak, streak)
+	await draw_smoke("shield")
+
+func get_nodes_in_group_safe(g: String) -> Array:
+	return get_nodes_in_group(g)
+
 func run() -> void:
+	if only == "" or only == "shield":
+		await t_shield()
 	if only == "" or only == "whip":
 		await t_whip()
 	if only == "" or only == "scimitar":

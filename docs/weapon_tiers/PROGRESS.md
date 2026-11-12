@@ -27,3 +27,4 @@ DONE quakepick
 DONE juggernaut
 CLAIM earthshaker
 DONE rimelance
+DONE shield
