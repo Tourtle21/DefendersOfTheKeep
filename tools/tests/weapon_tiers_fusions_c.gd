@@ -226,8 +226,125 @@ func t_soulreaper() -> void:
 	ok("soulreaper Reap Harvest: flash r 85 %s, a dummy at 120 px takes %.1f (>= 3.6) and the souls are spent (%d)" % [flash, lost(big) - h1, w._st.souls], flash and lost(big) - h1 >= 3.6 and w._st.souls <= 1)
 	await draw_smoke("soulreaper")
 
+func charge_n(e) -> int:
+	return int(e.get_meta("charge", 0)) if is_instance_valid(e) else 0
+
+func t_starfall() -> void:
+	var w
+	# Star Charts: storm of 5 s, five blades in the aura, charged enemies detonate at the end, falling star for 3+
+	w = await equip("starfall", 3, false)
+	var d = dummy(P + Vector2(20, 0))
+	w.use_ability()
+	await wait(0.3)
+	var left: float = w._storm_until - Time.get_ticks_msec() / 1000.0
+	var nb: int = w._aura.data.get("n", -1)
+	var seen := {}
+	d.set_meta("charge", 3)
+	for i in 120:
+		await wait(0.05)
+		fx_kinds(seen)
+	ok("starfall Star Charts: storm %.1f s (>= 4.4 left), aura n_blades %d (5), detonated (lost %.1f), fall seen %s, star motes %s" % [left, nb, lost(d), seen.has("fall"), seen.has("star")], left >= 4.4 and nb == 5 and lost(d) > 4.0 and seen.has("fall") and seen.has("star"))
+	# Comet dash charges what it passes
+	w = await equip("starfall", 3, false)
+	var dd = dummy(P + Vector2(25, 0))
+	w.use_dash()
+	await wait(0.4)
+	ok("starfall Comet Dash: the dash charges the dummy it passes (%d charge)" % charge_n(dd), charge_n(dd) >= 1)
+	# Constellation: a line between two stars cuts a third dummy crossing it; the cascade detonates over time
+	var cons := {}
+	for t in [3, 4]:
+		w = await equip("starfall", t, false)
+		var s1 = dummy(P + Vector2(40, -40))
+		var s2 = dummy(P + Vector2(40, 40))
+		var cross = dummy(P + Vector2(40, 0))
+		s1.set_meta("charge", 3)
+		s2.set_meta("charge", 3)
+		var saw := false
+		for i in 40:
+			await wait(0.05)
+			if has_fx("line"):
+				saw = true
+		cons[t] = [saw, snappedf(lost(cross), 0.1), charge_n(cross)]
+	ok("starfall Constellation: tier 4 star line seen %s and cuts the dummy on it, charging it %s; tier 3 %s" % [cons[4][0], cons[4], cons[3]], cons[4][0] and cons[4][1] > 0.5 and cons[4][2] >= 1 and cons[3][1] < 0.1)
+	var casc := {}
+	for t in [3, 4]:
+		w = await equip("starfall", t, false)
+		var pack := []
+		for k in 4:
+			var p = dummy(P + Vector2(22 + 12 * k, 12 * (k % 2)))
+			p.set_meta("charge", 1)
+			pack.append(p)
+		w.use_ability()
+		await wait(4.9)
+		var stamps := []
+		var last := -1.0
+		for i in 30:
+			await wait(0.04)
+			var tot := 0.0
+			for p in pack:
+				tot += lost(p)
+			if tot != last:
+				stamps.append(snappedf(tot, 0.1))
+				last = tot
+		casc[t] = stamps.size()
+	ok("starfall Constellation Storm: the pack detonates in %d separate steps at tier 4 vs %d at tier 3" % [casc[4], casc[3]], casc[4] >= casc[3] and casc[4] >= 3)
+	# Meteor Rain: many falls and giant ones; tier 4 only the plain rain
+	var mr := {}
+	for t in [4, 5]:
+		w = await equip("starfall", t, false)
+		var star = dummy(P + Vector2(60, 0))
+		star.set_meta("charge", 4)
+		w.use_ultimate()
+		var falls := 0
+		var giants := 0
+		for i in 70:
+			await wait(0.05)
+			for nd in world.get_children():
+				if nd.get_script() != null and str(nd.get_script().resource_path).ends_with("items/weapons/fx.gd") and nd.kind == "fall" and nd.age < 0.06:
+					falls += 1
+					if nd.radius >= 9.0:
+						giants += 1
+		mr[t] = [falls, giants]
+	ok("starfall Meteor Rain: tier 5 falls %s (meteors, giants) vs tier 4 %s" % [mr[5], mr[4]], mr[5][0] >= 15 and mr[5][1] >= 2 and mr[4][0] < mr[5][0])
+	# Cosmic Dance: meteors every ~0.7 s, a nova every 2 s, planets; Supernova at ~20.5 s
+	w = await equip("starfall", 6, false)
+	var cen = dummy(P + Vector2(60, 0))
+	cen.set_meta("charge", 5)
+	w.use_ultimate()
+	await wait(6.2)
+	var planets: int = w._aura.data.get("n", 0)
+	var kinds := {}
+	for i in 60:
+		await wait(0.05)
+		fx_kinds(kinds)
+	await wait(5.2)
+	var big := false
+	var h1 := lost(cen)
+	for i in 80:
+		await wait(0.05)
+		if has_fx("flash", 100.0):
+			big = true
+	ok("starfall Cosmic Dance: planets %d (6), falls %d, star novas seen %s, Supernova flash %s" % [planets, kinds.get("fall", 0), kinds.has("star"), big], planets == 6 and kinds.get("fall", 0) >= 3 and big)
+	ok("starfall Supernova: the dummy loses %.1f (>= 7.2) at the end" % (lost(cen) - h1), lost(cen) - h1 >= 7.2)
+	# Finisher: the comet
+	w = await equip("starfall", 6, false)
+	var far = dummy(P + Vector2(150, 0))
+	var comet := 0.0
+	for i in 6:
+		click(w)
+		for k in 6:
+			await wait(0.05)
+			for nd in world.get_children():
+				if nd.get_script() != null and str(nd.get_script().resource_path).ends_with("items/weapons/projectile.gd") and nd.style == "orb" and nd.size >= 2.0:
+					comet += 1
+		await wait(0.2)
+	ok("starfall Finisher: the 6th slash throws a comet (%d)" % comet, comet >= 1)
+	await draw_smoke("starfall")
+
 func run() -> void:
 	if want("witchstaff"):
 		await t_witchstaff()
 	if want("soulreaper"):
 		await t_soulreaper()
+	if want("starfall"):
+		await t_starfall()

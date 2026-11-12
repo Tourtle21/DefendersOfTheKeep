@@ -60,3 +60,5 @@ CLAIM stormbow
 DONE witchstaff
 DONE soulreaper
 CLAIM starfall
+DONE worldbreaker
+DONE starfall

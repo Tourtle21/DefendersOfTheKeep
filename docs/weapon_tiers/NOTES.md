@@ -54,3 +54,8 @@ Where a design asked for something the old scripts cannot give a module, the old
 - Everything that shows a weapon calls `WeaponArt.hud_icon(id, tier, path)`: the code-drawn weapon (`Weapon._attach_visual`), the HUD inventory slot, the split-screen /
   LAN slots (`weapon_slots.gd`), and the weapon cards (codex, Forge, draws, rewards: `WeaponCard.icon`).
 - Contact sheet: `tools/make_weapon_tier_art.gd -- ids=a,b out=/path.png scale=6`. Test: `tools/tests/weapon_art.gd`.
+
+## Ancient fusions (implementer 2): witchstaff, soulreaper, starfall
+- Witch Staff: Hex adds `Game.HEXED_BONUS` (meta `hexed_until`, 1.2x) to `Game.mark_mult`. The hex jump and the Pox cloud run from a death watch in `tick` (positions kept every 0.1 s), so any death of a hexed enemy counts, not only a bolt kill. Rot here has no 5-stack burst (the Bog Staff's bursts stay with the Bog Staff); `WeaponUtil.rot_mult` still raises poison ticks. Witches and ravens are drawn by the aura from `data` {w, ph, q}.
+- Soulreaper: kills are credited when the enemy died within 60 px of you, was touched by one of your hits in the last 0.8 s, or was exposed (quiet hits do not call `on_hit`). The Soul Tide arrives 3.5 s after the press (the old Reap runs about 3.5 s). The Grim Reaper transformation starts at 4.0 s and the harvest at 16.0 s, as designed.
+- Starfall: the old Spellblade ultimate is not awaited by Starfall's `ultimate()`, so the old star rain starts AT the press, not 5 s later; the Meteor Rain replaces it from the press, and the Cosmic Dance starts at press + 5.5 s (after the 5 s Blade Dance blades; the design said 8.5 s) and ends with the Supernova at about 17.5 s. Starfall's blades are drawn by the aura through `tiers/spellblade.gd draw_blades`.

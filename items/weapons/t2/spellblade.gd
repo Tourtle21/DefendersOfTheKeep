@@ -36,7 +36,7 @@ func attack() -> void:
 	for e in WeaponUtil.enemies_in_arc(get_tree(), o, aim, 28.0, 55.0):
 		WeaponUtil.hit(e, Game.basic_hit(weapon_id) * 0.5, o, 100.0)
 	var extra := {}
-	if weapon_id == "spellblade":                                # weapon tiers: crescent waves with a trail, chaining at tier 4 (_st.chain)
+	if weapon_id == "spellblade" or weapon_id == "starfall":     # weapon tiers: crescent waves with a trail, chaining at tier 4 (_st.chain)
 		extra = {"style": "crescent", "size": 1.0, "trail": 3, "chain": int(_st.get("chain", 0))}
 	WeaponProjectile.shoot(game_world(), o + aim * 14.0, aim, 240.0, Game.basic_hit(weapon_id) * 0.5, Color(0.7, 0.8, 1.0), 0.5, 1, 100.0, extra)
 
@@ -66,7 +66,7 @@ func _on_blade_hit(_e) -> void:
 
 func _draw() -> void:
 	super()
-	if weapon_id == "spellblade":                  # (the Spellblade's blades are drawn by its WeaponAura, so LAN clients see them too)
+	if weapon_id == "spellblade" or weapon_id == "starfall":     # (the blades are drawn by its WeaponAura, so LAN clients see them too)
 		return
 	if Time.get_ticks_msec() / 1000.0 < _storm_until:
 		for i in blade_count:

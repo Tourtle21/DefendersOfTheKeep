@@ -21,6 +21,9 @@ func ability() -> void:
 	await get_tree().create_timer(storm_len + 0.05).timeout
 	if !is_inside_tree():
 		return
+	_claim()
+	if tier >= 4 and WeaponTiers.run(self, "cascade") == true:        # weapon tiers: Constellation Storm detonates as a chain
+		return
 	for e in get_tree().get_nodes_in_group("enemy"):
 		if is_instance_valid(e) and !e.is_queued_for_deletion() and e.has_meta("charge"):
 			var n: int = e.get_meta("charge")
@@ -28,6 +31,7 @@ func ability() -> void:
 			fx("ring", e.global_position, Color(0.8, 0.9, 1.0), {"radius": 14.0 + 4.0 * n, "life": 0.3})
 			WeaponUtil.hit(e, 1.5 * n, player.global_position, 80.0, 0.6 if n >= 3 else 0.0)
 			if n >= 3:                                              # a heavily charged enemy calls a star down on itself
+				fx("fall", e.global_position, Color(1.0, 0.92, 0.55), {"radius": 5.0, "height": 100.0, "rise": 0.0, "life": 0.35})
 				ground_strike(e.global_position, 22.0 + 5.0 * n, 0.35, 2.5 * n, 200.0, Color(0.85, 0.9, 1.0), 0.7)
 
 func _draw() -> void:
@@ -43,4 +47,7 @@ func ultimate() -> void:
 	# Blade Dance, then a meteor shower of stars over the whole area
 	super()
 	var o: Vector2 = player.global_position
+	_claim()
+	if tier >= 5 and WeaponTiers.run(self, "meteors", [o]) == true:   # weapon tiers: the stars become a meteor shower
+		return
 	rain(o, 140.0, 18, 3.0, 4.2, 22.0, Color(0.85, 0.9, 1.0), 0.4)
